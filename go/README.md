@@ -1,19 +1,11 @@
 # PondLive
 
-Server-driven UI toolkit for Go, inspired by React and Phoenix LiveView. Built on PondSocket, it streams HTML diffs over WebSocket and brings handler-level routing similar to Phoenix while reusing a React-like hooks API.
+PondLive is a server-driven UI toolkit for Go. Inspired by React and Phoenix LiveView, it keeps component logic on the server while streaming HTML diffs to the browser over PondSocket-powered WebSockets. The PondSocket transport also exposes handler-level routing primitives similar to Phoenix, so you can build interactive pages and navigation flows without duplicating logic in the browser.
 
 ## Installation
 
 ```bash
 go get github.com/eleven-am/pondlive/go
-```
-
-The server ships a prebuilt client script at `/pondlive.js`. Rebuild it when you change the client bundle:
-
-```bash
-cd client
-npm install
-npm run build:prod
 ```
 
 ## Minimal Application
