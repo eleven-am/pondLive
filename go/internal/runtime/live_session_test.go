@@ -184,7 +184,7 @@ func TestLiveSessionAckPrunesHistory(t *testing.T) {
 		t.Fatal("missing handler id")
 	}
 
-	sess.Join(1, 0) // boot
+	sess.Join(1, 0)
 	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 1); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}

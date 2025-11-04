@@ -105,7 +105,6 @@ func TestDeliverToSessionFlushes(t *testing.T) {
 		t.Fatalf("unexpected meta value %q", delivery.meta["id"])
 	}
 
-	// Mutate the source envelope to ensure the stored copies are isolated.
 	envelope.Data[0] = 'X'
 	envelope.Meta["id"] = "999"
 	if string(delivery.payload) != "\"hello\"" {

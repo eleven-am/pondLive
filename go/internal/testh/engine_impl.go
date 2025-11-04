@@ -113,7 +113,7 @@ func (e *engine) DispatchEvent(handlerID string, payload map[string]any) {
 	if fn == nil {
 		return
 	}
-	updates := fn(html.Event{ //nolint:exhaustruct
+	updates := fn(html.Event{
 		Name:    inferEventName(handlerID, "event"),
 		Payload: clonePayload(payload),
 	})
@@ -127,7 +127,7 @@ func (e *engine) DispatchSubmit(handlerID string, form map[string]string) {
 	if fn == nil {
 		return
 	}
-	updates := fn(html.Event{ //nolint:exhaustruct
+	updates := fn(html.Event{
 		Name: inferEventName(handlerID, "submit"),
 		Form: cloneForm(form),
 	})

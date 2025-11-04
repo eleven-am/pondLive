@@ -295,7 +295,7 @@ func (s *ComponentSession) runPubsubTasks(tasks []pubsubTask) {
 			task.run()
 			return nil
 		}); err != nil {
-			// Session has transitioned into errored mode; abort remaining tasks.
+
 			return
 		}
 	}

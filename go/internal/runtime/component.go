@@ -47,7 +47,7 @@ func (a *componentAdapter[P]) call(ctx Ctx, props any) h.Node {
 	}
 	value, ok := props.(P)
 	if !ok {
-		// Allow pointer props stored as concrete values and vice versa.
+
 		if ptr, okPtr := props.(*P); okPtr {
 			value = *ptr
 		} else {

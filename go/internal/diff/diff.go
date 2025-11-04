@@ -173,7 +173,7 @@ func diffListSlot(slot int, prevRows, nextRows []render.Row) []ListChildOp {
 
 		fromIdx := findIndex(current, row.Key)
 		if fromIdx == -1 {
-			// Should not happen, but guard to avoid panic.
+
 			ops = append(ops, Ins{Pos: targetIdx, Row: row})
 			current = insertKey(current, targetIdx, row.Key)
 			continue

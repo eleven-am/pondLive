@@ -160,8 +160,7 @@ func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
 		}
 		cell.deps = cloneDeps(deps)
 	} else if cell.cleanup == nil {
-		// The effect has never run (e.g., initial render during SSR was skipped).
-		// Ensure it runs at least once on the next flush even if deps haven't changed.
+
 		if ctx.sess != nil {
 			ctx.sess.enqueueEffect(ctx.comp, idx, setup)
 		}

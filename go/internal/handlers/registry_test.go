@@ -26,7 +26,7 @@ func TestRegistryRemove(t *testing.T) {
 	if _, ok := reg.Get(id); ok {
 		t.Fatalf("expected handler %s to be removed", id)
 	}
-	// ensure new registration can reuse pointer without stale id
+
 	id2 := reg.Ensure(handler)
 	if id2 == id {
 		t.Fatalf("expected new id after removal, got same %s", id2)

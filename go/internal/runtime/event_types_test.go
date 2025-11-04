@@ -31,7 +31,7 @@ func TestWireEventToEvent(t *testing.T) {
 	if !ev.Mods.Ctrl || ev.Mods.Button != 2 {
 		t.Fatalf("unexpected modifiers: %+v", ev.Mods)
 	}
-	// ensure copies are returned
+
 	ev.Payload["id"] = 99
 	if payload.Payload["id"].(int) != 42 {
 		t.Fatalf("expected payload map to be cloned")

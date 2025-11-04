@@ -35,7 +35,7 @@ func Register(srv *pond.Manager, path string, registry *server.SessionRegistry) 
 	}
 
 	endpoint := srv.CreateEndpoint(path, func(ctx *pond.ConnectionContext) error {
-		// Connection-level authentication hooks can be added here in the future.
+
 		return ctx.Accept()
 	})
 

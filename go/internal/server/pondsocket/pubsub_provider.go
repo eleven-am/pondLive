@@ -129,7 +129,6 @@ func (p *pubsubProvider) Unsubscribe(session *runtime.LiveSession, token string)
 		return nil
 	}
 
-	// Leaving the PondSocket channel is handled collaboratively with the transport; nothing to do here yet.
 	if shouldEvict {
 		p.evictFromTopic(sub.session, sub.topic)
 	}
@@ -220,7 +219,7 @@ func (p *pubsubProvider) handleOutgoing(ctx *pond.OutgoingContext) error {
 
 	envelope := p.parseOutgoingPayload(ctx)
 	if len(envelope.Data) == 0 {
-		// Ensure we always deliver a concrete payload to the runtime.
+
 		envelope.Data = json.RawMessage("null")
 	}
 
@@ -252,7 +251,7 @@ func (p *pubsubProvider) processOutgoingMessage(sessionID runtime.SessionID, con
 }
 
 func (p *pubsubProvider) handleLeave(ctx *pond.LeaveContext) {
-	// The component lifecycle handles cleanup through Unsubscribe; nothing extra to do here.
+
 	_ = ctx
 }
 

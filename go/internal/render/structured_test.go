@@ -39,7 +39,7 @@ func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	if attrSlots == 0 {
 		t.Fatal("expected at least one attr slot")
 	}
-	// Ensure event handler registered and stored on attr slot and slot indexes annotated.
+
 	found := false
 	annotated := 0
 	for idx, dyn := range structured.D {
