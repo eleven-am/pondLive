@@ -23,7 +23,7 @@
     "publishToNpm": "npm version patch && npm publish",
     "mon:client": "parcel src/server/assets/index.html",
     "mon:server": "nodemon --watch src --exec ts-node src/test.ts --trace-warnings",
-    "build:client": "npx esbuild ./src/client/index.ts --bundle --outfile=./public/pondLive.js --minify --target=es2017",
+    "build:client": "npx esbuild src/client/index.ts --bundle --outfile=./public/pondLive.js --minify --target=es2017",
     "build": "npm run build:server && npm run build:client",
     "dev": "concurrently \"npm run mon:server\" \"npm run mon:client\""
   },

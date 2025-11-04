@@ -8,6 +8,8 @@
     "skipLibCheck": true,
     "strict": true,
   },
-  "include": ["src/**/*"],
+  "include": [
+    "javascript/src/**/*"
+  ],
   "exclude": ["node_modules", "**/__tests__/*"]
 }
