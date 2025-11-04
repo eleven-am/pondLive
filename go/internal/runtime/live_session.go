@@ -27,6 +27,7 @@ type Transport interface {
 	SendFrame(protocol.Frame) error
 	SendServerError(protocol.ServerError) error
 	SendPubsubControl(protocol.PubsubControl) error
+	SendUploadControl(protocol.UploadControl) error
 }
 
 // LiveSession wires a component tree to the PondSocket protocol and tracks
@@ -472,6 +473,61 @@ func (s *LiveSession) DeliverPubsub(topic string, payload []byte, meta map[strin
 		return
 	}
 	s.component.deliverPubsub(topic, payload, meta)
+}
+
+// HandleUploadMessage processes lifecycle updates emitted by the client uploader.
+func (s *LiveSession) HandleUploadMessage(msg protocol.UploadClient) error {
+	if s == nil {
+		return errors.New("runtime: session is nil")
+	}
+	comp := s.ComponentSession()
+	if comp == nil {
+		return errors.New("runtime: session has no component")
+	}
+	switch msg.Op {
+	case "change":
+		if msg.Meta != nil {
+			meta := FileMeta{Name: msg.Meta.Name, Size: msg.Meta.Size, Type: msg.Meta.Type}
+			comp.HandleUploadChange(msg.ID, meta)
+		}
+	case "progress":
+		comp.HandleUploadProgress(msg.ID, msg.Loaded, msg.Total)
+	case "error":
+		errMsg := msg.Error
+		if strings.TrimSpace(errMsg) == "" {
+			errMsg = "upload failed"
+		}
+		comp.HandleUploadError(msg.ID, errors.New(errMsg))
+	case "cancelled":
+		comp.HandleUploadCancelled(msg.ID)
+	default:
+		return nil
+	}
+	if !comp.Dirty() {
+		return nil
+	}
+	return s.Flush()
+}
+
+// CancelUpload requests the client abort an in-flight upload and updates local state.
+func (s *LiveSession) CancelUpload(id string) error {
+	if s == nil {
+		return errors.New("runtime: session is nil")
+	}
+	comp := s.ComponentSession()
+	if comp != nil {
+		comp.HandleUploadCancelled(id)
+	}
+	if comp != nil && comp.Dirty() {
+		if err := s.Flush(); err != nil {
+			return err
+		}
+	}
+	if s.transport == nil || id == "" {
+		return nil
+	}
+	ctrl := protocol.UploadControl{T: "upload", SID: string(s.id), ID: id, Op: "cancel"}
+	return s.transport.SendUploadControl(ctrl)
 }
 
 func (s *LiveSession) pubsubSubscribed(topic string) {

@@ -48,11 +48,12 @@ func NewApp(ctx context.Context, component Component) (*App, error) {
 
 	prefix := trimPatternPrefix(livehttp.PondSocketPattern)
 	route := endpointFromPrefix(prefix)
-	manager.SetClientConfig(protocol.ClientConfig{Endpoint: route})
+	manager.SetClientConfig(protocol.ClientConfig{Endpoint: route, UploadEndpoint: livehttp.UploadPathPrefix})
 
 	mux := http.NewServeMux()
 	mux.Handle(route, pondManager.HTTPHandler())
 	mux.Handle(clientScriptPath(), clientScriptHandler())
+	mux.Handle(livehttp.UploadPathPrefix, livehttp.NewUploadHandler(manager.Registry()))
 	mux.Handle("/", manager)
 
 	provider := pondEndpoint.PubsubProvider()

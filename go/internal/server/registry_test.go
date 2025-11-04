@@ -19,6 +19,7 @@ type stubTransport struct {
 	acks     []protocol.EventAck
 	errors   []protocol.ServerError
 	controls []protocol.PubsubControl
+	uploads  []protocol.UploadControl
 }
 
 func (s *stubTransport) Close() error {
@@ -67,6 +68,13 @@ func (s *stubTransport) SendPubsubControl(ctrl protocol.PubsubControl) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.controls = append(s.controls, ctrl)
+	return nil
+}
+
+func (s *stubTransport) SendUploadControl(ctrl protocol.UploadControl) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.uploads = append(s.uploads, ctrl)
 	return nil
 }
 

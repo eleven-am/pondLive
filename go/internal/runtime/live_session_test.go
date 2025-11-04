@@ -17,6 +17,7 @@ type stubTransport struct {
 	frames   []protocol.Frame
 	errors   []protocol.ServerError
 	controls []protocol.PubsubControl
+	uploads  []protocol.UploadControl
 }
 
 func (s *stubTransport) SendInit(init protocol.Init) error {
@@ -41,6 +42,11 @@ func (s *stubTransport) SendServerError(err protocol.ServerError) error {
 
 func (s *stubTransport) SendPubsubControl(ctrl protocol.PubsubControl) error {
 	s.controls = append(s.controls, ctrl)
+	return nil
+}
+
+func (s *stubTransport) SendUploadControl(ctrl protocol.UploadControl) error {
+	s.uploads = append(s.uploads, ctrl)
 	return nil
 }
 

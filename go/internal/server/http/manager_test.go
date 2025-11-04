@@ -133,7 +133,7 @@ func TestManagerClientAssetOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read body: %v", err)
 	}
-	if !strings.Contains(string(body), "<script src=\"https://cdn.example.com/live.js\"></script>") {
+	if !strings.Contains(string(body), "<script src=\"https://cdn.example.com/liveui.js\"></script>") {
 		t.Fatalf("expected custom asset script tag, body=%s", string(body))
 	}
 }

@@ -74,6 +74,13 @@ func (t *transport) SendPubsubControl(ctrl protocol.PubsubControl) error {
 	return t.send("pubsub", ctrl)
 }
 
+func (t *transport) SendUploadControl(ctrl protocol.UploadControl) error {
+	if ctrl.T == "" {
+		ctrl.T = "upload"
+	}
+	return t.send("upload", ctrl)
+}
+
 func (t *transport) send(event string, payload any) error {
 	if t.closed.Load() {
 		return errTransportClosed

@@ -59,15 +59,18 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 	if err := tr.SendPubsubControl(protocol.PubsubControl{Op: "join", Topic: "news"}); err != nil {
 		t.Fatalf("SendPubsubControl: %v", err)
 	}
+	if err := tr.SendUploadControl(protocol.UploadControl{Op: "cancel", ID: "u1"}); err != nil {
+		t.Fatalf("SendUploadControl: %v", err)
+	}
 
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
 
-	if len(ch.calls) != 6 {
-		t.Fatalf("expected 6 calls, got %d", len(ch.calls))
+	if len(ch.calls) != 7 {
+		t.Fatalf("expected 7 calls, got %d", len(ch.calls))
 	}
 
-	want := []string{"init", "resume", "frame", "evt-ack", "error", "pubsub"}
+	want := []string{"init", "resume", "frame", "evt-ack", "error", "pubsub", "upload"}
 	for i, event := range want {
 		if ch.calls[i].event != event {
 			t.Fatalf("call %d expecting event %q, got %q", i, event, ch.calls[i].event)
@@ -103,6 +106,13 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 			}
 			if payload.Op != "join" || payload.Topic != "news" {
 				t.Fatalf("unexpected pubsub payload: %#v", payload)
+			}
+		case protocol.UploadControl:
+			if payload.T != "upload" {
+				t.Fatalf("expected upload payload T, got %q", payload.T)
+			}
+			if payload.Op != "cancel" || payload.ID != "u1" {
+				t.Fatalf("unexpected upload payload: %#v", payload)
 			}
 		default:
 			t.Fatalf("unexpected payload type %T", payload)

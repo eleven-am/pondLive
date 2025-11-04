@@ -101,6 +101,26 @@ func TodoList(ctx ui.Ctx) h.Node {
 - `h.Map` and `h.MapIdx` expand slices into node lists; pair with `h.Key` or `ui.WithKey` for deterministic diffing.
 - Conditional helpers `h.If` and `h.IfFn` include optional items without cluttering render logic.
 
+## File Uploads
+
+`live.UseUpload(ctx)` registers an upload slot for the component and returns a handle you attach to an `<input type="file">`.
+
+```go
+upload := live.UseUpload(ctx)
+upload.OnComplete(func(file live.UploadedFile) h.Updates {
+    // move file.TempPath to permanent storage
+    return h.Rerender()
+})
+
+inputProps := upload.BindInput(h.Type("file"))
+progress := upload.Progress()
+```
+
+Optional callbacks such as `OnChange` (receives `live.FileMeta`) and `OnError` let you react to selection or failures. Use
+`Accept`, `AllowMultiple`, or `MaxSize` to mirror input attributes on the client while enforcing limits server-side. The
+`Progress()` snapshot exposes bytes loaded, total size, and `Status` values like `UploadStatusUploading` or
+`UploadStatusComplete` for rendering progress indicators.
+
 ## Context and Derived State
 
 Use typed contexts to share state across the tree; providers export setters so you can build scoped stores without global variables:

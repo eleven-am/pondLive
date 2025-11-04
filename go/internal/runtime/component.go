@@ -203,6 +203,9 @@ func (c *component) render() h.Node {
 func (c *component) unmount() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.sess != nil {
+		c.sess.releaseUploadSlots(c)
+	}
 	for _, child := range c.children {
 		child.unmount()
 	}

@@ -31,6 +31,10 @@ type ComponentSession struct {
 	suspend      int
 	flushing     bool
 
+	uploads           map[string]*uploadSlot
+	uploadByComponent map[*component]map[int]*uploadSlot
+	uploadSeq         int
+
 	pendingEffects  []effectTask
 	pendingCleanups []cleanupTask
 	pendingNav      *protocol.NavDelta
@@ -150,6 +154,16 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 		s.pendingNav = nil
 		s.pendingMetrics = nil
 		s.pendingPubsub = nil
+		if s.uploads != nil {
+			for _, slot := range s.uploads {
+				if slot != nil {
+					slot.sess = nil
+				}
+			}
+		}
+		s.uploads = nil
+		s.uploadByComponent = nil
+		s.uploadSeq = 0
 		return nil
 	}); err != nil {
 		return render.Structured{}

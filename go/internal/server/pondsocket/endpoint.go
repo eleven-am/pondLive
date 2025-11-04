@@ -55,6 +55,7 @@ func (e *Endpoint) configure() {
 	lobby.OnMessage("nav", e.onNavigate)
 	lobby.OnMessage("pop", e.onPopState)
 	lobby.OnMessage("recover", e.onRecover)
+	lobby.OnMessage("upload", e.onUpload)
 	lobby.OnLeave(e.onLeave)
 
 	if e.pubsub != nil {
@@ -169,6 +170,35 @@ func (e *Endpoint) onClientEvent(ctx *pond.EventContext) error {
 		CSeq: envelope.CSeq,
 	}
 	return transport.SendEventAck(ack)
+}
+
+func (e *Endpoint) onUpload(ctx *pond.EventContext) error {
+	user := ctx.GetUser()
+	if user == nil {
+		return nil
+	}
+
+	session, transport, ok := e.registry.LookupByConnection(user.UserID)
+	if !ok || session == nil {
+		return nil
+	}
+
+	var payload protocol.UploadClient
+	if err := ctx.ParsePayload(&payload); err != nil {
+		diagErr := badPayloadDiagnostic("transport:parse", "failed to decode upload envelope", err, nil)
+		if transport != nil {
+			_ = transport.SendServerError(serverError(session.ID(), "bad_payload", diagErr))
+		}
+		return nil
+	}
+
+	if err := session.HandleUploadMessage(payload); err != nil {
+		if transport != nil {
+			_ = transport.SendServerError(serverError(session.ID(), "upload_error", err))
+		}
+		return err
+	}
+	return nil
 }
 
 func (e *Endpoint) onAck(ctx *pond.EventContext) error {
