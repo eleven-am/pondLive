@@ -1,8 +1,8 @@
 package testh
 
 import (
-	handlers "github.com/eleven-am/liveui/internal/handlers"
-	"github.com/eleven-am/liveui/pkg/liveui/html"
+	handlers "github.com/eleven-am/go/pondlive/internal/handlers"
+	"github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 type registryFactory struct{}

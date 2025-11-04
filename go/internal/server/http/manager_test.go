@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eleven-am/liveui/internal/protocol"
-	runtime "github.com/eleven-am/liveui/internal/runtime"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
-	routerui "github.com/eleven-am/liveui/pkg/liveui/router"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
+	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	routerui "github.com/eleven-am/go/pondlive/pkg/live/router"
 )
 
 func appComponent(ctx runtime.Ctx, _ struct{}) h.Node {
@@ -78,12 +78,12 @@ func TestManagerServeHTTP(t *testing.T) {
 		"metaCharset":     "<meta charset=\"utf-8\">",
 		"metaViewport":    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
 		"title":           "<title>Profile</title>",
-		"description":     "<meta name=\"description\" content=\"Viewing profile for user\" data-liveui-head=\"description\" data-liveui-key=\"description\">",
-		"ogTitle":         "<meta content=\"Profile\" property=\"og:title\" data-liveui-head=\"meta\" data-liveui-key=\"meta:property:og:title\">",
-		"canonicalLink":   "<link rel=\"canonical\" href=\"/users\" data-liveui-head=\"link\" data-liveui-key=\"link:rel:canonical|href:/users\">",
-		"analyticsScript": "<script src=\"https://cdn.example.com/analytics.js\" defer data-liveui-head=\"script\" data-liveui-key=\"script:src:https://cdn.example.com/analytics.js\"></script>",
+		"description":     "<meta name=\"description\" content=\"Viewing profile for user\" data-live-head=\"description\" data-live-key=\"description\">",
+		"ogTitle":         "<meta content=\"Profile\" property=\"og:title\" data-live-head=\"meta\" data-live-key=\"meta:property:og:title\">",
+		"canonicalLink":   "<link rel=\"canonical\" href=\"/users\" data-live-head=\"link\" data-live-key=\"link:rel:canonical|href:/users\">",
+		"analyticsScript": "<script src=\"https://cdn.example.com/analytics.js\" defer data-live-head=\"script\" data-live-key=\"script:src:https://cdn.example.com/analytics.js\"></script>",
 		"bundleScript":    "<script src=\"/pondlive.js\" defer></script>",
-		"bootScript":      "<script id=\"liveui-boot\" type=\"application/json\">",
+		"bootScript":      "<script id=\"live-boot\" type=\"application/json\">",
 		"bootSession":     "\"sid\":\"fixed\"",
 		"bootPath":        "\"path\":\"/users/42\"",
 	}
@@ -93,7 +93,7 @@ func TestManagerServeHTTP(t *testing.T) {
 		}
 	}
 
-	if bodyIdx := strings.Index(content, "<script id=\"liveui-boot\""); bodyIdx != -1 {
+	if bodyIdx := strings.Index(content, "<script id=\"live-boot\""); bodyIdx != -1 {
 		if endIdx := strings.Index(content, "</body>"); endIdx != -1 && bodyIdx > endIdx {
 			t.Fatalf("expected boot script to appear before </body>, body=%s", content)
 		}
@@ -133,7 +133,7 @@ func TestManagerClientAssetOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read body: %v", err)
 	}
-	if !strings.Contains(string(body), "<script src=\"https://cdn.example.com/liveui.js\"></script>") {
+	if !strings.Contains(string(body), "<script src=\"https://cdn.example.com/live.js\"></script>") {
 		t.Fatalf("expected custom asset script tag, body=%s", string(body))
 	}
 }

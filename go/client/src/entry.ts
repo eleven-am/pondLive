@@ -59,7 +59,7 @@ function detectBootPayload(target: LiveUIWindow): BootPayload | null {
     return null;
   }
 
-  const script = document.getElementById('liveui-boot');
+  const script = document.getElementById('live-boot');
   const content = script?.textContent;
   if (!content) {
     return null;

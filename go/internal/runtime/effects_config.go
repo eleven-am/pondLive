@@ -14,10 +14,10 @@ var (
 
 func defaultEffectWarningHandler(component string, duration time.Duration) {
 	if component == "" {
-		log.Printf("liveui: effect exceeded threshold: duration=%s", duration)
+		log.Printf("live: effect exceeded threshold: duration=%s", duration)
 		return
 	}
-	log.Printf("liveui: effect exceeded threshold: component=%s duration=%s", component, duration)
+	log.Printf("live: effect exceeded threshold: component=%s duration=%s", component, duration)
 }
 
 // SetEffectWarningThreshold updates the duration after which effect execution

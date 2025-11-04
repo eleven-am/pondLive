@@ -71,7 +71,7 @@ describe('BootHandler', () => {
       };
 
       const script = document.createElement('script');
-      script.id = 'liveui-boot';
+      script.id = 'live-boot';
       script.type = 'application/json'; // Prevent JSDOM from executing as JS
       script.textContent = JSON.stringify(payload);
       document.body.appendChild(script);

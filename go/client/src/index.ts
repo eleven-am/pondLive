@@ -852,8 +852,8 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
             return;
         }
 
-        const keyAttr = 'data-liveui-key';
-        const typeAttr = 'data-liveui-head';
+        const keyAttr = 'data-live-key';
+        const typeAttr = 'data-live-head';
 
         const removeByKeys = (keys?: string[]) => {
             if (!Array.isArray(keys) || keys.length === 0) {
@@ -1318,7 +1318,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
             return;
         }
         const overlay = document.createElement('div');
-        overlay.id = 'liveui-error-overlay';
+        overlay.id = 'live-error-overlay';
         overlay.setAttribute('role', 'alertdialog');
         overlay.setAttribute('aria-live', 'assertive');
         overlay.setAttribute('aria-modal', 'true');

@@ -11,12 +11,12 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	"github.com/eleven-am/liveui/internal/protocol"
-	"github.com/eleven-am/liveui/internal/render"
-	"github.com/eleven-am/liveui/internal/runtime"
-	"github.com/eleven-am/liveui/internal/server"
-	"github.com/eleven-am/liveui/internal/server/pondsocket"
-	"github.com/eleven-am/liveui/pkg/liveui/router"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
+	"github.com/eleven-am/go/pondlive/internal/render"
+	"github.com/eleven-am/go/pondlive/internal/runtime"
+	"github.com/eleven-am/go/pondlive/internal/server"
+	"github.com/eleven-am/go/pondlive/internal/server/pondsocket"
+	"github.com/eleven-am/go/pondlive/pkg/live/router"
 )
 
 type Manager struct {
@@ -112,7 +112,7 @@ func (m *Manager) SetClientConfig(cfg protocol.ClientConfig) {
 // RegisterPondSocket wires the manager's registry to the fixed PondSocket endpoint used by LiveUI.
 func (m *Manager) RegisterPondSocket(srv *pond.Manager) (*pondsocket.Endpoint, error) {
 	if m == nil {
-		return nil, errors.New("liveui: manager is nil")
+		return nil, errors.New("live: manager is nil")
 	}
 	endpoint, err := pondsocket.Register(srv, PondSocketPattern, m.registry)
 	if err != nil {
@@ -127,11 +127,11 @@ func (m *Manager) RegisterPondSocket(srv *pond.Manager) (*pondsocket.Endpoint, e
 // ServeHTTP renders the matching route, registers the session, and writes the SSR response.
 func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if m == nil {
-		http.Error(w, "liveui: no component configured", http.StatusServiceUnavailable)
+		http.Error(w, "live: no component configured", http.StatusServiceUnavailable)
 		return
 	}
 	if r == nil || r.URL == nil {
-		http.Error(w, "liveui: invalid request", http.StatusBadRequest)
+		http.Error(w, "live: invalid request", http.StatusBadRequest)
 		return
 	}
 
@@ -139,19 +139,19 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rawQuery := r.URL.RawQuery
 	values, err := url.ParseQuery(rawQuery)
 	if err != nil {
-		http.Error(w, "liveui: invalid query string", http.StatusBadRequest)
+		http.Error(w, "live: invalid query string", http.StatusBadRequest)
 		return
 	}
 
 	component := m.component
 	if component == nil {
-		http.Error(w, "liveui: no component configured", http.StatusServiceUnavailable)
+		http.Error(w, "live: no component configured", http.StatusServiceUnavailable)
 		return
 	}
 
 	sid, err := m.idGenerator(r)
 	if err != nil || sid == "" {
-		http.Error(w, "liveui: failed to allocate session", http.StatusInternalServerError)
+		http.Error(w, "live: failed to allocate session", http.StatusInternalServerError)
 		return
 	}
 
@@ -176,7 +176,7 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	payload, err := json.Marshal(boot)
 	if err != nil {
-		http.Error(w, "liveui: failed to encode boot payload", http.StatusInternalServerError)
+		http.Error(w, "live: failed to encode boot payload", http.StatusInternalServerError)
 		return
 	}
 
@@ -196,7 +196,7 @@ func buildRouterLocation(path string, values url.Values) router.Location {
 func buildResponseBody(body string, payload []byte, meta *runtime.Meta, assetURL string) string {
 	escaped := escapeJSON(string(payload))
 	document := buildDocument(body, meta, assetURL)
-	script := "<script id=\"liveui-boot\" type=\"application/json\">" + escaped + "</script>"
+	script := "<script id=\"live-boot\" type=\"application/json\">" + escaped + "</script>"
 
 	idx := strings.LastIndex(document, "</body>")
 	if idx < 0 {

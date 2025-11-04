@@ -9,7 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	runtime "github.com/eleven-am/liveui/internal/runtime"
+	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
 )
 
 // RedisTTLStore uses a Redis sorted set to track session expirations.
@@ -21,7 +21,7 @@ type RedisTTLStore struct {
 // NewRedisTTLStore constructs a TTL store backed by Redis. The key parameter identifies the sorted-set name.
 func NewRedisTTLStore(client *redis.Client, key string) *RedisTTLStore {
 	if key == "" {
-		key = "liveui:sessions"
+		key = "live:sessions"
 	}
 	return &RedisTTLStore{client: client, key: key}
 }

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	livehttp "github.com/eleven-am/liveui/internal/server/http"
-	ui "github.com/eleven-am/liveui/pkg/liveui"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	livehttp "github.com/eleven-am/go/pondlive/internal/server/http"
+	ui "github.com/eleven-am/go/pondlive/pkg/live"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 func TestTailwindCounterSSR(t *testing.T) {
@@ -47,7 +47,7 @@ func TestTailwindCounterSSR(t *testing.T) {
 		"src=\"/pondlive.js\"",
 		"LiveUI Tailwind Counter",
 		"<button",
-		"<script id=\"liveui-boot\"",
+		"<script id=\"live-boot\"",
 		"\"sid\":\"example-session\"",
 	} {
 		if !strings.Contains(content, want) {

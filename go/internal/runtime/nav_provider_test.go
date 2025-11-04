@@ -3,8 +3,8 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/liveui/internal/diff"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	"github.com/eleven-am/go/pondlive/internal/diff"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 func TestDrainNavUpdateUsesProvider(t *testing.T) {

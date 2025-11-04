@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 type contextID uint64

@@ -79,7 +79,7 @@ The client communicates with the server using JSON messages over WebSocket:
 ### Basic Setup
 
 ```typescript
-import LiveUI from '@liveui/client';
+import LiveUI from '@live/client';
 
 // Create and connect the client
 const client = new LiveUI({

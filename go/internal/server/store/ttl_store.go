@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	runtime "github.com/eleven-am/liveui/internal/runtime"
+	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
 )
 
 // TTLStore persists session expiry metadata.

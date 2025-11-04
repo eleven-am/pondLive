@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"sync"
 
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 // Component defines a function component with props of type P that returns an HTML node.

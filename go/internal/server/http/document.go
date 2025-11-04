@@ -5,13 +5,13 @@ import (
 	"sort"
 	"strings"
 
-	runtime "github.com/eleven-am/liveui/internal/runtime"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 const (
-	liveuiHeadAttr    = "data-liveui-head"
-	liveuiHeadKeyAttr = "data-liveui-key"
+	liveuiHeadAttr    = "data-live-head"
+	liveuiHeadKeyAttr = "data-live-key"
 )
 
 // buildDocument constructs the outer HTML document used for SSR responses. The

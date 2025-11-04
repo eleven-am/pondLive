@@ -4,7 +4,7 @@
     registerSlot() {},
     getSlot() { return null; },
     unregisterSlot() {},
-    ensureList() { throw new Error('liveui: dom index missing'); },
+    ensureList() { throw new Error('live: dom index missing'); },
     setRow() {},
     getRow() { return null; },
     deleteRow() {},
@@ -89,7 +89,7 @@
           const fragment = createFragment(payload.html || '');
           const nodes = Array.from(fragment.childNodes);
           if (nodes.length === 0) {
-            console.warn('liveui: insertion payload missing nodes for key', payload.key);
+            console.warn('live: insertion payload missing nodes for key', payload.key);
             break;
           }
           container.insertBefore(fragment, container.children[pos] || null);
@@ -98,7 +98,7 @@
             dom.setRow(slotIndex, payload.key, root);
             registerRowSlots(payload.slots || [], root);
           } else {
-            console.warn('liveui: row root is not an element for key', payload.key);
+            console.warn('live: row root is not an element for key', payload.key);
           }
           break;
         }
@@ -113,7 +113,7 @@
           break;
         }
         default:
-          console.warn('liveui: unknown list child op', op);
+          console.warn('live: unknown list child op', op);
       }
     }
   }
@@ -134,7 +134,7 @@
           applyList(op[1], op.slice(2));
           break;
         default:
-          console.warn('liveui: unknown op', op);
+          console.warn('live: unknown op', op);
       }
     }
   }

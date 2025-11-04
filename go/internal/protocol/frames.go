@@ -1,6 +1,6 @@
 package protocol
 
-import "github.com/eleven-am/liveui/internal/diff"
+import "github.com/eleven-am/go/pondlive/internal/diff"
 
 type Boot struct {
 	T        string                 `json:"t"`

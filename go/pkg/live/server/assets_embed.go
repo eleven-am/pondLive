@@ -22,7 +22,7 @@ func clientScriptHandler() http.Handler {
 	clientAssetHandlerOnce.Do(func() {
 		data, err := clientAssetFS.ReadFile("static/pondlive.js")
 		if err != nil {
-			panic("liveui: failed to load client assets: " + err.Error())
+			panic("live: failed to load client assets: " + err.Error())
 		}
 		modTime := time.Time{}
 		clientAssetHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -8,11 +8,11 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	"github.com/eleven-am/liveui/internal/protocol"
-	"github.com/eleven-am/liveui/internal/runtime"
-	livehttp "github.com/eleven-am/liveui/internal/server/http"
-	ui "github.com/eleven-am/liveui/pkg/liveui"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
+	"github.com/eleven-am/go/pondlive/internal/runtime"
+	livehttp "github.com/eleven-am/go/pondlive/internal/server/http"
+	ui "github.com/eleven-am/go/pondlive/pkg/live"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 // Component represents the root LiveUI component rendered for every request.
@@ -29,7 +29,7 @@ type App struct {
 // NewApp constructs a LiveUI application stack using the supplied component.
 func NewApp(ctx context.Context, component Component) (*App, error) {
 	if component == nil {
-		return nil, errors.New("liveui: component is required")
+		return nil, errors.New("live: component is required")
 	}
 	if ctx == nil {
 		ctx = context.Background()

@@ -11,7 +11,7 @@ const isWatch = process.argv.includes('--watch');
 const baseConfig = {
   entryPoints: [resolve(__dirname, 'src/entry.ts')],
   bundle: true,
-  outfile: resolve(__dirname, '../pkg/liveui/server/static/pondlive.js'),
+  outfile: resolve(__dirname, '../pkg/live/server/static/pondlive.js'),
   format: 'iife',
   platform: 'browser',
   target: ['es2020'],

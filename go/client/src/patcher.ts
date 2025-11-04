@@ -452,7 +452,7 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
 
                 const nodes = Array.from(fragment.childNodes);
                 if (nodes.length === 0) {
-                    console.warn('liveui: insertion payload missing nodes for key', payload.key);
+                    console.warn('live: insertion payload missing nodes for key', payload.key);
                     break;
                 }
 
@@ -477,7 +477,7 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                             }
                         }
                     } else {
-                        console.warn('liveui: row root is not an element for key', payload.key);
+                        console.warn('live: row root is not an element for key', payload.key);
                     }
                 };
 
@@ -517,7 +517,7 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
             }
 
             default:
-                console.warn('liveui: unknown list child op', op);
+                console.warn('live: unknown list child op', op);
         }
     }
 
@@ -558,7 +558,7 @@ export function applyOps(ops: DiffOp[]): void {
                 applyList(op[1], op.slice(2) as ListChildOp[]);
                 break;
             default:
-                console.warn('liveui: unknown op', op);
+                console.warn('live: unknown op', op);
         }
     }
 

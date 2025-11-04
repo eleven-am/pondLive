@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	handlers "github.com/eleven-am/liveui/internal/handlers"
-	"github.com/eleven-am/liveui/internal/protocol"
-	render "github.com/eleven-am/liveui/internal/render"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	handlers "github.com/eleven-am/go/pondlive/internal/handlers"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
+	render "github.com/eleven-am/go/pondlive/internal/render"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 type stubTransport struct {

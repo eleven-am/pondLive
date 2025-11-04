@@ -43,7 +43,7 @@ export class BootHandler {
 
     // Try script tag in DOM
     if (typeof document !== 'undefined') {
-      const script = document.getElementById('liveui-boot');
+      const script = document.getElementById('live-boot');
       const payload = script?.textContent;
       if (payload) {
         try {

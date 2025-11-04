@@ -3,7 +3,7 @@ package render
 import (
 	"strconv"
 
-	"github.com/eleven-am/liveui/pkg/liveui/html"
+	"github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []html.Node, parentAttrSlot int) bool {

@@ -1,6 +1,6 @@
 package router
 
-import "github.com/eleven-am/liveui/internal/route"
+import "github.com/eleven-am/go/pondlive/internal/route"
 
 type (
 	// Match represents parsed routing information surfaced to components.

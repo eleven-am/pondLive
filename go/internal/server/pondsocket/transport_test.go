@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/eleven-am/liveui/internal/protocol"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
 )
 
 type stubChannel struct {

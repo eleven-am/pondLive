@@ -8,11 +8,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/eleven-am/liveui/internal/diff"
-	handlers "github.com/eleven-am/liveui/internal/handlers"
-	"github.com/eleven-am/liveui/internal/protocol"
-	render "github.com/eleven-am/liveui/internal/render"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	"github.com/eleven-am/go/pondlive/internal/diff"
+	handlers "github.com/eleven-am/go/pondlive/internal/handlers"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
+	render "github.com/eleven-am/go/pondlive/internal/render"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 const (

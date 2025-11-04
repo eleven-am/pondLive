@@ -5,14 +5,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eleven-am/liveui/internal/protocol"
-	runtime "github.com/eleven-am/liveui/internal/runtime"
-	"github.com/eleven-am/liveui/internal/server/store"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
+	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
+	"github.com/eleven-am/go/pondlive/internal/server/store"
 )
 
 var (
 	// ErrSessionNotFound reports attempts to attach or fetch sessions that are unknown to the registry.
-	ErrSessionNotFound = errors.New("liveui: session not found")
+	ErrSessionNotFound = errors.New("live: session not found")
 )
 
 // Transport extends the runtime transport with lifecycle hooks used by the registry.
@@ -89,7 +89,7 @@ func (r *SessionRegistry) Remove(id runtime.SessionID) {
 // Attach wires the given transport to the session and associates it with the connection id.
 func (r *SessionRegistry) Attach(id runtime.SessionID, connID string, transport Transport) (*runtime.LiveSession, error) {
 	if connID == "" || transport == nil {
-		return nil, errors.New("liveui: missing connection or transport")
+		return nil, errors.New("live: missing connection or transport")
 	}
 
 	var (
@@ -132,7 +132,7 @@ func (r *SessionRegistry) Attach(id runtime.SessionID, connID string, transport 
 
 	if session == nil {
 		_ = transport.Close()
-		return nil, errors.New("liveui: session unavailable")
+		return nil, errors.New("live: session unavailable")
 	}
 
 	session.AttachTransport(transport)

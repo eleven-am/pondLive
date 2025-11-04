@@ -1,8 +1,8 @@
 package router
 
 import (
-	ui "github.com/eleven-am/liveui/pkg/liveui"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	ui "github.com/eleven-am/go/pondlive/pkg/live"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 func Redirect(ctx ui.Ctx, to string) ui.Node {

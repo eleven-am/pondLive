@@ -3,7 +3,7 @@ package diff
 import (
 	"fmt"
 
-	"github.com/eleven-am/liveui/internal/render"
+	"github.com/eleven-am/go/pondlive/internal/render"
 )
 
 // StrictMismatch controls whether template mismatches cause a panic. It should

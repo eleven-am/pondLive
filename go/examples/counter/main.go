@@ -12,10 +12,10 @@ import (
 	"log"
 	"net/http"
 
-	ui "github.com/eleven-am/liveui/pkg/liveui"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
-	"github.com/eleven-am/liveui/pkg/liveui/router"
-	liveserver "github.com/eleven-am/liveui/pkg/liveui/server"
+	ui "github.com/eleven-am/go/pondlive/pkg/live"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/go/pondlive/pkg/live/router"
+	liveserver "github.com/eleven-am/go/pondlive/pkg/live/server"
 )
 
 //go:embed public/*
@@ -25,7 +25,7 @@ func main() {
 	ctx := context.Background()
 	app, err := liveserver.NewApp(ctx, counter)
 	if err != nil {
-		log.Fatalf("build liveui app: %v", err)
+		log.Fatalf("build live app: %v", err)
 	}
 
 	assets, err := fs.Sub(publicFS, "public/assets")

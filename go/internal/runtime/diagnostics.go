@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/eleven-am/liveui/internal/protocol"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
 )
 
 const defaultDiagnosticHistory = 32
@@ -54,7 +54,7 @@ func (d Diagnostic) ToServerError(id SessionID) protocol.ServerError {
 	}
 	message := d.Message
 	if message == "" {
-		message = "liveui: runtime panic recovered"
+		message = "live: runtime panic recovered"
 	}
 	return protocol.ServerError{
 		T:       "error",

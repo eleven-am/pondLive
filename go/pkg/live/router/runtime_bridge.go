@@ -1,7 +1,7 @@
 package router
 
 import (
-	runtime "github.com/eleven-am/liveui/internal/runtime"
+	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
 )
 
 func init() {

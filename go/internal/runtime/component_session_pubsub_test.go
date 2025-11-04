@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 type stubPubsubProvider struct {

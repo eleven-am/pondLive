@@ -1,4 +1,4 @@
-module github.com/eleven-am/liveui
+module github.com/eleven-am/go/pondlive
 
 go 1.24.4
 

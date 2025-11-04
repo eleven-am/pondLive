@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	ui "github.com/eleven-am/liveui/pkg/liveui"
+	ui "github.com/eleven-am/go/pondlive/pkg/live"
 )
 
 func Navigate(ctx ui.Ctx, href string) {

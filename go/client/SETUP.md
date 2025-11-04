@@ -142,7 +142,7 @@ npm run build:prod
 
 ### In TypeScript/ES Modules
 ```typescript
-import LiveUI from '@liveui/client';
+import LiveUI from '@live/client';
 
 const client = new LiveUI({
   endpoint: '/live',

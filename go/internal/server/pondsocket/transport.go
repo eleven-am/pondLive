@@ -4,10 +4,10 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"github.com/eleven-am/liveui/internal/protocol"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
 )
 
-var errTransportClosed = errors.New("liveui: transport closed")
+var errTransportClosed = errors.New("live: transport closed")
 
 type channelSender interface {
 	BroadcastTo(event string, payload any, userIDs ...string) error
@@ -81,7 +81,7 @@ func (t *transport) send(event string, payload any) error {
 	ch := t.channel
 	target := t.target
 	if ch == nil || target == "" {
-		return errors.New("liveui: transport missing channel or recipient")
+		return errors.New("live: transport missing channel or recipient")
 	}
 	return ch.BroadcastTo(event, payload, target)
 }

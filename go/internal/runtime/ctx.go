@@ -3,7 +3,7 @@ package runtime
 import (
 	"fmt"
 
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 // Ctx represents the runtime context passed to every component render call.

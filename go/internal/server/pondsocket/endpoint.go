@@ -7,14 +7,14 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	"github.com/eleven-am/liveui/internal/handlers"
-	"github.com/eleven-am/liveui/internal/protocol"
-	"github.com/eleven-am/liveui/internal/runtime"
-	"github.com/eleven-am/liveui/internal/server"
-	"github.com/eleven-am/liveui/pkg/liveui/router"
+	"github.com/eleven-am/go/pondlive/internal/handlers"
+	"github.com/eleven-am/go/pondlive/internal/protocol"
+	"github.com/eleven-am/go/pondlive/internal/runtime"
+	"github.com/eleven-am/go/pondlive/internal/server"
+	"github.com/eleven-am/go/pondlive/pkg/live/router"
 )
 
-const sessionAssignKey = "liveui.session"
+const sessionAssignKey = "live.session"
 
 // Endpoint wires LiveUI sessions to a PondSocket server endpoint.
 type Endpoint struct {
@@ -28,10 +28,10 @@ type Endpoint struct {
 // when the websocket connection is established.
 func Register(srv *pond.Manager, path string, registry *server.SessionRegistry) (*Endpoint, error) {
 	if srv == nil {
-		return nil, errors.New("liveui: pondsocket server is nil")
+		return nil, errors.New("live: pondsocket server is nil")
 	}
 	if registry == nil {
-		return nil, errors.New("liveui: session registry is nil")
+		return nil, errors.New("live: session registry is nil")
 	}
 
 	endpoint := srv.CreateEndpoint(path, func(ctx *pond.ConnectionContext) error {

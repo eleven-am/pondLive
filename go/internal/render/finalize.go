@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/eleven-am/liveui/internal/handlers"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	"github.com/eleven-am/go/pondlive/internal/handlers"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 var voidElements = map[string]struct{}{

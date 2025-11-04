@@ -3,8 +3,8 @@ package runtime
 import (
 	"testing"
 
-	render "github.com/eleven-am/liveui/internal/render"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	render "github.com/eleven-am/go/pondlive/internal/render"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 func TestCloneMetaDeepCopy(t *testing.T) {
@@ -13,7 +13,7 @@ func TestCloneMetaDeepCopy(t *testing.T) {
 		Description: "Desc",
 		Meta: []h.MetaTag{{
 			Name:    "keywords",
-			Content: "go,liveui",
+			Content: "go,live",
 			Attrs: map[string]string{
 				"data-test": "value",
 			},

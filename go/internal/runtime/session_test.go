@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eleven-am/liveui/internal/diff"
-	handlers "github.com/eleven-am/liveui/internal/handlers"
-	render "github.com/eleven-am/liveui/internal/render"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	"github.com/eleven-am/go/pondlive/internal/diff"
+	handlers "github.com/eleven-am/go/pondlive/internal/handlers"
+	render "github.com/eleven-am/go/pondlive/internal/render"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 type patchSink struct {

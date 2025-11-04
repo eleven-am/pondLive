@@ -3,11 +3,11 @@ package router
 import (
 	"testing"
 
-	"github.com/eleven-am/liveui/internal/diff"
-	"github.com/eleven-am/liveui/internal/handlers"
-	"github.com/eleven-am/liveui/internal/runtime"
-	ui "github.com/eleven-am/liveui/pkg/liveui"
-	h "github.com/eleven-am/liveui/pkg/liveui/html"
+	"github.com/eleven-am/go/pondlive/internal/diff"
+	"github.com/eleven-am/go/pondlive/internal/handlers"
+	"github.com/eleven-am/go/pondlive/internal/runtime"
+	ui "github.com/eleven-am/go/pondlive/pkg/live"
+	h "github.com/eleven-am/go/pondlive/pkg/live/html"
 )
 
 var lastUserParam string

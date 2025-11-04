@@ -1,6 +1,6 @@
 package router
 
-import ui "github.com/eleven-am/liveui/pkg/liveui"
+import ui "github.com/eleven-am/go/pondlive/pkg/live"
 
 // UseMetadata merges meta into the session-level metadata for the current render.
 func UseMetadata(ctx ui.Ctx, meta *ui.Meta) {

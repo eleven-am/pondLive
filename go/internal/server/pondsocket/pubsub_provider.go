@@ -11,8 +11,8 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	"github.com/eleven-am/liveui/internal/runtime"
-	"github.com/eleven-am/liveui/internal/server"
+	"github.com/eleven-am/go/pondlive/internal/runtime"
+	"github.com/eleven-am/go/pondlive/internal/server"
 )
 
 type pubsubEnvelope struct {
@@ -66,14 +66,14 @@ func (p *pubsubProvider) Subscribe(session *runtime.LiveSession, topic string, h
 		return "", runtime.ErrPubsubUnavailable
 	}
 	if session == nil {
-		return "", errors.New("liveui: session is nil")
+		return "", errors.New("live: session is nil")
 	}
 	if handler == nil {
-		return "", errors.New("liveui: handler is nil")
+		return "", errors.New("live: handler is nil")
 	}
 	topic = strings.TrimSpace(topic)
 	if topic == "" {
-		return "", errors.New("liveui: topic is empty")
+		return "", errors.New("live: topic is empty")
 	}
 
 	token := uuid.NewString()
@@ -142,7 +142,7 @@ func (p *pubsubProvider) Publish(topic string, payload []byte, meta map[string]s
 	}
 	topic = strings.TrimSpace(topic)
 	if topic == "" {
-		return errors.New("liveui: topic is empty")
+		return errors.New("live: topic is empty")
 	}
 
 	channelName := fmt.Sprintf("pubsub/%s", topic)
@@ -326,5 +326,5 @@ func (p *pubsubProvider) evictFromTopic(sessionID runtime.SessionID, topic strin
 	if err != nil || ch == nil {
 		return
 	}
-	_ = ch.EvictUser(connID, "liveui:pubsub-unsubscribe")
+	_ = ch.EvictUser(connID, "live:pubsub-unsubscribe")
 }
