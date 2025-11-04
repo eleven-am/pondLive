@@ -195,8 +195,8 @@ func (s *ComponentSession) registerUploadSlot(comp *component, index int) *uploa
 	if s == nil || comp == nil {
 		return nil
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.uploadMu.Lock()
+	defer s.uploadMu.Unlock()
 	if s.uploads == nil {
 		s.uploads = make(map[string]*uploadSlot)
 	}
@@ -226,10 +226,10 @@ func (s *ComponentSession) releaseUploadSlots(comp *component) {
 	if s == nil || comp == nil {
 		return
 	}
-	s.mu.Lock()
+	s.uploadMu.Lock()
 	slots := s.uploadByComponent[comp]
 	delete(s.uploadByComponent, comp)
-	s.mu.Unlock()
+	s.uploadMu.Unlock()
 	for _, slot := range slots {
 		if slot != nil {
 			slot.dispose()
@@ -241,9 +241,9 @@ func (s *ComponentSession) findUploadSlot(id string) *uploadSlot {
 	if s == nil || id == "" {
 		return nil
 	}
-	s.mu.Lock()
+	s.uploadMu.Lock()
 	slot := s.uploads[id]
-	s.mu.Unlock()
+	s.uploadMu.Unlock()
 	return slot
 }
 
@@ -251,9 +251,9 @@ func (slot *uploadSlot) dispose() {
 	if slot == nil || slot.sess == nil {
 		return
 	}
-	slot.sess.mu.Lock()
+	slot.sess.uploadMu.Lock()
 	delete(slot.sess.uploads, slot.id)
-	slot.sess.mu.Unlock()
+	slot.sess.uploadMu.Unlock()
 	slot.sess = nil
 }
 

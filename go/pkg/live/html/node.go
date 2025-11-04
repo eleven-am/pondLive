@@ -1,7 +1,13 @@
 package html
 
 // Node is anything that renders into markup.
+//
+// Nodes can be used anywhere an Item is expected so they can compose
+// seamlessly with the HTML builders (e.g. appending child components).
+// Concrete node types already satisfy applyTo via pointer receivers; making
+// Item part of the Node contract exposes that behaviour on the interface.
 type Node interface {
+	Item
 	isNode()
 	privateNodeTag()
 }

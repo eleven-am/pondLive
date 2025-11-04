@@ -34,6 +34,7 @@ type ComponentSession struct {
 	uploads           map[string]*uploadSlot
 	uploadByComponent map[*component]map[int]*uploadSlot
 	uploadSeq         int
+	uploadMu          sync.Mutex
 
 	pendingEffects  []effectTask
 	pendingCleanups []cleanupTask
@@ -154,6 +155,7 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 		s.pendingNav = nil
 		s.pendingMetrics = nil
 		s.pendingPubsub = nil
+		s.uploadMu.Lock()
 		if s.uploads != nil {
 			for _, slot := range s.uploads {
 				if slot != nil {
@@ -164,6 +166,7 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 		s.uploads = nil
 		s.uploadByComponent = nil
 		s.uploadSeq = 0
+		s.uploadMu.Unlock()
 		return nil
 	}); err != nil {
 		return render.Structured{}
