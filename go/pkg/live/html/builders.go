@@ -13,25 +13,27 @@ func Textf(format string, args ...any) *TextNode {
 // Fragment constructs a fragment node from children.
 func Fragment(children ...Node) *FragmentNode { return &FragmentNode{Children: children} }
 
-// If includes the item when cond is true; otherwise it contributes nothing.
-func If(cond bool, item Item) Item {
+// If includes the node when cond is true; otherwise it contributes nothing.
+func If(cond bool, node Node) Node {
 	if cond {
-		return item
+		return node
 	}
-	return noopItem{}
+	return noopNode{}
 }
 
 // IfFn evaluates fn when cond is true.
-func IfFn(cond bool, fn func() Item) Item {
+func IfFn(cond bool, fn func() Node) Node {
 	if cond && fn != nil {
 		return fn()
 	}
-	return noopItem{}
+	return noopNode{}
 }
 
-type noopItem struct{}
+type noopNode struct{}
 
-func (noopItem) applyTo(*Element) {}
+func (noopNode) applyTo(*Element) {}
+func (noopNode) isNode()          {}
+func (noopNode) privateNodeTag()  {}
 
 // Map renders a slice into a fragment using render.
 func Map[T any](xs []T, render func(T) Node) Item {
