@@ -32,19 +32,9 @@ test-diff:
 test-introspect:
 	go test -v ./introspect
 
-# Clean test artifacts
-clean:
-	rm -f coverage.out coverage.html
-	rm -f tools/db-migrator/parser/struct_parser_test_new.go
-
 # Run linter
 lint:
 	golangci-lint run ./...
-
-# Switch git remote from HTTPS to SSH
-git-ssh:
-	git remote set-url origin git@github.com:eleven-am/db-migrator.git
-	@echo "Git remote switched to SSH"
 
 # Release commands
 release-patch:
