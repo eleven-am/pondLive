@@ -1,0 +1,126 @@
+package html
+
+import "strings"
+
+type attrProp struct{ k, v string }
+
+func (p attrProp) isProp() {}
+
+func (p attrProp) applyTo(e *Element) {
+	if e.Attrs == nil {
+		e.Attrs = map[string]string{}
+	}
+	e.Attrs[p.k] = p.v
+}
+
+// Attr sets an arbitrary attribute on the element.
+func Attr(k, v string) Prop { return attrProp{k: k, v: v} }
+
+// ID sets the id attribute.
+func ID(id string) Prop { return Attr("id", id) }
+
+// Href sets the href attribute.
+func Href(url string) Prop { return Attr("href", url) }
+
+// Src sets the src attribute.
+func Src(path string) Prop { return Attr("src", path) }
+
+// Target sets the target attribute.
+func Target(v string) Prop { return Attr("target", v) }
+
+// Rel sets the rel attribute.
+func Rel(v string) Prop { return Attr("rel", v) }
+
+// Title sets the title attribute.
+func Title(v string) Prop { return Attr("title", v) }
+
+// Alt sets the alt attribute.
+func Alt(v string) Prop { return Attr("alt", v) }
+
+// Type sets the type attribute.
+func Type(v string) Prop { return Attr("type", v) }
+
+// Value sets the value attribute.
+func Value(v string) Prop { return Attr("value", v) }
+
+// Name sets the name attribute.
+func Name(v string) Prop { return Attr("name", v) }
+
+// Data sets a data-* attribute.
+func Data(k, v string) Prop { return Attr("data-"+k, v) }
+
+// Aria sets an aria-* attribute.
+func Aria(k, v string) Prop { return Attr("aria-"+k, v) }
+
+type classProp struct{ vals []string }
+
+func (p classProp) isProp() {}
+
+func (p classProp) applyTo(e *Element) {
+	if len(p.vals) == 0 {
+		return
+	}
+	e.Class = append(e.Class, p.vals...)
+}
+
+// Class appends CSS class tokens to the element.
+func Class(classes ...string) Prop {
+	filtered := make([]string, 0, len(classes))
+	for _, c := range classes {
+		token := strings.TrimSpace(c)
+		if token == "" {
+			continue
+		}
+		filtered = append(filtered, token)
+	}
+	return classProp{vals: filtered}
+}
+
+type styleProp struct{ k, v string }
+
+func (p styleProp) isProp() {}
+
+func (p styleProp) applyTo(e *Element) {
+	if e.Style == nil {
+		e.Style = map[string]string{}
+	}
+	e.Style[p.k] = p.v
+}
+
+// Style sets an inline style declaration.
+func Style(k, v string) Prop { return styleProp{k: k, v: v} }
+
+type keyProp struct{ key string }
+
+func (p keyProp) isProp() {}
+
+func (p keyProp) applyTo(e *Element) { e.Key = p.key }
+
+// Key assigns a stable identity for keyed lists.
+func Key(k string) Prop { return keyProp{key: k} }
+
+type rawHTMLProp struct{ html string }
+
+func (p rawHTMLProp) isProp() {}
+
+func (p rawHTMLProp) applyTo(e *Element) { e.Unsafe = &p.html }
+
+// UnsafeHTML sets pre-escaped inner HTML for the element.
+func UnsafeHTML(html string) Prop { return rawHTMLProp{html: html} }
+
+type onProp struct {
+	event string
+	fn    EventHandler
+}
+
+func (p onProp) isProp() {}
+
+func (p onProp) applyTo(e *Element) {
+	if e.Events == nil {
+		e.Events = map[string]EventHandler{}
+	}
+	e.Events[p.event] = p.fn
+}
+
+// On attaches an event handler for the named DOM event.
+func On(event string, handler EventHandler) Prop { return onProp{event: event, fn: handler} }

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveUI Client Example</title>
+</head>
+<body>
+    <h1>LiveUI Client Test</h1>
+    <div id="app">
+        <!-- LiveUI will hydrate/patch this container -->
+    </div>
+
+    <!-- Example boot payload injected by the server during SSR -->
+    <script id="liveui-boot" type="application/json">
+      {
+        "t": "boot",
+        "sid": "replace-with-session-id",
+        "ver": 1,
+        "seq": 1,
+        "html": "<div id=\"app\"></div>",
+        "s": [],
+        "d": [],
+        "slots": [],
+        "handlers": {},
+        "location": { "path": "/", "q": "", "hash": "" }
+      }
+    </script>
+
+    <!-- Load the LiveUI client bundle -->
+    <script src="/pondlive.js"></script>
+
+    <script>
+        // Initialize LiveUI client
+        const client = new window.LiveUI({
+            endpoint: '/live',  // WebSocket endpoint
+            debug: true,        // Enable debug logging
+            autoConnect: true   // Automatically connect on creation
+        });
+
+        // Connect to the server
+        client.connect()
+            .then(() => {
+                console.log('LiveUI client connected successfully!');
+            })
+            .catch((error) => {
+                console.error('Failed to connect:', error);
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,463 @@
+/**
+ * Type definitions for LiveUI protocol and internal structures
+ */
+
+// Protocol message types
+export type MessageType =
+    'init'
+    | 'frame'
+    | 'join'
+    | 'resume'
+    | 'error'
+    | 'evt'
+    | 'ack'
+    | 'nav'
+    | 'pop'
+    | 'recover'
+    | 'pubsub';
+
+// Location
+export interface Location {
+    path: string;
+    q: string;
+    hash: string;
+}
+
+// Boot payload produced during SSR
+export interface BootPayload {
+    t: 'boot';
+    sid: string;
+    ver: number;
+    seq: number;
+    html?: string;
+    s: string[];
+    d: DynamicSlot[];
+    slots: SlotMeta[];
+    handlers: HandlerMap;
+    location: Location;
+    errors?: ErrorMessage[];
+    client?: BootClientConfig;
+}
+
+export interface BootClientConfig {
+    endpoint?: string;
+    [key: string]: unknown;
+}
+
+// Handler metadata
+export interface HandlerMeta {
+    event: string;
+}
+
+export type HandlerMap = Record<string, HandlerMeta>;
+
+// Dynamic slot kinds
+export type DynKind = 'text' | 'attrs' | 'list';
+
+export interface DynamicSlot {
+    kind: DynKind;
+    text?: string;
+    attrs?: Record<string, string>;
+    list?: ListRow[];
+}
+
+export interface ListRow {
+    key: string;
+    slots?: number[];
+}
+
+export interface SlotMeta {
+    anchorId: number;
+}
+
+// Init message
+export interface InitMessage {
+    t: 'init';
+    sid: string;
+    ver: number;
+    s: string[];
+    d: DynamicSlot[];
+    slots: SlotMeta[];
+    handlers: HandlerMap;
+    location: Location;
+    seq?: number;
+    errors?: ErrorMessage[];
+}
+
+// Frame delta
+export interface FrameDelta {
+    statics: boolean;
+    slots: any;
+}
+
+// Navigation delta
+export interface NavDelta {
+    push?: string;
+    replace?: string;
+}
+
+// Handler delta
+export interface HandlerDelta {
+    add?: HandlerMap;
+    del?: string[];
+}
+
+// Frame metrics
+export interface FrameMetrics {
+    renderMs: number;
+    ops: number;
+    effectsMs?: number;
+    maxEffectMs?: number;
+    slowEffects?: number;
+}
+
+// Diff operations
+export type SetTextOp = ['setText', number, string];
+export type SetAttrsOp = ['setAttrs', number, Record<string, string>, string[]];
+export type ListDelOp = ['del', string];
+export type ListInsOp = ['ins', number, { key: string; html: string; slots?: number[] }];
+export type ListMovOp = ['mov', number, number];
+export type ListChildOp = ListDelOp | ListInsOp | ListMovOp;
+export type ListOp = ['list', number, ...ListChildOp[]];
+export type DiffOp = SetTextOp | SetAttrsOp | ListOp;
+
+// Frame message
+export interface FrameMessage {
+    t: 'frame';
+    sid: string;
+    seq?: number;
+    ver: number;
+    delta: FrameDelta;
+    patch: DiffOp[];
+    effects: any[];
+    nav?: NavDelta | null;
+    handlers: HandlerDelta;
+    metrics: FrameMetrics;
+}
+
+// Join message
+export interface JoinMessage {
+    t: 'join';
+    sid: string;
+    ver: number;
+    ack: number;
+    loc: Location;
+}
+
+// Resume message
+export interface ResumeMessage {
+    t: 'resume';
+    sid: string;
+    from: number;
+    to: number;
+    errors?: ErrorMessage[];
+}
+
+// Error message
+export interface ErrorMessage {
+    t: 'error';
+    sid: string;
+    code: string;
+    message: string;
+    details?: ErrorDetails;
+}
+
+export interface PubsubControlMessage {
+    t: 'pubsub';
+    op: 'join' | 'leave';
+    topic: string;
+}
+
+export interface ErrorDetails {
+    phase?: string;
+    componentId?: string;
+    componentName?: string;
+    hook?: string;
+    hookIndex?: number;
+    suggestion?: string;
+    stack?: string;
+    panic?: string;
+    capturedAt?: string;
+    metadata?: Record<string, any>;
+}
+
+// Client event message
+export interface ClientEventMessage {
+    t: 'evt';
+    sid: string;
+    hid: string;
+    payload: EventPayload;
+    cseq?: number;
+}
+
+// Client ack message
+export interface ClientAckMessage {
+    t: 'ack';
+    sid: string;
+    seq: number;
+}
+
+// Client navigation message
+export interface ClientNavMessage {
+    t: 'nav' | 'pop';
+    sid: string;
+    path: string;
+    q: string;
+    hash?: string;
+}
+
+export interface ClientRecoverMessage {
+    t: 'recover';
+    sid: string;
+}
+
+// Event payload
+export interface EventPayload {
+    type: string;
+    value?: string;
+    checked?: boolean;
+    key?: string;
+    keyCode?: number;
+    altKey?: boolean;
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    shiftKey?: boolean;
+    clientX?: number;
+    clientY?: number;
+
+    [key: string]: any;
+}
+
+// Union of all server messages
+export type ServerMessage =
+    InitMessage
+    | FrameMessage
+    | JoinMessage
+    | ResumeMessage
+    | ErrorMessage
+    | PubsubControlMessage;
+
+// Union of all client messages
+export type ClientMessage =
+    | ClientEventMessage
+    | ClientAckMessage
+    | ClientNavMessage
+    | ClientRecoverMessage;
+
+// PondSocket EventMap for LiveUI protocol
+export interface LiveUIEventMap {
+    init: InitMessage;
+    frame: FrameMessage;
+    join: JoinMessage;
+    resume: ResumeMessage;
+    error: ErrorMessage;
+    pubsub: PubsubControlMessage;
+    evt: ClientEventMessage;
+    ack: ClientAckMessage;
+    nav: ClientNavMessage;
+    pop: ClientNavMessage;
+    recover: ClientRecoverMessage;
+
+    [key: string]: any; // Index signature for PondEventMap compatibility
+}
+
+// List record in DOM index
+export interface ListRecord {
+    container: Element;
+    rows: Map<string, Element>;
+}
+
+// LiveUI options
+export interface LiveUIOptions {
+    endpoint?: string;
+    autoConnect?: boolean;
+    debug?: boolean;
+    reconnect?: boolean;
+    maxReconnectAttempts?: number;
+    reconnectDelay?: number;
+    boot?: BootPayload;
+
+    [key: string]: any;
+}
+
+// Connection states
+export type ConnectionState =
+    | { status: 'disconnected' }
+    | { status: 'connecting' }
+    | { status: 'connected'; sessionId: string; version: number }
+    | { status: 'reconnecting'; attempt: number }
+    | { status: 'error'; error: Error };
+
+// Effect types
+export type EffectType =
+    'scroll'
+    | 'focus'
+    | 'alert'
+    | 'dispatch'
+    | 'custom'
+    | 'toast'
+    | 'scrollTop'
+    | 'push'
+    | 'replace'
+    | 'metadata'
+    | 'Toast'
+    | 'Focus'
+    | 'ScrollTop'
+    | 'Push'
+    | 'Replace';
+
+export interface ScrollEffect {
+    type: 'scroll' | 'ScrollTop';
+    selector?: string;
+    behavior?: ScrollBehavior;
+    block?: ScrollLogicalPosition;
+}
+
+export interface FocusEffect {
+    type: 'focus' | 'Focus';
+    selector?: string;
+    Selector?: string; // Go capitalized field name
+}
+
+export interface AlertEffect {
+    type: 'alert';
+    message: string;
+}
+
+export interface ToastEffect {
+    type: 'toast' | 'Toast';
+    message?: string;
+    Message?: string; // Go capitalized field name
+    duration?: number;
+    variant?: 'info' | 'success' | 'warning' | 'error';
+}
+
+export interface PushEffect {
+    type: 'push' | 'Push';
+    url?: string;
+    URL?: string; // Go capitalized field name
+}
+
+export interface ReplaceEffect {
+    type: 'replace' | 'Replace';
+    url?: string;
+    URL?: string; // Go capitalized field name
+}
+
+export interface DispatchEffect {
+    type: 'dispatch';
+    eventName: string;
+    detail?: any;
+}
+
+export interface CustomEffect {
+    type: 'custom';
+    name: string;
+    data: any;
+}
+
+export interface MetadataTagPayload {
+    key: string;
+    name?: string;
+    content?: string;
+    property?: string;
+    charset?: string;
+    httpEquiv?: string;
+    itemProp?: string;
+    attrs?: Record<string, string>;
+}
+
+export interface MetadataLinkPayload {
+    key: string;
+    rel?: string;
+    href?: string;
+    type?: string;
+    as?: string;
+    media?: string;
+    hreflang?: string;
+    title?: string;
+    crossorigin?: string;
+    integrity?: string;
+    referrerpolicy?: string;
+    sizes?: string;
+    attrs?: Record<string, string>;
+}
+
+export interface MetadataScriptPayload {
+    key: string;
+    src?: string;
+    type?: string;
+    async?: boolean;
+    defer?: boolean;
+    module?: boolean;
+    noModule?: boolean;
+    crossorigin?: string;
+    integrity?: string;
+    referrerpolicy?: string;
+    nonce?: string;
+    attrs?: Record<string, string>;
+    inner?: string;
+}
+
+export interface MetadataEffect {
+    type: 'metadata';
+    title?: string;
+    description?: string;
+    clearDescription?: boolean;
+    metaAdd?: MetadataTagPayload[];
+    metaRemove?: string[];
+    linkAdd?: MetadataLinkPayload[];
+    linkRemove?: string[];
+    scriptAdd?: MetadataScriptPayload[];
+    scriptRemove?: string[];
+}
+
+export type Effect =
+    ScrollEffect
+    | FocusEffect
+    | AlertEffect
+    | ToastEffect
+    | PushEffect
+    | ReplaceEffect
+    | DispatchEffect
+    | CustomEffect
+    | MetadataEffect;
+
+// Performance metrics
+export interface PerformanceMetrics {
+    patchesApplied: number;
+    averagePatchTime: number;
+    framesReceived: number;
+    eventsProcessed: number;
+    reconnections: number;
+    uptime: number;
+    effectsMs: number;
+    maxEffectMs: number;
+    slowEffects: number;
+    framesBuffered: number;
+    framesDropped: number;
+    sequenceGaps: number;
+}
+
+// Optimistic update
+export interface OptimisticUpdate {
+    id: string;
+    patches: DiffOp[];
+    inverseOps: DiffOp[];
+    timestamp: number;
+}
+
+// Lifecycle events
+export interface LiveUIEvents {
+    connected: { sessionId: string; version: number };
+    disconnected: void;
+    reconnecting: { attempt: number };
+    reconnected: { sessionId: string };
+    error: { error: Error; context?: string };
+    frameApplied: { operations: number; duration: number };
+    stateChanged: { from: ConnectionState; to: ConnectionState };
+    effect: { effect: Effect };
+    metricsUpdated: PerformanceMetrics;
+    rollback: { id: string; patches: DiffOp[] };
+    resumed: { from: number; to: number };
+}
