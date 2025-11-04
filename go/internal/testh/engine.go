@@ -1,9 +1,9 @@
 package testh
 
 import (
-	"github.com/eleven-am/go/pondlive/internal/diff"
-	"github.com/eleven-am/go/pondlive/internal/render"
-	"github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/diff"
+	"github.com/eleven-am/pondlive/go/internal/render"
+	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // Engine encapsulates a single in-memory LiveUI session under test.

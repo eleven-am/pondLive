@@ -3,12 +3,12 @@ package router
 import (
 	"testing"
 
-	"github.com/eleven-am/go/pondlive/internal/diff"
-	handlers "github.com/eleven-am/go/pondlive/internal/handlers"
-	"github.com/eleven-am/go/pondlive/internal/render"
-	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
-	ui "github.com/eleven-am/go/pondlive/pkg/live"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/diff"
+	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/render"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	ui "github.com/eleven-am/pondlive/go/pkg/live"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type emptyProps struct{}

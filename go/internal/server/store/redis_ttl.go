@@ -9,7 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 // RedisTTLStore uses a Redis sorted set to track session expirations.

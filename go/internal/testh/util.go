@@ -3,8 +3,8 @@ package testh
 import (
 	"sort"
 
-	"github.com/eleven-am/go/pondlive/internal/diff"
-	render "github.com/eleven-am/go/pondlive/internal/render"
+	"github.com/eleven-am/pondlive/go/internal/diff"
+	render "github.com/eleven-am/pondlive/go/internal/render"
 )
 
 func cloneOps(ops []diff.Op) []diff.Op {

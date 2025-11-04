@@ -3,8 +3,8 @@ package router
 import (
 	"sync"
 
-	ui "github.com/eleven-am/go/pondlive/pkg/live"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	ui "github.com/eleven-am/pondlive/go/pkg/live"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type routerState struct {

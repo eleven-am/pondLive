@@ -1,6 +1,6 @@
 package testh
 
-import "github.com/eleven-am/go/pondlive/internal/diff"
+import "github.com/eleven-am/pondlive/go/internal/diff"
 
 type recorder struct {
 	html string

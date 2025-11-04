@@ -8,11 +8,11 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	"github.com/eleven-am/go/pondlive/internal/protocol"
-	"github.com/eleven-am/go/pondlive/internal/runtime"
-	livehttp "github.com/eleven-am/go/pondlive/internal/server/http"
-	ui "github.com/eleven-am/go/pondlive/pkg/live"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/protocol"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
+	livehttp "github.com/eleven-am/pondlive/go/internal/server/http"
+	ui "github.com/eleven-am/pondlive/go/pkg/live"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // Component represents the root LiveUI component rendered for every request.

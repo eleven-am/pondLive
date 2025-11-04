@@ -3,7 +3,7 @@ package diff
 import (
 	"encoding/json"
 
-	render "github.com/eleven-am/go/pondlive/internal/render"
+	render "github.com/eleven-am/pondlive/go/internal/render"
 )
 
 // Op represents a diff operation applied to a dynamic slot.

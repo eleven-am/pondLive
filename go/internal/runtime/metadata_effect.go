@@ -3,7 +3,7 @@ package runtime
 import (
 	"strings"
 
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // MetadataEffect describes incremental updates to document metadata.

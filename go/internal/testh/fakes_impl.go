@@ -1,8 +1,8 @@
 package testh
 
 import (
-	handlers "github.com/eleven-am/go/pondlive/internal/handlers"
-	"github.com/eleven-am/go/pondlive/pkg/live/html"
+	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type registryFactory struct{}

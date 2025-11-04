@@ -3,8 +3,8 @@ package live
 import (
 	"context"
 
-	"github.com/eleven-am/go/pondlive/internal/runtime"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type (

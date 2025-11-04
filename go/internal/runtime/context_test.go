@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eleven-am/go/pondlive/internal/diff"
-	render "github.com/eleven-am/go/pondlive/internal/render"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/diff"
+	render "github.com/eleven-am/pondlive/go/internal/render"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type emptyProps struct{}

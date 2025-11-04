@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	render "github.com/eleven-am/go/pondlive/internal/render"
+	render "github.com/eleven-am/pondlive/go/internal/render"
 )
 
 func TestDiffTextChange(t *testing.T) {

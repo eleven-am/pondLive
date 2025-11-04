@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/eleven-am/go/pondlive/internal/diff"
-	handlers "github.com/eleven-am/go/pondlive/internal/handlers"
-	render "github.com/eleven-am/go/pondlive/internal/render"
-	"github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/diff"
+	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+	render "github.com/eleven-am/pondlive/go/internal/render"
+	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // NewEngine constructs a harness engine with optional dependencies.

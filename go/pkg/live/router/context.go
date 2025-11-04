@@ -3,7 +3,7 @@ package router
 import (
 	"net/url"
 
-	ui "github.com/eleven-am/go/pondlive/pkg/live"
+	ui "github.com/eleven-am/pondlive/go/pkg/live"
 )
 
 type Location struct {

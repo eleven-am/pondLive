@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 func TestInMemoryTTLStore(t *testing.T) {

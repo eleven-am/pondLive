@@ -1,6 +1,6 @@
 package testh
 
-import "github.com/eleven-am/go/pondlive/internal/diff"
+import "github.com/eleven-am/pondlive/go/internal/diff"
 
 // Recorder captures the most recent SSR HTML string and diff operations.
 type Recorder interface {

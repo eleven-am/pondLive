@@ -3,10 +3,10 @@ package test
 import (
 	"sort"
 
-	"github.com/eleven-am/go/pondlive/internal/diff"
-	"github.com/eleven-am/go/pondlive/internal/render"
-	"github.com/eleven-am/go/pondlive/internal/testh"
-	"github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/diff"
+	"github.com/eleven-am/pondlive/go/internal/render"
+	"github.com/eleven-am/pondlive/go/internal/testh"
+	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // Harness is the public test driver. All methods are synchronous.

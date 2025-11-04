@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/eleven-am/go/pondlive/internal/diff"
+	"github.com/eleven-am/pondlive/go/internal/diff"
 )
 
 // AssertHTMLContains checks that HTML() contains substr (simple containment).

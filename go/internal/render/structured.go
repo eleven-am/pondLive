@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/eleven-am/go/pondlive/internal/handlers"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/handlers"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // DynKind enumerates dynamic slot kinds.

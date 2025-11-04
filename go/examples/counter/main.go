@@ -12,10 +12,10 @@ import (
 	"log"
 	"net/http"
 
-	ui "github.com/eleven-am/go/pondlive/pkg/live"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
-	"github.com/eleven-am/go/pondlive/pkg/live/router"
-	liveserver "github.com/eleven-am/go/pondlive/pkg/live/server"
+	ui "github.com/eleven-am/pondlive/go/pkg/live"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/pkg/live/router"
+	liveserver "github.com/eleven-am/pondlive/go/pkg/live/server"
 )
 
 //go:embed public/*

@@ -1,6 +1,6 @@
 package runtime
 
-import handlers "github.com/eleven-am/go/pondlive/internal/handlers"
+import handlers "github.com/eleven-am/pondlive/go/internal/handlers"
 
 // WireEvent represents the payload received from the client for an event.
 type WireEvent struct {

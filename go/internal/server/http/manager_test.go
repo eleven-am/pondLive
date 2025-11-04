@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eleven-am/go/pondlive/internal/protocol"
-	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
-	routerui "github.com/eleven-am/go/pondlive/pkg/live/router"
+	"github.com/eleven-am/pondlive/go/internal/protocol"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	routerui "github.com/eleven-am/pondlive/go/pkg/live/router"
 )
 
 func appComponent(ctx runtime.Ctx, _ struct{}) h.Node {

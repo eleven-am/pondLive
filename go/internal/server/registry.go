@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eleven-am/go/pondlive/internal/protocol"
-	runtime "github.com/eleven-am/go/pondlive/internal/runtime"
-	"github.com/eleven-am/go/pondlive/internal/server/store"
+	"github.com/eleven-am/pondlive/go/internal/protocol"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/server/store"
 )
 
 var (

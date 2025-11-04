@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	handlers "github.com/eleven-am/go/pondlive/internal/handlers"
+	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
 )
 
 func TestWireEventToEvent(t *testing.T) {

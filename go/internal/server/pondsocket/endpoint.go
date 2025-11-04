@@ -7,11 +7,11 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	"github.com/eleven-am/go/pondlive/internal/handlers"
-	"github.com/eleven-am/go/pondlive/internal/protocol"
-	"github.com/eleven-am/go/pondlive/internal/runtime"
-	"github.com/eleven-am/go/pondlive/internal/server"
-	"github.com/eleven-am/go/pondlive/pkg/live/router"
+	"github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/protocol"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/server"
+	"github.com/eleven-am/pondlive/go/pkg/live/router"
 )
 
 const sessionAssignKey = "live.session"

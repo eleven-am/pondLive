@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/eleven-am/go/pondlive/internal/handlers"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/handlers"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // RenderHTML renders to HTML while registering handlers.

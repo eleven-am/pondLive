@@ -1,4 +1,4 @@
-module github.com/eleven-am/go/pondlive
+module github.com/eleven-am/pondlive/go
 
 go 1.24.4
 

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	livehttp "github.com/eleven-am/go/pondlive/internal/server/http"
-	ui "github.com/eleven-am/go/pondlive/pkg/live"
-	h "github.com/eleven-am/go/pondlive/pkg/live/html"
+	livehttp "github.com/eleven-am/pondlive/go/internal/server/http"
+	ui "github.com/eleven-am/pondlive/go/pkg/live"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 func TestTailwindCounterSSR(t *testing.T) {

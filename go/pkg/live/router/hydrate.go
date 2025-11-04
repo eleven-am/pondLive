@@ -3,7 +3,7 @@ package router
 import (
 	"sync"
 
-	ui "github.com/eleven-am/go/pondlive/pkg/live"
+	ui "github.com/eleven-am/pondlive/go/pkg/live"
 )
 
 var sessionSeeds sync.Map // *ui.Session -> Location
