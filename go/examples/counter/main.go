@@ -52,19 +52,7 @@ func counter(ctx ui.Ctx) h.Node {
 		Links: []h.LinkTag{
 			{
 				Rel:  "stylesheet",
-				Href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap",
-			},
-			{
-				Rel:  "stylesheet",
 				Href: "/static/tailwind.css",
-			},
-			{
-				Rel:  "preconnect",
-				Href: "https://fonts.googleapis.com",
-			},
-			{
-				Rel:  "preconnect",
-				Href: "https://fonts.gstatic.com",
 			},
 		},
 		Scripts: nil,
