@@ -99,18 +99,20 @@ func (c Context[T]) UsePair(ctx Ctx) (func() T, func(T)) {
 	if ctx.comp == nil {
 		return func() T { return c.def }, func(T) {}
 	}
-	if entry := findProviderEntry(ctx.comp, c); entry != nil {
-		if entry.owner == ctx.comp {
-			return entry.get, entry.set
-		}
-		equal := c.eq
-		if equal == nil {
-			equal = defaultEqual[T]()
-		}
-		local := ensureProviderEntry(ctx, c, c.def, false)
-		if local.eq == nil {
-			local.eq = equal
-		}
+	entry := findProviderEntry(ctx.comp, c)
+	isOwner := entry != nil && entry.owner == ctx.comp
+	equal := c.eq
+	if equal == nil {
+		equal = defaultEqual[T]()
+	}
+	local := ensureProviderEntry(ctx, c, c.def, false)
+	if local.eq == nil {
+		local.eq = equal
+	}
+	if isOwner {
+		return entry.get, entry.set
+	}
+	if entry != nil {
 		getter := func() T {
 			if local.active {
 				return local.get()
@@ -129,15 +131,7 @@ func (c Context[T]) UsePair(ctx Ctx) (func() T, func(T)) {
 		}
 		return getter, setter
 	}
-	equal := c.eq
-	if equal == nil {
-		equal = defaultEqual[T]()
-	}
-	entry := ensureProviderEntry(ctx, c, c.def, false)
-	if entry.eq == nil {
-		entry.eq = equal
-	}
-	return entry.get, entry.set
+	return local.get, local.set
 }
 
 // UseSelect derives a sub-value from the context and only re-renders when it changes.
