@@ -115,15 +115,17 @@ func renderRoutes(ctx ui.Ctx, entries []routeEntry) ui.Node {
 
 	params := copyParams(chosen.match.Params)
 	storeSessionParams(ctx.Session(), params)
-	_ = ParamsCtx.Provide(ctx, params)
 	outletRender := func() ui.Node {
 		if len(chosen.entry.children) == 0 {
 			return h.Fragment()
 		}
 		return Routes(ctx, chosen.entry.children...)
 	}
-	_ = outletCtx.Provide(ctx, outletRender)
-	return ui.Render(ctx, chosen.entry.component, chosen.match)
+	return ParamsCtx.Provide(ctx, params, func() ui.Node {
+		return outletCtx.Provide(ctx, outletRender, func() ui.Node {
+			return ui.Render(ctx, chosen.entry.component, chosen.match)
+		})
+	})
 }
 
 func copyParams(src map[string]string) map[string]string {

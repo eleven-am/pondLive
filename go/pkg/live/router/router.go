@@ -50,13 +50,15 @@ func routerComponent(ctx ui.Ctx, props routerProps) ui.Node {
 	entry := registerSessionEntry(sess, state.getLoc, state.setLoc)
 	current := state.getLoc()
 	storeSessionLocation(sess, current)
-	_ = routerStateCtx.Provide(ctx, state)
-	_ = LocationCtx.Provide(ctx, current)
 	if entry != nil {
 		setSessionRendering(sess, true)
 		defer setSessionRendering(sess, false)
 	}
-	return renderRouterChildren(ctx, props.Children...)
+	return routerStateCtx.Provide(ctx, state, func() ui.Node {
+		return LocationCtx.Provide(ctx, current, func() ui.Node {
+			return renderRouterChildren(ctx, props.Children...)
+		})
+	})
 }
 
 func requireRouterState(ctx ui.Ctx) routerState {
@@ -225,7 +227,7 @@ func routerChildrenComponent(ctx ui.Ctx, props routerChildrenProps) ui.Node {
 		case *routesNode:
 			normalized = append(normalized, renderRoutes(ctx, v.entries))
 		case *linkNode:
-			normalized = append(normalized, renderLink(ctx, v.props))
+			normalized = append(normalized, renderLink(ctx, v.props, v.children...))
 		default:
 			normalized = append(normalized, child)
 		}

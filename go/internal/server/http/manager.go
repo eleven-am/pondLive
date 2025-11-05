@@ -162,6 +162,7 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	sessionCfgLocal := cloneLiveSessionConfig(m.sessionCfg)
 	session := runtime.NewLiveSession(sid, version, component, struct{}{}, &sessionCfgLocal)
+	session.MergeHTTPRequest(r)
 	session.SetRoute(path, rawQuery, nil)
 	if sess := session.ComponentSession(); sess != nil {
 		router.InternalSeedSessionLocation(sess, buildRouterLocation(path, values))

@@ -52,14 +52,8 @@ func Canvas(items ...Item) *Element { return el("canvas", items...) }
 // Caption creates a <caption> element.
 func Caption(items ...Item) *Element { return el("caption", items...) }
 
-// Circle creates a <circle> element.
-func Circle(items ...Item) *Element { return el("circle", items...) }
-
 // Cite creates a <cite> element.
 func Cite(items ...Item) *Element { return el("cite", items...) }
-
-// ClipPath creates a <clipPath> element.
-func ClipPath(items ...Item) *Element { return el("clipPath", items...) }
 
 // Code creates a <code> element.
 func Code(items ...Item) *Element { return el("code", items...) }
@@ -78,9 +72,6 @@ func Datalist(items ...Item) *Element { return el("datalist", items...) }
 
 // Dd creates a <dd> element.
 func Dd(items ...Item) *Element { return el("dd", items...) }
-
-// Defs creates a <defs> element.
-func Defs(items ...Item) *Element { return el("defs", items...) }
 
 // DelEl creates a <del> element.
 func DelEl(items ...Item) *Element { return el("del", items...) }
@@ -103,9 +94,6 @@ func Dl(items ...Item) *Element { return el("dl", items...) }
 // Dt creates a <dt> element.
 func Dt(items ...Item) *Element { return el("dt", items...) }
 
-// Ellipse creates an <ellipse> element.
-func Ellipse(items ...Item) *Element { return el("ellipse", items...) }
-
 // Em creates an <em> element.
 func Em(items ...Item) *Element { return el("em", items...) }
 
@@ -126,9 +114,6 @@ func Footer(items ...Item) *Element { return el("footer", items...) }
 
 // Form creates a <form> element.
 func Form(items ...Item) *Element { return el("form", items...) }
-
-// G creates a <g> element.
-func G(items ...Item) *Element { return el("g", items...) }
 
 // H1 creates an <h1> element.
 func H1(items ...Item) *Element { return el("h1", items...) }
@@ -190,12 +175,6 @@ func Legend(items ...Item) *Element { return el("legend", items...) }
 // Li creates an <li> element.
 func Li(items ...Item) *Element { return el("li", items...) }
 
-// Line creates a <line> element.
-func Line(items ...Item) *Element { return el("line", items...) }
-
-// LinearGradient creates a <linearGradient> element.
-func LinearGradient(items ...Item) *Element { return el("linearGradient", items...) }
-
 // Link creates a <link> element.
 func Link(items ...Item) *Element { return el("link", items...) }
 
@@ -207,12 +186,6 @@ func MapEl(items ...Item) *Element { return el("map", items...) }
 
 // Mark creates a <mark> element.
 func Mark(items ...Item) *Element { return el("mark", items...) }
-
-// Marker creates a <marker> element.
-func Marker(items ...Item) *Element { return el("marker", items...) }
-
-// Mask creates a <mask> element.
-func Mask(items ...Item) *Element { return el("mask", items...) }
 
 // Meta creates a <meta> element.
 func Meta(items ...Item) *Element { return el("meta", items...) }
@@ -244,20 +217,8 @@ func Output(items ...Item) *Element { return el("output", items...) }
 // P creates a <p> element.
 func P(items ...Item) *Element { return el("p", items...) }
 
-// Path creates a <path> element.
-func Path(items ...Item) *Element { return el("path", items...) }
-
-// Pattern creates a <pattern> element.
-func Pattern(items ...Item) *Element { return el("pattern", items...) }
-
 // Picture creates a <picture> element.
 func Picture(items ...Item) *Element { return el("picture", items...) }
-
-// Polygon creates a <polygon> element.
-func Polygon(items ...Item) *Element { return el("polygon", items...) }
-
-// Polyline creates a <polyline> element.
-func Polyline(items ...Item) *Element { return el("polyline", items...) }
 
 // Pre creates a <pre> element.
 func Pre(items ...Item) *Element { return el("pre", items...) }
@@ -267,12 +228,6 @@ func Progress(items ...Item) *Element { return el("progress", items...) }
 
 // Q creates a <q> element.
 func Q(items ...Item) *Element { return el("q", items...) }
-
-// RadialGradient creates a <radialGradient> element.
-func RadialGradient(items ...Item) *Element { return el("radialGradient", items...) }
-
-// Rect creates a <rect> element.
-func Rect(items ...Item) *Element { return el("rect", items...) }
 
 // Rp creates an <rp> element.
 func Rp(items ...Item) *Element { return el("rp", items...) }
@@ -310,9 +265,6 @@ func Source(items ...Item) *Element { return el("source", items...) }
 // Span creates a <span> element.
 func Span(items ...Item) *Element { return el("span", items...) }
 
-// Stop creates a <stop> element.
-func Stop(items ...Item) *Element { return el("stop", items...) }
-
 // Strong creates a <strong> element.
 func Strong(items ...Item) *Element { return el("strong", items...) }
 
@@ -327,15 +279,6 @@ func Summary(items ...Item) *Element { return el("summary", items...) }
 
 // Sup creates a <sup> element.
 func Sup(items ...Item) *Element { return el("sup", items...) }
-
-// Svg creates an <svg> element.
-func Svg(items ...Item) *Element { return el("svg", items...) }
-
-// SvgText creates a <text> element.
-func SvgText(items ...Item) *Element { return el("text", items...) }
-
-// TSpan creates a <tspan> element.
-func TSpan(items ...Item) *Element { return el("tspan", items...) }
 
 // Table creates a <table> element.
 func Table(items ...Item) *Element { return el("table", items...) }
@@ -379,9 +322,6 @@ func U(items ...Item) *Element { return el("u", items...) }
 // Ul creates a <ul> element.
 func Ul(items ...Item) *Element { return el("ul", items...) }
 
-// Use creates a <use> element.
-func Use(items ...Item) *Element { return el("use", items...) }
-
 // Var creates a <var> element.
 func Var(items ...Item) *Element { return el("var", items...) }
 
@@ -390,4 +330,3 @@ func Video(items ...Item) *Element { return el("video", items...) }
 
 // Wbr creates a <wbr> element.
 func Wbr(items ...Item) *Element { return el("wbr", items...) }
-

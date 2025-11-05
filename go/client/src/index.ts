@@ -56,6 +56,7 @@ import type {
   ServerMessage,
   ToastEffect,
   MetadataEffect,
+  CookieEffect,
   UploadClientMessage,
   UploadControlMessage,
 } from "./types";
@@ -82,6 +83,8 @@ const isServerMessage = (value: unknown): value is ServerMessage => {
   const candidate = value as { t?: unknown };
   return typeof candidate.t === "string";
 };
+
+const DEFAULT_COOKIE_ENDPOINT = "/pondlive/cookie";
 
 class LiveUI extends EventEmitter<LiveUIEvents> {
   private options: Required<Omit<LiveUIOptions, "boot">> & {
@@ -114,6 +117,8 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
   private batchScheduled: boolean = false;
   private rafHandle: number | ReturnType<typeof setTimeout> | null = null;
   private rafUsesTimeoutFallback = false;
+
+  private cookieRequests = new Set<string>();
 
   // Reconnection
   private reconnectAttempts: number = 0;
@@ -857,6 +862,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
           case "metadata":
             this.applyMetadataEffect(effect as MetadataEffect);
             break;
+          case "cookies":
+            this.handleCookieEffect(effect as CookieEffect);
+            break;
           case "custom":
             // Custom effects are handled via the 'effect' event
             break;
@@ -1095,6 +1103,61 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       for (const payload of effect.scriptAdd) {
         upsertScript(payload);
       }
+    }
+  }
+
+  private handleCookieEffect(effect: CookieEffect): void {
+    void this.performCookieSync(effect);
+  }
+
+  private async performCookieSync(effect: CookieEffect): Promise<void> {
+    const token = effect.token ?? effect.Token;
+    if (!token) {
+      this.log("Cookie effect missing token", effect);
+      return;
+    }
+    if (this.cookieRequests.has(token)) {
+      return;
+    }
+
+    const endpoint = effect.endpoint ?? effect.Endpoint ?? DEFAULT_COOKIE_ENDPOINT;
+    if (!endpoint) {
+      this.log("Cookie effect missing endpoint", effect);
+      return;
+    }
+
+    const sid = effect.sid ?? effect.SID ?? this.sessionId.get();
+    if (!sid) {
+      this.log("Cookie effect missing session identifier", effect);
+      return;
+    }
+
+    const method = (effect.method ?? effect.Method ?? "POST").toUpperCase();
+
+    this.cookieRequests.add(token);
+    try {
+      const response = await fetch(endpoint, {
+        method,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ sid, token }),
+      });
+
+      if (!response.ok && response.status !== 204) {
+        this.log("Cookie negotiation failed", {
+          endpoint,
+          status: response.status,
+          statusText: response.statusText,
+        });
+      }
+    } catch (error) {
+      this.log("Cookie negotiation error", error);
+      this.emit("error", { error: error as Error, context: "cookies" });
+    } finally {
+      this.cookieRequests.delete(token);
     }
   }
 

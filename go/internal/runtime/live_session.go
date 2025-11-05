@@ -1,8 +1,12 @@
 package runtime
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
+	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,6 +42,8 @@ type LiveSession struct {
 
 	component *ComponentSession
 
+	header *headerState
+
 	mu  sync.Mutex
 	now func() time.Time
 	ttl atomic.Int64
@@ -55,6 +61,9 @@ type LiveSession struct {
 	snapshot snapshot
 
 	pendingEffects []any
+
+	cookieBatches map[string]cookieBatch
+	cookieCounter atomic.Uint64
 
 	transport Transport
 	devMode   bool
@@ -143,6 +152,10 @@ func NewLiveSession[P any](sid SessionID, version int, root Component[P], props 
 	session.ttl.Store(int64(defaultSessionTTL))
 	component.setOwner(session)
 
+	header := newHeaderState()
+	session.header = header
+	provideHeaderState(component, header)
+
 	effectiveConfig := mergeLiveSessionConfig(defaultLiveSessionConfig(), cfg)
 	session.transport = effectiveConfig.Transport
 	session.frameCap = effectiveConfig.FrameHistory
@@ -170,6 +183,70 @@ func NewLiveSession[P any](sid SessionID, version int, root Component[P], props 
 	session.mu.Unlock()
 
 	return session
+}
+
+func (s *LiveSession) headerState() *headerState {
+	if s == nil {
+		return newHeaderState()
+	}
+	if s.header == nil {
+		s.header = newHeaderState()
+		if comp := s.ComponentSession(); comp != nil {
+			provideHeaderState(comp, s.header)
+		}
+	}
+	return s.header
+}
+
+func (s *LiveSession) hasPendingCookieMutations() bool {
+	if s == nil {
+		return false
+	}
+	state := s.headerState()
+	if state != nil && state.hasCookieMutations() {
+		return true
+	}
+	s.mu.Lock()
+	pending := len(s.cookieBatches) > 0
+	s.mu.Unlock()
+	return pending
+}
+
+// HeaderState exposes the header state tracked for the session.
+func (s *LiveSession) HeaderState() HeaderState {
+	if s == nil {
+		return noopHeaderState{}
+	}
+	state := s.headerState()
+	if state == nil {
+		return noopHeaderState{}
+	}
+	return state
+}
+
+// MergeHTTPRequest records header and cookie information from the initial HTTP request.
+func (s *LiveSession) MergeHTTPRequest(r *http.Request) {
+	if s == nil || r == nil {
+		return
+	}
+	state := s.headerState()
+	state.mergeRequest(r)
+	if comp := s.ComponentSession(); comp != nil {
+		provideHeaderState(comp, state)
+	}
+}
+
+// MergeConnectionState updates the tracked header state with information from the websocket connection.
+func (s *LiveSession) MergeConnectionState(headers http.Header, cookies []*http.Cookie) {
+	if s == nil {
+		return
+	}
+	state := s.headerState()
+	state.mergeHeaders(headers)
+	state.mergeCookies(cookies)
+	if comp := s.ComponentSession(); comp != nil {
+		provideHeaderState(comp, state)
+	}
 }
 
 // TTL returns the inactivity timeout configured for the session.
@@ -683,6 +760,18 @@ func (s *LiveSession) enqueueMetadataEffect(effect *MetadataEffect) {
 	s.enqueueFrameEffect(effect)
 }
 
+func (s *LiveSession) dequeueCookieEffect() *CookieEffect {
+	state := s.headerState()
+	if state == nil {
+		return nil
+	}
+	batch := state.drainCookieMutations()
+	if batch.Empty() {
+		return nil
+	}
+	return s.registerCookieBatch(batch)
+}
+
 func (s *LiveSession) onPatch(ops []diff.Op) error {
 	frame := protocol.Frame{
 		Delta:   protocol.FrameDelta{Statics: false},
@@ -691,6 +780,9 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 	}
 	if effects := s.dequeueFrameEffects(); len(effects) > 0 {
 		frame.Effects = append(frame.Effects, effects...)
+	}
+	if cookieEffect := s.dequeueCookieEffect(); cookieEffect != nil {
+		frame.Effects = append(frame.Effects, cookieEffect)
 	}
 	if s.component != nil && s.component.pendingNav != nil {
 		frame.Nav = s.component.pendingNav
@@ -701,6 +793,78 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 		s.component.pendingMetrics = nil
 	}
 	return s.SendFrame(frame)
+}
+
+func (s *LiveSession) registerCookieBatch(batch CookieBatch) *CookieEffect {
+	if s == nil || batch.Empty() {
+		return nil
+	}
+	token := s.nextCookieToken()
+	if token == "" {
+		return nil
+	}
+	effect := newCookieEffect(CookieEndpointPath, string(s.id), token)
+	if effect == nil {
+		return nil
+	}
+	clone := cloneCookieBatch(batch)
+	s.mu.Lock()
+	if s.cookieBatches == nil {
+		s.cookieBatches = make(map[string]cookieBatch)
+	}
+	s.cookieBatches[token] = cookieBatch{Mutations: clone}
+	s.mu.Unlock()
+	return effect
+}
+
+func (s *LiveSession) nextCookieToken() string {
+	buf := make([]byte, 18)
+	if _, err := rand.Read(buf); err == nil {
+		return base64.RawURLEncoding.EncodeToString(buf)
+	}
+	fallback := s.cookieCounter.Add(1)
+	ts := s.now().UnixNano()
+	return strconv.FormatInt(ts, 36) + strconv.FormatUint(fallback, 36)
+}
+
+// ConsumeCookieBatch retrieves and clears a pending cookie batch identified by the provided token.
+func (s *LiveSession) ConsumeCookieBatch(token string) (CookieBatch, bool) {
+	if s == nil {
+		return CookieBatch{}, false
+	}
+	trimmed := strings.TrimSpace(token)
+	if trimmed == "" {
+		return CookieBatch{}, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.cookieBatches) == 0 {
+		return CookieBatch{}, false
+	}
+	batch, ok := s.cookieBatches[trimmed]
+	if !ok {
+		return CookieBatch{}, false
+	}
+	delete(s.cookieBatches, trimmed)
+	return cloneCookieBatch(batch.Mutations), true
+}
+
+func cloneCookieBatch(in CookieBatch) CookieBatch {
+	out := CookieBatch{}
+	if len(in.Set) > 0 {
+		out.Set = make([]*http.Cookie, 0, len(in.Set))
+		for _, ck := range in.Set {
+			out.Set = append(out.Set, cloneCookie(ck))
+		}
+	}
+	if len(in.Delete) > 0 {
+		out.Delete = append(out.Delete, in.Delete...)
+	}
+	return out
+}
+
+type cookieBatch struct {
+	Mutations CookieBatch
 }
 
 func (s *LiveSession) appendFrameLocked(frame protocol.Frame) {

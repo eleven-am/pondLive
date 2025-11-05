@@ -38,8 +38,9 @@ func TestContextProvideUsePair(t *testing.T) {
 	parent := func(ctx Ctx, _ emptyProps) h.Node {
 		get, set := theme.UsePair(ctx)
 		setTheme = set
-		node := Render(ctx, child, emptyProps{})
-		return theme.Provide(ctx, get(), node)
+		return theme.Provide(ctx, get(), func() h.Node {
+			return Render(ctx, child, emptyProps{})
+		})
 	}
 	sess := NewSession(parent, emptyProps{})
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
@@ -65,8 +66,9 @@ func TestContextProvideStaticValue(t *testing.T) {
 		return h.Span(h.Text(theme.Use(ctx)))
 	}
 	parent := func(ctx Ctx, _ emptyProps) h.Node {
-		theme.Provide(ctx, "dark")
-		return Render(ctx, child, emptyProps{})
+		return theme.Provide(ctx, "dark", func() h.Node {
+			return Render(ctx, child, emptyProps{})
+		})
 	}
 	sess := NewSession(parent, emptyProps{})
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
@@ -95,8 +97,9 @@ func TestContextProvideFunc(t *testing.T) {
 			return "other"
 		}
 		deps := []any{count()}
-		text.ProvideFunc(ctx, compute, deps)
-		return Render(ctx, child, emptyProps{})
+		return text.ProvideFunc(ctx, compute, deps, func() h.Node {
+			return Render(ctx, child, emptyProps{})
+		})
 	}
 	sess := NewSession(parent, emptyProps{})
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
@@ -157,30 +160,34 @@ func TestContextNestedProviders(t *testing.T) {
 	outer := func(ctx Ctx, _ emptyProps) h.Node {
 		get, set := theme.UsePair(ctx)
 		_ = set
-		node := Render(ctx, inner, emptyProps{})
-		return theme.Provide(ctx, get(), node)
+		return theme.Provide(ctx, get(), func() h.Node {
+			return Render(ctx, inner, emptyProps{})
+		})
 	}
 	wrapper := func(ctx Ctx, _ emptyProps) h.Node {
-		node := Render(ctx, outer, emptyProps{})
-		return theme.Provide(ctx, "outer", node)
+		return theme.Provide(ctx, "outer", func() h.Node {
+			return Render(ctx, outer, emptyProps{})
+		})
 	}
 	sess := NewSession(wrapper, emptyProps{})
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
 	structured := sess.InitialStructured()
-	if got := firstText(structured); got != "light" {
-		t.Fatalf("expected inner to see local state 'light', got %q", got)
+	if got := firstText(structured); got != "outer" {
+		t.Fatalf("expected inner to inherit outer state 'outer', got %q", got)
 	}
 	// Update outer provider
 	var outerSetter func(string)
 	outerWithState := func(ctx Ctx, _ emptyProps) h.Node {
 		get, set := theme.UsePair(ctx)
 		outerSetter = set
-		node := Render(ctx, inner, emptyProps{})
-		return theme.Provide(ctx, get(), node)
+		return theme.Provide(ctx, get(), func() h.Node {
+			return Render(ctx, inner, emptyProps{})
+		})
 	}
 	wrapperWithState := func(ctx Ctx, _ emptyProps) h.Node {
-		node := Render(ctx, outerWithState, emptyProps{})
-		return theme.Provide(ctx, "outer", node)
+		return theme.Provide(ctx, "outer", func() h.Node {
+			return Render(ctx, outerWithState, emptyProps{})
+		})
 	}
 	sess = NewSession(wrapperWithState, emptyProps{})
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
@@ -213,8 +220,9 @@ func TestContextUseSelect(t *testing.T) {
 	parent := func(ctx Ctx, _ emptyProps) h.Node {
 		get, set := store.UsePair(ctx)
 		setStore = set
-		node := Render(ctx, child, emptyProps{})
-		return store.Provide(ctx, get(), node)
+		return store.Provide(ctx, get(), func() h.Node {
+			return Render(ctx, child, emptyProps{})
+		})
 	}
 	sess := NewSession(parent, emptyProps{})
 	recorder := &opRecorder{}

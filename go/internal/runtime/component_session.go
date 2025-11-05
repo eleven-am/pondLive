@@ -55,6 +55,9 @@ type ComponentSession struct {
 	meta   *Meta
 	metaMu sync.RWMutex
 
+	header   HeaderState
+	headerMu sync.RWMutex
+
 	mu sync.Mutex
 }
 
@@ -134,6 +137,36 @@ func (s *ComponentSession) Metadata() *Meta {
 	s.metaMu.RLock()
 	defer s.metaMu.RUnlock()
 	return CloneMeta(s.meta)
+}
+
+func (s *ComponentSession) assignHeaderState(state HeaderState) {
+	if s == nil {
+		return
+	}
+	if state == nil {
+		state = noopHeaderState{}
+	}
+	s.headerMu.Lock()
+	s.header = state
+	s.headerMu.Unlock()
+}
+
+func (s *ComponentSession) currentHeaderState() HeaderState {
+	if s == nil {
+		return noopHeaderState{}
+	}
+	s.headerMu.RLock()
+	state := s.header
+	s.headerMu.RUnlock()
+	if state == nil {
+		return noopHeaderState{}
+	}
+	return state
+}
+
+// HeaderState returns the currently active header state for the session.
+func (s *ComponentSession) HeaderState() HeaderState {
+	return s.currentHeaderState()
 }
 
 // InitialStructured performs an initial render and returns the structured result for SSR boot.
@@ -240,7 +273,11 @@ func (s *ComponentSession) Flush() error {
 			Ops:      len(opDiff),
 		}
 
-		shouldSend := len(opDiff) > 0 || navDelta != nil || metadataChanged
+		cookiePending := false
+		if owner := s.owner; owner != nil {
+			cookiePending = owner.hasPendingCookieMutations()
+		}
+		shouldSend := len(opDiff) > 0 || navDelta != nil || metadataChanged || cookiePending
 		if shouldSend {
 			if s.sendPatch == nil {
 				return errors.New("runtime: SendPatch is nil")

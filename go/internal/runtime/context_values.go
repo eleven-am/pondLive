@@ -33,9 +33,12 @@ func (c Context[T]) WithEqual(eq func(a, b T) bool) Context[T] {
 }
 
 // Provide makes value available to all descendants rendered within the current component.
-func (c Context[T]) Provide(ctx Ctx, value T, children ...h.Node) h.Node {
+func (c Context[T]) Provide(ctx Ctx, value T, render func() h.Node) h.Node {
+	if render == nil {
+		return h.Fragment()
+	}
 	if ctx.comp == nil {
-		return h.Fragment(children...)
+		return render()
 	}
 	entry := ensureProviderEntry(ctx, c, value, true)
 	entry.owner = ctx.comp
@@ -45,17 +48,17 @@ func (c Context[T]) Provide(ctx Ctx, value T, children ...h.Node) h.Node {
 			entry.assign(value)
 		}
 	}
-	return h.Fragment(children...)
+	return render()
 }
 
 // ProvideFunc computes the value using compute and provides it to descendants.
-func (c Context[T]) ProvideFunc(ctx Ctx, compute func() T, deps []any, children ...h.Node) h.Node {
+func (c Context[T]) ProvideFunc(ctx Ctx, compute func() T, deps []any, render func() h.Node) h.Node {
 	if compute == nil {
 		var zero T
-		return c.Provide(ctx, zero, children...)
+		return c.Provide(ctx, zero, render)
 	}
 	value := UseMemo(ctx, compute, deps...)
-	return c.Provide(ctx, value, children...)
+	return c.Provide(ctx, value, render)
 }
 
 // Use returns the nearest context value or the default when no provider exists.
@@ -75,7 +78,34 @@ func (c Context[T]) UsePair(ctx Ctx) (func() T, func(T)) {
 		return func() T { return c.def }, func(T) {}
 	}
 	if entry := findProviderEntry(ctx.comp, c); entry != nil {
-		return entry.get, entry.set
+		if entry.owner == ctx.comp {
+			return entry.get, entry.set
+		}
+		equal := c.eq
+		if equal == nil {
+			equal = defaultEqual[T]()
+		}
+		local := ensureProviderEntry(ctx, c, c.def, false)
+		if local.eq == nil {
+			local.eq = equal
+		}
+		getter := func() T {
+			if local.active {
+				return local.get()
+			}
+			return entry.get()
+		}
+		setter := func(v T) {
+			if local.active {
+				local.set(v)
+				return
+			}
+			if local.assign != nil {
+				local.assign(v)
+			}
+			entry.set(v)
+		}
+		return getter, setter
 	}
 	equal := c.eq
 	if equal == nil {

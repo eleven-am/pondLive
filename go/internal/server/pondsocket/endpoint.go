@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
@@ -14,7 +15,10 @@ import (
 	"github.com/eleven-am/pondlive/go/pkg/live/router"
 )
 
-const sessionAssignKey = "live.session"
+const (
+	sessionAssignKey         = "live.session"
+	connectionStateAssignKey = "live.connection_state"
+)
 
 // Endpoint wires LiveUI sessions to a PondSocket server endpoint.
 type Endpoint struct {
@@ -35,7 +39,11 @@ func Register(srv *pond.Manager, path string, registry *server.SessionRegistry) 
 	}
 
 	endpoint := srv.CreateEndpoint(path, func(ctx *pond.ConnectionContext) error {
-
+		state := &connectionState{
+			Headers: cloneHeader(ctx.Headers()),
+			Cookies: cloneCookies(ctx.Cookies()),
+		}
+		ctx.SetAssigns(connectionStateAssignKey, state)
 		return ctx.Accept()
 	})
 
@@ -106,6 +114,15 @@ func (e *Endpoint) onJoin(ctx *pond.JoinContext) error {
 	if err != nil {
 		_ = transport.Close()
 		return err
+	}
+
+	if raw := ctx.GetAssigns(connectionStateAssignKey); raw != nil {
+		switch snapshot := raw.(type) {
+		case *connectionState:
+			sess.MergeConnectionState(snapshot.Headers, snapshot.Cookies)
+		case connectionState:
+			sess.MergeConnectionState(snapshot.Headers, snapshot.Cookies)
+		}
 	}
 
 	if payload.Loc.Path != "" || payload.Loc.Query != "" {
@@ -298,6 +315,43 @@ func (e *Endpoint) onLeave(ctx *pond.LeaveContext) {
 		return
 	}
 	e.registry.DetachConnection(ctx.User.UserID)
+}
+
+type connectionState struct {
+	Headers http.Header
+	Cookies []*http.Cookie
+}
+
+func cloneHeader(headers http.Header) http.Header {
+	if len(headers) == 0 {
+		return nil
+	}
+	copy := make(http.Header, len(headers))
+	for key, values := range headers {
+		copy[key] = append([]string(nil), values...)
+	}
+	return copy
+}
+
+func cloneCookies(cookies []*http.Cookie) []*http.Cookie {
+	if len(cookies) == 0 {
+		return nil
+	}
+	out := make([]*http.Cookie, 0, len(cookies))
+	for _, ck := range cookies {
+		if ck == nil || ck.Name == "" {
+			continue
+		}
+		clone := *ck
+		if len(ck.Unparsed) > 0 {
+			clone.Unparsed = append([]string(nil), ck.Unparsed...)
+		}
+		out = append(out, &clone)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func (e *Endpoint) onRecover(ctx *pond.EventContext) error {

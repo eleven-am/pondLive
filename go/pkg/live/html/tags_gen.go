@@ -124,28 +124,6 @@ var tags = []struct {
 	{"Var", "var", "Var creates a <var> element."},
 	{"Video", "video", "Video creates a <video> element."},
 	{"Wbr", "wbr", "Wbr creates a <wbr> element."},
-
-	// SVG elements
-	{"Svg", "svg", "Svg creates an <svg> element."},
-	{"Circle", "circle", "Circle creates a <circle> element."},
-	{"ClipPath", "clipPath", "ClipPath creates a <clipPath> element."},
-	{"Defs", "defs", "Defs creates a <defs> element."},
-	{"Ellipse", "ellipse", "Ellipse creates an <ellipse> element."},
-	{"G", "g", "G creates a <g> element."},
-	{"Line", "line", "Line creates a <line> element."},
-	{"LinearGradient", "linearGradient", "LinearGradient creates a <linearGradient> element."},
-	{"Marker", "marker", "Marker creates a <marker> element."},
-	{"Mask", "mask", "Mask creates a <mask> element."},
-	{"Path", "path", "Path creates a <path> element."},
-	{"Pattern", "pattern", "Pattern creates a <pattern> element."},
-	{"Polygon", "polygon", "Polygon creates a <polygon> element."},
-	{"Polyline", "polyline", "Polyline creates a <polyline> element."},
-	{"RadialGradient", "radialGradient", "RadialGradient creates a <radialGradient> element."},
-	{"Rect", "rect", "Rect creates a <rect> element."},
-	{"Stop", "stop", "Stop creates a <stop> element."},
-	{"SvgText", "text", "SvgText creates a <text> element."},
-	{"TSpan", "tspan", "TSpan creates a <tspan> element."},
-	{"Use", "use", "Use creates a <use> element."},
 }
 
 func main() {

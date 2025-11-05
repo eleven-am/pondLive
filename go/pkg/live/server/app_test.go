@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	livehttp "github.com/eleven-am/pondlive/go/internal/server/http"
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
@@ -110,5 +111,30 @@ func TestAppServesClientScript(t *testing.T) {
 			snippet = snippet[:64]
 		}
 		t.Fatalf("expected bundled client script to be returned, got %q", snippet)
+	}
+}
+
+func TestAppRegistersCookieHandler(t *testing.T) {
+	app, err := NewApp(context.Background(), func(ctx ui.Ctx) h.Node {
+		return h.Div(h.Text("cookie"))
+	})
+	if err != nil {
+		t.Fatalf("NewApp returned error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com"+livehttp.CookiePath, nil)
+	rec := httptest.NewRecorder()
+
+	handler := app.Handler()
+	handler.ServeHTTP(rec, req)
+
+	res := rec.Result()
+	t.Cleanup(func() { _ = res.Body.Close() })
+
+	if res.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status 405, got %d", res.StatusCode)
+	}
+	if allow := res.Header.Get("Allow"); allow != http.MethodPost {
+		t.Fatalf("expected Allow header to advertise POST, got %q", allow)
 	}
 }

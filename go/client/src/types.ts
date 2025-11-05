@@ -335,6 +335,8 @@ export type EffectType =
   | "push"
   | "replace"
   | "metadata"
+  | "cookies"
+  | "Cookies"
   | "Toast"
   | "Focus"
   | "ScrollTop"
@@ -447,6 +449,18 @@ export interface MetadataEffect {
   scriptRemove?: string[];
 }
 
+export interface CookieEffect {
+  type: "cookies";
+  endpoint?: string;
+  Endpoint?: string;
+  sid?: string;
+  SID?: string;
+  token?: string;
+  Token?: string;
+  method?: string;
+  Method?: string;
+}
+
 export type Effect =
   | ScrollEffect
   | FocusEffect
@@ -456,7 +470,8 @@ export type Effect =
   | ReplaceEffect
   | DispatchEffect
   | CustomEffect
-  | MetadataEffect;
+  | MetadataEffect
+  | CookieEffect;
 
 // Performance metrics
 export interface PerformanceMetrics {

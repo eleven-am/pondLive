@@ -41,7 +41,7 @@ func settingsApp(ctx ui.Ctx, _ emptyProps) ui.Node {
 
 func linkApp(ctx ui.Ctx, _ emptyProps) ui.Node {
 	return Router(ctx,
-		Link(ctx, LinkProps{To: "/same", Children: []h.Item{h.Text("Same")}}),
+		Link(ctx, LinkProps{To: "/same"}, h.Text("Same")),
 	)
 }
 

@@ -6,25 +6,25 @@ import (
 )
 
 type LinkProps struct {
-	To       string
-	Replace  bool
-	Children []h.Item
+	To      string
+	Replace bool
 }
 
-func Link(ctx ui.Ctx, p LinkProps) ui.Node {
+func Link(ctx ui.Ctx, p LinkProps, children ...h.Item) ui.Node {
 	state := routerStateCtx.Use(ctx)
 	if sessionRendering(ctx.Session()) && state.getLoc != nil {
-		return renderLink(ctx, p)
+		return renderLink(ctx, p, children...)
 	}
-	return &linkNode{FragmentNode: h.Fragment(), props: p}
+	return &linkNode{FragmentNode: h.Fragment(), props: p, children: children}
 }
 
 type linkNode struct {
 	*h.FragmentNode
-	props LinkProps
+	props    LinkProps
+	children []h.Item
 }
 
-func renderLink(ctx ui.Ctx, p LinkProps) ui.Node {
+func renderLink(ctx ui.Ctx, p LinkProps, children ...h.Item) ui.Node {
 	state := requireRouterState(ctx)
 	base := state.getLoc()
 	target := resolveHref(base, p.To)
@@ -46,8 +46,8 @@ func renderLink(ctx ui.Ctx, p LinkProps) ui.Node {
 	}
 
 	items := []h.Item{h.Href(href), h.On("click", handler)}
-	if len(p.Children) > 0 {
-		items = append(items, p.Children...)
+	if len(children) > 0 {
+		items = append(items, children...)
 	}
 	return h.A(items...)
 }

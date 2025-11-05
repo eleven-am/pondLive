@@ -54,6 +54,7 @@ func NewApp(ctx context.Context, component Component) (*App, error) {
 	mux.Handle(route, pondManager.HTTPHandler())
 	mux.Handle(clientScriptPath(), clientScriptHandler())
 	mux.Handle(livehttp.UploadPathPrefix, livehttp.NewUploadHandler(manager.Registry()))
+	mux.Handle(livehttp.CookiePath, livehttp.NewCookieHandler(manager.Registry()))
 	mux.Handle("/", manager)
 
 	provider := pondEndpoint.PubsubProvider()

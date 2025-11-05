@@ -128,8 +128,8 @@ Use typed contexts to share state across the tree; providers export setters so y
 ```go
 var ThemeCtx = ui.NewContext("light")
 
-func ThemeProvider(ctx ui.Ctx, mode string, children ...h.Node) h.Node {
-    return ThemeCtx.Provide(ctx, mode, children...)
+func ThemeProvider(ctx ui.Ctx, mode string, render func() h.Node) h.Node {
+    return ThemeCtx.Provide(ctx, mode, render)
 }
 
 func ThemeToggle(ctx ui.Ctx) h.Node {
@@ -138,7 +138,7 @@ func ThemeToggle(ctx ui.Ctx) h.Node {
 }
 ```
 
-`Context.UsePair` exposes a getter/setter, and `ui.UseSelect` lets you project fields while controlling equality checks. Combine these with hooks to centralize cross-cutting data such as auth or feature flags.
+Pass a render closure so the runtime activates the provider before descendants render. `Context.UsePair` exposes a getter/setter, and `ui.UseSelect` lets you project fields while controlling equality checks. Combine these with hooks to centralize cross-cutting data such as auth or feature flags.
 
 ## Routing
 
