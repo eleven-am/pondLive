@@ -1167,7 +1167,11 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     if (!selector) return;
 
     const element = document.querySelector(selector);
-    if (element && element instanceof HTMLElement) {
+    if (
+      element &&
+      (element instanceof HTMLElement || element instanceof SVGElement) &&
+      typeof element.focus === "function"
+    ) {
       element.focus();
     }
   }

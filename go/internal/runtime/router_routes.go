@@ -1,15 +1,13 @@
-package router
+package runtime
 
 import (
-	"strings"
-
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	"strings"
 )
 
 type RouteProps struct {
 	Path      string
-	Component ui.Component[Match]
+	Component Component[Match]
 }
 
 type routeNode struct {
@@ -19,11 +17,11 @@ type routeNode struct {
 
 type routeEntry struct {
 	pattern   string
-	component ui.Component[Match]
-	children  []ui.Node
+	component Component[Match]
+	children  []h.Node
 }
 
-func Route(ctx ui.Ctx, p RouteProps, children ...ui.Node) ui.Node {
+func Route(ctx Ctx, p RouteProps, children ...h.Node) h.Node {
 	pattern := p.Path
 	if pattern == "" {
 		pattern = "/"
@@ -45,7 +43,7 @@ type routesNode struct {
 	entries []routeEntry
 }
 
-func Routes(ctx ui.Ctx, children ...ui.Node) ui.Node {
+func Routes(ctx Ctx, children ...h.Node) h.Node {
 	entries := collectRouteEntries(children)
 	if !sessionRendering(ctx.Session()) {
 		return &routesNode{FragmentNode: h.Fragment(), entries: entries}
@@ -80,7 +78,7 @@ func collectRouteEntries(nodes []h.Node) []routeEntry {
 	return entries
 }
 
-func renderRoutes(ctx ui.Ctx, entries []routeEntry) ui.Node {
+func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 	if len(entries) == 0 {
 		return h.Fragment()
 	}
@@ -115,15 +113,15 @@ func renderRoutes(ctx ui.Ctx, entries []routeEntry) ui.Node {
 
 	params := copyParams(chosen.match.Params)
 	storeSessionParams(ctx.Session(), params)
-	outletRender := func() ui.Node {
+	outletRender := func() h.Node {
 		if len(chosen.entry.children) == 0 {
 			return h.Fragment()
 		}
 		return Routes(ctx, chosen.entry.children...)
 	}
-	return ParamsCtx.Provide(ctx, params, func() ui.Node {
-		return outletCtx.Provide(ctx, outletRender, func() ui.Node {
-			return ui.Render(ctx, chosen.entry.component, chosen.match)
+	return ParamsCtx.Provide(ctx, params, func() h.Node {
+		return outletCtx.Provide(ctx, outletRender, func() h.Node {
+			return Render(ctx, chosen.entry.component, chosen.match)
 		})
 	})
 }
@@ -139,9 +137,9 @@ func copyParams(src map[string]string) map[string]string {
 	return dst
 }
 
-var outletCtx = ui.NewContext(func() ui.Node { return h.Fragment() })
+var outletCtx = NewContext(func() h.Node { return h.Fragment() })
 
-func Outlet(ctx ui.Ctx) ui.Node {
+func Outlet(ctx Ctx) h.Node {
 	render := outletCtx.Use(ctx)
 	if render == nil {
 		return h.Fragment()

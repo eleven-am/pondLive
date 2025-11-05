@@ -12,7 +12,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
-	"github.com/eleven-am/pondlive/go/pkg/live/router"
 )
 
 const (
@@ -261,7 +260,7 @@ func (e *Endpoint) onNavigate(ctx *pond.EventContext) error {
 	}
 
 	if comp := session.ComponentSession(); comp != nil {
-		router.InternalHandleNav(comp, router.NavMsg{T: "nav", Path: payload.Path, Q: payload.Query, Hash: payload.Hash})
+		runtime.InternalHandleNav(comp, runtime.NavMsg{T: "nav", Path: payload.Path, Q: payload.Query, Hash: payload.Hash})
 	}
 	session.SetLocation(payload.Path, payload.Query)
 	if err := session.Flush(); err != nil {
@@ -290,7 +289,7 @@ func (e *Endpoint) onPopState(ctx *pond.EventContext) error {
 	}
 
 	if comp := session.ComponentSession(); comp != nil {
-		router.InternalHandlePop(comp, router.PopMsg{T: "pop", Path: payload.Path, Q: payload.Query, Hash: payload.Hash})
+		runtime.InternalHandlePop(comp, runtime.PopMsg{T: "pop", Path: payload.Path, Q: payload.Query, Hash: payload.Hash})
 	}
 	session.SetLocation(payload.Path, payload.Query)
 	if err := session.Flush(); err != nil {

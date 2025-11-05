@@ -1,19 +1,15 @@
-package router
-
-import (
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
-)
+package runtime
 
 func init() {
-	runtime.RegisterNavProvider(func(sess *runtime.ComponentSession) runtime.NavUpdate {
+	RegisterNavProvider(func(sess *ComponentSession) NavUpdate {
 		navs := navHistory(sess)
 		if len(navs) == 0 {
-			return runtime.NavUpdate{}
+			return NavUpdate{}
 		}
 		last := navs[len(navs)-1]
 		clearNavHistory(sess)
 		target := buildNavURL(last)
-		update := runtime.NavUpdate{}
+		update := NavUpdate{}
 		if last.T == "replace" {
 			update.Replace = target
 		} else if last.T == "nav" {

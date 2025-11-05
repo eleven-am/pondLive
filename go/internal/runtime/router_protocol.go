@@ -1,4 +1,4 @@
-package router
+package runtime
 
 type NavMsg struct {
 	T    string `json:"t"`

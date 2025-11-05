@@ -29,6 +29,31 @@ func IfFn(cond bool, fn func() Node) Node {
 	return noopNode{}
 }
 
+// Ternary returns whenTrue when cond is true, otherwise whenFalse.
+// Missing branches fall back to a noop node.
+func Ternary(cond bool, whenTrue, whenFalse Node) Node {
+	if cond {
+		if whenTrue != nil {
+			return whenTrue
+		}
+	} else if whenFalse != nil {
+		return whenFalse
+	}
+	return noopNode{}
+}
+
+// TernaryFn evaluates the matching branch when cond is true or false.
+func TernaryFn(cond bool, whenTrue, whenFalse func() Node) Node {
+	if cond {
+		if whenTrue != nil {
+			return whenTrue()
+		}
+	} else if whenFalse != nil {
+		return whenFalse()
+	}
+	return noopNode{}
+}
+
 type noopNode struct{}
 
 func (noopNode) applyTo(*Element) {}

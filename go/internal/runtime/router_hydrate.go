@@ -1,16 +1,14 @@
-package router
+package runtime
 
 import (
 	"sync"
-
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 )
 
-var sessionSeeds sync.Map // *ui.Session -> Location
+var sessionSeeds sync.Map // *ComponentSession -> Location
 
 // InternalSeedSessionLocation primes a session with a router location during SSR.
 // For internal use by the LiveUI server stack.
-func InternalSeedSessionLocation(sess *ui.Session, loc Location) {
+func InternalSeedSessionLocation(sess *ComponentSession, loc Location) {
 	if sess == nil {
 		return
 	}
@@ -19,7 +17,7 @@ func InternalSeedSessionLocation(sess *ui.Session, loc Location) {
 	storeSessionLocation(sess, canon)
 }
 
-func consumeSeed(sess *ui.Session) (Location, bool) {
+func consumeSeed(sess *ComponentSession) (Location, bool) {
 	if sess == nil {
 		return Location{}, false
 	}

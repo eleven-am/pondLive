@@ -47,7 +47,7 @@ type LiveSession struct {
 	mu  sync.Mutex
 	now func() time.Time
 	ttl atomic.Int64
-	loc Location
+	loc SessionLocation
 
 	frameCap int
 
@@ -140,7 +140,7 @@ func NewLiveSession[P any](sid SessionID, version int, root Component[P], props 
 		component: component,
 		frameCap:  defaultFrameHistory,
 		now:       time.Now,
-		loc: Location{
+		loc: SessionLocation{
 			Path:   "/",
 			Query:  "",
 			Params: map[string]string{},
@@ -652,7 +652,7 @@ func (s *LiveSession) pubsubUnsubscribed(topic string) {
 }
 
 // Location returns the current router location tracked for the session.
-func (s *LiveSession) Location() Location {
+func (s *LiveSession) Location() SessionLocation {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return copyLocation(s.loc)
@@ -996,8 +996,8 @@ func (s *LiveSession) touchLocked() {
 	}
 }
 
-func copyLocation(loc Location) Location {
-	out := Location{Path: loc.Path, Query: loc.Query}
+func copyLocation(loc SessionLocation) SessionLocation {
+	out := SessionLocation{Path: loc.Path, Query: loc.Query}
 	out.Params = cloneParams(loc.Params)
 	return out
 }
@@ -1047,7 +1047,7 @@ type snapshot struct {
 	Metadata *Meta
 }
 
-func buildSnapshot(structured render.Structured, loc Location, meta *Meta) snapshot {
+func buildSnapshot(structured render.Structured, loc SessionLocation, meta *Meta) snapshot {
 	statics := append([]string(nil), structured.S...)
 	dynamics := encodeDynamics(structured.D)
 	slots := make([]protocol.SlotMeta, len(dynamics))

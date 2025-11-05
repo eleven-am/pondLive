@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -116,6 +117,54 @@ func TestContextProvideFunc(t *testing.T) {
 	}
 	if got := firstText(sess.prev); got != "two" {
 		t.Fatalf("expected derived value to update to 'two', got %q", got)
+	}
+}
+
+func TestContextProvideFuncSetter(t *testing.T) {
+	text := NewContext[string]("zero")
+	var setText func(string)
+	child := func(ctx Ctx, _ emptyProps) h.Node {
+		get, set := text.UsePair(ctx)
+		setText = set
+		return h.Span(h.Text(get()))
+	}
+	var setCount func(int)
+	parent := func(ctx Ctx, _ emptyProps) h.Node {
+		count, update := UseState(ctx, 0)
+		setCount = update
+		compute := func() string {
+			return fmt.Sprintf("count:%d", count())
+		}
+		deps := []any{count()}
+		return text.ProvideFunc(ctx, compute, deps, func() h.Node {
+			return Render(ctx, child, emptyProps{})
+		})
+	}
+	sess := NewSession(parent, emptyProps{})
+	sess.SetPatchSender(func([]diff.Op) error { return nil })
+	structured := sess.InitialStructured()
+	if got := firstText(structured); got != "count:0" {
+		t.Fatalf("expected initial derived value 'count:0', got %q", got)
+	}
+	if setText == nil {
+		t.Fatalf("expected context setter to be captured")
+	}
+	setText("manual")
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush error: %v", err)
+	}
+	if got := firstText(sess.prev); got != "manual" {
+		t.Fatalf("expected manual override 'manual', got %q", got)
+	}
+	if setCount == nil {
+		t.Fatalf("expected state setter to be captured")
+	}
+	setCount(1)
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush error: %v", err)
+	}
+	if got := firstText(sess.prev); got != "count:1" {
+		t.Fatalf("expected derived value to update to 'count:1', got %q", got)
 	}
 }
 

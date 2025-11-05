@@ -45,6 +45,41 @@ describe('Navigation Interception', () => {
 
       expect(navigationCallback).not.toHaveBeenCalled();
     });
+
+    it('should intercept SVG anchor elements', () => {
+      registerNavigationHandler(navigationCallback);
+
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(svgNS, 'svg');
+      const anchor = document.createElementNS(svgNS, 'a');
+      anchor.setAttribute('href', '/svg');
+      svg.appendChild(anchor);
+      document.body.appendChild(svg);
+
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      anchor.dispatchEvent(event);
+
+      expect(navigationCallback).toHaveBeenCalledWith('/svg', '', '');
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('should intercept SVG anchors that use xlink:href', () => {
+      registerNavigationHandler(navigationCallback);
+
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const xlinkNS = 'http://www.w3.org/1999/xlink';
+      const svg = document.createElementNS(svgNS, 'svg');
+      const anchor = document.createElementNS(svgNS, 'a');
+      anchor.setAttributeNS(xlinkNS, 'xlink:href', '/svg-xlink');
+      svg.appendChild(anchor);
+      document.body.appendChild(svg);
+
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      anchor.dispatchEvent(event);
+
+      expect(navigationCallback).toHaveBeenCalledWith('/svg-xlink', '', '');
+      expect(event.defaultPrevented).toBe(true);
+    });
   });
 
   describe('Same-Origin Checks', () => {

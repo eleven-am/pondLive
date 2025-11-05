@@ -10,13 +10,12 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
-	routerui "github.com/eleven-am/pondlive/go/pkg/live/router"
 )
 
 func appComponent(ctx runtime.Ctx, _ struct{}) h.Node {
-	search := routerui.UseSearch(ctx)
+	search := runtime.UseSearch(ctx)
 	tab := search.Get("tab")
-	routerui.UseMetadata(ctx, &runtime.Meta{
+	runtime.UseMetadata(ctx, &runtime.Meta{
 		Title:       "Profile",
 		Description: "Viewing profile for user",
 		Meta: []h.MetaTag{{

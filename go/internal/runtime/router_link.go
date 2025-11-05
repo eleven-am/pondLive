@@ -1,7 +1,6 @@
-package router
+package runtime
 
 import (
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -10,7 +9,7 @@ type LinkProps struct {
 	Replace bool
 }
 
-func Link(ctx ui.Ctx, p LinkProps, children ...h.Item) ui.Node {
+func RouterLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
 	state := routerStateCtx.Use(ctx)
 	if sessionRendering(ctx.Session()) && state.getLoc != nil {
 		return renderLink(ctx, p, children...)
@@ -24,7 +23,7 @@ type linkNode struct {
 	children []h.Item
 }
 
-func renderLink(ctx ui.Ctx, p LinkProps, children ...h.Item) ui.Node {
+func renderLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
 	state := requireRouterState(ctx)
 	base := state.getLoc()
 	target := resolveHref(base, p.To)

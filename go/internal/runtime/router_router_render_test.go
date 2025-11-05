@@ -1,4 +1,4 @@
-package router
+package runtime
 
 import (
 	"testing"
@@ -6,27 +6,25 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
 	"github.com/eleven-am/pondlive/go/internal/render"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
-type emptyProps struct{}
+type routerRenderProps struct{}
 
-func settingsLayout(ctx ui.Ctx, _ Match) ui.Node {
+func settingsLayout(ctx Ctx, _ Match) h.Node {
 	return h.Div(
 		h.H1(h.Text("Settings")),
 		asItem(Outlet(ctx)),
 	)
 }
 
-func settingsPage(label string) ui.Component[Match] {
-	return func(ctx ui.Ctx, _ Match) ui.Node {
+func settingsPage(label string) Component[Match] {
+	return func(ctx Ctx, _ Match) h.Node {
 		return h.Div(h.Text(label))
 	}
 }
 
-func settingsApp(ctx ui.Ctx, _ emptyProps) ui.Node {
+func settingsApp(ctx Ctx, _ routerRenderProps) h.Node {
 	return Router(ctx,
 		Routes(ctx,
 			Route(ctx, RouteProps{Path: "/settings/*", Component: settingsLayout},
@@ -39,13 +37,13 @@ func settingsApp(ctx ui.Ctx, _ emptyProps) ui.Node {
 	)
 }
 
-func linkApp(ctx ui.Ctx, _ emptyProps) ui.Node {
+func linkApp(ctx Ctx, _ routerRenderProps) h.Node {
 	return Router(ctx,
-		Link(ctx, LinkProps{To: "/same"}, h.Text("Same")),
+		RouterLink(ctx, LinkProps{To: "/same"}, h.Text("Same")),
 	)
 }
 
-func asItem(node ui.Node) h.Item {
+func asItem(node h.Node) h.Item {
 	if item, ok := node.(h.Item); ok {
 		return item
 	}
@@ -65,7 +63,7 @@ func findClickHandlerID(structured render.Structured) handlers.ID {
 }
 
 func TestRouterOutletRerender(t *testing.T) {
-	sess := runtime.NewSession(settingsApp, emptyProps{})
+	sess := NewSession(settingsApp, routerRenderProps{})
 	sess.SetRegistry(handlers.NewRegistry())
 	var ops []diff.Op
 	sess.SetPatchSender(func(o []diff.Op) error {
@@ -97,7 +95,7 @@ func TestRouterOutletRerender(t *testing.T) {
 }
 
 func TestLinkNoNavigationForSameHref(t *testing.T) {
-	sess := runtime.NewSession(linkApp, emptyProps{})
+	sess := NewSession(linkApp, routerRenderProps{})
 	sess.SetRegistry(handlers.NewRegistry())
 	var ops []diff.Op
 	sess.SetPatchSender(func(o []diff.Op) error {

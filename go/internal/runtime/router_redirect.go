@@ -1,15 +1,14 @@
-package router
+package runtime
 
 import (
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
-func Redirect(ctx ui.Ctx, to string) ui.Node {
+func RouterRedirect(ctx Ctx, to string) h.Node {
 	state := requireRouterState(ctx)
 	target := resolveHref(state.getLoc(), to)
 	href := BuildHref(target.Path, target.Query, target.Hash)
-	ui.UseEffect(ctx, func() ui.Cleanup {
+	UseEffect(ctx, func() Cleanup {
 		performLocationUpdate(ctx, target, true, true)
 		return nil
 	}, href)

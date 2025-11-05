@@ -13,6 +13,23 @@ const installedListeners = new Map<string, (e: Event) => void>();
 
 const ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
 
+function isLiveAnchor(
+  element: Element,
+): element is HTMLAnchorElement | SVGAElement {
+  const hasHref =
+    element.hasAttribute("href") || element.hasAttribute("xlink:href");
+  if (!hasHref) {
+    return false;
+  }
+
+  const isHtmlAnchor = element instanceof HTMLAnchorElement;
+  const isSvgAnchor =
+    element.namespaceURI === "http://www.w3.org/2000/svg" &&
+    element.tagName.toLowerCase() === "a";
+
+  return isHtmlAnchor || isSvgAnchor;
+}
+
 /**
  * Register event handlers from the server
  * @param handlerMap - Map of handler IDs to handler metadata
@@ -193,7 +210,7 @@ function handleEvent(
   sendEvent: EventSender,
 ): void {
   const target = e.target;
-  if (!target) return;
+  if (!target || !(target instanceof Element)) return;
 
   if (uploadDelegate) {
     try {
@@ -205,21 +222,21 @@ function handleEvent(
 
   // Find the handler ID from the element or its parents FIRST
   // This ensures Link components with handlers take precedence over navigation interception
-  const handlerId = findHandlerId(target as Element, eventType);
+  const handlerId = findHandlerId(target, eventType);
 
   // If there's a LiveUI handler, let it run (Link components use this)
   if (handlerId) {
     const handler = handlers.get(handlerId);
     if (handler && handler.event === eventType) {
       // Extract event payload based on event type
-      const payload = extractEventPayload(e, target as HTMLElement);
+      const payload = extractEventPayload(e, target);
 
       // Prevent default for submit events
       if (eventType === "submit") {
         e.preventDefault();
       }
 
-      // Send event to server - this will trigger router.InternalHandleNav for Link components
+      // Send event to server - this will trigger runtime.InternalHandleNav for Link components
       sendEvent({
         hid: handlerId,
         payload: payload,
@@ -231,9 +248,10 @@ function handleEvent(
   // No LiveUI handler found, try navigation interception for click events
   // This handles plain <a> tags without LiveUI handlers
   if (eventType === "click" && navigationHandler && e instanceof MouseEvent) {
-    const anchor = findAnchorElement(target as Element);
+    const anchor = findAnchorElement(target);
     if (anchor && shouldInterceptNavigation(e as MouseEvent, anchor)) {
-      const href = anchor.getAttribute("href");
+      const href =
+        anchor.getAttribute("href") ?? anchor.getAttribute("xlink:href");
       if (href) {
         try {
           const url = new URL(href, window.location.href);
@@ -271,7 +289,7 @@ function findHandlerId(element: Element, eventType: string): string | null {
   return null;
 }
 
-function extractEventPayload(e: Event, target: HTMLElement): EventPayload {
+function extractEventPayload(e: Event, target: Element): EventPayload {
   const payload: EventPayload = {
     type: e.type,
   };
@@ -312,11 +330,11 @@ function extractEventPayload(e: Event, target: HTMLElement): EventPayload {
 /**
  * Walk up the DOM tree to find an anchor element
  */
-function findAnchorElement(element: Element): HTMLAnchorElement | null {
+function findAnchorElement(element: Element): HTMLAnchorElement | SVGAElement | null {
   let current: Element | null = element;
 
   while (current && current !== document.documentElement) {
-    if (current instanceof HTMLAnchorElement && current.hasAttribute("href")) {
+    if (isLiveAnchor(current)) {
       return current;
     }
     current = current.parentElement;
@@ -331,7 +349,7 @@ function findAnchorElement(element: Element): HTMLAnchorElement | null {
  */
 function shouldInterceptNavigation(
   e: MouseEvent,
-  anchor: HTMLAnchorElement,
+  anchor: HTMLAnchorElement | SVGAElement,
 ): boolean {
   // Only intercept primary mouse button (left click)
   if (e.button !== 0) {
@@ -343,7 +361,12 @@ function shouldInterceptNavigation(
     return false;
   }
 
-  const href = anchor.getAttribute("href");
+  if (!isLiveAnchor(anchor)) {
+    return false;
+  }
+
+  const href =
+    anchor.getAttribute("href") ?? anchor.getAttribute("xlink:href") ?? undefined;
   if (!href) {
     return false;
   }

@@ -1,18 +1,18 @@
-package router
+package runtime
 
 import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	"github.com/eleven-am/pondlive/go/internal/handlers"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
+type routerHooksProps struct{}
+
 var lastUserParam string
 
-func userPage(ctx ui.Ctx, match Match) ui.Node {
+func userPage(ctx Ctx, match Match) h.Node {
 	params := UseParams(ctx)
 	lastUserParam = params["id"]
 	if id := match.Params["id"]; id != "" {
@@ -21,7 +21,7 @@ func userPage(ctx ui.Ctx, match Match) ui.Node {
 	return h.Div()
 }
 
-func usersApp(ctx ui.Ctx, _ emptyProps) ui.Node {
+func usersApp(ctx Ctx, _ routerHooksProps) h.Node {
 	return Router(ctx,
 		Routes(ctx,
 			Route(ctx, RouteProps{Path: "/users/:id", Component: userPage}),
@@ -31,7 +31,7 @@ func usersApp(ctx ui.Ctx, _ emptyProps) ui.Node {
 
 func TestUseParamsUpdatesAfterNavigation(t *testing.T) {
 	lastUserParam = ""
-	sess := runtime.NewSession(usersApp, emptyProps{})
+	sess := NewSession(usersApp, routerHooksProps{})
 	sess.SetRegistry(handlers.NewRegistry())
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
 
@@ -54,7 +54,7 @@ func TestUseParamsUpdatesAfterNavigation(t *testing.T) {
 
 var searchRenderCount int
 
-func searchComponent(ctx ui.Ctx, _ Match) ui.Node {
+func searchComponent(ctx Ctx, _ Match) h.Node {
 	searchRenderCount++
 	get, set := UseSearchParam(ctx, "tab")
 	_ = get
@@ -67,7 +67,7 @@ func searchComponent(ctx ui.Ctx, _ Match) ui.Node {
 	)
 }
 
-func searchApp(ctx ui.Ctx, _ emptyProps) ui.Node {
+func searchApp(ctx Ctx, _ routerHooksProps) h.Node {
 	return Router(ctx,
 		Routes(ctx,
 			Route(ctx, RouteProps{Path: "/settings", Component: searchComponent}),
@@ -77,7 +77,7 @@ func searchApp(ctx ui.Ctx, _ emptyProps) ui.Node {
 
 func TestUseSearchParamSetterTriggersRender(t *testing.T) {
 	searchRenderCount = 0
-	sess := runtime.NewSession(searchApp, emptyProps{})
+	sess := NewSession(searchApp, routerHooksProps{})
 	sess.SetRegistry(handlers.NewRegistry())
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
 

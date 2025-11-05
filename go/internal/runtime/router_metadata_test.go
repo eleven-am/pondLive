@@ -1,30 +1,27 @@
-package router
+package runtime
 
 import (
-	"testing"
-
-	"github.com/eleven-am/pondlive/go/internal/runtime"
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	"testing"
 )
 
 type metaProps struct{}
 
-func metadataPage(ctx ui.Ctx, match Match) ui.Node {
-	UseMetadata(ctx, &ui.Meta{
+func metadataPage(ctx Ctx, match Match) h.Node {
+	UseMetadata(ctx, &Meta{
 		Title: "User " + match.Params["id"],
 		Meta: []h.MetaTag{{
 			Name:    "description",
 			Content: "Profile for user " + match.Params["id"],
 		}},
 	})
-	return ui.WithMetadata(
+	return WithMetadata(
 		h.Div(h.Text("metadata")),
-		&ui.Meta{Links: []h.LinkTag{{Rel: "canonical", Href: "/users/" + match.Params["id"]}}},
+		&Meta{Links: []h.LinkTag{{Rel: "canonical", Href: "/users/" + match.Params["id"]}}},
 	)
 }
 
-func metadataApp(ctx ui.Ctx, _ metaProps) ui.Node {
+func metadataApp(ctx Ctx, _ metaProps) h.Node {
 	return Router(ctx,
 		Routes(ctx,
 			Route(ctx, RouteProps{Path: "/users/:id", Component: metadataPage}),
@@ -33,7 +30,7 @@ func metadataApp(ctx ui.Ctx, _ metaProps) ui.Node {
 }
 
 func TestUseMetadataMergesRouteAndResult(t *testing.T) {
-	sess := runtime.NewSession(metadataApp, metaProps{})
+	sess := NewSession(metadataApp, metaProps{})
 	InternalSeedSessionLocation(sess, ParseHref("/users/42"))
 	sess.InitialStructured()
 	meta := sess.Metadata()

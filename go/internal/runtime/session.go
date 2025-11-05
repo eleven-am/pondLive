@@ -24,14 +24,14 @@ type Session interface {
 	Dirty() bool
 
 	SetLocation(path string, query string) (changed bool)
-	Location() Location
+	Location() SessionLocation
 
 	SendFrame(protocol.Frame) error
 
 	Flush() error
 }
 
-type Location struct {
+type SessionLocation struct {
 	Path   string
 	Query  string
 	Params map[string]string

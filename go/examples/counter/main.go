@@ -14,7 +14,6 @@ import (
 
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
-	"github.com/eleven-am/pondlive/go/pkg/live/router"
 	liveserver "github.com/eleven-am/pondlive/go/pkg/live/server"
 )
 
@@ -45,7 +44,7 @@ func main() {
 
 func counter(ctx ui.Ctx) h.Node {
 	count, setCount := ui.UseState(ctx, 0)
-	router.UseMetadata(ctx, &ui.Meta{
+	ui.UseMetadata(ctx, &ui.Meta{
 		Title:       fmt.Sprintf("LiveUI Tailwind Counter: %d", count()),
 		Description: "A simple counter example using LiveUI and TailwindCSS.",
 		Meta:        nil,

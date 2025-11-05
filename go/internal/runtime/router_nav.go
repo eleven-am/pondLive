@@ -1,21 +1,19 @@
-package router
+package runtime
 
 import (
 	"net/url"
 	"strings"
-
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 )
 
-func Navigate(ctx ui.Ctx, href string) {
+func RouterNavigate(ctx Ctx, href string) {
 	applyNavigation(ctx, href, false)
 }
 
-func Replace(ctx ui.Ctx, href string) {
+func RouterReplace(ctx Ctx, href string) {
 	applyNavigation(ctx, href, true)
 }
 
-func NavigateWithSearch(ctx ui.Ctx, patch func(url.Values) url.Values) {
+func RouterNavigateWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
 	state := requireRouterState(ctx)
 	current := state.getLoc()
 	nextQuery := cloneValues(current.Query)
@@ -27,7 +25,7 @@ func NavigateWithSearch(ctx ui.Ctx, patch func(url.Values) url.Values) {
 	performLocationUpdate(ctx, next, false, true)
 }
 
-func ReplaceWithSearch(ctx ui.Ctx, patch func(url.Values) url.Values) {
+func RouterReplaceWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
 	state := requireRouterState(ctx)
 	current := state.getLoc()
 	nextQuery := cloneValues(current.Query)
@@ -40,7 +38,7 @@ func ReplaceWithSearch(ctx ui.Ctx, patch func(url.Values) url.Values) {
 }
 
 // InternalHandleNav applies a navigation message to the session. Internal use only.
-func InternalHandleNav(sess *ui.Session, msg NavMsg) {
+func InternalHandleNav(sess *ComponentSession, msg NavMsg) {
 	target := Location{
 		Path:  msg.Path,
 		Query: parseQuery(msg.Q),
@@ -50,7 +48,7 @@ func InternalHandleNav(sess *ui.Session, msg NavMsg) {
 }
 
 // InternalHandlePop applies a popstate message to the session. Internal use only.
-func InternalHandlePop(sess *ui.Session, msg PopMsg) {
+func InternalHandlePop(sess *ComponentSession, msg PopMsg) {
 	target := Location{
 		Path:  msg.Path,
 		Query: parseQuery(msg.Q),
@@ -59,11 +57,11 @@ func InternalHandlePop(sess *ui.Session, msg PopMsg) {
 	setSessionLocation(sess, target)
 }
 
-func currentLocation(sess *ui.Session) Location {
+func currentLocation(sess *ComponentSession) Location {
 	return currentSessionLocation(sess)
 }
 
-func navHistory(sess *ui.Session) []NavMsg {
+func navHistory(sess *ComponentSession) []NavMsg {
 	if sess == nil {
 		return nil
 	}
@@ -81,7 +79,7 @@ func navHistory(sess *ui.Session) []NavMsg {
 	return nil
 }
 
-func clearNavHistory(sess *ui.Session) {
+func clearNavHistory(sess *ComponentSession) {
 	if sess == nil {
 		return
 	}
@@ -93,14 +91,14 @@ func clearNavHistory(sess *ui.Session) {
 	}
 }
 
-func applyNavigation(ctx ui.Ctx, href string, replace bool) {
+func applyNavigation(ctx Ctx, href string, replace bool) {
 	state := requireRouterState(ctx)
 	current := state.getLoc()
 	target := resolveHref(current, href)
 	performLocationUpdate(ctx, target, replace, true)
 }
 
-func performLocationUpdate(ctx ui.Ctx, target Location, replace bool, record bool) {
+func performLocationUpdate(ctx Ctx, target Location, replace bool, record bool) {
 	state := requireRouterState(ctx)
 	current := state.getLoc()
 	canon := canonicalizeLocation(target)
@@ -158,7 +156,7 @@ func parseQuery(raw string) url.Values {
 	return canonicalizeValues(vals)
 }
 
-func setSessionLocation(sess *ui.Session, target Location) {
+func setSessionLocation(sess *ComponentSession, target Location) {
 	if sess == nil {
 		return
 	}
@@ -180,7 +178,7 @@ func setSessionLocation(sess *ui.Session, target Location) {
 	}
 }
 
-func recordNavigation(sess *ui.Session, loc Location, replace bool) {
+func recordNavigation(sess *ComponentSession, loc Location, replace bool) {
 	if sess == nil {
 		return
 	}

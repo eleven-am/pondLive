@@ -1,9 +1,8 @@
-package router
+package runtime
 
 import (
 	"sync"
 
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -12,7 +11,7 @@ type routerState struct {
 	setLoc func(Location)
 }
 
-var routerStateCtx = ui.NewContext(routerState{})
+var routerStateCtx = NewContext(routerState{})
 
 type sessionEntry struct {
 	mu     sync.Mutex
@@ -24,20 +23,20 @@ type sessionEntry struct {
 	active bool
 }
 
-var sessionEntries sync.Map // key: *ui.Session -> *sessionEntry
+var sessionEntries sync.Map // key: *ComponentSession -> *sessionEntry
 
 type routerProps struct {
-	Children []ui.Node
+	Children []h.Node
 }
 
-func Router(ctx ui.Ctx, children ...ui.Node) ui.Node {
-	return ui.Render(ctx, routerComponent, routerProps{Children: children})
+func Router(ctx Ctx, children ...h.Node) h.Node {
+	return Render(ctx, routerComponent, routerProps{Children: children})
 }
 
-func routerComponent(ctx ui.Ctx, props routerProps) ui.Node {
+func routerComponent(ctx Ctx, props routerProps) h.Node {
 	sess := ctx.Session()
 	initial := initialLocation(sess)
-	get, set := ui.UseState(ctx, initial, ui.WithEqual(LocEqual))
+	get, set := UseState(ctx, initial, WithEqual(LocEqual))
 
 	state := routerState{}
 	state.getLoc = func() Location { return cloneLocation(get()) }
@@ -54,14 +53,14 @@ func routerComponent(ctx ui.Ctx, props routerProps) ui.Node {
 		setSessionRendering(sess, true)
 		defer setSessionRendering(sess, false)
 	}
-	return routerStateCtx.Provide(ctx, state, func() ui.Node {
-		return LocationCtx.Provide(ctx, current, func() ui.Node {
+	return routerStateCtx.Provide(ctx, state, func() h.Node {
+		return LocationCtx.Provide(ctx, current, func() h.Node {
 			return renderRouterChildren(ctx, props.Children...)
 		})
 	})
 }
 
-func requireRouterState(ctx ui.Ctx) routerState {
+func requireRouterState(ctx Ctx) routerState {
 	state := routerStateCtx.Use(ctx)
 	if state.getLoc == nil || state.setLoc == nil {
 		if sess := ctx.Session(); sess != nil {
@@ -84,7 +83,7 @@ func requireRouterState(ctx ui.Ctx) routerState {
 	return state
 }
 
-func registerSessionEntry(sess *ui.Session, get func() Location, set func(Location)) *sessionEntry {
+func registerSessionEntry(sess *ComponentSession, get func() Location, set func(Location)) *sessionEntry {
 	if sess == nil {
 		return nil
 	}
@@ -98,7 +97,7 @@ func registerSessionEntry(sess *ui.Session, get func() Location, set func(Locati
 	return stored
 }
 
-func setSessionRendering(sess *ui.Session, active bool) {
+func setSessionRendering(sess *ComponentSession, active bool) {
 	if sess == nil {
 		return
 	}
@@ -110,7 +109,7 @@ func setSessionRendering(sess *ui.Session, active bool) {
 	}
 }
 
-func sessionRendering(sess *ui.Session) bool {
+func sessionRendering(sess *ComponentSession) bool {
 	if sess == nil {
 		return false
 	}
@@ -123,7 +122,7 @@ func sessionRendering(sess *ui.Session) bool {
 	return false
 }
 
-func storeSessionLocation(sess *ui.Session, loc Location) {
+func storeSessionLocation(sess *ComponentSession, loc Location) {
 	if sess == nil {
 		return
 	}
@@ -137,7 +136,7 @@ func storeSessionLocation(sess *ui.Session, loc Location) {
 	}
 }
 
-func currentSessionLocation(sess *ui.Session) Location {
+func currentSessionLocation(sess *ComponentSession) Location {
 	if sess == nil {
 		return canonicalizeLocation(Location{Path: "/"})
 	}
@@ -153,14 +152,14 @@ func currentSessionLocation(sess *ui.Session) Location {
 	return canonicalizeLocation(Location{Path: "/"})
 }
 
-func initialLocation(sess *ui.Session) Location {
+func initialLocation(sess *ComponentSession) Location {
 	if loc, ok := consumeSeed(sess); ok {
 		return canonicalizeLocation(loc)
 	}
 	return currentSessionLocation(sess)
 }
 
-func storeSessionParams(sess *ui.Session, params map[string]string) {
+func storeSessionParams(sess *ComponentSession, params map[string]string) {
 	if sess == nil {
 		return
 	}
@@ -176,7 +175,7 @@ func storeSessionParams(sess *ui.Session, params map[string]string) {
 	}
 }
 
-func sessionParams(sess *ui.Session) map[string]string {
+func sessionParams(sess *ComponentSession) map[string]string {
 	if sess == nil {
 		return nil
 	}
@@ -194,7 +193,7 @@ func sessionParams(sess *ui.Session) map[string]string {
 
 // SeedSessionParams pre-populates the parameter map used by UseParams during hydration.
 // InternalSeedSessionParams records route params during SSR boot. Internal use only.
-func InternalSeedSessionParams(sess *ui.Session, params map[string]string) {
+func InternalSeedSessionParams(sess *ComponentSession, params map[string]string) {
 	if sess == nil {
 		return
 	}
@@ -210,18 +209,18 @@ func InternalSeedSessionParams(sess *ui.Session, params map[string]string) {
 }
 
 type routerChildrenProps struct {
-	Children []ui.Node
+	Children []h.Node
 }
 
-func renderRouterChildren(ctx ui.Ctx, children ...ui.Node) ui.Node {
-	return ui.Render(ctx, routerChildrenComponent, routerChildrenProps{Children: children})
+func renderRouterChildren(ctx Ctx, children ...h.Node) h.Node {
+	return Render(ctx, routerChildrenComponent, routerChildrenProps{Children: children})
 }
 
-func routerChildrenComponent(ctx ui.Ctx, props routerChildrenProps) ui.Node {
+func routerChildrenComponent(ctx Ctx, props routerChildrenProps) h.Node {
 	if len(props.Children) == 0 {
 		return h.Fragment()
 	}
-	normalized := make([]ui.Node, 0, len(props.Children))
+	normalized := make([]h.Node, 0, len(props.Children))
 	for _, child := range props.Children {
 		switch v := child.(type) {
 		case *routesNode:

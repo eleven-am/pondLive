@@ -1,9 +1,7 @@
-package router
-
-import ui "github.com/eleven-am/pondlive/go/pkg/live"
+package runtime
 
 // UseMetadata merges meta into the session-level metadata for the current render.
-func UseMetadata(ctx ui.Ctx, meta *ui.Meta) {
+func UseMetadata(ctx Ctx, meta *Meta) {
 	if meta == nil {
 		return
 	}
@@ -12,5 +10,5 @@ func UseMetadata(ctx ui.Ctx, meta *ui.Meta) {
 		return
 	}
 	current := sess.Metadata()
-	sess.SetMetadata(ui.MergeMeta(current, meta))
+	sess.SetMetadata(MergeMeta(current, meta))
 }

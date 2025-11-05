@@ -43,6 +43,8 @@ func (c Context[T]) Provide(ctx Ctx, value T, render func() h.Node) h.Node {
 	entry := ensureProviderEntry(ctx, c, value, true)
 	entry.owner = ctx.comp
 	entry.active = true
+	entry.derived = false
+	entry.hasLast = false
 	if entry.assign != nil {
 		if entry.eq == nil || !entry.eq(entry.get(), value) {
 			entry.assign(value)
@@ -53,12 +55,32 @@ func (c Context[T]) Provide(ctx Ctx, value T, render func() h.Node) h.Node {
 
 // ProvideFunc computes the value using compute and provides it to descendants.
 func (c Context[T]) ProvideFunc(ctx Ctx, compute func() T, deps []any, render func() h.Node) h.Node {
+	if render == nil {
+		return h.Fragment()
+	}
 	if compute == nil {
 		var zero T
 		return c.Provide(ctx, zero, render)
 	}
 	value := UseMemo(ctx, compute, deps...)
-	return c.Provide(ctx, value, render)
+	if ctx.comp == nil {
+		return render()
+	}
+	entry := ensureProviderEntry(ctx, c, value, true)
+	entry.owner = ctx.comp
+	entry.active = true
+	entry.derived = true
+	if entry.assign != nil {
+		if !entry.hasLast || entry.eq == nil || !entry.eq(entry.last, value) {
+			entry.assign(value)
+			entry.last = value
+			entry.hasLast = true
+		}
+	} else {
+		entry.last = value
+		entry.hasLast = true
+	}
+	return render()
 }
 
 // Use returns the nearest context value or the default when no provider exists.
@@ -158,12 +180,15 @@ func (c Context[T]) Require(ctx Ctx) T {
 }
 
 type providerEntry[T any] struct {
-	get    func() T
-	set    func(T)
-	assign func(T)
-	eq     func(a, b T) bool
-	owner  *component
-	active bool
+	get     func() T
+	set     func(T)
+	assign  func(T)
+	eq      func(a, b T) bool
+	owner   *component
+	active  bool
+	derived bool
+	hasLast bool
+	last    T
 }
 
 func ensureProviderEntry[T any](ctx Ctx, c Context[T], initial T, activate bool) *providerEntry[T] {

@@ -213,7 +213,10 @@ function initVirtualScroll(slotIndex: number, container: Element): void {
             entries.forEach((entry) => {
                 if (entry.isIntersecting) {
                     // Item became visible
-                    (entry.target as HTMLElement).style.display = '';
+                    const target = entry.target;
+                    if (target instanceof HTMLElement || target instanceof SVGElement) {
+                        target.style.display = '';
+                    }
                 }
             });
         },
@@ -465,7 +468,7 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                     container.insertBefore(fragment, refNode);
 
                     const root = nodes[0];
-                    if (root instanceof HTMLElement) {
+                    if (root instanceof Element) {
                         dom.setRow(slotIndex, payload.key, root);
                         registerRowSlots(payload.slots || [], root);
 
@@ -473,7 +476,9 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                         if (shouldVirtualize(slotIndex, itemCount)) {
                             const state = virtualScrollStates.get(slotIndex);
                             if (state && (pos < state.visibleRange.start || pos > state.visibleRange.end)) {
-                                root.style.display = 'none';
+                                if (root instanceof HTMLElement || root instanceof SVGElement) {
+                                    root.style.display = 'none';
+                                }
                             }
                         }
                     } else {

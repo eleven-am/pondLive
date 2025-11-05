@@ -1,4 +1,4 @@
-package router
+package runtime
 
 import "github.com/eleven-am/pondlive/go/internal/route"
 

@@ -16,7 +16,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
 	"github.com/eleven-am/pondlive/go/internal/server/pondsocket"
-	"github.com/eleven-am/pondlive/go/pkg/live/router"
 )
 
 type Manager struct {
@@ -165,7 +164,7 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	session.MergeHTTPRequest(r)
 	session.SetRoute(path, rawQuery, nil)
 	if sess := session.ComponentSession(); sess != nil {
-		router.InternalSeedSessionLocation(sess, buildRouterLocation(path, values))
+		runtime.InternalSeedSessionLocation(sess, buildRouterLocation(path, values))
 	}
 
 	node := session.RenderRoot()
@@ -186,8 +185,8 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(document))
 }
 
-func buildRouterLocation(path string, values url.Values) router.Location {
-	loc := router.Location{Path: path}
+func buildRouterLocation(path string, values url.Values) runtime.Location {
+	loc := runtime.Location{Path: path}
 	if values != nil {
 		loc.Query = cloneURLValues(values)
 	}

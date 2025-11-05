@@ -1,9 +1,7 @@
-package router
+package runtime
 
 import (
 	"net/url"
-
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 )
 
 type Location struct {
@@ -12,15 +10,15 @@ type Location struct {
 	Hash  string
 }
 
-var LocationCtx = ui.NewContext(Location{Path: "/"})
-var ParamsCtx = ui.NewContext(map[string]string{})
+var LocationCtx = NewContext(Location{Path: "/"})
+var ParamsCtx = NewContext(map[string]string{})
 
-func UseLocation(ctx ui.Ctx) Location {
+func UseLocation(ctx Ctx) Location {
 	loc := LocationCtx.Use(ctx)
 	return cloneLocation(loc)
 }
 
-func UseParams(ctx ui.Ctx) map[string]string {
+func UseParams(ctx Ctx) map[string]string {
 	params := ParamsCtx.Use(ctx)
 	if len(params) == 0 {
 		sess := ctx.Session()
@@ -37,7 +35,7 @@ func UseParams(ctx ui.Ctx) map[string]string {
 	return cp
 }
 
-func UseParam(ctx ui.Ctx, key string) string {
+func UseParam(ctx Ctx, key string) string {
 	if key == "" {
 		return ""
 	}
@@ -45,12 +43,12 @@ func UseParam(ctx ui.Ctx, key string) string {
 	return params[key]
 }
 
-func UseSearch(ctx ui.Ctx) url.Values {
+func UseSearch(ctx Ctx) url.Values {
 	loc := UseLocation(ctx)
 	return cloneValues(loc.Query)
 }
 
-func UseSearchParam(ctx ui.Ctx, key string) (func() []string, func([]string)) {
+func UseSearchParam(ctx Ctx, key string) (func() []string, func([]string)) {
 	state := requireRouterState(ctx)
 	lower := key
 	get := func() []string {
