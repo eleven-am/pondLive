@@ -101,16 +101,16 @@ func (c Context[T]) UsePair(ctx Ctx) (func() T, func(T)) {
 	}
 	entry := findProviderEntry(ctx.comp, c)
 	isOwner := entry != nil && entry.owner == ctx.comp
-	equal := c.eq
-	if equal == nil {
-		equal = defaultEqual[T]()
-	}
 	local := ensureProviderEntry(ctx, c, c.def, false)
-	if local.eq == nil {
-		local.eq = equal
-	}
 	if isOwner {
 		return entry.get, entry.set
+	}
+	if local.eq == nil {
+		equal := c.eq
+		if equal == nil {
+			equal = defaultEqual[T]()
+		}
+		local.eq = equal
 	}
 	if entry != nil {
 		getter := func() T {
