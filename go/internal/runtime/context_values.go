@@ -210,7 +210,14 @@ func ensureProviderEntry[T any](ctx Ctx, c Context[T], initial T, activate bool)
 	if ctx.comp.providers == nil {
 		ctx.comp.providers = make(map[contextID]any)
 	}
-	if existing, ok := ctx.comp.providers[c.id]; ok {
+	existing, providerExists := ctx.comp.providers[c.id]
+	comparer := c.eq
+	if comparer == nil {
+		comparer = defaultEqual[T]()
+	}
+	baseIdx := ctx.frame.idx
+	get, set := UseState(ctx, initial, WithEqual(comparer))
+	if providerExists {
 		entry, ok := existing.(*providerEntry[T])
 		if !ok {
 			panic(fmt.Sprintf("runtime: context type mismatch for %d", c.id))
@@ -220,12 +227,6 @@ func ensureProviderEntry[T any](ctx Ctx, c Context[T], initial T, activate bool)
 		}
 		return entry
 	}
-	comparer := c.eq
-	if comparer == nil {
-		comparer = defaultEqual[T]()
-	}
-	baseIdx := ctx.frame.idx
-	get, set := UseState(ctx, initial, WithEqual(comparer))
 	var cellPtr *stateCell[T]
 	if baseIdx < len(ctx.frame.cells) {
 		if cell, ok := ctx.frame.cells[baseIdx].(*stateCell[T]); ok {
