@@ -98,19 +98,3 @@ func LocEqual(a, b Location) bool {
 func UseMetadata(ctx Ctx, meta *Meta) {
 	runtime.UseMetadata(ctx, meta)
 }
-
-func InternalSeedSessionLocation(sess *Session, loc Location) {
-	runtime.InternalSeedSessionLocation(sess, loc)
-}
-
-func InternalSeedSessionParams(sess *Session, params map[string]string) {
-	runtime.InternalSeedSessionParams(sess, params)
-}
-
-func InternalHandleNav(sess *Session, msg NavMsg) {
-	runtime.InternalHandleNav(sess, msg)
-}
-
-func InternalHandlePop(sess *Session, msg PopMsg) {
-	runtime.InternalHandlePop(sess, msg)
-}
