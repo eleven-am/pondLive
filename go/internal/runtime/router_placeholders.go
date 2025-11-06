@@ -30,10 +30,10 @@ func normalizeRouterNode(ctx Ctx, sess *ComponentSession, node h.Node) h.Node {
 	}
 	switch v := node.(type) {
 	case *routesNode:
-		removeRoutesPlaceholder(sess, v.FragmentNode)
+		sess.clearRoutesPlaceholder(v.FragmentNode)
 		return normalizeRouterNode(ctx, sess, renderRoutes(ctx, v.entries))
 	case *linkNode:
-		removeLinkPlaceholder(sess, v.FragmentNode)
+		sess.clearLinkPlaceholder(v.FragmentNode)
 		return renderLink(ctx, v.props, v.children...)
 	case *h.Element:
 		if v == nil || len(v.Children) == 0 || v.Unsafe != nil {
@@ -88,16 +88,12 @@ func removeLinkPlaceholder(sess *ComponentSession, frag *h.FragmentNode) {
 	if sess == nil || frag == nil {
 		return
 	}
-	if state := sess.loadRouterState(); state != nil {
-		state.linkPlaceholders.Delete(frag)
-	}
+	sess.clearLinkPlaceholder(frag)
 }
 
 func removeRoutesPlaceholder(sess *ComponentSession, frag *h.FragmentNode) {
 	if sess == nil || frag == nil {
 		return
 	}
-	if state := sess.loadRouterState(); state != nil {
-		state.routesPlaceholders.Delete(frag)
-	}
+	sess.clearRoutesPlaceholder(frag)
 }

@@ -65,7 +65,7 @@ func navHistory(sess *ComponentSession) []NavMsg {
 	if sess == nil {
 		return nil
 	}
-	if entry := loadSessionEntry(sess); entry != nil {
+	if entry := sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
 		navs := entry.navigation.history
@@ -83,7 +83,7 @@ func clearNavHistory(sess *ComponentSession) {
 	if sess == nil {
 		return
 	}
-	if entry := loadSessionEntry(sess); entry != nil {
+	if entry := sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		entry.navigation.history = nil
 		entry.navigation.pending = nil
@@ -95,7 +95,7 @@ func consumePendingNavigation(sess *ComponentSession) (NavMsg, bool) {
 	if sess == nil {
 		return NavMsg{}, false
 	}
-	if entry := loadSessionEntry(sess); entry != nil {
+	if entry := sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
 		pending := entry.navigation.pending
@@ -179,7 +179,7 @@ func setSessionLocation(sess *ComponentSession, target Location) {
 		return
 	}
 	canon := canonicalizeLocation(target)
-	if entry := loadSessionEntry(sess); entry != nil {
+	if entry := sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		setter := entry.handlers.set
 		current := entry.navigation.loc
@@ -208,7 +208,7 @@ func recordNavigation(sess *ComponentSession, loc Location, replace bool) {
 	if replace {
 		msg.T = "replace"
 	}
-	if entry := ensureSessionEntry(sess); entry != nil {
+	if entry := sess.ensureRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		entry.navigation.history = append(entry.navigation.history, msg)
 		entry.navigation.pending = append(entry.navigation.pending, msg)

@@ -61,28 +61,16 @@ func Routes(ctx Ctx, children ...h.Node) h.Node {
 func newRoutesPlaceholder(sess *ComponentSession, entries []routeEntry) *routesNode {
 	node := &routesNode{FragmentNode: h.Fragment(), entries: entries}
 	if sess != nil {
-		if state := sess.ensureRouterState(); state != nil {
-			state.routesPlaceholders.Store(node.FragmentNode, node)
-		}
+		sess.storeRoutesPlaceholder(node.FragmentNode, node)
 	}
 	return node
 }
 
 func consumeRoutesPlaceholder(sess *ComponentSession, f *h.FragmentNode) (*routesNode, bool) {
-	if f == nil {
-		return nil, false
-	}
 	if sess == nil {
 		return nil, false
 	}
-	if state := sess.loadRouterState(); state != nil {
-		if value, ok := state.routesPlaceholders.LoadAndDelete(f); ok {
-			if node, okCast := value.(*routesNode); okCast {
-				return node, true
-			}
-		}
-	}
-	return nil, false
+	return sess.takeRoutesPlaceholder(f)
 }
 
 type routeMatch struct {
@@ -118,7 +106,7 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 		entry *sessionEntry
 		depth int
 	)
-	if entry = loadSessionEntry(sess); entry != nil {
+	if entry = sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		entry.render.depth++
 		depth = entry.render.depth

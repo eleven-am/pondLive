@@ -31,25 +31,16 @@ type linkNode struct {
 func newLinkPlaceholder(sess *ComponentSession, p LinkProps, children []h.Item) *linkNode {
 	node := &linkNode{FragmentNode: h.Fragment(), props: p, children: children}
 	if sess != nil {
-		if state := sess.ensureRouterState(); state != nil {
-			state.linkPlaceholders.Store(node.FragmentNode, node)
-		}
+		sess.storeLinkPlaceholder(node.FragmentNode, node)
 	}
 	return node
 }
 
 func consumeLinkPlaceholder(sess *ComponentSession, f *h.FragmentNode) (*linkNode, bool) {
-	if f == nil || sess == nil {
+	if sess == nil {
 		return nil, false
 	}
-	if state := sess.loadRouterState(); state != nil {
-		if value, ok := state.linkPlaceholders.LoadAndDelete(f); ok {
-			if node, okCast := value.(*linkNode); okCast {
-				return node, true
-			}
-		}
-	}
-	return nil, false
+	return sess.takeLinkPlaceholder(f)
 }
 
 func renderLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {

@@ -8,7 +8,7 @@ func InternalSeedSessionLocation(sess *ComponentSession, loc Location) {
 	}
 	canon := canonicalizeLocation(loc)
 	storeSessionLocation(sess, canon)
-	if entry := ensureSessionEntry(sess); entry != nil {
+	if entry := sess.ensureRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		entry.navigation.seed = canon
 		entry.navigation.hasSeed = true
@@ -25,7 +25,7 @@ func consumeSeed(sess *ComponentSession) (Location, bool) {
 	if sess == nil {
 		return Location{}, false
 	}
-	if entry := loadSessionEntry(sess); entry != nil {
+	if entry := sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		if entry.navigation.hasSeed {
 			loc := entry.navigation.seed

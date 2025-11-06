@@ -95,7 +95,7 @@ func requireRouterState(ctx Ctx) routerState {
 	state := routerStateCtx.Use(ctx)
 	if state.getLoc == nil || state.setLoc == nil {
 		if sess := ctx.Session(); sess != nil {
-			if entry := loadSessionEntry(sess); entry != nil {
+			if entry := sess.loadRouterEntry(); entry != nil {
 				entry.mu.Lock()
 				loc := entry.navigation.loc
 				setter := entry.handlers.set
@@ -117,7 +117,7 @@ func registerSessionEntry(sess *ComponentSession, get func() Location, set func(
 	if sess == nil {
 		return nil
 	}
-	entry := ensureSessionEntry(sess)
+	entry := sess.ensureRouterEntry()
 	entry.mu.Lock()
 	entry.handlers.get = get
 	entry.handlers.set = set
@@ -137,7 +137,7 @@ func setSessionRendering(sess *ComponentSession, active bool) {
 	if sess == nil {
 		return
 	}
-	if entry := loadSessionEntry(sess); entry != nil {
+	if entry := sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		entry.render.active = active
 		entry.mu.Unlock()
@@ -148,7 +148,7 @@ func sessionRendering(sess *ComponentSession) bool {
 	if sess == nil {
 		return false
 	}
-	if entry := loadSessionEntry(sess); entry != nil {
+	if entry := sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
 		return entry.render.active
@@ -161,7 +161,7 @@ func storeSessionLocation(sess *ComponentSession, loc Location) {
 		return
 	}
 	canon := canonicalizeLocation(loc)
-	if entry := ensureSessionEntry(sess); entry != nil {
+	if entry := sess.ensureRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		entry.navigation.loc = canon
 		entry.params.values = nil
@@ -176,7 +176,7 @@ func currentSessionLocation(sess *ComponentSession) Location {
 	if sess == nil {
 		return canonicalizeLocation(Location{Path: "/"})
 	}
-	if entry := loadSessionEntry(sess); entry != nil {
+	if entry := sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		loc := entry.navigation.loc
 		entry.mu.Unlock()
@@ -198,7 +198,7 @@ func storeSessionParams(sess *ComponentSession, params map[string]string) {
 	if sess == nil {
 		return
 	}
-	if entry := ensureSessionEntry(sess); entry != nil {
+	if entry := sess.ensureRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		if len(params) == 0 {
 			entry.params.values = nil
@@ -213,7 +213,7 @@ func sessionParams(sess *ComponentSession) map[string]string {
 	if sess == nil {
 		return nil
 	}
-	if entry := loadSessionEntry(sess); entry != nil {
+	if entry := sess.loadRouterEntry(); entry != nil {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
 		if len(entry.params.values) == 0 {
@@ -230,7 +230,7 @@ func InternalSeedSessionParams(sess *ComponentSession, params map[string]string)
 	if sess == nil {
 		return
 	}
-	entry := ensureSessionEntry(sess)
+	entry := sess.ensureRouterEntry()
 	entry.mu.Lock()
 	if len(params) == 0 {
 		entry.params.values = nil
@@ -238,26 +238,4 @@ func InternalSeedSessionParams(sess *ComponentSession, params map[string]string)
 		entry.params.values = copyParams(params)
 	}
 	entry.mu.Unlock()
-}
-
-func ensureSessionEntry(sess *ComponentSession) *sessionEntry {
-	if sess == nil {
-		return nil
-	}
-	state := sess.ensureRouterState()
-	if state == nil {
-		return nil
-	}
-	return &state.entry
-}
-
-func loadSessionEntry(sess *ComponentSession) *sessionEntry {
-	if sess == nil {
-		return nil
-	}
-	state := sess.loadRouterState()
-	if state == nil {
-		return nil
-	}
-	return &state.entry
 }

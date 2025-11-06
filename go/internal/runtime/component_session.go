@@ -169,6 +169,92 @@ func (s *ComponentSession) loadRouterState() *routerSessionState {
 	return s.router.Load()
 }
 
+func (s *ComponentSession) ensureRouterEntry() *sessionEntry {
+	if s == nil {
+		return nil
+	}
+	state := s.ensureRouterState()
+	if state == nil {
+		return nil
+	}
+	return &state.entry
+}
+
+func (s *ComponentSession) loadRouterEntry() *sessionEntry {
+	if s == nil {
+		return nil
+	}
+	state := s.loadRouterState()
+	if state == nil {
+		return nil
+	}
+	return &state.entry
+}
+
+func (s *ComponentSession) storeLinkPlaceholder(frag *h.FragmentNode, node *linkNode) {
+	if s == nil || frag == nil || node == nil {
+		return
+	}
+	if state := s.ensureRouterState(); state != nil {
+		state.linkPlaceholders.Store(frag, node)
+	}
+}
+
+func (s *ComponentSession) takeLinkPlaceholder(frag *h.FragmentNode) (*linkNode, bool) {
+	if s == nil || frag == nil {
+		return nil, false
+	}
+	if state := s.loadRouterState(); state != nil {
+		if value, ok := state.linkPlaceholders.LoadAndDelete(frag); ok {
+			if node, okCast := value.(*linkNode); okCast {
+				return node, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (s *ComponentSession) clearLinkPlaceholder(frag *h.FragmentNode) {
+	if s == nil || frag == nil {
+		return
+	}
+	if state := s.loadRouterState(); state != nil {
+		state.linkPlaceholders.Delete(frag)
+	}
+}
+
+func (s *ComponentSession) storeRoutesPlaceholder(frag *h.FragmentNode, node *routesNode) {
+	if s == nil || frag == nil || node == nil {
+		return
+	}
+	if state := s.ensureRouterState(); state != nil {
+		state.routesPlaceholders.Store(frag, node)
+	}
+}
+
+func (s *ComponentSession) takeRoutesPlaceholder(frag *h.FragmentNode) (*routesNode, bool) {
+	if s == nil || frag == nil {
+		return nil, false
+	}
+	if state := s.loadRouterState(); state != nil {
+		if value, ok := state.routesPlaceholders.LoadAndDelete(frag); ok {
+			if node, okCast := value.(*routesNode); okCast {
+				return node, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (s *ComponentSession) clearRoutesPlaceholder(frag *h.FragmentNode) {
+	if s == nil || frag == nil {
+		return
+	}
+	if state := s.loadRouterState(); state != nil {
+		state.routesPlaceholders.Delete(frag)
+	}
+}
+
 // SetPubsubProvider wires the session to an external pub/sub provider.
 func (s *ComponentSession) SetPubsubProvider(provider PubsubProvider) {
 	if s == nil {
