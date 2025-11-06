@@ -80,11 +80,11 @@ type ClientAck struct {
 }
 
 type ClientEvent struct {
-	T       string `json:"t"`
-	SID     string `json:"sid"`
-	HID     string `json:"hid"`
-	CSeq    int    `json:"cseq"`
-	Payload any    `json:"payload"`
+	T       string                 `json:"t"`
+	SID     string                 `json:"sid"`
+	HID     string                 `json:"hid"`
+	CSeq    int                    `json:"cseq"`
+	Payload map[string]interface{} `json:"payload"`
 }
 
 type EventAck struct {

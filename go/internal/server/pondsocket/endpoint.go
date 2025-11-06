@@ -401,13 +401,20 @@ func mapToWireEvent(m map[string]any) (runtime.WireEvent, error) {
 	var wire runtime.WireEvent
 	if name, ok := m["name"].(string); ok {
 		wire.Name = name
+	} else if eventType, ok := m["type"].(string); ok {
+		wire.Name = eventType
 	}
+
 	if value, ok := m["value"].(string); ok {
 		wire.Value = value
 	}
+
 	if payload, ok := m["payload"].(map[string]any); ok {
 		wire.Payload = cloneAnyMap(payload)
+	} else {
+		wire.Payload = cloneAnyMap(m)
 	}
+
 	if form, ok := m["form"].(map[string]any); ok {
 		wire.Form = cloneStringMap(form)
 	} else if formMap, ok := m["form"].(map[string]string); ok {

@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
-	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/handlers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	render "github.com/eleven-am/pondlive/go/internal/render"
+	"github.com/eleven-am/pondlive/go/internal/render"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -1165,7 +1165,7 @@ func extractHandlerMeta(structured render.Structured) map[string]protocol.Handle
 		if dyn.Kind != render.DynAttrs {
 			continue
 		}
-		// First collect the primary event bindings.
+
 		for attr, val := range dyn.Attrs {
 			if val == "" || !strings.HasPrefix(attr, "data-on") {
 				continue
@@ -1191,7 +1191,6 @@ func extractHandlerMeta(structured render.Structured) map[string]protocol.Handle
 			handlers[id] = meta
 		}
 
-		// Then merge metadata such as listen lists and property selectors.
 		for attr, raw := range dyn.Attrs {
 			if raw == "" || !strings.HasPrefix(attr, "data-on") {
 				continue

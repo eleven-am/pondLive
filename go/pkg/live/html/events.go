@@ -100,7 +100,7 @@ func defaultEventOptions(event string) EventOptions {
 	if !ok {
 		return EventOptions{}
 	}
-	// Copy slices to avoid accidental sharing between callers.
+
 	out := EventOptions{}
 	if len(preset.Listen) > 0 {
 		out.Listen = append(out.Listen, preset.Listen...)
