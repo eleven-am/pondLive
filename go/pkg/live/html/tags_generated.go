@@ -220,6 +220,12 @@ func Marker(items ...Item) *Element { return el("marker", items...) }
 // Mask creates a <mask> element.
 func Mask(items ...Item) *Element { return el("mask", items...) }
 
+// Menu creates a <menu> element.
+func Menu(items ...Item) *Element { return el("menu", items...) }
+
+// MenuItem creates a <menuitem> element.
+func MenuItem(items ...Item) *Element { return el("menuitem", items...) }
+
 // Meta creates a <meta> element.
 func Meta(items ...Item) *Element { return el("meta", items...) }
 
@@ -250,6 +256,9 @@ func Output(items ...Item) *Element { return el("output", items...) }
 // P creates a <p> element.
 func P(items ...Item) *Element { return el("p", items...) }
 
+// Param creates a <param> element.
+func Param(items ...Item) *Element { return el("param", items...) }
+
 // Path creates a <path> element.
 func Path(items ...Item) *Element { return el("path", items...) }
 
@@ -265,6 +274,9 @@ func Polygon(items ...Item) *Element { return el("polygon", items...) }
 // Polyline creates a <polyline> element.
 func Polyline(items ...Item) *Element { return el("polyline", items...) }
 
+// Portal creates a <portal> element.
+func Portal(items ...Item) *Element { return el("portal", items...) }
+
 // Pre creates a <pre> element.
 func Pre(items ...Item) *Element { return el("pre", items...) }
 
@@ -277,6 +289,9 @@ func Q(items ...Item) *Element { return el("q", items...) }
 // RadialGradient creates a <radialGradient> element.
 func RadialGradient(items ...Item) *Element { return el("radialGradient", items...) }
 
+// Rb creates an <rb> element.
+func Rb(items ...Item) *Element { return el("rb", items...) }
+
 // Rect creates a <rect> element.
 func Rect(items ...Item) *Element { return el("rect", items...) }
 
@@ -285,6 +300,9 @@ func Rp(items ...Item) *Element { return el("rp", items...) }
 
 // Rt creates an <rt> element.
 func Rt(items ...Item) *Element { return el("rt", items...) }
+
+// Rtc creates an <rtc> element.
+func Rtc(items ...Item) *Element { return el("rtc", items...) }
 
 // Ruby creates a <ruby> element.
 func Ruby(items ...Item) *Element { return el("ruby", items...) }
