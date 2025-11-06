@@ -1,8 +1,10 @@
 package runtime
 
 import (
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 	"strings"
+	"sync"
+
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type RouteProps struct {
@@ -43,16 +45,36 @@ type routesNode struct {
 	entries []routeEntry
 }
 
+var routesPlaceholders sync.Map // *h.FragmentNode -> *routesNode
+
 func Routes(ctx Ctx, children ...h.Node) h.Node {
 	entries := collectRouteEntries(children)
 	if !sessionRendering(ctx.Session()) {
-		return &routesNode{FragmentNode: h.Fragment(), entries: entries}
+		return newRoutesPlaceholder(entries)
 	}
 	state := routerStateCtx.Use(ctx)
 	if state.getLoc == nil || state.setLoc == nil {
-		return &routesNode{FragmentNode: h.Fragment(), entries: entries}
+		return newRoutesPlaceholder(entries)
 	}
 	return renderRoutes(ctx, entries)
+}
+
+func newRoutesPlaceholder(entries []routeEntry) *routesNode {
+	node := &routesNode{FragmentNode: h.Fragment(), entries: entries}
+	routesPlaceholders.Store(node.FragmentNode, node)
+	return node
+}
+
+func consumeRoutesPlaceholder(f *h.FragmentNode) (*routesNode, bool) {
+	if f == nil {
+		return nil, false
+	}
+	if value, ok := routesPlaceholders.LoadAndDelete(f); ok {
+		if node, okCast := value.(*routesNode); okCast {
+			return node, true
+		}
+	}
+	return nil, false
 }
 
 type routeMatch struct {

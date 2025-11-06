@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"sync"
+
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -14,13 +16,33 @@ func RouterLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
 	if sessionRendering(ctx.Session()) && state.getLoc != nil {
 		return renderLink(ctx, p, children...)
 	}
-	return &linkNode{FragmentNode: h.Fragment(), props: p, children: children}
+	return newLinkPlaceholder(p, children)
 }
 
 type linkNode struct {
 	*h.FragmentNode
 	props    LinkProps
 	children []h.Item
+}
+
+var linkPlaceholders sync.Map // *h.FragmentNode -> *linkNode
+
+func newLinkPlaceholder(p LinkProps, children []h.Item) *linkNode {
+	node := &linkNode{FragmentNode: h.Fragment(), props: p, children: children}
+	linkPlaceholders.Store(node.FragmentNode, node)
+	return node
+}
+
+func consumeLinkPlaceholder(f *h.FragmentNode) (*linkNode, bool) {
+	if f == nil {
+		return nil, false
+	}
+	if value, ok := linkPlaceholders.LoadAndDelete(f); ok {
+		if node, okCast := value.(*linkNode); okCast {
+			return node, true
+		}
+	}
+	return nil, false
 }
 
 func renderLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {

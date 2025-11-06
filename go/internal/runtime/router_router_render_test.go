@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
@@ -40,6 +41,16 @@ func settingsApp(ctx Ctx, _ routerRenderProps) h.Node {
 func linkApp(ctx Ctx, _ routerRenderProps) h.Node {
 	return Router(ctx,
 		RouterLink(ctx, LinkProps{To: "/same"}, h.Text("Same")),
+	)
+}
+
+func nestedLinkApp(ctx Ctx, _ routerRenderProps) h.Node {
+	return Router(ctx,
+		h.Nav(
+			h.Div(
+				RouterLink(ctx, LinkProps{To: "/nested"}, h.Text("Nested")),
+			),
+		),
 	)
 }
 
@@ -123,5 +134,25 @@ func TestLinkNoNavigationForSameHref(t *testing.T) {
 	}
 	if navs := navHistory(sess); len(navs) != 0 {
 		t.Fatalf("expected no nav history, got %v", navs)
+	}
+}
+
+func TestRouterRendersNestedLinkDuringSSR(t *testing.T) {
+	sess := NewSession(nestedLinkApp, routerRenderProps{})
+	sess.SetRegistry(handlers.NewRegistry())
+
+	InternalSeedSessionLocation(sess, ParseHref("/root"))
+
+	node := sess.RenderNode()
+	html := render.RenderHTML(node, sess.Registry())
+
+	if !strings.Contains(html, "<a ") {
+		t.Fatalf("expected anchor element in SSR output, got %q", html)
+	}
+	if !strings.Contains(html, "href=\"/nested\"") {
+		t.Fatalf("expected nested link href in SSR output, got %q", html)
+	}
+	if !strings.Contains(html, "data-onclick") {
+		t.Fatalf("expected click handler attribute for nested link, got %q", html)
 	}
 }

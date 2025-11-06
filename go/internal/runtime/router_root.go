@@ -222,14 +222,67 @@ func routerChildrenComponent(ctx Ctx, props routerChildrenProps) h.Node {
 	}
 	normalized := make([]h.Node, 0, len(props.Children))
 	for _, child := range props.Children {
-		switch v := child.(type) {
-		case *routesNode:
-			normalized = append(normalized, renderRoutes(ctx, v.entries))
-		case *linkNode:
-			normalized = append(normalized, renderLink(ctx, v.props, v.children...))
-		default:
-			normalized = append(normalized, child)
-		}
+		normalized = append(normalized, normalizeRouterNode(ctx, child))
 	}
 	return h.Fragment(normalized...)
+}
+
+func normalizeRouterNode(ctx Ctx, node h.Node) h.Node {
+	if node == nil {
+		return nil
+	}
+	switch v := node.(type) {
+	case *routesNode:
+		routesPlaceholders.Delete(v.FragmentNode)
+		return normalizeRouterNode(ctx, renderRoutes(ctx, v.entries))
+	case *linkNode:
+		linkPlaceholders.Delete(v.FragmentNode)
+		return renderLink(ctx, v.props, v.children...)
+	case *h.Element:
+		if v == nil || len(v.Children) == 0 || v.Unsafe != nil {
+			return node
+		}
+		children := v.Children
+		updated := make([]h.Node, len(children))
+		changed := false
+		for i, child := range children {
+			normalized := normalizeRouterNode(ctx, child)
+			if normalized != child {
+				changed = true
+			}
+			updated[i] = normalized
+		}
+		if !changed {
+			return node
+		}
+		clone := *v
+		clone.Children = updated
+		return &clone
+	case *h.FragmentNode:
+		if placeholder, ok := consumeLinkPlaceholder(v); ok {
+			return renderLink(ctx, placeholder.props, placeholder.children...)
+		}
+		if placeholder, ok := consumeRoutesPlaceholder(v); ok {
+			return normalizeRouterNode(ctx, renderRoutes(ctx, placeholder.entries))
+		}
+		if v == nil || len(v.Children) == 0 {
+			return node
+		}
+		children := v.Children
+		updated := make([]h.Node, len(children))
+		changed := false
+		for i, child := range children {
+			normalized := normalizeRouterNode(ctx, child)
+			if normalized != child {
+				changed = true
+			}
+			updated[i] = normalized
+		}
+		if !changed {
+			return node
+		}
+		return h.Fragment(updated...)
+	default:
+		return node
+	}
 }
