@@ -354,7 +354,8 @@ function registerRowSlots(slotIndexes: number[], fragment: DocumentFragment | El
     const foundAnyElements = current !== null;
 
     while (current && pending.size > 0) {
-        const attr = current.getAttribute('data-slot-index');
+        const element = current;
+        const attr = element.getAttribute('data-slot-index');
         if (attr !== null) {
             attr
                 .split(/\s+/)
@@ -367,11 +368,11 @@ function registerRowSlots(slotIndexes: number[], fragment: DocumentFragment | El
                         return;
                     }
 
-                    let target: Node = current;
+                    let target: Node = element;
                     if (childPart !== undefined) {
                         const childIndex = Number(childPart);
                         if (!Number.isNaN(childIndex)) {
-                            const child = current.childNodes.item(childIndex);
+                            const child = element.childNodes.item(childIndex);
                             if (child) {
                                 target = child;
                             }

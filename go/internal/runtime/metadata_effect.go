@@ -128,9 +128,14 @@ func buildMetaDiff(prev, next *Meta, effect *MetadataEffect) bool {
 		prevMap[entry.key] = entry.tag
 	}
 
+	nextMap := make(map[string]struct{}, len(nextEntries))
+	for _, entry := range nextEntries {
+		nextMap[entry.key] = struct{}{}
+	}
+
 	changed := false
 	for _, entry := range prevEntries {
-		if _, ok := findEntry(nextEntries, entry.key); !ok {
+		if _, ok := nextMap[entry.key]; !ok {
 			effect.MetaRemove = append(effect.MetaRemove, entry.key)
 			changed = true
 		}
@@ -163,9 +168,14 @@ func buildLinkDiff(prev, next *Meta, effect *MetadataEffect) bool {
 		prevMap[entry.key] = entry.tag
 	}
 
+	nextMap := make(map[string]struct{}, len(nextEntries))
+	for _, entry := range nextEntries {
+		nextMap[entry.key] = struct{}{}
+	}
+
 	changed := false
 	for _, entry := range prevEntries {
-		if _, ok := findLinkEntry(nextEntries, entry.key); !ok {
+		if _, ok := nextMap[entry.key]; !ok {
 			effect.LinkRemove = append(effect.LinkRemove, entry.key)
 			changed = true
 		}
@@ -198,9 +208,14 @@ func buildScriptDiff(prev, next *Meta, effect *MetadataEffect) bool {
 		prevMap[entry.key] = entry.tag
 	}
 
+	nextMap := make(map[string]struct{}, len(nextEntries))
+	for _, entry := range nextEntries {
+		nextMap[entry.key] = struct{}{}
+	}
+
 	changed := false
 	for _, entry := range prevEntries {
-		if _, ok := findScriptEntry(nextEntries, entry.key); !ok {
+		if _, ok := nextMap[entry.key]; !ok {
 			effect.ScriptRemove = append(effect.ScriptRemove, entry.key)
 			changed = true
 		}
@@ -325,33 +340,6 @@ func scriptPayload(entry scriptEntry) ScriptTagPayload {
 		payload.Attrs = copyHeadStringMap(entry.tag.Attrs)
 	}
 	return payload
-}
-
-func findEntry(entries []metaEntry, key string) (h.MetaTag, bool) {
-	for _, entry := range entries {
-		if entry.key == key {
-			return entry.tag, true
-		}
-	}
-	return h.MetaTag{}, false
-}
-
-func findLinkEntry(entries []linkEntry, key string) (h.LinkTag, bool) {
-	for _, entry := range entries {
-		if entry.key == key {
-			return entry.tag, true
-		}
-	}
-	return h.LinkTag{}, false
-}
-
-func findScriptEntry(entries []scriptEntry, key string) (h.ScriptTag, bool) {
-	for _, entry := range entries {
-		if entry.key == key {
-			return entry.tag, true
-		}
-	}
-	return h.ScriptTag{}, false
 }
 
 func metaTagsEqual(a, b h.MetaTag) bool {
