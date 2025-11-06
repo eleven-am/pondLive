@@ -103,7 +103,7 @@ func (s *headerState) mergeHeaders(headers http.Header) {
 	}
 	s.mu.Lock()
 	for key, values := range headers {
-		s.headers[key] = append([]string(nil), values...)
+		s.headers[key] = append(s.headers[key], values...)
 	}
 	s.mu.Unlock()
 }
