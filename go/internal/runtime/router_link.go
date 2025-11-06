@@ -1,6 +1,9 @@
 package runtime
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
@@ -55,20 +58,78 @@ func renderLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
 		if ev.Mods.Ctrl || ev.Mods.Meta || ev.Mods.Shift || ev.Mods.Alt || ev.Mods.Button != 0 {
 			return nil
 		}
-		if LocEqual(state.getLoc(), target) {
+		state := requireRouterState(ctx)
+		current := state.getLoc()
+		next := extractTargetFromEvent(ev, current)
+		if next.Path == "" {
 			return nil
 		}
-		if p.Replace {
-			performLocationUpdate(ctx, target, true, true)
-		} else {
-			performLocationUpdate(ctx, target, false, true)
+		replace := strings.EqualFold(payloadString(ev.Payload, "target.dataset.routerReplace"), "true")
+
+		if LocEqual(current, next) {
+			return nil
 		}
+		performLocationUpdate(ctx, next, replace, true)
 		return nil
 	}
 
-	items := []h.Item{h.Href(href), h.On("click", handler)}
+	replaceAttr := strconv.FormatBool(p.Replace)
+	encodedQuery := encodeQuery(target.Query)
+	items := []h.Item{
+		h.Href(href),
+		h.Data("router-path", target.Path),
+		h.Data("router-query", encodedQuery),
+		h.Data("router-hash", target.Hash),
+		h.Data("router-replace", replaceAttr),
+		h.OnWith("click", h.EventOptions{Props: []string{
+			"currentTarget.dataset.routerPath",
+			"currentTarget.dataset.routerQuery",
+			"currentTarget.dataset.routerHash",
+			"currentTarget.dataset.routerReplace",
+			"currentTarget.href",
+		}}, handler),
+	}
 	if len(children) > 0 {
 		items = append(items, children...)
 	}
 	return h.A(items...)
+}
+
+func extractTargetFromEvent(ev h.Event, base Location) Location {
+	datasetPath := payloadString(ev.Payload, "currentTarget.dataset.routerPath")
+	datasetQuery := payloadString(ev.Payload, "currentTarget.dataset.routerQuery")
+	datasetHash := payloadString(ev.Payload, "currentTarget.dataset.routerHash")
+
+	if datasetPath != "" {
+		target := Location{
+			Path:  datasetPath,
+			Query: parseQuery(datasetQuery),
+			Hash:  normalizeHash(datasetHash),
+		}
+		return canonicalizeLocation(target)
+	}
+
+	href := payloadString(ev.Payload, "currentTarget.href")
+	if href == "" {
+		return Location{}
+	}
+	return resolveHref(base, href)
+}
+
+func payloadString(payload map[string]any, key string) string {
+	if len(payload) == 0 {
+		return ""
+	}
+	raw, ok := payload[key]
+	if !ok || raw == nil {
+		return ""
+	}
+	switch v := raw.(type) {
+	case string:
+		return v
+	case fmt.Stringer:
+		return v.String()
+	default:
+		return fmt.Sprint(v)
+	}
 }
