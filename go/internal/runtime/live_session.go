@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -364,6 +365,9 @@ func (s *LiveSession) DispatchEvent(id handlers.ID, ev handlers.Event, clientSeq
 		return nil
 	}
 	if err := s.component.DispatchEvent(id, ev); err != nil {
+		if errors.Is(err, ErrFlushInProgress) {
+			return nil
+		}
 		return err
 	}
 	s.refreshSnapshot()
@@ -373,6 +377,9 @@ func (s *LiveSession) DispatchEvent(id handlers.ID, ev handlers.Event, clientSeq
 // Flush applies pending state changes and updates the session snapshot.
 func (s *LiveSession) Flush() error {
 	if err := s.component.Flush(); err != nil {
+		if errors.Is(err, ErrFlushInProgress) {
+			return nil
+		}
 		return err
 	}
 	s.refreshSnapshot()
@@ -526,6 +533,26 @@ func (s *LiveSession) MarkDirty() {
 		return
 	}
 	s.component.markDirty(s.component.root)
+}
+
+func (s *LiveSession) flushAsync() {
+	if s == nil {
+		return
+	}
+	go func() {
+		if err := s.Flush(); err != nil {
+			if diag, ok := AsDiagnosticError(err); ok {
+				s.ReportDiagnostic(diag)
+				return
+			}
+			s.ReportDiagnostic(Diagnostic{
+				Phase:      "async_flush",
+				Message:    fmt.Sprintf("live: async flush failed: %v", err),
+				Metadata:   map[string]any{"error": err.Error()},
+				CapturedAt: time.Now(),
+			})
+		}
+	}()
 }
 
 // ComponentSession exposes the underlying component session for integrations.

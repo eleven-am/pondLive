@@ -64,6 +64,9 @@ type ComponentSession struct {
 	mu sync.Mutex
 }
 
+// ErrFlushInProgress indicates that Flush was invoked while another flush is already running.
+var ErrFlushInProgress = errors.New("runtime: flush in progress")
+
 type templateUpdate struct {
 	structured render.Structured
 	html       string
@@ -211,7 +214,12 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 	if s == nil || s.root == nil {
 		return render.Structured{}
 	}
-	var structured render.Structured
+	var (
+		structured render.Structured
+		cleanups   []cleanupTask
+		effects    []effectTask
+		pubsubs    []pubsubTask
+	)
 	if err := s.withRecovery("initial", func() error {
 		reg := s.ensureRegistry()
 		s.SetMetadata(nil)
@@ -220,6 +228,9 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 		s.prev = structured
 		s.dirtyRoot = false
 		s.pendingFlush = false
+		cleanups = append(cleanups, s.pendingCleanups...)
+		effects = append(effects, s.pendingEffects...)
+		pubsubs = append(pubsubs, s.pendingPubsub...)
 		s.pendingEffects = nil
 		s.pendingCleanups = nil
 		s.pendingNav = nil
@@ -241,6 +252,9 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 	}); err != nil {
 		return render.Structured{}
 	}
+	runCleanups(cleanups)
+	s.runPubsubTasks(pubsubs)
+	runEffects(effects)
 	return structured
 }
 
@@ -264,6 +278,13 @@ func (s *ComponentSession) Flush() error {
 		}
 		return errors.New("runtime: session halted after panic")
 	}
+	s.mu.Lock()
+	if s.flushing {
+		s.mu.Unlock()
+		return ErrFlushInProgress
+	}
+	s.flushing = true
+	s.mu.Unlock()
 	reg := s.ensureRegistry()
 	var (
 		cleanups []cleanupTask
@@ -352,6 +373,9 @@ func (s *ComponentSession) Flush() error {
 		return nil
 	})
 	if err != nil {
+		s.mu.Lock()
+		s.flushing = false
+		s.mu.Unlock()
 		return err
 	}
 	runCleanups(cleanups)
@@ -361,6 +385,14 @@ func (s *ComponentSession) Flush() error {
 		metricsPtr.EffectsMs = float64(totalEffects) / float64(time.Millisecond)
 		metricsPtr.MaxEffectMs = float64(maxEffect) / float64(time.Millisecond)
 		metricsPtr.SlowEffects = slowEffects
+	}
+	s.mu.Lock()
+	s.flushing = false
+	pending := s.pendingFlush && s.suspend == 0
+	owner := s.owner
+	s.mu.Unlock()
+	if pending && owner != nil {
+		owner.flushAsync()
 	}
 	return nil
 }
@@ -570,14 +602,26 @@ func (s *ComponentSession) markDirty(c *component) {
 	if s.errored {
 		return
 	}
+	var (
+		owner    *LiveSession
+		schedule bool
+	)
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.dirty == nil {
 		s.dirty = make(map[*component]struct{})
 	}
 	s.dirty[c] = struct{}{}
+	if !s.pendingFlush && s.suspend == 0 && !s.flushing {
+		schedule = true
+	}
 	s.dirtyRoot = true
 	s.pendingFlush = true
+	owner = s.owner
+	s.mu.Unlock()
+
+	if schedule && owner != nil {
+		owner.flushAsync()
+	}
 }
 
 func (s *ComponentSession) clearDirty(c *component) {
