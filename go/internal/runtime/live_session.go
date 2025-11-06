@@ -45,10 +45,9 @@ type LiveSession struct {
 
 	header *headerState
 
-	mu  sync.Mutex
-	now func() time.Time
-	ttl atomic.Int64
-	loc SessionLocation
+	mu        sync.Mutex
+	lifecycle *sessionLifecycle
+	loc       SessionLocation
 
 	frameCap int
 
@@ -73,9 +72,7 @@ type LiveSession struct {
 
 	diagnostics []Diagnostic
 
-	updatedAt      time.Time
-	hasInit        bool
-	touchObservers []func(time.Time)
+	hasInit bool
 
 	clientConfig *protocol.ClientConfig
 }
@@ -140,7 +137,7 @@ func NewLiveSession[P any](sid SessionID, version int, root Component[P], props 
 		version:   version,
 		component: component,
 		frameCap:  defaultFrameHistory,
-		now:       time.Now,
+		lifecycle: newSessionLifecycle(time.Now, defaultSessionTTL),
 		loc: SessionLocation{
 			Path:   "/",
 			Query:  "",
@@ -150,7 +147,6 @@ func NewLiveSession[P any](sid SessionID, version int, root Component[P], props 
 		pubsubCounts: make(map[string]int),
 	}
 
-	session.ttl.Store(int64(defaultSessionTTL))
 	component.setOwner(session)
 
 	header := newHeaderState()
@@ -160,12 +156,12 @@ func NewLiveSession[P any](sid SessionID, version int, root Component[P], props 
 	effectiveConfig := mergeLiveSessionConfig(defaultLiveSessionConfig(), cfg)
 	session.transport = effectiveConfig.Transport
 	session.frameCap = effectiveConfig.FrameHistory
-	session.now = effectiveConfig.Clock
+	session.lifecycle.setClock(effectiveConfig.Clock)
 	if effectiveConfig.DevMode != nil {
 		session.devMode = *effectiveConfig.DevMode
 	}
 	if effectiveConfig.TTL > 0 {
-		session.ttl.Store(int64(effectiveConfig.TTL))
+		session.lifecycle.setTTL(effectiveConfig.TTL)
 	}
 	if effectiveConfig.PubsubProvider != nil {
 		component.SetPubsubProvider(effectiveConfig.PubsubProvider)
@@ -252,8 +248,10 @@ func (s *LiveSession) MergeConnectionState(headers http.Header, cookies []*http.
 
 // TTL returns the inactivity timeout configured for the session.
 func (s *LiveSession) TTL() time.Duration {
-
-	return time.Duration(s.ttl.Load())
+	if s == nil || s.lifecycle == nil {
+		return 0
+	}
+	return s.lifecycle.ttlDuration()
 }
 
 // AddTouchObserver registers a callback invoked when the session refreshes its last touched timestamp.
@@ -263,13 +261,16 @@ func (s *LiveSession) AddTouchObserver(cb func(time.Time)) func() {
 		return func() {}
 	}
 	s.mu.Lock()
-	s.touchObservers = append(s.touchObservers, cb)
-	idx := len(s.touchObservers) - 1
+	var idx int
+	if s.lifecycle == nil {
+		s.lifecycle = newSessionLifecycle(time.Now, defaultSessionTTL)
+	}
+	idx = s.lifecycle.addObserver(cb)
 	s.mu.Unlock()
 	return func() {
 		s.mu.Lock()
-		if idx >= 0 && idx < len(s.touchObservers) {
-			s.touchObservers[idx] = nil
+		if s.lifecycle != nil {
+			s.lifecycle.removeObserver(idx)
 		}
 		s.mu.Unlock()
 	}
@@ -701,10 +702,13 @@ func (s *LiveSession) SetRoute(path, query string, params map[string]string) boo
 func (s *LiveSession) Expired() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if time.Duration(s.ttl.Load()) <= 0 {
+	if s.lifecycle == nil {
 		return false
 	}
-	return s.now().Sub(s.updatedAt) > time.Duration(s.ttl.Load())
+	if s.lifecycle.ttlDuration() <= 0 {
+		return false
+	}
+	return s.lifecycle.expired()
 }
 
 // SnapshotSeq returns the sequence assigned to the most recent init payload.
@@ -874,7 +878,10 @@ func (s *LiveSession) nextCookieToken() string {
 		return base64.RawURLEncoding.EncodeToString(buf)
 	}
 	fallback := s.cookieCounter.Add(1)
-	ts := s.now().UnixNano()
+	ts := time.Now().UnixNano()
+	if s.lifecycle != nil {
+		ts = s.lifecycle.now().UnixNano()
+	}
 	return strconv.FormatInt(ts, 36) + strconv.FormatUint(fallback, 36)
 }
 
@@ -1038,13 +1045,10 @@ func (s *LiveSession) Recover() error {
 }
 
 func (s *LiveSession) touchLocked() {
-	s.updatedAt = s.now()
-	observers := append([]func(time.Time){}, s.touchObservers...)
-	for _, cb := range observers {
-		if cb != nil {
-			cb(s.updatedAt)
-		}
+	if s.lifecycle == nil {
+		s.lifecycle = newSessionLifecycle(time.Now, defaultSessionTTL)
 	}
+	s.lifecycle.touch()
 }
 
 func copyLocation(loc SessionLocation) SessionLocation {

@@ -14,20 +14,43 @@ type routerState struct {
 var routerStateCtx = NewContext(routerState{})
 
 type sessionEntry struct {
-	mu          sync.Mutex
-	get         func() Location
-	set         func(Location)
-	assign      func(Location)
-	loc         Location
-	navs        []NavMsg
-	pendingNavs []NavMsg
-	params      map[string]string
-	active      bool
-	pattern     string
-	routeDepth  int
+	mu sync.Mutex
+
+	handlers   sessionHandlers
+	navigation sessionNavigation
+	params     sessionParamStore
+	render     sessionRenderState
 }
 
-var sessionEntries sync.Map // key: *ComponentSession -> *sessionEntry
+type routerSessionState struct {
+	entry              sessionEntry
+	linkPlaceholders   sync.Map // *h.FragmentNode -> *linkNode
+	routesPlaceholders sync.Map // *h.FragmentNode -> *routesNode
+}
+
+type sessionHandlers struct {
+	get    func() Location
+	set    func(Location)
+	assign func(Location)
+}
+
+type sessionNavigation struct {
+	loc     Location
+	history []NavMsg
+	pending []NavMsg
+	seed    Location
+	hasSeed bool
+}
+
+type sessionParamStore struct {
+	values map[string]string
+}
+
+type sessionRenderState struct {
+	active       bool
+	currentRoute string
+	depth        int
+}
 
 type routerProps struct {
 	Children []h.Node
@@ -72,11 +95,10 @@ func requireRouterState(ctx Ctx) routerState {
 	state := routerStateCtx.Use(ctx)
 	if state.getLoc == nil || state.setLoc == nil {
 		if sess := ctx.Session(); sess != nil {
-			if v, ok := sessionEntries.Load(sess); ok {
-				entry := v.(*sessionEntry)
+			if entry := loadSessionEntry(sess); entry != nil {
 				entry.mu.Lock()
-				loc := entry.loc
-				setter := entry.set
+				loc := entry.navigation.loc
+				setter := entry.handlers.set
 				entry.mu.Unlock()
 				if setter != nil {
 					return routerState{
@@ -95,15 +117,13 @@ func registerSessionEntry(sess *ComponentSession, get func() Location, set func(
 	if sess == nil {
 		return nil
 	}
-	entry := &sessionEntry{}
-	actual, _ := sessionEntries.LoadOrStore(sess, entry)
-	stored := actual.(*sessionEntry)
-	stored.mu.Lock()
-	stored.get = get
-	stored.set = set
-	stored.assign = assign
-	stored.mu.Unlock()
-	return stored
+	entry := ensureSessionEntry(sess)
+	entry.mu.Lock()
+	entry.handlers.get = get
+	entry.handlers.set = set
+	entry.handlers.assign = assign
+	entry.mu.Unlock()
+	return entry
 }
 
 func requestTemplateReset(sess *ComponentSession) {
@@ -117,10 +137,9 @@ func setSessionRendering(sess *ComponentSession, active bool) {
 	if sess == nil {
 		return
 	}
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := loadSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
-		entry.active = active
+		entry.render.active = active
 		entry.mu.Unlock()
 	}
 }
@@ -129,11 +148,10 @@ func sessionRendering(sess *ComponentSession) bool {
 	if sess == nil {
 		return false
 	}
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := loadSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
-		return entry.active
+		return entry.render.active
 	}
 	return false
 }
@@ -143,11 +161,10 @@ func storeSessionLocation(sess *ComponentSession, loc Location) {
 		return
 	}
 	canon := canonicalizeLocation(loc)
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := ensureSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
-		entry.loc = canon
-		entry.params = nil
+		entry.navigation.loc = canon
+		entry.params.values = nil
 		entry.mu.Unlock()
 	}
 	if owner := sess.owner; owner != nil {
@@ -159,10 +176,9 @@ func currentSessionLocation(sess *ComponentSession) Location {
 	if sess == nil {
 		return canonicalizeLocation(Location{Path: "/"})
 	}
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := loadSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
-		loc := entry.loc
+		loc := entry.navigation.loc
 		entry.mu.Unlock()
 		if loc.Path != "" {
 			return canonicalizeLocation(loc)
@@ -182,13 +198,12 @@ func storeSessionParams(sess *ComponentSession, params map[string]string) {
 	if sess == nil {
 		return
 	}
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := ensureSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
 		if len(params) == 0 {
-			entry.params = nil
+			entry.params.values = nil
 		} else {
-			entry.params = copyParams(params)
+			entry.params.values = copyParams(params)
 		}
 		entry.mu.Unlock()
 	}
@@ -198,14 +213,13 @@ func sessionParams(sess *ComponentSession) map[string]string {
 	if sess == nil {
 		return nil
 	}
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := loadSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
-		if len(entry.params) == 0 {
+		if len(entry.params.values) == 0 {
 			return map[string]string{}
 		}
-		return copyParams(entry.params)
+		return copyParams(entry.params.values)
 	}
 	return map[string]string{}
 }
@@ -216,92 +230,34 @@ func InternalSeedSessionParams(sess *ComponentSession, params map[string]string)
 	if sess == nil {
 		return
 	}
-	actual, _ := sessionEntries.LoadOrStore(sess, &sessionEntry{})
-	entry := actual.(*sessionEntry)
+	entry := ensureSessionEntry(sess)
 	entry.mu.Lock()
 	if len(params) == 0 {
-		entry.params = nil
+		entry.params.values = nil
 	} else {
-		entry.params = copyParams(params)
+		entry.params.values = copyParams(params)
 	}
 	entry.mu.Unlock()
 }
 
-type routerChildrenProps struct {
-	Children []h.Node
-}
-
-func renderRouterChildren(ctx Ctx, children ...h.Node) h.Node {
-	return Render(ctx, routerChildrenComponent, routerChildrenProps{Children: children})
-}
-
-func routerChildrenComponent(ctx Ctx, props routerChildrenProps) h.Node {
-	if len(props.Children) == 0 {
-		return h.Fragment()
-	}
-	normalized := make([]h.Node, 0, len(props.Children))
-	for _, child := range props.Children {
-		normalized = append(normalized, normalizeRouterNode(ctx, child))
-	}
-	return h.Fragment(normalized...)
-}
-
-func normalizeRouterNode(ctx Ctx, node h.Node) h.Node {
-	if node == nil {
+func ensureSessionEntry(sess *ComponentSession) *sessionEntry {
+	if sess == nil {
 		return nil
 	}
-	switch v := node.(type) {
-	case *routesNode:
-		routesPlaceholders.Delete(v.FragmentNode)
-		return normalizeRouterNode(ctx, renderRoutes(ctx, v.entries))
-	case *linkNode:
-		linkPlaceholders.Delete(v.FragmentNode)
-		return renderLink(ctx, v.props, v.children...)
-	case *h.Element:
-		if v == nil || len(v.Children) == 0 || v.Unsafe != nil {
-			return node
-		}
-		children := v.Children
-		updated := make([]h.Node, len(children))
-		changed := false
-		for i, child := range children {
-			normalized := normalizeRouterNode(ctx, child)
-			if normalized != child {
-				changed = true
-			}
-			updated[i] = normalized
-		}
-		if !changed {
-			return node
-		}
-		clone := *v
-		clone.Children = updated
-		return &clone
-	case *h.FragmentNode:
-		if placeholder, ok := consumeLinkPlaceholder(v); ok {
-			return renderLink(ctx, placeholder.props, placeholder.children...)
-		}
-		if placeholder, ok := consumeRoutesPlaceholder(v); ok {
-			return normalizeRouterNode(ctx, renderRoutes(ctx, placeholder.entries))
-		}
-		if v == nil || len(v.Children) == 0 {
-			return node
-		}
-		children := v.Children
-		updated := make([]h.Node, len(children))
-		changed := false
-		for i, child := range children {
-			normalized := normalizeRouterNode(ctx, child)
-			if normalized != child {
-				changed = true
-			}
-			updated[i] = normalized
-		}
-		if !changed {
-			return node
-		}
-		return h.Fragment(updated...)
-	default:
-		return node
+	state := sess.ensureRouterState()
+	if state == nil {
+		return nil
 	}
+	return &state.entry
+}
+
+func loadSessionEntry(sess *ComponentSession) *sessionEntry {
+	if sess == nil {
+		return nil
+	}
+	state := sess.loadRouterState()
+	if state == nil {
+		return nil
+	}
+	return &state.entry
 }

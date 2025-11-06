@@ -19,6 +19,55 @@ import (
 // It receives the LiveUI context and returns the HTML body fragment for SSR.
 type Component func(ui.Ctx) h.Node
 
+// Option configures the behavior of NewApp without requiring callers to construct
+// the underlying HTTP manager or runtime primitives directly.
+type Option func(*appOptions)
+
+type appOptions struct {
+	version        int
+	idGenerator    func(*http.Request) (runtime.SessionID, error)
+	session        *runtime.LiveSessionConfig
+	clientAssetURL string
+}
+
+// WithVersion overrides the server protocol version advertised in init and frame payloads.
+func WithVersion(v int) Option {
+	return func(cfg *appOptions) {
+		if cfg != nil {
+			cfg.version = v
+		}
+	}
+}
+
+// WithIDGenerator replaces the default session ID allocator.
+func WithIDGenerator(fn func(*http.Request) (runtime.SessionID, error)) Option {
+	return func(cfg *appOptions) {
+		if cfg != nil {
+			cfg.idGenerator = fn
+		}
+	}
+}
+
+// WithSessionConfig applies runtime session settings such as TTL or frame history.
+func WithSessionConfig(cfg runtime.LiveSessionConfig) Option {
+	return func(opts *appOptions) {
+		if opts == nil {
+			return
+		}
+		clone := cfg
+		opts.session = &clone
+	}
+}
+
+// WithClientAssetURL customizes the URL used when serving the embedded client bundle.
+func WithClientAssetURL(url string) Option {
+	return func(cfg *appOptions) {
+		if cfg != nil {
+			cfg.clientAssetURL = url
+		}
+	}
+}
+
 // App wires a LiveUI HTTP manager with a PondSocket transport and exposes a single
 // http.Handler that serves both SSR and websocket traffic.
 type App struct {
@@ -27,7 +76,7 @@ type App struct {
 }
 
 // NewApp constructs a LiveUI application stack using the supplied component.
-func NewApp(ctx context.Context, component Component) (*App, error) {
+func NewApp(ctx context.Context, component Component, opts ...Option) (*App, error) {
 	if component == nil {
 		return nil, errors.New("live: component is required")
 	}
@@ -35,10 +84,32 @@ func NewApp(ctx context.Context, component Component) (*App, error) {
 		ctx = context.Background()
 	}
 
-	manager := livehttp.NewManager(&livehttp.ManagerConfig{
+	applied := appOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&applied)
+		}
+	}
+
+	managerCfg := &livehttp.ManagerConfig{
 		Component:      adaptComponent(component),
 		ClientAssetURL: clientScriptPath(),
-	})
+	}
+	if applied.version > 0 {
+		managerCfg.Version = applied.version
+	}
+	if applied.idGenerator != nil {
+		managerCfg.IDGenerator = applied.idGenerator
+	}
+	if applied.session != nil {
+		clone := *applied.session
+		managerCfg.Session = &clone
+	}
+	if strings.TrimSpace(applied.clientAssetURL) != "" {
+		managerCfg.ClientAssetURL = applied.clientAssetURL
+	}
+
+	manager := livehttp.NewManager(managerCfg)
 
 	pondManager := pond.NewManager(ctx)
 	pondEndpoint, err := manager.RegisterPondSocket(pondManager)
@@ -52,7 +123,7 @@ func NewApp(ctx context.Context, component Component) (*App, error) {
 
 	mux := http.NewServeMux()
 	mux.Handle(route, pondManager.HTTPHandler())
-	mux.Handle(clientScriptPath(), clientScriptHandler())
+	mux.Handle(managerCfg.ClientAssetURL, clientScriptHandler())
 	mux.Handle(livehttp.UploadPathPrefix, livehttp.NewUploadHandler(manager.Registry()))
 	mux.Handle(livehttp.CookiePath, livehttp.NewCookieHandler(manager.Registry()))
 	mux.Handle("/", manager)

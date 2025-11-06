@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
@@ -16,10 +15,11 @@ type LinkProps struct {
 
 func RouterLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
 	state := routerStateCtx.Use(ctx)
-	if sessionRendering(ctx.Session()) && state.getLoc != nil {
+	sess := ctx.Session()
+	if sessionRendering(sess) && state.getLoc != nil {
 		return renderLink(ctx, p, children...)
 	}
-	return newLinkPlaceholder(p, children)
+	return newLinkPlaceholder(sess, p, children)
 }
 
 type linkNode struct {
@@ -28,21 +28,25 @@ type linkNode struct {
 	children []h.Item
 }
 
-var linkPlaceholders sync.Map // *h.FragmentNode -> *linkNode
-
-func newLinkPlaceholder(p LinkProps, children []h.Item) *linkNode {
+func newLinkPlaceholder(sess *ComponentSession, p LinkProps, children []h.Item) *linkNode {
 	node := &linkNode{FragmentNode: h.Fragment(), props: p, children: children}
-	linkPlaceholders.Store(node.FragmentNode, node)
+	if sess != nil {
+		if state := sess.ensureRouterState(); state != nil {
+			state.linkPlaceholders.Store(node.FragmentNode, node)
+		}
+	}
 	return node
 }
 
-func consumeLinkPlaceholder(f *h.FragmentNode) (*linkNode, bool) {
-	if f == nil {
+func consumeLinkPlaceholder(sess *ComponentSession, f *h.FragmentNode) (*linkNode, bool) {
+	if f == nil || sess == nil {
 		return nil, false
 	}
-	if value, ok := linkPlaceholders.LoadAndDelete(f); ok {
-		if node, okCast := value.(*linkNode); okCast {
-			return node, true
+	if state := sess.loadRouterState(); state != nil {
+		if value, ok := state.linkPlaceholders.LoadAndDelete(f); ok {
+			if node, okCast := value.(*linkNode); okCast {
+				return node, true
+			}
 		}
 	}
 	return nil, false

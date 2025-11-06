@@ -3,7 +3,6 @@ package runtime
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
@@ -46,33 +45,41 @@ type routesNode struct {
 	entries []routeEntry
 }
 
-var routesPlaceholders sync.Map // *h.FragmentNode -> *routesNode
-
 func Routes(ctx Ctx, children ...h.Node) h.Node {
 	entries := collectRouteEntries(children)
-	if !sessionRendering(ctx.Session()) {
-		return newRoutesPlaceholder(entries)
+	sess := ctx.Session()
+	if !sessionRendering(sess) {
+		return newRoutesPlaceholder(sess, entries)
 	}
 	state := routerStateCtx.Use(ctx)
 	if state.getLoc == nil || state.setLoc == nil {
-		return newRoutesPlaceholder(entries)
+		return newRoutesPlaceholder(sess, entries)
 	}
 	return renderRoutes(ctx, entries)
 }
 
-func newRoutesPlaceholder(entries []routeEntry) *routesNode {
+func newRoutesPlaceholder(sess *ComponentSession, entries []routeEntry) *routesNode {
 	node := &routesNode{FragmentNode: h.Fragment(), entries: entries}
-	routesPlaceholders.Store(node.FragmentNode, node)
+	if sess != nil {
+		if state := sess.ensureRouterState(); state != nil {
+			state.routesPlaceholders.Store(node.FragmentNode, node)
+		}
+	}
 	return node
 }
 
-func consumeRoutesPlaceholder(f *h.FragmentNode) (*routesNode, bool) {
+func consumeRoutesPlaceholder(sess *ComponentSession, f *h.FragmentNode) (*routesNode, bool) {
 	if f == nil {
 		return nil, false
 	}
-	if value, ok := routesPlaceholders.LoadAndDelete(f); ok {
-		if node, okCast := value.(*routesNode); okCast {
-			return node, true
+	if sess == nil {
+		return nil, false
+	}
+	if state := sess.loadRouterState(); state != nil {
+		if value, ok := state.routesPlaceholders.LoadAndDelete(f); ok {
+			if node, okCast := value.(*routesNode); okCast {
+				return node, true
+			}
 		}
 	}
 	return nil, false
@@ -111,19 +118,16 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 		entry *sessionEntry
 		depth int
 	)
-	if sess != nil {
-		if value, ok := sessionEntries.Load(sess); ok {
-			entry = value.(*sessionEntry)
+	if entry = loadSessionEntry(sess); entry != nil {
+		entry.mu.Lock()
+		entry.render.depth++
+		depth = entry.render.depth
+		entry.mu.Unlock()
+		defer func() {
 			entry.mu.Lock()
-			entry.routeDepth++
-			depth = entry.routeDepth
+			entry.render.depth--
 			entry.mu.Unlock()
-			defer func() {
-				entry.mu.Lock()
-				entry.routeDepth--
-				entry.mu.Unlock()
-			}()
-		}
+		}()
 	}
 
 	state := routerStateCtx.Use(ctx)
@@ -168,8 +172,8 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 	}
 	if entry != nil && depth == 1 {
 		entry.mu.Lock()
-		prevPattern := entry.pattern
-		entry.pattern = chosen.entry.pattern
+		prevPattern := entry.render.currentRoute
+		entry.render.currentRoute = chosen.entry.pattern
 		entry.mu.Unlock()
 		if prevPattern != "" && prevPattern != chosen.entry.pattern {
 			requestTemplateReset(sess)

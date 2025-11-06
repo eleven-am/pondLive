@@ -33,6 +33,7 @@ type ComponentSession struct {
 	flushing       bool
 	forceTemplate  atomic.Bool
 	templateUpdate atomic.Pointer[templateUpdate]
+	router         atomic.Pointer[routerSessionState]
 
 	uploads           map[string]*uploadSlot
 	uploadByComponent map[*component]map[int]*uploadSlot
@@ -141,6 +142,27 @@ func (s *ComponentSession) consumeTemplateUpdate() *templateUpdate {
 		return nil
 	}
 	return s.templateUpdate.Swap(nil)
+}
+
+func (s *ComponentSession) ensureRouterState() *routerSessionState {
+	if s == nil {
+		return nil
+	}
+	if state := s.router.Load(); state != nil {
+		return state
+	}
+	created := &routerSessionState{}
+	if s.router.CompareAndSwap(nil, created) {
+		return created
+	}
+	return s.router.Load()
+}
+
+func (s *ComponentSession) loadRouterState() *routerSessionState {
+	if s == nil {
+		return nil
+	}
+	return s.router.Load()
 }
 
 // SetPubsubProvider wires the session to an external pub/sub provider.

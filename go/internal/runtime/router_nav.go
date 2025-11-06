@@ -65,15 +65,15 @@ func navHistory(sess *ComponentSession) []NavMsg {
 	if sess == nil {
 		return nil
 	}
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := loadSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
-		if len(entry.navs) == 0 {
+		navs := entry.navigation.history
+		if len(navs) == 0 {
 			return nil
 		}
-		out := make([]NavMsg, len(entry.navs))
-		copy(out, entry.navs)
+		out := make([]NavMsg, len(navs))
+		copy(out, navs)
 		return out
 	}
 	return nil
@@ -83,11 +83,10 @@ func clearNavHistory(sess *ComponentSession) {
 	if sess == nil {
 		return
 	}
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := loadSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
-		entry.navs = nil
-		entry.pendingNavs = nil
+		entry.navigation.history = nil
+		entry.navigation.pending = nil
 		entry.mu.Unlock()
 	}
 }
@@ -96,15 +95,15 @@ func consumePendingNavigation(sess *ComponentSession) (NavMsg, bool) {
 	if sess == nil {
 		return NavMsg{}, false
 	}
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := loadSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
-		if len(entry.pendingNavs) == 0 {
+		pending := entry.navigation.pending
+		if len(pending) == 0 {
 			return NavMsg{}, false
 		}
-		last := entry.pendingNavs[len(entry.pendingNavs)-1]
-		entry.pendingNavs = nil
+		last := pending[len(pending)-1]
+		entry.navigation.pending = nil
 		return last, true
 	}
 	return NavMsg{}, false
@@ -180,11 +179,10 @@ func setSessionLocation(sess *ComponentSession, target Location) {
 		return
 	}
 	canon := canonicalizeLocation(target)
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := loadSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
-		setter := entry.set
-		current := entry.loc
+		setter := entry.handlers.set
+		current := entry.navigation.loc
 		entry.mu.Unlock()
 		if LocEqual(current, canon) {
 			return
@@ -210,11 +208,10 @@ func recordNavigation(sess *ComponentSession, loc Location, replace bool) {
 	if replace {
 		msg.T = "replace"
 	}
-	if v, ok := sessionEntries.Load(sess); ok {
-		entry := v.(*sessionEntry)
+	if entry := ensureSessionEntry(sess); entry != nil {
 		entry.mu.Lock()
-		entry.navs = append(entry.navs, msg)
-		entry.pendingNavs = append(entry.pendingNavs, msg)
+		entry.navigation.history = append(entry.navigation.history, msg)
+		entry.navigation.pending = append(entry.navigation.pending, msg)
 		entry.mu.Unlock()
 	}
 }
