@@ -240,6 +240,14 @@ function handleEvent(
         e.preventDefault();
       }
 
+      // Prevent default for click events on anchors with LiveUI handlers
+      if (eventType === "click") {
+        const anchor = findAnchorElement(target);
+        if (anchor && shouldInterceptNavigation(e as MouseEvent, anchor)) {
+          e.preventDefault();
+        }
+      }
+
       // Send event to server - this will trigger runtime.InternalHandleNav for Link components
       sendEvent({
         hid: handlerId,
