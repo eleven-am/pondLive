@@ -9,6 +9,5 @@ func UseMetadata(ctx Ctx, meta *Meta) {
 	if sess == nil {
 		return
 	}
-	current := sess.Metadata()
-	sess.SetMetadata(MergeMeta(current, meta))
+	sess.SetMetadata(meta)
 }

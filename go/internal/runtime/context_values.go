@@ -210,7 +210,7 @@ func ensureProviderEntry[T any](ctx Ctx, c Context[T], initial T, activate bool)
 		comparer = defaultEqual[T]()
 	}
 	baseIdx := ctx.frame.idx
-	get, set := UseState(ctx, initial, WithEqual(comparer))
+	get, baseSet := UseState(ctx, initial, WithEqual(comparer))
 	if providerExists {
 		entry, ok := existing.(*providerEntry[T])
 		if !ok {
@@ -227,12 +227,33 @@ func ensureProviderEntry[T any](ctx Ctx, c Context[T], initial T, activate bool)
 			cellPtr = cell
 		}
 	}
+	owner := ctx.comp
+	mark := func(prev, next T) {
+		if owner == nil {
+			return
+		}
+		if comparer != nil && comparer(prev, next) {
+			return
+		}
+		if atomic.LoadInt32(&owner.rendering) == 1 {
+			owner.markDescendantsDirtyLocked()
+			return
+		}
+		owner.markDescendantsDirty()
+	}
+	set := func(v T) {
+		prev := get()
+		baseSet(v)
+		mark(prev, v)
+	}
 	entry := &providerEntry[T]{
 		get: get,
 		set: set,
 		assign: func(v T) {
 			if cellPtr != nil {
+				prev := cellPtr.val
 				cellPtr.val = v
+				mark(prev, v)
 				return
 			}
 			set(v)

@@ -81,6 +81,11 @@ func NoRender(ctx Ctx) {
 	if ctx.sess == nil || ctx.comp == nil {
 		return
 	}
+	if ctx.sess.currentComponent() == ctx.comp {
+		ctx.comp.dirty = false
+	} else {
+		ctx.comp.markClean()
+	}
 	ctx.sess.clearDirty(ctx.comp)
 }
 

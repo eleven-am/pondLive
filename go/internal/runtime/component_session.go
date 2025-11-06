@@ -56,8 +56,12 @@ type ComponentSession struct {
 	errored        bool
 	lastDiagnostic *Diagnostic
 
-	meta   *Meta
-	metaMu sync.RWMutex
+	meta            *Meta
+	baseMeta        *Meta
+	metaByComponent map[*component]*Meta
+	metaOrder       []*component
+	metaTouched     map[*component]bool
+	metaMu          sync.RWMutex
 
 	header   HeaderState
 	headerMu sync.RWMutex
@@ -181,14 +185,22 @@ func (s *ComponentSession) SetMetadata(meta *Meta) {
 	if s == nil {
 		return
 	}
-	s.metaMu.Lock()
-	if meta == nil {
-		s.meta = nil
-		s.metaMu.Unlock()
+	if comp := s.currentComponent(); comp != nil {
+		s.setComponentMetadata(comp, meta)
 		return
 	}
-	s.meta = CloneMeta(meta)
-	s.metaMu.Unlock()
+	s.metaMu.Lock()
+	defer s.metaMu.Unlock()
+	if meta == nil {
+		s.baseMeta = nil
+		s.meta = nil
+		s.metaByComponent = nil
+		s.metaOrder = nil
+		s.metaTouched = nil
+		return
+	}
+	s.baseMeta = CloneMeta(meta)
+	s.rebuildAggregatedMetaLocked()
 }
 
 // Metadata returns a copy of the last metadata provided during rendering.
@@ -199,6 +211,127 @@ func (s *ComponentSession) Metadata() *Meta {
 	s.metaMu.RLock()
 	defer s.metaMu.RUnlock()
 	return CloneMeta(s.meta)
+}
+
+func (s *ComponentSession) setComponentMetadata(comp *component, meta *Meta) {
+	if s == nil || comp == nil {
+		return
+	}
+	s.metaMu.Lock()
+	defer s.metaMu.Unlock()
+	if meta == nil {
+		if s.metaByComponent != nil {
+			s.metaByComponent[comp] = nil
+			s.rebuildAggregatedMetaLocked()
+		}
+		s.markComponentMetadataTouchedLocked(comp, true)
+		return
+	}
+	if s.metaByComponent == nil {
+		s.metaByComponent = make(map[*component]*Meta)
+	}
+	existing := s.metaByComponent[comp]
+	merged := MergeMeta(existing, meta)
+	s.metaByComponent[comp] = merged
+	if !s.componentInMetaOrderLocked(comp) {
+		s.metaOrder = append(s.metaOrder, comp)
+	}
+	s.markComponentMetadataTouchedLocked(comp, true)
+	s.rebuildAggregatedMetaLocked()
+}
+
+func (s *ComponentSession) beginComponentMetadata(comp *component) {
+	if s == nil || comp == nil {
+		return
+	}
+	s.metaMu.Lock()
+	if s.metaByComponent == nil {
+		s.metaByComponent = make(map[*component]*Meta)
+	}
+	if _, ok := s.metaByComponent[comp]; ok {
+		s.metaByComponent[comp] = nil
+	}
+	s.rebuildAggregatedMetaLocked()
+	s.markComponentMetadataTouchedLocked(comp, false)
+	s.metaMu.Unlock()
+}
+
+func (s *ComponentSession) finishComponentMetadata(comp *component) {
+	if s == nil || comp == nil {
+		return
+	}
+	s.metaMu.Lock()
+	if s.metaTouched != nil {
+		if touched, ok := s.metaTouched[comp]; ok {
+			if !touched && s.metaByComponent != nil {
+				if _, exists := s.metaByComponent[comp]; exists {
+					s.metaByComponent[comp] = nil
+					s.rebuildAggregatedMetaLocked()
+				}
+			}
+			delete(s.metaTouched, comp)
+		}
+	}
+	s.metaMu.Unlock()
+}
+
+func (s *ComponentSession) markComponentMetadataTouchedLocked(comp *component, value bool) {
+	if s.metaTouched == nil {
+		s.metaTouched = make(map[*component]bool)
+	}
+	s.metaTouched[comp] = value
+}
+
+func (s *ComponentSession) componentInMetaOrderLocked(comp *component) bool {
+	for _, existing := range s.metaOrder {
+		if existing == comp {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *ComponentSession) removeComponentFromMetaOrderLocked(comp *component) {
+	if len(s.metaOrder) == 0 {
+		return
+	}
+	for idx, existing := range s.metaOrder {
+		if existing == comp {
+			s.metaOrder = append(s.metaOrder[:idx], s.metaOrder[idx+1:]...)
+			break
+		}
+	}
+}
+
+func (s *ComponentSession) rebuildAggregatedMetaLocked() {
+	var merged *Meta
+	if s.baseMeta != nil {
+		merged = CloneMeta(s.baseMeta)
+	}
+	if len(s.metaOrder) > 0 && s.metaByComponent != nil {
+		for _, comp := range s.metaOrder {
+			if meta := s.metaByComponent[comp]; meta != nil {
+				merged = MergeMeta(merged, meta)
+			}
+		}
+	}
+	s.meta = merged
+}
+
+func (s *ComponentSession) removeMetadataForComponent(comp *component) {
+	if s == nil || comp == nil {
+		return
+	}
+	s.metaMu.Lock()
+	if s.metaByComponent != nil {
+		delete(s.metaByComponent, comp)
+	}
+	s.removeComponentFromMetaOrderLocked(comp)
+	if s.metaTouched != nil {
+		delete(s.metaTouched, comp)
+	}
+	s.rebuildAggregatedMetaLocked()
+	s.metaMu.Unlock()
 }
 
 func (s *ComponentSession) assignHeaderState(state HeaderState) {
@@ -244,7 +377,6 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 	)
 	if err := s.withRecovery("initial", func() error {
 		reg := s.ensureRegistry()
-		s.SetMetadata(nil)
 		node := s.root.render()
 		structured = render.ToStructuredWithHandlers(node, reg)
 		s.prev = structured
@@ -270,6 +402,9 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 		s.uploadByComponent = nil
 		s.uploadSeq = 0
 		s.uploadMu.Unlock()
+		if s.root != nil {
+			s.root.markSelfDirty()
+		}
 		return nil
 	}); err != nil {
 		return render.Structured{}
@@ -285,7 +420,6 @@ func (s *ComponentSession) RenderNode() h.Node {
 	if s == nil || s.root == nil {
 		return nil
 	}
-	s.SetMetadata(nil)
 	return s.root.render()
 }
 
@@ -325,7 +459,9 @@ func (s *ComponentSession) Flush() error {
 		}
 
 		start := time.Now()
-		s.SetMetadata(nil)
+		if s.dirtyRoot && s.root != nil {
+			s.root.markSelfDirty()
+		}
 		node := s.root.render()
 		next := render.ToStructuredWithHandlers(node, reg)
 		forceTemplate := s.consumeTemplateReset()
@@ -640,7 +776,7 @@ func (s *ComponentSession) markDirty(c *component) {
 	s.pendingFlush = true
 	owner = s.owner
 	s.mu.Unlock()
-
+	c.markDirtyChain()
 	if schedule && owner != nil {
 		owner.flushAsync()
 	}
