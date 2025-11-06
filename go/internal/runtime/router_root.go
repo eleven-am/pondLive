@@ -14,14 +14,17 @@ type routerState struct {
 var routerStateCtx = NewContext(routerState{})
 
 type sessionEntry struct {
-	mu     sync.Mutex
-	get    func() Location
-	set    func(Location)
-	assign func(Location)
-	loc    Location
-	navs   []NavMsg
-	params map[string]string
-	active bool
+	mu          sync.Mutex
+	get         func() Location
+	set         func(Location)
+	assign      func(Location)
+	loc         Location
+	navs        []NavMsg
+	pendingNavs []NavMsg
+	params      map[string]string
+	active      bool
+	pattern     string
+	routeDepth  int
 }
 
 var sessionEntries sync.Map // key: *ComponentSession -> *sessionEntry
@@ -103,6 +106,13 @@ func registerSessionEntry(sess *ComponentSession, get func() Location, set func(
 	return stored
 }
 
+func requestTemplateReset(sess *ComponentSession) {
+	if sess == nil {
+		return
+	}
+	sess.requestTemplateReset()
+}
+
 func setSessionRendering(sess *ComponentSession, active bool) {
 	if sess == nil {
 		return
@@ -139,6 +149,9 @@ func storeSessionLocation(sess *ComponentSession, loc Location) {
 		entry.loc = canon
 		entry.params = nil
 		entry.mu.Unlock()
+	}
+	if owner := sess.owner; owner != nil {
+		owner.SetRoute(canon.Path, encodeQuery(canon.Query), nil)
 	}
 }
 

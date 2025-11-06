@@ -773,6 +773,10 @@ func (s *LiveSession) dequeueCookieEffect() *CookieEffect {
 }
 
 func (s *LiveSession) onPatch(ops []diff.Op) error {
+	var template *templateUpdate
+	if s.component != nil {
+		template = s.component.consumeTemplateUpdate()
+	}
 	frame := protocol.Frame{
 		Delta:   protocol.FrameDelta{Statics: false},
 		Patch:   append([]diff.Op(nil), ops...),
@@ -791,6 +795,26 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 	if s.component != nil && s.component.pendingMetrics != nil {
 		frame.Metrics = *s.component.pendingMetrics
 		s.component.pendingMetrics = nil
+	}
+	if template != nil {
+		snap := buildSnapshot(template.structured, s.loc, s.component.Metadata())
+		s.snapshot = snap
+		boot := protocol.Boot{
+			T:        "boot",
+			SID:      string(s.id),
+			Ver:      s.version,
+			Seq:      s.nextSeq,
+			HTML:     template.html,
+			S:        append([]string(nil), snap.Statics...),
+			D:        append([]protocol.DynamicSlot(nil), snap.Dynamics...),
+			Slots:    cloneSlots(snap.Slots),
+			Handlers: cloneHandlers(snap.Handlers),
+			Location: snap.Location,
+		}
+		frame.Delta.Statics = true
+		frame.Delta.Slots = cloneSlots(snap.Slots)
+		frame.Patch = nil
+		frame.Effects = append(frame.Effects, map[string]any{"type": "boot", "boot": boot})
 	}
 	return s.SendFrame(frame)
 }

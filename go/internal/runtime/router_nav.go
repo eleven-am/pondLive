@@ -87,8 +87,27 @@ func clearNavHistory(sess *ComponentSession) {
 		entry := v.(*sessionEntry)
 		entry.mu.Lock()
 		entry.navs = nil
+		entry.pendingNavs = nil
 		entry.mu.Unlock()
 	}
+}
+
+func consumePendingNavigation(sess *ComponentSession) (NavMsg, bool) {
+	if sess == nil {
+		return NavMsg{}, false
+	}
+	if v, ok := sessionEntries.Load(sess); ok {
+		entry := v.(*sessionEntry)
+		entry.mu.Lock()
+		defer entry.mu.Unlock()
+		if len(entry.pendingNavs) == 0 {
+			return NavMsg{}, false
+		}
+		last := entry.pendingNavs[len(entry.pendingNavs)-1]
+		entry.pendingNavs = nil
+		return last, true
+	}
+	return NavMsg{}, false
 }
 
 func applyNavigation(ctx Ctx, href string, replace bool) {
@@ -195,6 +214,7 @@ func recordNavigation(sess *ComponentSession, loc Location, replace bool) {
 		entry := v.(*sessionEntry)
 		entry.mu.Lock()
 		entry.navs = append(entry.navs, msg)
+		entry.pendingNavs = append(entry.pendingNavs, msg)
 		entry.mu.Unlock()
 	}
 }

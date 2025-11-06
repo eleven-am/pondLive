@@ -837,6 +837,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
         const effectType =
           typeof effect.type === "string" ? effect.type.toLowerCase() : "";
         switch (effectType) {
+          case "boot":
+            this.applyBootEffect(effect as any);
+            break;
           case "scroll":
           case "scrolltop":
             this.applyScrollEffect(effect as ScrollEffect);
@@ -1215,6 +1218,21 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     if (url) {
       window.history.replaceState({}, "", url);
     }
+  }
+
+  private applyBootEffect(effect: any): void {
+    const boot = effect?.boot as BootPayload | undefined;
+    if (!boot || typeof boot.html !== "string") {
+      return;
+    }
+
+    clearPatcherCaches();
+    dom.reset();
+    if (typeof document !== "undefined") {
+      document.body.innerHTML = boot.html;
+    }
+    this.bootHandler.load(boot);
+    syncEventListeners();
   }
 
   private dispatchCustomEvent(eventName: string, detail?: unknown): void {

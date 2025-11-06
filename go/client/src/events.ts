@@ -224,16 +224,17 @@ function handleEvent(
     }
   }
 
-  // Find the handler ID from the element or its parents FIRST
+  // Find the handler ID and element from the element or its parents FIRST
   // This ensures Link components with handlers take precedence over navigation interception
-  const handlerId = findHandlerId(target, eventType);
+  const handlerInfo = findHandlerInfo(target, eventType);
 
   // If there's a LiveUI handler, let it run (Link components use this)
-  if (handlerId) {
-    const handler = handlers.get(handlerId);
+  if (handlerInfo) {
+    const handler = handlers.get(handlerInfo.id);
     if (handler && handlerSupportsEvent(handler, eventType)) {
       // Extract event payload based on event type
-      const payload = extractEventPayload(e, target, handler.props);
+      // Pass the handler element so that "currentTarget" in selectors refers to the element with the handler
+      const payload = extractEventPayload(e, target, handler.props, handlerInfo.element);
 
       // Prevent default for submit events
       if (eventType === "submit") {
@@ -250,7 +251,7 @@ function handleEvent(
 
       // Send event to server - this will trigger runtime.InternalHandleNav for Link components
       sendEvent({
-        hid: handlerId,
+        hid: handlerInfo.id,
         payload: payload,
       });
       return;
@@ -287,7 +288,7 @@ function handleEvent(
   }
 }
 
-function findHandlerId(element: Element, eventType: string): string | null {
+function findHandlerInfo(element: Element, eventType: string): { id: string; element: Element } | null {
   let current: Element | null = element;
 
   while (current && current !== document.documentElement) {
@@ -297,7 +298,7 @@ function findHandlerId(element: Element, eventType: string): string | null {
       if (handlerId) {
         const meta = handlers.get(handlerId);
         if (!meta || handlerSupportsEvent(meta, eventType)) {
-          return handlerId;
+          return { id: handlerId, element: current };
         }
       }
     }
@@ -317,7 +318,7 @@ function findHandlerId(element: Element, eventType: string): string | null {
         }
         const meta = handlers.get(handlerId);
         if (meta && handlerSupportsEvent(meta, eventType)) {
-          return handlerId;
+          return { id: handlerId, element: current };
         }
       }
     }
@@ -332,6 +333,7 @@ function extractEventPayload(
   e: Event,
   target: Element,
   props?: string[] | null,
+  handlerElement?: Element,
 ): EventPayload {
   const payload: EventPayload = {
     type: e.type,
@@ -369,7 +371,7 @@ function extractEventPayload(
 
   if (Array.isArray(props)) {
     for (const selector of props) {
-      const value = resolvePropertySelector(selector, e, target);
+      const value = resolvePropertySelector(selector, e, target, handlerElement);
       if (value === undefined) {
         continue;
       }
@@ -520,6 +522,7 @@ function resolvePropertySelector(
   selector: string,
   event: Event,
   target: Element,
+  handlerElement?: Element,
 ): any {
   if (typeof selector !== "string") {
     return undefined;
@@ -544,7 +547,9 @@ function resolvePropertySelector(
       source = target;
       break;
     case "currentTarget":
-      source = event.currentTarget ?? undefined;
+      // In event delegation, use the handler element (the element with the data-onclick attribute)
+      // instead of event.currentTarget (which would be document)
+      source = handlerElement ?? event.currentTarget ?? undefined;
       break;
     default:
       return undefined;

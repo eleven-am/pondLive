@@ -5,7 +5,7 @@
  */
 
 import * as dom from './dom-index';
-import { registerHandlers, syncEventListeners } from './events';
+import { clearHandlers, registerHandlers, syncEventListeners } from './events';
 import type { BootPayload, DynamicSlot, Location } from './types';
 
 export class BootHandler {
@@ -65,6 +65,7 @@ export class BootHandler {
 
     // Register event handlers
     if (boot.handlers) {
+      clearHandlers();
       registerHandlers(boot.handlers);
       syncEventListeners();
     }
@@ -92,6 +93,7 @@ export class BootHandler {
       return;
     }
 
+    dom.reset();
     const anchors = this.collectSlotAnchors();
 
     // Register individual slots

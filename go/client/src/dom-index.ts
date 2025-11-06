@@ -39,6 +39,11 @@ export function unregisterSlot(index: number): void {
     slotMap.delete(index);
 }
 
+export function reset(): void {
+    slotMap.clear();
+    listMap.clear();
+}
+
 /**
  * Initialize all list containers upfront to avoid querySelector on first access
  * Call this during initialization with all known list slot indexes

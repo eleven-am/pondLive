@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -105,6 +106,26 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 		return h.Fragment()
 	}
 
+	sess := ctx.Session()
+	var (
+		entry *sessionEntry
+		depth int
+	)
+	if sess != nil {
+		if value, ok := sessionEntries.Load(sess); ok {
+			entry = value.(*sessionEntry)
+			entry.mu.Lock()
+			entry.routeDepth++
+			depth = entry.routeDepth
+			entry.mu.Unlock()
+			defer func() {
+				entry.mu.Lock()
+				entry.routeDepth--
+				entry.mu.Unlock()
+			}()
+		}
+	}
+
 	state := routerStateCtx.Use(ctx)
 	var loc Location
 	if state.getLoc != nil {
@@ -141,9 +162,23 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 		}
 		return Routes(ctx, chosen.entry.children...)
 	}
+	key := chosen.entry.pattern
+	if key == "" {
+		key = "/"
+	}
+	if entry != nil && depth == 1 {
+		entry.mu.Lock()
+		prevPattern := entry.pattern
+		entry.pattern = chosen.entry.pattern
+		entry.mu.Unlock()
+		if prevPattern != "" && prevPattern != chosen.entry.pattern {
+			requestTemplateReset(sess)
+		}
+	}
 	return ParamsCtx.Provide(ctx, params, func() h.Node {
 		return outletCtx.Provide(ctx, outletRender, func() h.Node {
-			return Render(ctx, chosen.entry.component, chosen.match)
+			node := Render(ctx, chosen.entry.component, chosen.match, WithKey(key))
+			return ensureRouteKey(node, key)
 		})
 	})
 }
@@ -167,4 +202,47 @@ func Outlet(ctx Ctx) h.Node {
 		return h.Fragment()
 	}
 	return render()
+}
+
+func ensureRouteKey(node h.Node, key string) h.Node {
+	if key == "" {
+		key = "/"
+	}
+	switch v := node.(type) {
+	case *h.Element:
+		if v.Key != "" {
+			return node
+		}
+		clone := *v
+		clone.Key = key
+		return &clone
+	case *h.FragmentNode:
+		if len(v.Children) == 0 {
+			return node
+		}
+		updated := make([]h.Node, len(v.Children))
+		changed := false
+		multi := len(v.Children) > 1
+		for i, child := range v.Children {
+			childKey := key
+			if multi {
+				childKey = fmt.Sprintf("%s#%d", key, i)
+			}
+			next := ensureRouteKey(child, childKey)
+			if next != child {
+				changed = true
+			}
+			updated[i] = next
+		}
+		if !changed {
+			return node
+		}
+		clone := *v
+		clone.Children = updated
+		return &clone
+	case nil:
+		return h.Span(h.Key(key))
+	default:
+		return h.Span(h.Key(key), node)
+	}
 }

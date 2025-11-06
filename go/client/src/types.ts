@@ -463,6 +463,11 @@ export interface CookieEffect {
   Method?: string;
 }
 
+export interface BootEffect {
+  type: "boot";
+  boot: BootPayload;
+}
+
 export type Effect =
   | ScrollEffect
   | FocusEffect
@@ -473,7 +478,8 @@ export type Effect =
   | DispatchEffect
   | CustomEffect
   | MetadataEffect
-  | CookieEffect;
+  | CookieEffect
+  | BootEffect;
 
 // Performance metrics
 export interface PerformanceMetrics {

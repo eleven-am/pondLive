@@ -2,12 +2,10 @@ package runtime
 
 func init() {
 	RegisterNavProvider(func(sess *ComponentSession) NavUpdate {
-		navs := navHistory(sess)
-		if len(navs) == 0 {
+		last, ok := consumePendingNavigation(sess)
+		if !ok {
 			return NavUpdate{}
 		}
-		last := navs[len(navs)-1]
-		clearNavHistory(sess)
 		target := buildNavURL(last)
 		update := NavUpdate{}
 		if last.T == "replace" {

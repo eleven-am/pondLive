@@ -115,15 +115,32 @@ func TestRouterOutletRerender(t *testing.T) {
 		t.Fatalf("flush error: %v", err)
 	}
 
-	if len(ops) != 1 {
-		t.Fatalf("expected single diff op, got %d", len(ops))
-	}
-	set, ok := ops[0].(diff.SetText)
-	if !ok {
-		t.Fatalf("expected SetText op, got %T", ops[0])
-	}
-	if set.Text != "Security" {
-		t.Fatalf("expected Security label, got %q", set.Text)
+	switch len(ops) {
+	case 1:
+		set, ok := ops[0].(diff.SetText)
+		if !ok {
+			t.Fatalf("expected SetText op, got %T", ops[0])
+		}
+		if set.Text != "Security" {
+			t.Fatalf("expected Security label, got %q", set.Text)
+		}
+	case 2:
+		attrs, ok := ops[0].(diff.SetAttrs)
+		if !ok {
+			t.Fatalf("expected SetAttrs as first op, got %T", ops[0])
+		}
+		if attrs.Upsert["data-row-key"] != "/settings/security" {
+			t.Fatalf("expected data-row-key to update to /settings/security, got %q", attrs.Upsert["data-row-key"])
+		}
+		set, ok := ops[1].(diff.SetText)
+		if !ok {
+			t.Fatalf("expected SetText as second op, got %T", ops[1])
+		}
+		if set.Text != "Security" {
+			t.Fatalf("expected Security label, got %q", set.Text)
+		}
+	default:
+		t.Fatalf("expected 1 or 2 diff ops, got %d", len(ops))
 	}
 }
 

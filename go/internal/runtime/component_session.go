@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
@@ -25,11 +26,13 @@ type ComponentSession struct {
 
 	prev render.Structured
 
-	dirty        map[*component]struct{}
-	dirtyRoot    bool
-	pendingFlush bool
-	suspend      int
-	flushing     bool
+	dirty          map[*component]struct{}
+	dirtyRoot      bool
+	pendingFlush   bool
+	suspend        int
+	flushing       bool
+	forceTemplate  atomic.Bool
+	templateUpdate atomic.Pointer[templateUpdate]
 
 	uploads           map[string]*uploadSlot
 	uploadByComponent map[*component]map[int]*uploadSlot
@@ -59,6 +62,11 @@ type ComponentSession struct {
 	headerMu sync.RWMutex
 
 	mu sync.Mutex
+}
+
+type templateUpdate struct {
+	structured render.Structured
+	html       string
 }
 
 type pubsubTask struct {
@@ -102,6 +110,35 @@ func (s *ComponentSession) SetRegistry(reg handlers.Registry) { s.registry = reg
 func (s *ComponentSession) SetPatchSender(fn func([]diff.Op) error) { s.sendPatch = fn }
 
 func (s *ComponentSession) setOwner(owner *LiveSession) { s.owner = owner }
+
+func (s *ComponentSession) requestTemplateReset() {
+	if s == nil {
+		return
+	}
+	s.forceTemplate.Store(true)
+}
+
+func (s *ComponentSession) consumeTemplateReset() bool {
+	if s == nil {
+		return false
+	}
+	return s.forceTemplate.Swap(false)
+}
+
+func (s *ComponentSession) setTemplateUpdate(update templateUpdate) {
+	if s == nil {
+		return
+	}
+	copy := update
+	s.templateUpdate.Store(&copy)
+}
+
+func (s *ComponentSession) consumeTemplateUpdate() *templateUpdate {
+	if s == nil {
+		return nil
+	}
+	return s.templateUpdate.Swap(nil)
+}
 
 // SetPubsubProvider wires the session to an external pub/sub provider.
 func (s *ComponentSession) SetPubsubProvider(provider PubsubProvider) {
@@ -248,7 +285,15 @@ func (s *ComponentSession) Flush() error {
 		s.SetMetadata(nil)
 		node := s.root.render()
 		next := render.ToStructuredWithHandlers(node, reg)
-		opDiff := diff.Diff(s.prev, next)
+		forceTemplate := s.consumeTemplateReset()
+		var opDiff []diff.Op
+		if forceTemplate {
+			html := render.RenderHTML(node, reg)
+			s.setTemplateUpdate(templateUpdate{structured: next, html: html})
+			opDiff = nil
+		} else {
+			opDiff = diff.Diff(s.prev, next)
+		}
 		meta := s.Metadata()
 		var metadataChanged bool
 		if owner := s.owner; owner != nil {
@@ -277,7 +322,7 @@ func (s *ComponentSession) Flush() error {
 		if owner := s.owner; owner != nil {
 			cookiePending = owner.hasPendingCookieMutations()
 		}
-		shouldSend := len(opDiff) > 0 || navDelta != nil || metadataChanged || cookiePending
+		shouldSend := forceTemplate || len(opDiff) > 0 || navDelta != nil || metadataChanged || cookiePending
 		if shouldSend {
 			if s.sendPatch == nil {
 				return errors.New("runtime: SendPatch is nil")

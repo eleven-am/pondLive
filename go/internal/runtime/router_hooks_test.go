@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
@@ -105,5 +106,86 @@ func TestUseSearchParamSetterTriggersRender(t *testing.T) {
 	loc := currentLocation(sess)
 	if loc.Query.Get("tab") != "profile" {
 		t.Fatalf("expected search param to update to profile, got %q", loc.Query.Get("tab"))
+	}
+}
+
+var (
+	routerNavLastCount  int
+	routerNavLastUserID string
+)
+
+func routerNavHome(ctx Ctx, _ Match) h.Node {
+	count, setCount := UseState(ctx, 0)
+	current := count()
+	incrementAndNavigate := func(h.Event) h.Updates {
+		next := count() + 1
+		routerNavLastCount = next
+		setCount(next)
+		RouterNavigate(ctx, fmt.Sprintf("/users/%d", next))
+		return nil
+	}
+	return h.Div(
+		h.Span(h.Text(fmt.Sprintf("count:%d", current))),
+		h.Button(
+			h.On("click", incrementAndNavigate),
+			h.Text("Increment & Navigate to User"),
+		),
+	)
+}
+
+func routerNavUser(ctx Ctx, match Match) h.Node {
+	routerNavLastUserID = match.Params["id"]
+	return h.Div()
+}
+
+func routerNavApp(ctx Ctx, _ routerHooksProps) h.Node {
+	return Router(ctx,
+		Routes(ctx,
+			Route(ctx, RouteProps{Path: "/", Component: routerNavHome}),
+			Route(ctx, RouteProps{Path: "/users/:id", Component: routerNavUser}),
+		),
+	)
+}
+
+func TestRouterNavigateFromEventHandler(t *testing.T) {
+	routerNavLastCount = 0
+	routerNavLastUserID = ""
+	sess := NewSession(routerNavApp, routerHooksProps{})
+	sess.SetRegistry(handlers.NewRegistry())
+	sess.SetPatchSender(func([]diff.Op) error { return nil })
+
+	InternalSeedSessionLocation(sess, ParseHref("/"))
+	structured := sess.InitialStructured()
+
+	clearNavHistory(sess)
+
+	handlerID := findClickHandlerID(structured)
+	if handlerID == "" {
+		t.Fatal("expected click handler id")
+	}
+
+	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}); err != nil {
+		t.Fatalf("dispatch error: %v", err)
+	}
+
+	if routerNavLastCount != 1 {
+		t.Fatalf("expected count to update to 1, got %d", routerNavLastCount)
+	}
+
+	loc := currentLocation(sess)
+	if loc.Path != "/users/1" {
+		t.Fatalf("expected current path /users/1, got %q", loc.Path)
+	}
+
+	if routerNavLastUserID != "1" {
+		t.Fatalf("expected user page to render with id 1, got %q", routerNavLastUserID)
+	}
+
+	navs := navHistory(sess)
+	if len(navs) != 1 {
+		t.Fatalf("expected 1 navigation record, got %d", len(navs))
+	}
+	if navs[0].Path != "/users/1" {
+		t.Fatalf("unexpected navigation target: %+v", navs[0])
 	}
 }
