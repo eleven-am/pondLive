@@ -83,17 +83,3 @@ func normalizeRouterNode(ctx Ctx, sess *ComponentSession, node h.Node) h.Node {
 		return node
 	}
 }
-
-func removeLinkPlaceholder(sess *ComponentSession, frag *h.FragmentNode) {
-	if sess == nil || frag == nil {
-		return
-	}
-	sess.clearLinkPlaceholder(frag)
-}
-
-func removeRoutesPlaceholder(sess *ComponentSession, frag *h.FragmentNode) {
-	if sess == nil || frag == nil {
-		return
-	}
-	sess.clearRoutesPlaceholder(frag)
-}
