@@ -114,13 +114,19 @@ func attachHandlers(e *h.Element, reg handlers.Registry) {
 	}
 	sort.Strings(keys)
 	for _, name := range keys {
-		handler := e.Events[name]
-		id := reg.Ensure(handler)
+		binding := e.Events[name]
+		id := reg.Ensure(binding.Handler)
 		if id == "" {
 			continue
 		}
 		attrName := "data-on" + name
 		e.Attrs[attrName] = string(id)
+		if listens := binding.Listen; len(listens) > 0 {
+			e.Attrs[attrName+"-listen"] = strings.Join(listens, " ")
+		}
+		if props := binding.Props; len(props) > 0 {
+			e.Attrs[attrName+"-props"] = strings.Join(props, " ")
+		}
 	}
 }
 

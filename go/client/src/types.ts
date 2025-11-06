@@ -48,6 +48,8 @@ export interface BootClientConfig {
 // Handler metadata
 export interface HandlerMeta {
   event: string;
+  listen?: string[];
+  props?: string[];
 }
 
 export type HandlerMap = Record<string, HandlerMeta>;

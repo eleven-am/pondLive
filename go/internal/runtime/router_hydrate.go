@@ -15,6 +15,16 @@ func InternalSeedSessionLocation(sess *ComponentSession, loc Location) {
 	canon := canonicalizeLocation(loc)
 	sessionSeeds.Store(sess, canon)
 	storeSessionLocation(sess, canon)
+	if v, ok := sessionEntries.Load(sess); ok {
+		entry := v.(*sessionEntry)
+		entry.mu.Lock()
+		assign := entry.assign
+		active := entry.active
+		entry.mu.Unlock()
+		if assign != nil && !active {
+			assign(canon)
+		}
+	}
 }
 
 func consumeSeed(sess *ComponentSession) (Location, bool) {

@@ -52,6 +52,29 @@ func TestRenderHTMLWithHandlersIncludesEventData(t *testing.T) {
 	}
 }
 
+func TestFinalizeWithHandlersAppliesEventMetadata(t *testing.T) {
+	reg := handlers.NewRegistry()
+	handler := func(h.Event) h.Updates { return h.Rerender() }
+	node := h.Video(
+		h.OnWith("timeupdate", h.EventOptions{
+			Listen: []string{"play", "pause", "timeupdate"},
+			Props:  []string{"target.currentTime", "target.duration"},
+		}, handler),
+	)
+
+	FinalizeWithHandlers(node, reg)
+
+	if got := node.Attrs["data-ontimeupdate"]; got == "" {
+		t.Fatal("expected handler id for primary event")
+	}
+	if got := node.Attrs["data-ontimeupdate-listen"]; got != "play pause" {
+		t.Fatalf("unexpected listen metadata: %q", got)
+	}
+	if got := node.Attrs["data-ontimeupdate-props"]; got != "target.currentTime target.duration target.paused" {
+		t.Fatalf("unexpected props metadata: %q", got)
+	}
+}
+
 func TestFinalizeAnnotatesRowKeys(t *testing.T) {
 	node := h.Li(h.Key("item-1"), h.Text("row"))
 	Finalize(node)

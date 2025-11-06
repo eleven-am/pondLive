@@ -109,18 +109,31 @@ func (p rawHTMLProp) applyTo(e *Element) { e.Unsafe = &p.html }
 func UnsafeHTML(html string) Prop { return rawHTMLProp{html: html} }
 
 type onProp struct {
-	event string
-	fn    EventHandler
+	event   string
+	binding EventBinding
 }
 
 func (p onProp) isProp() {}
 
 func (p onProp) applyTo(e *Element) {
 	if e.Events == nil {
-		e.Events = map[string]EventHandler{}
+		e.Events = map[string]EventBinding{}
 	}
-	e.Events[p.event] = p.fn
+	e.Events[p.event] = p.binding
 }
 
 // On attaches an event handler for the named DOM event.
-func On(event string, handler EventHandler) Prop { return onProp{event: event, fn: handler} }
+func On(event string, handler EventHandler) Prop {
+	binding := EventBinding{Handler: handler}
+	binding = binding.withOptions(defaultEventOptions(event), event)
+	return onProp{event: event, binding: binding}
+}
+
+// OnWith attaches an event handler together with additional options that
+// describe which DOM events should be listened to and which properties should
+// be captured when the event fires.
+func OnWith(event string, opts EventOptions, handler EventHandler) Prop {
+	combined := mergeEventOptions(defaultEventOptions(event), opts)
+	binding := EventBinding{Handler: handler}.withOptions(combined, event)
+	return onProp{event: event, binding: binding}
+}

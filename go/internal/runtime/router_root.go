@@ -17,6 +17,7 @@ type sessionEntry struct {
 	mu     sync.Mutex
 	get    func() Location
 	set    func(Location)
+	assign func(Location)
 	loc    Location
 	navs   []NavMsg
 	params map[string]string
@@ -37,6 +38,10 @@ func routerComponent(ctx Ctx, props routerProps) h.Node {
 	sess := ctx.Session()
 	initial := initialLocation(sess)
 	get, set := UseState(ctx, initial, WithEqual(LocEqual))
+	assign := func(next Location) {
+		canon := canonicalizeLocation(next)
+		set(canon)
+	}
 
 	state := routerState{}
 	state.getLoc = func() Location { return cloneLocation(get()) }
@@ -46,7 +51,7 @@ func routerComponent(ctx Ctx, props routerProps) h.Node {
 		storeSessionLocation(sess, canon)
 	}
 
-	entry := registerSessionEntry(sess, state.getLoc, state.setLoc)
+	entry := registerSessionEntry(sess, state.getLoc, state.setLoc, assign)
 	current := state.getLoc()
 	storeSessionLocation(sess, current)
 	if entry != nil {
@@ -83,7 +88,7 @@ func requireRouterState(ctx Ctx) routerState {
 	return state
 }
 
-func registerSessionEntry(sess *ComponentSession, get func() Location, set func(Location)) *sessionEntry {
+func registerSessionEntry(sess *ComponentSession, get func() Location, set func(Location), assign func(Location)) *sessionEntry {
 	if sess == nil {
 		return nil
 	}
@@ -93,6 +98,7 @@ func registerSessionEntry(sess *ComponentSession, get func() Location, set func(
 	stored.mu.Lock()
 	stored.get = get
 	stored.set = set
+	stored.assign = assign
 	stored.mu.Unlock()
 	return stored
 }

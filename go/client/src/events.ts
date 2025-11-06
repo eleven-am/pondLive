@@ -38,14 +38,16 @@ export function registerHandlers(handlerMap: HandlerMap): void {
   if (!handlerMap) return;
   for (const [id, meta] of Object.entries(handlerMap)) {
     const previous = handlers.get(id);
-    if (previous?.event) {
-      decrementEventUsage(previous.event);
+    if (previous) {
+      for (const eventName of collectEventTypes(previous)) {
+        decrementEventUsage(eventName);
+      }
     }
 
     handlers.set(id, meta);
 
-    if (meta.event) {
-      incrementEventUsage(meta.event);
+    for (const eventName of collectEventTypes(meta)) {
+      incrementEventUsage(eventName);
     }
   }
 }
@@ -60,8 +62,10 @@ export function unregisterHandlers(handlerIds: string[]): void {
     const handler = handlers.get(id);
     handlers.delete(id);
 
-    if (handler?.event) {
-      decrementEventUsage(handler.event);
+    if (handler) {
+      for (const eventName of collectEventTypes(handler)) {
+        decrementEventUsage(eventName);
+      }
     }
   }
 }
@@ -227,9 +231,9 @@ function handleEvent(
   // If there's a LiveUI handler, let it run (Link components use this)
   if (handlerId) {
     const handler = handlers.get(handlerId);
-    if (handler && handler.event === eventType) {
+    if (handler && handlerSupportsEvent(handler, eventType)) {
       // Extract event payload based on event type
-      const payload = extractEventPayload(e, target);
+      const payload = extractEventPayload(e, target, handler.props);
 
       // Prevent default for submit events
       if (eventType === "submit") {
@@ -277,19 +281,50 @@ function handleEvent(
 
 function findHandlerId(element: Element, eventType: string): string | null {
   let current: Element | null = element;
-  const attrName = `data-on${eventType}`;
 
   while (current && current !== document.documentElement) {
-    if (current.hasAttribute && current.hasAttribute(attrName)) {
-      return current.getAttribute(attrName);
+    const directAttr = `data-on${eventType}`;
+    if (typeof current.hasAttribute === "function" && current.hasAttribute(directAttr)) {
+      const handlerId = current.getAttribute(directAttr);
+      if (handlerId) {
+        const meta = handlers.get(handlerId);
+        if (!meta || handlerSupportsEvent(meta, eventType)) {
+          return handlerId;
+        }
+      }
     }
+
+    const attributeNames =
+      typeof current.getAttributeNames === "function"
+        ? current.getAttributeNames()
+        : null;
+    if (Array.isArray(attributeNames)) {
+      for (const name of attributeNames) {
+        if (!name.startsWith("data-on")) {
+          continue;
+        }
+        const handlerId = current.getAttribute(name);
+        if (!handlerId) {
+          continue;
+        }
+        const meta = handlers.get(handlerId);
+        if (meta && handlerSupportsEvent(meta, eventType)) {
+          return handlerId;
+        }
+      }
+    }
+
     current = current.parentElement;
   }
 
   return null;
 }
 
-function extractEventPayload(e: Event, target: Element): EventPayload {
+function extractEventPayload(
+  e: Event,
+  target: Element,
+  props?: string[] | null,
+): EventPayload {
   const payload: EventPayload = {
     type: e.type,
   };
@@ -322,6 +357,19 @@ function extractEventPayload(e: Event, target: Element): EventPayload {
   if (e instanceof MouseEvent) {
     payload.clientX = e.clientX;
     payload.clientY = e.clientY;
+  }
+
+  if (Array.isArray(props)) {
+    for (const selector of props) {
+      const value = resolvePropertySelector(selector, e, target);
+      if (value === undefined) {
+        continue;
+      }
+      const normalized = normalizePropertyValue(value);
+      if (normalized !== undefined) {
+        payload[selector] = normalized;
+      }
+    }
   }
 
   return payload;
@@ -418,4 +466,153 @@ function decrementEventUsage(eventType: string): void {
   } else {
     eventUsageCounts.set(eventType, current - 1);
   }
+}
+
+function collectEventTypes(meta?: HandlerMeta | null): string[] {
+  if (!meta) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const order: string[] = [];
+
+  if (meta.event) {
+    seen.add(meta.event);
+    order.push(meta.event);
+  }
+
+  if (Array.isArray(meta.listen)) {
+    for (const evt of meta.listen) {
+      if (typeof evt !== "string" || evt.length === 0) {
+        continue;
+      }
+      if (!seen.has(evt)) {
+        seen.add(evt);
+        order.push(evt);
+      }
+    }
+  }
+
+  return order;
+}
+
+function handlerSupportsEvent(meta: HandlerMeta, eventType: string): boolean {
+  if (!meta) {
+    return false;
+  }
+  if (meta.event === eventType) {
+    return true;
+  }
+  if (Array.isArray(meta.listen)) {
+    return meta.listen.includes(eventType);
+  }
+  return false;
+}
+
+function resolvePropertySelector(
+  selector: string,
+  event: Event,
+  target: Element,
+): any {
+  if (typeof selector !== "string") {
+    return undefined;
+  }
+  const trimmed = selector.trim();
+  if (trimmed.length === 0) {
+    return undefined;
+  }
+
+  const parts = trimmed.split(".");
+  if (parts.length === 0) {
+    return undefined;
+  }
+
+  const scope = parts.shift();
+  let source: any;
+  switch (scope) {
+    case "event":
+      source = event;
+      break;
+    case "target":
+      source = target;
+      break;
+    case "currentTarget":
+      source = event.currentTarget ?? undefined;
+      break;
+    default:
+      return undefined;
+  }
+
+  let value = source;
+  for (const part of parts) {
+    if (!part) {
+      continue;
+    }
+    if (value == null) {
+      return undefined;
+    }
+    value = (value as any)[part];
+  }
+
+  return value;
+}
+
+function normalizePropertyValue(value: any): any {
+  if (value === null) {
+    return null;
+  }
+  const type = typeof value;
+  if (type === "string" || type === "number" || type === "boolean") {
+    return value;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof FileList !== "undefined" && value instanceof FileList) {
+    return serializeFileList(value);
+  }
+  if (typeof File !== "undefined" && value instanceof File) {
+    return { name: value.name, size: value.size, type: value.type };
+  }
+  if (typeof DOMTokenList !== "undefined" && value instanceof DOMTokenList) {
+    return Array.from(value);
+  }
+  if (typeof TimeRanges !== "undefined" && value instanceof TimeRanges) {
+    const ranges: Array<{ start: number; end: number }> = [];
+    for (let i = 0; i < value.length; i++) {
+      try {
+        ranges.push({ start: value.start(i), end: value.end(i) });
+      } catch (err) {
+        // Ignore invalid ranges
+      }
+    }
+    return ranges;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizePropertyValue(item))
+      .filter((item) => item !== undefined);
+  }
+  if (value && typeof value === "object") {
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (err) {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function serializeFileList(list: FileList): Array<{
+  name: string;
+  size: number;
+  type: string;
+}> {
+  const files: Array<{ name: string; size: number; type: string }> = [];
+  for (let i = 0; i < list.length; i++) {
+    const file = list.item(i);
+    if (file) {
+      files.push({ name: file.name, size: file.size, type: file.type });
+    }
+  }
+  return files;
 }

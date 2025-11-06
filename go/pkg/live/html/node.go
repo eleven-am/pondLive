@@ -21,7 +21,7 @@ type Element struct {
 	Children []Node
 
 	Key    string
-	Events map[string]EventHandler
+	Events map[string]EventBinding
 	Unsafe *string
 }
 

@@ -52,7 +52,9 @@ type SlotMeta struct {
 }
 
 type HandlerMeta struct {
-	Event string `json:"event"`
+	Event  string   `json:"event"`
+	Listen []string `json:"listen,omitempty"`
+	Props  []string `json:"props,omitempty"`
 }
 
 type Join struct {

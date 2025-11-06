@@ -54,6 +54,28 @@ func nestedLinkApp(ctx Ctx, _ routerRenderProps) h.Node {
 	)
 }
 
+func seededSSRApp(ctx Ctx, _ routerRenderProps) h.Node {
+	return Router(ctx,
+		Render(ctx, seededNavigation, struct{}{}),
+		Routes(ctx,
+			Route(ctx, RouteProps{Path: "/", Component: seededPage("home")}),
+			Route(ctx, RouteProps{Path: "/about", Component: seededPage("about")}),
+		),
+	)
+}
+
+func seededNavigation(ctx Ctx, _ struct{}) h.Node {
+	loc := UseLocation(ctx)
+	return h.Div(h.Text("nav:" + loc.Path))
+}
+
+func seededPage(label string) Component[Match] {
+	return func(ctx Ctx, _ Match) h.Node {
+		loc := UseLocation(ctx)
+		return h.Div(h.Text("page:" + label + ":" + loc.Path))
+	}
+}
+
 func asItem(node h.Node) h.Item {
 	if item, ok := node.(h.Item); ok {
 		return item
@@ -154,5 +176,21 @@ func TestRouterRendersNestedLinkDuringSSR(t *testing.T) {
 	}
 	if !strings.Contains(html, "data-onclick") {
 		t.Fatalf("expected click handler attribute for nested link, got %q", html)
+	}
+}
+
+func TestRouterUsesSeededLocationDuringSSR(t *testing.T) {
+	session := NewLiveSession(SessionID("seeded"), 1, seededSSRApp, routerRenderProps{}, nil)
+
+	InternalSeedSessionLocation(session.ComponentSession(), ParseHref("/about"))
+
+	node := session.RenderRoot()
+	html := render.RenderHTML(node, session.Registry())
+
+	if !strings.Contains(html, "page:about:/about") {
+		t.Fatalf("expected active route to render seeded location, got %q", html)
+	}
+	if strings.Contains(html, "page:home:/") {
+		t.Fatalf("expected home route to be inactive, got %q", html)
 	}
 }

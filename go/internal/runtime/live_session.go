@@ -1141,18 +1141,96 @@ func extractHandlerMeta(structured render.Structured) map[string]protocol.Handle
 		if dyn.Kind != render.DynAttrs {
 			continue
 		}
+		// First collect the primary event bindings.
 		for attr, val := range dyn.Attrs {
 			if val == "" || !strings.HasPrefix(attr, "data-on") {
 				continue
 			}
-			event := strings.TrimPrefix(attr, "data-on")
-			handlers[val] = protocol.HandlerMeta{Event: event}
+			suffix := strings.TrimPrefix(attr, "data-on")
+			if suffix == "" || strings.HasSuffix(suffix, "-listen") || strings.HasSuffix(suffix, "-props") {
+				continue
+			}
+			event := suffix
+			if event == "" {
+				continue
+			}
+			id := val
+			if id == "" {
+				continue
+			}
+			meta := handlers[id]
+			if meta.Event == "" {
+				meta.Event = event
+			} else if meta.Event != event {
+				meta.Listen = appendIfMissing(meta.Listen, event)
+			}
+			handlers[id] = meta
+		}
+
+		// Then merge metadata such as listen lists and property selectors.
+		for attr, raw := range dyn.Attrs {
+			if raw == "" || !strings.HasPrefix(attr, "data-on") {
+				continue
+			}
+			suffix := strings.TrimPrefix(attr, "data-on")
+			if suffix == "" {
+				continue
+			}
+			idx := strings.LastIndex(suffix, "-")
+			if idx == -1 {
+				continue
+			}
+			event := suffix[:idx]
+			metaType := suffix[idx+1:]
+			if event == "" || metaType == "" {
+				continue
+			}
+			id := dyn.Attrs["data-on"+event]
+			if id == "" {
+				continue
+			}
+			meta := handlers[id]
+			switch metaType {
+			case "listen":
+				meta.Listen = appendFields(meta.Listen, raw, meta.Event)
+			case "props":
+				meta.Props = appendFields(meta.Props, raw, "")
+			}
+			handlers[id] = meta
 		}
 	}
 	if len(handlers) == 0 {
 		return nil
 	}
 	return handlers
+}
+
+func appendIfMissing(list []string, value string) []string {
+	if value == "" {
+		return list
+	}
+	for _, existing := range list {
+		if existing == value {
+			return list
+		}
+	}
+	return append(list, value)
+}
+
+func appendFields(list []string, raw string, skip string) []string {
+	if raw == "" {
+		return list
+	}
+	for _, token := range strings.Fields(raw) {
+		if token == "" || token == skip {
+			continue
+		}
+		list = appendIfMissing(list, token)
+	}
+	if len(list) == 0 {
+		return nil
+	}
+	return list
 }
 
 func cloneDynamics(dynamics []protocol.DynamicSlot) []protocol.DynamicSlot {
@@ -1199,7 +1277,14 @@ func cloneHandlers(handlers map[string]protocol.HandlerMeta) map[string]protocol
 	}
 	out := make(map[string]protocol.HandlerMeta, len(handlers))
 	for k, v := range handlers {
-		out[k] = v
+		meta := v
+		if len(v.Listen) > 0 {
+			meta.Listen = append([]string(nil), v.Listen...)
+		}
+		if len(v.Props) > 0 {
+			meta.Props = append([]string(nil), v.Props...)
+		}
+		out[k] = meta
 	}
 	return out
 }

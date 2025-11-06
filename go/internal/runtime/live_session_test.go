@@ -88,6 +88,15 @@ func findClickHandler(structured render.Structured) handlers.ID {
 
 func boolPtr(v bool) *bool { return &v }
 
+func containsString(list []string, needle string) bool {
+	for _, item := range list {
+		if item == needle {
+			return true
+		}
+	}
+	return false
+}
+
 func TestLiveSessionJoinAndReplay(t *testing.T) {
 	transport := &stubTransport{}
 	clock := &fakeClock{now: time.Now()}
@@ -173,6 +182,47 @@ func TestLiveSessionJoinAndReplay(t *testing.T) {
 	}
 	if resume.Resume.From != sess.nextSeq || resume.Resume.To != sess.nextSeq {
 		t.Fatalf("expected resume range equal nextSeq, got %+v", resume.Resume)
+	}
+}
+
+func TestExtractHandlerMetaIncludesListenAndProps(t *testing.T) {
+	reg := handlers.NewRegistry()
+	handler := func(h.Event) h.Updates { return h.Rerender() }
+	tree := h.Video(
+		h.OnWith("timeupdate", h.EventOptions{
+			Listen: []string{"play", "pause"},
+			Props:  []string{"target.currentTime", "event.detail"},
+		}, handler),
+		h.On("play", handler),
+	)
+
+	structured := render.ToStructuredWithHandlers(tree, reg)
+	meta := extractHandlerMeta(structured)
+	if len(meta) != 1 {
+		t.Fatalf("expected a single handler meta, got %d", len(meta))
+	}
+	var info protocol.HandlerMeta
+	for _, m := range meta {
+		info = m
+	}
+
+	if info.Event != "timeupdate" && info.Event != "play" {
+		t.Fatalf("unexpected primary event: %q", info.Event)
+	}
+	if !containsString(info.Props, "target.currentTime") || !containsString(info.Props, "event.detail") {
+		t.Fatalf("props were not captured: %+v", info.Props)
+	}
+	if !containsString(info.Listen, "pause") {
+		t.Fatalf("expected pause in listen metadata: %+v", info.Listen)
+	}
+	if info.Event == "timeupdate" {
+		if !containsString(info.Listen, "play") {
+			t.Fatalf("expected play in listen metadata when primary is timeupdate: %+v", info.Listen)
+		}
+	} else {
+		if !containsString(info.Listen, "timeupdate") {
+			t.Fatalf("expected timeupdate in listen metadata when primary is play: %+v", info.Listen)
+		}
 	}
 }
 
