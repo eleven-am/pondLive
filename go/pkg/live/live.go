@@ -26,6 +26,8 @@ type (
 	PubsubPublishFunc    = runtime.PubsubPublishFunc
 	PubsubOption[T any]  = runtime.PubsubOption[T]
 	Pubsub[T any]        = runtime.Pubsub[T]
+	StreamItem[T any]    = runtime.StreamItem[T]
+	StreamHandle[T any]  = runtime.StreamHandle[T]
 )
 
 // Render invokes the supplied child component with props, returning its node.
@@ -64,6 +66,12 @@ func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
 // It’s ideal for tracking DOM handles or other imperative data.
 func UseRef[T any](ctx Ctx, zero T) *Ref[T] {
 	return runtime.UseRef(ctx, zero)
+}
+
+// UseStream renders and manages a keyed list. It returns a fragment node and a
+// handle exposing mutation helpers for the backing collection.
+func UseStream[T any](ctx Ctx, renderRow func(StreamItem[T]) h.Node, initial ...StreamItem[T]) (h.Node, StreamHandle[T]) {
+	return runtime.UseStream(ctx, renderRow, initial...)
 }
 
 // WithEqual customizes UseState comparisons. If eq(old, new) is true, the

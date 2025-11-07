@@ -38,6 +38,7 @@ type ManagerConfig struct {
 
 const (
 	defaultClientAssetURL = "/pondlive.js"
+	devClientAssetURL     = "/pondlive-dev.js"
 	PondSocketPattern     = "/live"
 )
 

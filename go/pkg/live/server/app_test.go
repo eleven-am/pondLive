@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -111,6 +112,60 @@ func TestAppServesClientScript(t *testing.T) {
 			snippet = snippet[:64]
 		}
 		t.Fatalf("expected bundled client script to be returned, got %q", snippet)
+	}
+}
+
+func TestAppServesDevClientScriptAndSourceMap(t *testing.T) {
+	app, err := NewApp(context.Background(), func(ctx ui.Ctx) h.Node {
+		return h.Div(h.Text("dev"))
+	}, WithDevMode(true))
+	if err != nil {
+		t.Fatalf("NewApp returned error: %v", err)
+	}
+
+	handler := app.Handler()
+	if handler == nil {
+		t.Fatal("expected handler to be initialised")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "<script src=\"/pondlive-dev.js\" defer></script>") {
+		t.Fatalf("expected dev HTML to reference pondlive-dev.js, body=%s", body)
+	}
+
+	scriptReq := httptest.NewRequest(http.MethodGet, "http://example.com/pondlive-dev.js", nil)
+	scriptRec := httptest.NewRecorder()
+	handler.ServeHTTP(scriptRec, scriptReq)
+	scriptRes := scriptRec.Result()
+	t.Cleanup(func() { _ = scriptRes.Body.Close() })
+	if scriptRes.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 for dev script, got %d", scriptRes.StatusCode)
+	}
+	if ct := scriptRes.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/javascript") {
+		t.Fatalf("expected javascript content type, got %q", ct)
+	}
+
+	mapReq := httptest.NewRequest(http.MethodGet, "http://example.com/pondlive-dev.js.map", nil)
+	mapRec := httptest.NewRecorder()
+	handler.ServeHTTP(mapRec, mapReq)
+	mapRes := mapRec.Result()
+	t.Cleanup(func() { _ = mapRes.Body.Close() })
+	if mapRes.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 for dev source map, got %d", mapRes.StatusCode)
+	}
+	if ct := mapRes.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Fatalf("expected json content type for source map, got %q", ct)
+	}
+	buf := make([]byte, 1)
+	n, err := mapRes.Body.Read(buf)
+	if err != nil && err != io.EOF {
+		t.Fatalf("expected to read from source map: %v", err)
+	}
+	if n == 0 {
+		t.Fatal("expected source map to contain data")
 	}
 }
 

@@ -36,7 +36,7 @@ func buildDocument(body string, meta *runtime.Meta, assetURL string) string {
 	if assetURL != "" {
 		builder.WriteString("<script src=\"")
 		builder.WriteString(html.EscapeString(assetURL))
-		if assetURL == defaultClientAssetURL {
+		if assetURL == defaultClientAssetURL || assetURL == devClientAssetURL {
 			builder.WriteString("\" defer></script>")
 		} else {
 			builder.WriteString("\"></script>")

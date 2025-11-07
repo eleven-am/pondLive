@@ -28,6 +28,7 @@ type appOptions struct {
 	idGenerator    func(*http.Request) (runtime.SessionID, error)
 	session        *runtime.LiveSessionConfig
 	clientAssetURL string
+	devMode        *bool
 }
 
 // WithVersion overrides the server protocol version advertised in init and frame payloads.
@@ -68,6 +69,18 @@ func WithClientAssetURL(url string) Option {
 	}
 }
 
+// WithDevMode enables developer-centric runtime features such as diagnostic
+// streaming, recovery affordances, and serving the debug client bundle when set
+// to true.
+func WithDevMode(enabled bool) Option {
+	return func(cfg *appOptions) {
+		if cfg != nil {
+			value := enabled
+			cfg.devMode = &value
+		}
+	}
+}
+
 // App wires a LiveUI HTTP manager with a PondSocket transport and exposes a single
 // http.Handler that serves both SSR and websocket traffic.
 type App struct {
@@ -76,6 +89,10 @@ type App struct {
 }
 
 // NewApp constructs a LiveUI application stack using the supplied component.
+// The returned handler automatically serves the embedded client script, PondSocket
+// endpoint, upload handler, and cookie negotiation endpoint used by SetCookie
+// and DeleteCookie, so applications do not need to register those routes
+// manually.
 func NewApp(ctx context.Context, component Component, opts ...Option) (*App, error) {
 	if component == nil {
 		return nil, errors.New("live: component is required")
@@ -91,9 +108,14 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 		}
 	}
 
+	devMode := false
+	if applied.devMode != nil {
+		devMode = *applied.devMode
+	}
+
 	managerCfg := &livehttp.ManagerConfig{
 		Component:      adaptComponent(component),
-		ClientAssetURL: clientScriptPath(),
+		ClientAssetURL: clientScriptPath(devMode),
 	}
 	if applied.version > 0 {
 		managerCfg.Version = applied.version
@@ -101,9 +123,20 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 	if applied.idGenerator != nil {
 		managerCfg.IDGenerator = applied.idGenerator
 	}
+	var sessionCfg *runtime.LiveSessionConfig
 	if applied.session != nil {
 		clone := *applied.session
-		managerCfg.Session = &clone
+		sessionCfg = &clone
+	}
+	if applied.devMode != nil {
+		if sessionCfg == nil {
+			sessionCfg = &runtime.LiveSessionConfig{}
+		}
+		value := *applied.devMode
+		sessionCfg.DevMode = &value
+	}
+	if sessionCfg != nil {
+		managerCfg.Session = sessionCfg
 	}
 	if strings.TrimSpace(applied.clientAssetURL) != "" {
 		managerCfg.ClientAssetURL = applied.clientAssetURL
@@ -121,9 +154,24 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 	route := endpointFromPrefix(prefix)
 	manager.SetClientConfig(protocol.ClientConfig{Endpoint: route, UploadEndpoint: livehttp.UploadPathPrefix})
 
+	scriptPath := managerCfg.ClientAssetURL
+	if strings.TrimSpace(scriptPath) == "" {
+		scriptPath = clientScriptPath(devMode)
+	}
+	scriptHandler := embeddedClientScriptHandler(scriptPath)
+	sourceMapPath := ""
+	sourceMapHandler := http.Handler(nil)
+	if devMode {
+		sourceMapPath = clientSourceMapPath(scriptPath)
+		sourceMapHandler = embeddedClientSourceMapHandler(sourceMapPath)
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle(route, pondManager.HTTPHandler())
-	mux.Handle(managerCfg.ClientAssetURL, clientScriptHandler())
+	mux.Handle(scriptPath, scriptHandler)
+	if devMode && sourceMapHandler != nil && strings.TrimSpace(sourceMapPath) != "" {
+		mux.Handle(sourceMapPath, sourceMapHandler)
+	}
 	mux.Handle(livehttp.UploadPathPrefix, livehttp.NewUploadHandler(manager.Registry()))
 	mux.Handle(livehttp.CookiePath, livehttp.NewCookieHandler(manager.Registry()))
 	mux.Handle("/", manager)
