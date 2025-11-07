@@ -53,9 +53,6 @@ func ensureClientAssets() {
 			clientScripts["pondlive-dev.js"] = devData
 		}
 
-		if mapData := loadOptional("pondlive.js.map"); len(mapData) > 0 {
-			clientSourceMaps["pondlive.js.map"] = mapData
-		}
 		if mapData := loadOptional("pondlive-dev.js.map"); len(mapData) > 0 {
 			clientSourceMaps["pondlive-dev.js.map"] = mapData
 		}
