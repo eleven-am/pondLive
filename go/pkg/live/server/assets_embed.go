@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	//go:embed static/pondlive.js static/pondlive.js.map static/pondlive-dev.js static/pondlive-dev.js.map
+	//go:embed static/pondlive.js static/pondlive-dev.js static/pondlive-dev.js.map
 	clientAssetFS embed.FS
 
 	clientAssetsOnce sync.Once
