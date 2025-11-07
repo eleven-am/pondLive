@@ -8,26 +8,28 @@ import (
 )
 
 type (
-	Ctx                  = runtime.Ctx
-	Component[P any]     = runtime.Component[P]
-	RenderOption         = runtime.RenderOption
-	StateOpt[T any]      = runtime.StateOpt[T]
-	Cleanup              = runtime.Cleanup
-	Ref[T any]           = runtime.Ref[T]
-	Node                 = h.Node
-	Context[T any]       = runtime.Context[T]
-	SessionID            = runtime.SessionID
-	Session              = runtime.ComponentSession
-	Meta                 = runtime.Meta
-	RenderResult         = runtime.RenderResult
-	PubsubMessage[T any] = runtime.PubsubMessage[T]
-	PubsubHandle[T any]  = runtime.PubsubHandle[T]
-	PubsubPublisher      = runtime.PubsubPublisher
-	PubsubPublishFunc    = runtime.PubsubPublishFunc
-	PubsubOption[T any]  = runtime.PubsubOption[T]
-	Pubsub[T any]        = runtime.Pubsub[T]
-	StreamItem[T any]    = runtime.StreamItem[T]
-	StreamHandle[T any]  = runtime.StreamHandle[T]
+	Ctx                               = runtime.Ctx
+	Component[P any]                  = runtime.Component[P]
+	RenderOption                      = runtime.RenderOption
+	StateOpt[T any]                   = runtime.StateOpt[T]
+	Cleanup                           = runtime.Cleanup
+	Ref[T any]                        = runtime.Ref[T]
+	ElementRef[T h.ElementDescriptor] = h.ElementRef[T]
+	ElementDescriptor                 = h.ElementDescriptor
+	Node                              = h.Node
+	Context[T any]                    = runtime.Context[T]
+	SessionID                         = runtime.SessionID
+	Session                           = runtime.ComponentSession
+	Meta                              = runtime.Meta
+	RenderResult                      = runtime.RenderResult
+	PubsubMessage[T any]              = runtime.PubsubMessage[T]
+	PubsubHandle[T any]               = runtime.PubsubHandle[T]
+	PubsubPublisher                   = runtime.PubsubPublisher
+	PubsubPublishFunc                 = runtime.PubsubPublishFunc
+	PubsubOption[T any]               = runtime.PubsubOption[T]
+	Pubsub[T any]                     = runtime.Pubsub[T]
+	StreamItem[T any]                 = runtime.StreamItem[T]
+	StreamHandle[T any]               = runtime.StreamHandle[T]
 )
 
 // Render invokes the supplied child component with props, returning its node.
@@ -66,6 +68,11 @@ func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
 // It’s ideal for tracking DOM handles or other imperative data.
 func UseRef[T any](ctx Ctx, zero T) *Ref[T] {
 	return runtime.UseRef(ctx, zero)
+}
+
+// UseElement returns a typed ref handle for the rendered DOM node.
+func UseElement[T h.ElementDescriptor](ctx Ctx) *ElementRef[T] {
+	return runtime.UseElement[T](ctx)
 }
 
 // UseStream renders and manages a keyed list. It returns a fragment node and a

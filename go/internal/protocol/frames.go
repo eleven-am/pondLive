@@ -12,6 +12,7 @@ type Boot struct {
 	D        []DynamicSlot          `json:"d"`
 	Slots    []SlotMeta             `json:"slots"`
 	Handlers map[string]HandlerMeta `json:"handlers"`
+	Refs     map[string]RefMeta     `json:"refs,omitempty"`
 	Location Location               `json:"location"`
 	Client   *ClientConfig          `json:"client,omitempty"`
 	Errors   []ServerError          `json:"errors,omitempty"`
@@ -30,6 +31,7 @@ type Init struct {
 	D        []DynamicSlot          `json:"d"`
 	Slots    []SlotMeta             `json:"slots"`
 	Handlers map[string]HandlerMeta `json:"handlers"`
+	Refs     map[string]RefMeta     `json:"refs,omitempty"`
 	Location Location               `json:"location"`
 	Seq      int                    `json:"seq"`
 	Errors   []ServerError          `json:"errors,omitempty"`
@@ -124,6 +126,7 @@ type Frame struct {
 	Effects  []any        `json:"effects"`
 	Nav      *NavDelta    `json:"nav,omitempty"`
 	Handlers HandlerDelta `json:"handlers"`
+	Refs     RefDelta     `json:"refs"`
 	Metrics  FrameMetrics `json:"metrics"`
 }
 
@@ -140,6 +143,21 @@ type NavDelta struct {
 type HandlerDelta struct {
 	Add map[string]HandlerMeta `json:"add,omitempty"`
 	Del []string               `json:"del,omitempty"`
+}
+
+type RefDelta struct {
+	Add map[string]RefMeta `json:"add,omitempty"`
+	Del []string           `json:"del,omitempty"`
+}
+
+type RefMeta struct {
+	Tag    string                  `json:"tag"`
+	Events map[string]RefEventMeta `json:"events,omitempty"`
+}
+
+type RefEventMeta struct {
+	Listen []string `json:"listen,omitempty"`
+	Props  []string `json:"props,omitempty"`
 }
 
 type FrameMetrics struct {

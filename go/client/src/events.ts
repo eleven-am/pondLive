@@ -6,6 +6,7 @@
  */
 
 import type { EventPayload, HandlerMap, HandlerMeta } from "./types";
+import { notifyRefEvent } from "./refs";
 
 const handlers = new Map<string, HandlerMeta>();
 const eventUsageCounts = new Map<string, number>();
@@ -235,6 +236,8 @@ function handleEvent(
       // Extract event payload based on event type
       // Pass the handler element so that "currentTarget" in selectors refers to the element with the handler
       const payload = extractEventPayload(e, target, handler.props, handlerInfo.element);
+
+      notifyRefEvent(handlerInfo.element, eventType, payload);
 
       // Prevent default for submit events
       if (eventType === "submit") {

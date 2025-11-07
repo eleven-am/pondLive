@@ -46,6 +46,10 @@ func finalizeNode(n h.Node, reg handlers.Registry) {
 			}
 			finalizeNode(child, reg)
 		}
+	case *h.ComponentNode:
+		if v.Child != nil {
+			finalizeNode(v.Child, reg)
+		}
 	}
 }
 

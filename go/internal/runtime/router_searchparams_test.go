@@ -8,7 +8,7 @@ import (
 
 func TestSetSearch(t *testing.T) {
 	input := url.Values{"a": {"1"}}
-	got := SetSearch(input, "a", "2", "3")
+	got := SetSearch(input, "a", " 2 ", "3 ")
 	want := url.Values{"a": {"2", "3"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("SetSearch mismatch: got %#v want %#v", got, want)
@@ -17,7 +17,7 @@ func TestSetSearch(t *testing.T) {
 
 func TestAddSearch(t *testing.T) {
 	input := url.Values{"a": {"1"}}
-	got := AddSearch(input, "a", "2")
+	got := AddSearch(input, "a", " 2 ")
 	want := url.Values{"a": {"1", "2"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("AddSearch mismatch: got %#v want %#v", got, want)
@@ -38,5 +38,29 @@ func TestBuildHref(t *testing.T) {
 	href := BuildHref("/p", input, "")
 	if href != "/p?a=1&b=x&b=y" {
 		t.Fatalf("unexpected href %q", href)
+	}
+}
+
+func TestMergeSearch(t *testing.T) {
+	base := url.Values{"a": {"1"}, "b": {"x"}}
+	other := url.Values{
+		"b": {" y "},
+		"c": {"  "},
+		"d": {},
+	}
+	got := MergeSearch(base, other)
+	want := url.Values{
+		"a": {"1"},
+		"b": {"y"},
+		"c": {""},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("MergeSearch mismatch: got %#v want %#v", got, want)
+	}
+	if gotBase := base.Get("b"); gotBase != "x" {
+		t.Fatalf("expected base map untouched, have %q", gotBase)
+	}
+	if _, ok := got["d"]; ok {
+		t.Fatalf("expected key 'd' to be removed when merge values empty")
 	}
 }

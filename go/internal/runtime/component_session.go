@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +25,11 @@ type ComponentSession struct {
 	rootProps    any
 	registry     handlers.Registry
 	sendPatch    func([]diff.Op) error
+
+	nextRefID   int
+	elementRefs map[string]trackedElementRef
+	pendingRefs map[string]protocol.RefMeta
+	lastRefs    map[string]protocol.RefMeta
 
 	prev render.Structured
 
@@ -66,6 +73,11 @@ type ComponentSession struct {
 	header   HeaderState
 	headerMu sync.RWMutex
 
+	componentsMu          sync.RWMutex
+	components            map[string]*component
+	componentBoots        map[string]*componentBootRequest
+	pendingComponentBoots []componentTemplateUpdate
+
 	mu sync.Mutex
 }
 
@@ -75,6 +87,28 @@ var ErrFlushInProgress = errors.New("runtime: flush in progress")
 type templateUpdate struct {
 	structured render.Structured
 	html       string
+}
+
+type componentBootRequest struct {
+	component *component
+}
+
+type spanRange struct {
+	start int
+	end   int
+}
+
+type componentTemplateUpdate struct {
+	id            string
+	html          string
+	staticsRange  spanRange
+	statics       []string
+	dynamicsRange spanRange
+	dynamics      []protocol.DynamicSlot
+	slots         []int
+	listSlots     []int
+	handlersAdd   map[string]protocol.HandlerMeta
+	handlersDel   []string
 }
 
 type pubsubTask struct {
@@ -119,11 +153,225 @@ func (s *ComponentSession) SetPatchSender(fn func([]diff.Op) error) { s.sendPatc
 
 func (s *ComponentSession) setOwner(owner *LiveSession) { s.owner = owner }
 
+func (s *ComponentSession) allocateElementRefID() string {
+	if s == nil {
+		return ""
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id := fmt.Sprintf("ref:%d", s.nextRefID)
+	s.nextRefID++
+	return id
+}
+
+type trackedElementRef interface {
+	ID() string
+	DescriptorTag() string
+	BindingSnapshot() map[string]h.EventBinding
+}
+
+func (s *ComponentSession) registerElementRef(ref trackedElementRef) {
+	if s == nil || ref == nil {
+		return
+	}
+	s.mu.Lock()
+	if s.elementRefs == nil {
+		s.elementRefs = make(map[string]trackedElementRef)
+	}
+	s.elementRefs[ref.ID()] = ref
+	s.mu.Unlock()
+}
+
+func (s *ComponentSession) snapshotRefs(ids []string) map[string]protocol.RefMeta {
+	if s == nil || len(ids) == 0 {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.snapshotRefsLocked(ids)
+}
+
+func (s *ComponentSession) snapshotRefsLocked(ids []string) map[string]protocol.RefMeta {
+	if len(ids) == 0 || len(s.elementRefs) == 0 {
+		return nil
+	}
+	out := make(map[string]protocol.RefMeta)
+	for _, id := range ids {
+		ref, ok := s.elementRefs[id]
+		if !ok || ref == nil {
+			continue
+		}
+		meta := protocol.RefMeta{Tag: ref.DescriptorTag()}
+		bindings := ref.BindingSnapshot()
+		if len(bindings) > 0 {
+			events := make(map[string]protocol.RefEventMeta, len(bindings))
+			for event, binding := range bindings {
+				eventMeta := protocol.RefEventMeta{}
+				if len(binding.Listen) > 0 {
+					eventMeta.Listen = append([]string(nil), binding.Listen...)
+				}
+				if len(binding.Props) > 0 {
+					eventMeta.Props = append([]string(nil), binding.Props...)
+				}
+				events[event] = eventMeta
+			}
+			meta.Events = events
+		}
+		out[id] = meta
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func cloneRefMetaMap(src map[string]protocol.RefMeta) map[string]protocol.RefMeta {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make(map[string]protocol.RefMeta, len(src))
+	for id, meta := range src {
+		clone := protocol.RefMeta{Tag: meta.Tag}
+		if len(meta.Events) > 0 {
+			events := make(map[string]protocol.RefEventMeta, len(meta.Events))
+			for name, event := range meta.Events {
+				events[name] = protocol.RefEventMeta{
+					Listen: append([]string(nil), event.Listen...),
+					Props:  append([]string(nil), event.Props...),
+				}
+			}
+			clone.Events = events
+		}
+		out[id] = clone
+	}
+	return out
+}
+
+func refMetaMapsEqual(a, b map[string]protocol.RefMeta) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 {
+		return true
+	}
+	for id, metaA := range a {
+		metaB, ok := b[id]
+		if !ok {
+			return false
+		}
+		if metaA.Tag != metaB.Tag {
+			return false
+		}
+		if !refEventMapsEqual(metaA.Events, metaB.Events) {
+			return false
+		}
+	}
+	return true
+}
+
+func refEventMapsEqual(a, b map[string]protocol.RefEventMeta) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for name, metaA := range a {
+		metaB, ok := b[name]
+		if !ok {
+			return false
+		}
+		if !stringSliceEqual(metaA.Listen, metaB.Listen) {
+			return false
+		}
+		if !stringSliceEqual(metaA.Props, metaB.Props) {
+			return false
+		}
+	}
+	return true
+}
+
+func stringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 {
+		return true
+	}
+	acopy := append([]string(nil), a...)
+	bcopy := append([]string(nil), b...)
+	sort.Strings(acopy)
+	sort.Strings(bcopy)
+	for i := range acopy {
+		if acopy[i] != bcopy[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *ComponentSession) requestTemplateReset() {
 	if s == nil {
 		return
 	}
 	s.forceTemplate.Store(true)
+}
+
+func (s *ComponentSession) registerComponentInstance(c *component) {
+	if s == nil || c == nil || c.id == "" {
+		return
+	}
+	s.componentsMu.Lock()
+	if s.components == nil {
+		s.components = make(map[string]*component)
+	}
+	s.components[c.id] = c
+	s.componentsMu.Unlock()
+}
+
+func (s *ComponentSession) unregisterComponentInstance(c *component) {
+	if s == nil || c == nil || c.id == "" {
+		return
+	}
+	s.componentsMu.Lock()
+	if s.components != nil {
+		delete(s.components, c.id)
+	}
+	if s.componentBoots != nil {
+		delete(s.componentBoots, c.id)
+	}
+	s.componentsMu.Unlock()
+}
+
+func (s *ComponentSession) componentByID(id string) *component {
+	if s == nil || id == "" {
+		return nil
+	}
+	s.componentsMu.RLock()
+	defer s.componentsMu.RUnlock()
+	return s.components[id]
+}
+
+// RequestComponentBoot schedules a template refresh for the component identified by id.
+func (s *ComponentSession) RequestComponentBoot(id string) {
+	if s == nil || id == "" {
+		return
+	}
+	s.componentsMu.RLock()
+	comp := s.components[id]
+	s.componentsMu.RUnlock()
+	if comp == nil {
+		return
+	}
+
+	s.componentsMu.Lock()
+	if s.componentBoots == nil {
+		s.componentBoots = make(map[string]*componentBootRequest)
+	}
+	s.componentBoots[id] = &componentBootRequest{component: comp}
+	s.componentsMu.Unlock()
+
+	if s.currentComponent() != nil {
+		return
+	}
+	s.markDirty(comp)
 }
 
 func (s *ComponentSession) consumeTemplateReset() bool {
@@ -146,6 +394,38 @@ func (s *ComponentSession) consumeTemplateUpdate() *templateUpdate {
 		return nil
 	}
 	return s.templateUpdate.Swap(nil)
+}
+
+func (s *ComponentSession) consumeComponentBoots() []componentTemplateUpdate {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	boots := s.pendingComponentBoots
+	if len(boots) > 0 {
+		copied := make([]componentTemplateUpdate, len(boots))
+		copy(copied, boots)
+		s.pendingComponentBoots = nil
+		s.mu.Unlock()
+		return copied
+	}
+	s.pendingComponentBoots = nil
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *ComponentSession) consumeComponentBootRequests() map[string]*componentBootRequest {
+	if s == nil {
+		return nil
+	}
+	s.componentsMu.Lock()
+	defer s.componentsMu.Unlock()
+	if len(s.componentBoots) == 0 {
+		return nil
+	}
+	requests := s.componentBoots
+	s.componentBoots = nil
+	return requests
 }
 
 func (s *ComponentSession) ensureRouterState() *routerSessionState {
@@ -476,6 +756,8 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 		s.pendingNav = nil
 		s.pendingMetrics = nil
 		s.pendingPubsub = nil
+		s.pendingRefs = nil
+		s.lastRefs = nil
 		s.uploadMu.Lock()
 		if s.uploads != nil {
 			for _, slot := range s.uploads {
@@ -498,6 +780,15 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 	runCleanups(cleanups)
 	s.runPubsubTasks(pubsubs)
 	runEffects(effects)
+	ids := extractRefIDs(structured)
+	s.mu.Lock()
+	if len(ids) > 0 {
+		refs := s.snapshotRefsLocked(ids)
+		s.lastRefs = cloneRefMetaMap(refs)
+	} else {
+		s.lastRefs = nil
+	}
+	s.mu.Unlock()
 	return structured
 }
 
@@ -529,13 +820,23 @@ func (s *ComponentSession) Flush() error {
 	s.mu.Unlock()
 	reg := s.ensureRegistry()
 	var (
-		cleanups []cleanupTask
-		effects  []effectTask
-		pubsubs  []pubsubTask
+		cleanups         []cleanupTask
+		effects          []effectTask
+		pubsubs          []pubsubTask
+		componentUpdates []componentTemplateUpdate
+	)
+	var (
+		nextRefsClone map[string]protocol.RefMeta
+		refsApplied   bool
 	)
 	err := s.withRecovery("flush", func() error {
 		s.mu.Lock()
-		defer s.mu.Unlock()
+		locked := true
+		defer func() {
+			if locked {
+				s.mu.Unlock()
+			}
+		}()
 
 		if !s.dirtyRoot && !s.pendingFlush {
 			return nil
@@ -550,14 +851,46 @@ func (s *ComponentSession) Flush() error {
 		}
 		node := s.root.render()
 		next := render.ToStructuredWithHandlers(node, reg)
+		requests := s.consumeComponentBootRequests()
+		autoRequests, rootChange := s.autoComponentBootRequests(s.prev, next)
+		if rootChange {
+			requests = nil
+		} else if len(autoRequests) > 0 {
+			if requests == nil {
+				requests = autoRequests
+			} else {
+				for id, req := range autoRequests {
+					if _, exists := requests[id]; !exists {
+						requests[id] = req
+					}
+				}
+			}
+		}
 		forceTemplate := s.consumeTemplateReset()
+		if rootChange {
+			forceTemplate = true
+		}
 		var opDiff []diff.Op
+		diffInput := next
+		if len(requests) > 0 && !forceTemplate {
+			if len(next.S) != len(s.prev.S) || len(next.D) != len(s.prev.D) {
+				forceTemplate = true
+				requests = nil
+			} else {
+				var sanitized render.Structured
+				componentUpdates, sanitized = s.prepareComponentBoots(requests, s.prev, next, reg)
+				diffInput = sanitized
+			}
+		}
 		if forceTemplate {
 			html := render.RenderHTML(node, reg)
 			s.setTemplateUpdate(templateUpdate{structured: next, html: html})
 			opDiff = nil
+			componentUpdates = nil
 		} else {
-			opDiff = diff.Diff(s.prev, next)
+			sanitizedPrev := sanitizeStructuredForDiff(s.prev)
+			sanitizedNext := sanitizeStructuredForDiff(diffInput)
+			opDiff = diff.Diff(sanitizedPrev, sanitizedNext)
 		}
 		meta := s.Metadata()
 		var metadataChanged bool
@@ -583,25 +916,37 @@ func (s *ComponentSession) Flush() error {
 			Ops:      len(opDiff),
 		}
 
+		ids := extractRefIDs(next)
+		var nextRefs map[string]protocol.RefMeta
+		if len(ids) > 0 {
+			nextRefs = s.snapshotRefsLocked(ids)
+		}
+		refsChanged := !refMetaMapsEqual(nextRefs, s.lastRefs)
+		nextRefsClone = cloneRefMetaMap(nextRefs)
+
 		cookiePending := false
 		if owner := s.owner; owner != nil {
 			cookiePending = owner.hasPendingCookieMutations()
 		}
-		shouldSend := forceTemplate || len(opDiff) > 0 || navDelta != nil || metadataChanged || cookiePending
+		shouldSend := forceTemplate || len(opDiff) > 0 || navDelta != nil || metadataChanged || cookiePending || len(componentUpdates) > 0 || refsChanged
+
+		var sendPatchFn func([]diff.Op) error
 		if shouldSend {
 			if s.sendPatch == nil {
 				return errors.New("runtime: SendPatch is nil")
 			}
+			sendPatchFn = s.sendPatch
 			s.pendingNav = navDelta
 			s.pendingMetrics = &metrics
-			if err := s.sendPatch(opDiff); err != nil {
-				s.pendingNav = nil
-				s.pendingMetrics = nil
-				return err
+			if forceTemplate {
+				s.pendingRefs = nil
+			} else {
+				s.pendingRefs = nextRefs
 			}
 		} else {
 			s.pendingNav = nil
 			s.pendingMetrics = nil
+			s.pendingRefs = nil
 		}
 
 		cleanups = append(cleanups, s.pendingCleanups...)
@@ -610,10 +955,29 @@ func (s *ComponentSession) Flush() error {
 		s.pendingCleanups = nil
 		s.pendingEffects = nil
 		s.pendingPubsub = nil
+		s.pendingComponentBoots = componentUpdates
 		s.prev = next
 		s.dirty = make(map[*component]struct{})
 		s.dirtyRoot = false
 		s.pendingFlush = false
+
+		if shouldSend {
+			locked = false
+			s.mu.Unlock()
+			if err := sendPatchFn(opDiff); err != nil {
+				s.mu.Lock()
+				s.pendingNav = nil
+				s.pendingMetrics = nil
+				s.pendingRefs = nil
+				s.mu.Unlock()
+				return err
+			}
+			refsApplied = true
+		} else {
+			locked = false
+			s.mu.Unlock()
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -631,6 +995,9 @@ func (s *ComponentSession) Flush() error {
 		metricsPtr.SlowEffects = slowEffects
 	}
 	s.mu.Lock()
+	if refsApplied {
+		s.lastRefs = nextRefsClone
+	}
 	s.flushing = false
 	pending := s.pendingFlush && s.suspend == 0
 	owner := s.owner
@@ -678,6 +1045,282 @@ func runEffects(tasks []effectTask) (total time.Duration, max time.Duration, slo
 	return
 }
 
+func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentBootRequest, prev, next render.Structured, reg handlers.Registry) ([]componentTemplateUpdate, render.Structured) {
+	if len(requests) == 0 {
+		return nil, next
+	}
+	sanitized := render.Structured{
+		S:          append([]string(nil), next.S...),
+		D:          append([]render.Dyn(nil), next.D...),
+		Components: next.Components,
+	}
+	updates := make([]componentTemplateUpdate, 0, len(requests))
+	for id, req := range requests {
+		span, ok := next.Components[id]
+		if !ok {
+			continue
+		}
+		if span.StaticsStart < 0 || span.StaticsEnd > len(next.S) || span.DynamicsStart < 0 || span.DynamicsEnd > len(next.D) {
+			continue
+		}
+		update := componentTemplateUpdate{
+			id:            id,
+			staticsRange:  spanRange{start: span.StaticsStart, end: span.StaticsEnd},
+			dynamicsRange: spanRange{start: span.DynamicsStart, end: span.DynamicsEnd},
+			statics:       append([]string(nil), next.S[span.StaticsStart:span.StaticsEnd]...),
+		}
+		dynamicsSlice := append([]render.Dyn(nil), next.D[span.DynamicsStart:span.DynamicsEnd]...)
+		update.dynamics = encodeDynamics(dynamicsSlice)
+		for slot := span.DynamicsStart; slot < span.DynamicsEnd; slot++ {
+			update.slots = append(update.slots, slot)
+		}
+		for idx, dyn := range dynamicsSlice {
+			if dyn.Kind == render.DynList {
+				update.listSlots = append(update.listSlots, span.DynamicsStart+idx)
+			}
+		}
+		if req != nil && req.component != nil {
+			update.html = render.RenderHTML(req.component.node, reg)
+		}
+		newStructured := render.Structured{
+			S: append([]string(nil), update.statics...),
+			D: dynamicsSlice,
+		}
+		newHandlers := extractHandlerMeta(newStructured)
+		var oldHandlers map[string]protocol.HandlerMeta
+		if prevSpan, ok := prev.Components[id]; ok && prevSpan.StaticsStart >= 0 && prevSpan.StaticsEnd <= len(prev.S) && prevSpan.DynamicsStart >= 0 && prevSpan.DynamicsEnd <= len(prev.D) {
+			oldStructured := render.Structured{
+				S: append([]string(nil), prev.S[prevSpan.StaticsStart:prevSpan.StaticsEnd]...),
+				D: append([]render.Dyn(nil), prev.D[prevSpan.DynamicsStart:prevSpan.DynamicsEnd]...),
+			}
+			oldHandlers = extractHandlerMeta(oldStructured)
+		}
+		addHandlers, removeHandlers := diffHandlerMeta(oldHandlers, newHandlers)
+		if len(addHandlers) > 0 {
+			update.handlersAdd = addHandlers
+		}
+		if len(removeHandlers) > 0 {
+			update.handlersDel = removeHandlers
+		}
+		if span.StaticsStart >= 0 && span.StaticsEnd <= len(prev.S) {
+			copy(sanitized.S[span.StaticsStart:span.StaticsEnd], prev.S[span.StaticsStart:span.StaticsEnd])
+		}
+		if span.DynamicsStart >= 0 && span.DynamicsEnd <= len(prev.D) {
+			copy(sanitized.D[span.DynamicsStart:span.DynamicsEnd], prev.D[span.DynamicsStart:span.DynamicsEnd])
+		}
+		updates = append(updates, update)
+	}
+	return updates, sanitized
+}
+
+func (s *ComponentSession) autoComponentBootRequests(prev, next render.Structured) (map[string]*componentBootRequest, bool) {
+	if len(prev.Components) == 0 || len(next.Components) == 0 {
+		return nil, false
+	}
+	staticsLenPrev := len(prev.S)
+	dynamicsLenPrev := len(prev.D)
+	staticsLenNext := len(next.S)
+	dynamicsLenNext := len(next.D)
+
+	s.componentsMu.RLock()
+	defer s.componentsMu.RUnlock()
+
+	prevSanitizedStatics := sanitizeStaticsForComparison(prev.S)
+	nextSanitizedStatics := sanitizeStaticsForComparison(next.S)
+
+	var (
+		changes    map[string]*componentBootRequest
+		rootChange bool
+	)
+	for id, nextSpan := range next.Components {
+		prevSpan, ok := prev.Components[id]
+		if !ok {
+			continue
+		}
+		if !componentSpanValid(prevSpan, staticsLenPrev, dynamicsLenPrev) || !componentSpanValid(nextSpan, staticsLenNext, dynamicsLenNext) {
+			continue
+		}
+		prevStatics := prevSanitizedStatics[prevSpan.StaticsStart:prevSpan.StaticsEnd]
+		nextStatics := nextSanitizedStatics[nextSpan.StaticsStart:nextSpan.StaticsEnd]
+		prevDynamics := prev.D[prevSpan.DynamicsStart:prevSpan.DynamicsEnd]
+		nextDynamics := next.D[nextSpan.DynamicsStart:nextSpan.DynamicsEnd]
+		equalStatics := componentEqualStrings(prevStatics, nextStatics)
+		equalDynamics := componentEqualDyns(prevDynamics, nextDynamics)
+		if equalStatics && equalDynamics {
+			continue
+		}
+		comp := s.components[id]
+		if comp != nil && comp.parent == nil {
+			rootChange = true
+			continue
+		}
+		if changes == nil {
+			changes = make(map[string]*componentBootRequest)
+		}
+		changes[id] = &componentBootRequest{component: comp}
+	}
+	return changes, rootChange
+}
+
+func componentSpanValid(span render.ComponentSpan, staticsLen, dynamicsLen int) bool {
+	if span.StaticsStart < 0 || span.StaticsEnd < 0 || span.DynamicsStart < 0 || span.DynamicsEnd < 0 {
+		return false
+	}
+	if span.StaticsStart > span.StaticsEnd || span.DynamicsStart > span.DynamicsEnd {
+		return false
+	}
+	if span.StaticsEnd > staticsLen || span.DynamicsEnd > dynamicsLen {
+		return false
+	}
+	return true
+}
+
+func componentEqualStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizeComponentStatic(s string) string {
+	if !strings.Contains(s, h.ComponentCommentPrefix()) {
+		return s
+	}
+	normalized := normalizeComponentMarker(s, "<!--"+h.ComponentCommentPrefix()+":start:")
+	normalized = normalizeComponentMarker(normalized, "<!--"+h.ComponentCommentPrefix()+":end:")
+	return normalized
+}
+
+func sanitizeStaticsForComparison(statics []string) []string {
+	if len(statics) == 0 {
+		return nil
+	}
+	sanitized := make([]string, len(statics))
+	for i, s := range statics {
+		sanitized[i] = normalizeComponentStatic(s)
+	}
+	return sanitized
+}
+
+func sanitizeStructuredForDiff(str render.Structured) render.Structured {
+	return render.Structured{
+		S: sanitizeStaticsForComparison(str.S),
+		D: str.D,
+	}
+}
+
+func normalizeComponentMarker(s, marker string) string {
+	var b strings.Builder
+	for {
+		idx := strings.Index(s, marker)
+		if idx == -1 {
+			b.WriteString(s)
+			break
+		}
+		b.WriteString(s[:idx])
+		b.WriteString(marker)
+		s = s[idx+len(marker):]
+		endIdx := strings.Index(s, "-->")
+		if endIdx == -1 {
+			break
+		}
+		b.WriteString("-->")
+		s = s[endIdx+len("-->"):]
+	}
+	return b.String()
+}
+
+func componentEqualDyns(a, b []render.Dyn) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Kind != b[i].Kind {
+			return false
+		}
+		if a[i].Kind == render.DynList {
+			if !componentEqualRows(a[i].List, b[i].List) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func componentEqualRows(a, b []render.Row) bool {
+	if len(a) == 0 || len(b) == 0 {
+		return true
+	}
+	if len(a[0].Slots) != len(b[0].Slots) {
+		return false
+	}
+	return true
+}
+
+func diffHandlerMeta(prev, next map[string]protocol.HandlerMeta) (map[string]protocol.HandlerMeta, []string) {
+	var add map[string]protocol.HandlerMeta
+	var del []string
+	if len(next) > 0 {
+		for id, meta := range next {
+			if prev == nil {
+				if add == nil {
+					add = make(map[string]protocol.HandlerMeta)
+				}
+				add[id] = meta
+				continue
+			}
+			if old, ok := prev[id]; !ok || !handlerMetaEqual(old, meta) {
+				if add == nil {
+					add = make(map[string]protocol.HandlerMeta)
+				}
+				add[id] = meta
+			}
+		}
+	}
+	if len(prev) > 0 {
+		for id := range prev {
+			if next == nil {
+				del = append(del, id)
+				continue
+			}
+			if _, ok := next[id]; !ok {
+				del = append(del, id)
+			}
+		}
+	}
+	return add, del
+}
+
+func handlerMetaEqual(a, b protocol.HandlerMeta) bool {
+	if a.Event != b.Event {
+		return false
+	}
+	if !equalStringSlices(a.Listen, b.Listen) {
+		return false
+	}
+	if !equalStringSlices(a.Props, b.Props) {
+		return false
+	}
+	return true
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // Reset clears the errored flag and rebuilds the root component so rendering can resume.
 func (s *ComponentSession) Reset() bool {
 	if s == nil {
@@ -709,6 +1352,8 @@ func (s *ComponentSession) Reset() bool {
 	s.pendingNav = nil
 	s.pendingMetrics = nil
 	s.pendingPubsub = nil
+	s.pendingRefs = nil
+	s.lastRefs = nil
 	s.pubsubMu.Lock()
 	s.pubsubSubs = nil
 	s.pubsubMu.Unlock()
@@ -797,6 +1442,8 @@ func (s *ComponentSession) handlePanic(phase string, value any) error {
 	s.pendingNav = nil
 	s.pendingMetrics = nil
 	s.pendingPubsub = nil
+	s.pendingRefs = nil
+	s.lastRefs = nil
 	s.pubsubMu.Lock()
 	s.pubsubSubs = nil
 	s.pubsubMu.Unlock()
@@ -855,7 +1502,8 @@ func (s *ComponentSession) markDirty(c *component) {
 		s.dirty = make(map[*component]struct{})
 	}
 	s.dirty[c] = struct{}{}
-	if !s.pendingFlush && s.suspend == 0 && !s.flushing {
+	inEvent := strings.HasPrefix(s.currentPhase, "event:")
+	if !s.pendingFlush && s.suspend == 0 && !s.flushing && !inEvent {
 		schedule = true
 	}
 	s.dirtyRoot = true

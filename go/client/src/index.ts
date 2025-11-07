@@ -26,12 +26,19 @@ import {
   unregisterHandlers,
   unregisterNavigationHandler,
 } from "./events";
+import {
+  bindRefsInTree,
+  clearRefs as clearRefRegistry,
+  registerRefs as registerRefMetadata,
+  unregisterRefs as unregisterRefMetadata,
+} from "./refs";
 import { ComputedSignal, Signal } from "./reactive";
 import { EventEmitter } from "./emitter";
 import { OptimisticUpdateManager } from "./optimistic";
 import { BootHandler } from "./boot";
 import type {
   AlertEffect,
+  ComponentBootEffect,
   BootPayload,
   ConnectionState,
   DiffOp,
@@ -390,6 +397,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     this.sessionId.set(null);
     this.version.set(0);
     clearHandlers();
+    clearRefRegistry();
     teardownEventDelegation();
     unregisterNavigationHandler();
     this.uploads?.onDisconnect();
@@ -660,6 +668,12 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       syncEventListeners();
     }
 
+    clearRefRegistry();
+    registerRefMetadata(msg.refs);
+    if (typeof document !== "undefined") {
+      bindRefsInTree(document);
+    }
+
     // Acknowledge if needed
     if (msg.seq !== undefined) {
       this.lastAck = msg.seq;
@@ -763,6 +777,15 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       syncEventListeners();
     }
 
+    if (msg.refs) {
+      if (msg.refs.del) {
+        unregisterRefMetadata(msg.refs.del);
+      }
+      if (msg.refs.add) {
+        registerRefMetadata(msg.refs.add);
+      }
+    }
+
     // Handle navigation
     if (msg.nav) {
       const now = Date.now();
@@ -839,6 +862,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
         switch (effectType) {
           case "boot":
             this.applyBootEffect(effect as any);
+            break;
+          case "componentboot":
+            this.applyComponentBootEffect(effect as ComponentBootEffect);
             break;
           case "scroll":
           case "scrolltop":
@@ -1233,6 +1259,152 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     }
     this.bootHandler.load(boot);
     syncEventListeners();
+  }
+
+  private applyComponentBootEffect(effect: ComponentBootEffect): void {
+    if (typeof document === "undefined") return;
+    if (!effect || !effect.componentId) return;
+
+    const { componentId, html, slots, listSlots } = effect;
+    const bounds = this.findComponentBounds(componentId);
+    if (!bounds) {
+      if (this.options.debug) {
+        console.warn(`liveui: component ${componentId} bounds not found for componentBoot effect`);
+      }
+      return;
+    }
+
+    if (Array.isArray(slots)) {
+      for (const slot of slots) {
+        dom.unregisterSlot(slot);
+      }
+    }
+    if (Array.isArray(listSlots)) {
+      for (const slot of listSlots) {
+        dom.unregisterList(slot);
+      }
+    }
+
+    // Reset any cached patcher state tied to the replaced component subtree so
+    // future diffs don't reference stale DOM nodes from before the boot
+    // replacement.
+    clearPatcherCaches();
+
+    const template = document.createElement("template");
+    template.innerHTML = html || "";
+    const fragment = template.content.cloneNode(true);
+
+    const range = document.createRange();
+    range.setStartBefore(bounds.start);
+    range.setEndAfter(bounds.end);
+    range.deleteContents();
+    range.insertNode(fragment);
+    range.detach();
+
+    const refreshed = this.findComponentBounds(componentId);
+    if (!refreshed) {
+      if (this.options.debug) {
+        console.warn(`liveui: component ${componentId} bounds missing after componentBoot replacement`);
+      }
+      return;
+    }
+
+    this.registerComponentAnchors(
+      refreshed,
+      Array.isArray(slots) ? slots : [],
+      Array.isArray(listSlots) ? listSlots : [],
+    );
+  }
+
+  private findComponentBounds(id: string): { start: Comment; end: Comment } | null {
+    if (typeof document === "undefined" || !id) return null;
+    const startMarker = `live-component:start:${id}`;
+    const endMarker = `live-component:end:${id}`;
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_COMMENT,
+    );
+
+    let startNode: Comment | null = null;
+    while (walker.nextNode()) {
+      const current = walker.currentNode as Comment;
+      if (current.data === startMarker) {
+        startNode = current;
+        break;
+      }
+    }
+    if (!startNode) return null;
+
+    let endNode: Comment | null = null;
+    while (walker.nextNode()) {
+      const current = walker.currentNode as Comment;
+      if (current.data === endMarker) {
+        endNode = current;
+        break;
+      }
+    }
+    if (!endNode) return null;
+    return { start: startNode, end: endNode };
+  }
+
+  private registerComponentAnchors(
+    bounds: { start: Comment; end: Comment },
+    slots: number[],
+    listSlots: number[],
+  ): void {
+    const slotSet = new Set<number>(slots ?? []);
+    const listSet = new Set<number>(listSlots ?? []);
+    const queue: Node[] = [];
+
+    for (let node = bounds.start.nextSibling; node && node !== bounds.end; node = node.nextSibling) {
+      queue.push(node);
+    }
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) continue;
+      if (current instanceof Element) {
+        this.registerElementSlots(current, slotSet);
+        this.registerListContainer(current, listSet);
+        for (let child = current.firstChild; child; child = child.nextSibling) {
+          queue.push(child);
+        }
+      }
+    }
+  }
+
+  private registerElementSlots(element: Element, slots: Set<number>): void {
+    const raw = element.getAttribute("data-slot-index");
+    if (!raw) return;
+    const tokens = raw.split(/\s+/);
+    for (const token of tokens) {
+      const trimmed = token.trim();
+      if (trimmed.length === 0) continue;
+      const [slotPart, childPart] = trimmed.split("@", 2);
+      const slotId = Number(slotPart);
+      if (Number.isNaN(slotId)) continue;
+      if (slots.size > 0 && !slots.has(slotId)) continue;
+      let target: Node = element;
+      if (childPart !== undefined) {
+        const childIndex = Number(childPart);
+        if (!Number.isNaN(childIndex)) {
+          const childNode = element.childNodes.item(childIndex);
+          if (childNode) {
+            target = childNode;
+          }
+        }
+      }
+      dom.registerSlot(slotId, target);
+    }
+  }
+
+  private registerListContainer(element: Element, listSlots: Set<number>): void {
+    const attr = element.getAttribute("data-list-slot");
+    if (!attr) return;
+    const slotId = Number(attr);
+    if (Number.isNaN(slotId)) return;
+    if (listSlots.size > 0 && !listSlots.has(slotId)) return;
+    dom.registerList(slotId, element);
   }
 
   private dispatchCustomEvent(eventName: string, detail?: unknown): void {
@@ -2026,5 +2198,12 @@ export {
   Signal,
   ComputedSignal,
 };
+
+export {
+  getRefElement,
+  getRefMeta,
+  getRefPayload,
+  getRefPayloads,
+} from "./refs";
 
 export type { BootPayload } from "./types";

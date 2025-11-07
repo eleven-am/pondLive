@@ -39,6 +39,10 @@ export function unregisterSlot(index: number): void {
     slotMap.delete(index);
 }
 
+export function unregisterList(slotIndex: number): void {
+    listMap.delete(slotIndex);
+}
+
 export function reset(): void {
     slotMap.clear();
     listMap.clear();

@@ -14,15 +14,17 @@ type Node interface {
 
 // Element represents an HTML element node.
 type Element struct {
-	Tag      string
-	Attrs    map[string]string
-	Class    []string
-	Style    map[string]string
-	Children []Node
+	Tag        string
+	Attrs      map[string]string
+	Class      []string
+	Style      map[string]string
+	Children   []Node
+	Descriptor ElementDescriptor
 
 	Key    string
 	Events map[string]EventBinding
 	Unsafe *string
+	RefID  string
 }
 
 func (*Element) isNode()         {}
@@ -43,3 +45,21 @@ type FragmentNode struct {
 
 func (*FragmentNode) isNode()         {}
 func (*FragmentNode) privateNodeTag() {}
+
+// CommentNode renders an HTML comment node.
+type CommentNode struct {
+	Value string
+}
+
+func (*CommentNode) isNode()         {}
+func (*CommentNode) privateNodeTag() {}
+
+// ComponentNode wraps a rendered component subtree so render passes can
+// annotate and track its template spans.
+type ComponentNode struct {
+	ID    string
+	Child Node
+}
+
+func (*ComponentNode) isNode()         {}
+func (*ComponentNode) privateNodeTag() {}

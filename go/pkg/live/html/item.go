@@ -15,10 +15,13 @@ type Prop interface {
 func (n *Element) applyTo(e *Element)      { e.Children = append(e.Children, n) }
 func (t *TextNode) applyTo(e *Element)     { e.Children = append(e.Children, t) }
 func (f *FragmentNode) applyTo(e *Element) { e.Children = append(e.Children, f) }
+func (c *CommentNode) applyTo(e *Element)  { e.Children = append(e.Children, c) }
+func (c *ComponentNode) applyTo(e *Element) {
+	e.Children = append(e.Children, c)
+}
 
-// el constructs an Element and applies Items in order.
-func el(tag string, items ...Item) *Element {
-	e := &Element{Tag: tag}
+func el(desc ElementDescriptor, tag string, items ...Item) *Element {
+	e := &Element{Tag: tag, Descriptor: desc}
 	for _, it := range items {
 		if it == nil {
 			continue

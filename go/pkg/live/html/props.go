@@ -119,6 +119,10 @@ func (p onProp) applyTo(e *Element) {
 	if e.Events == nil {
 		e.Events = map[string]EventBinding{}
 	}
+	if existing, ok := e.Events[p.event]; ok {
+		e.Events[p.event] = mergeEventBinding(existing, p.binding)
+		return
+	}
 	e.Events[p.event] = p.binding
 }
 

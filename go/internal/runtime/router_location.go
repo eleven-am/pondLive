@@ -80,19 +80,21 @@ func canonicalizeValues(q url.Values) url.Values {
 	sort.Strings(keys)
 	out := make(url.Values, len(keys))
 	for _, key := range keys {
-		values := q[key]
-		if len(values) == 0 {
-			out[key] = []string{}
-			continue
-		}
-		cleaned := make([]string, 0, len(values))
-		for _, v := range values {
-			cleaned = append(cleaned, strings.TrimSpace(v))
-		}
-		sort.Strings(cleaned)
-		out[key] = cleaned
+		out[key] = canonicalizeList(q[key])
 	}
 	return out
+}
+
+func canonicalizeList(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	cleaned := make([]string, 0, len(values))
+	for _, v := range values {
+		cleaned = append(cleaned, strings.TrimSpace(v))
+	}
+	sort.Strings(cleaned)
+	return cleaned
 }
 
 func valuesEqual(a, b url.Values) bool {

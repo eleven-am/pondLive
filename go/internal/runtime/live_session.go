@@ -175,7 +175,7 @@ func NewLiveSession[P any](sid SessionID, version int, root Component[P], props 
 	structured := component.InitialStructured()
 	meta := component.Metadata()
 	session.mu.Lock()
-	session.snapshot = buildSnapshot(structured, session.loc, meta)
+	session.snapshot = session.buildSnapshot(structured, session.loc, meta)
 	session.touchLocked()
 	session.mu.Unlock()
 
@@ -722,7 +722,7 @@ func (s *LiveSession) refreshSnapshot() {
 	structured := s.component.prev
 	meta := s.component.Metadata()
 	s.mu.Lock()
-	s.snapshot = buildSnapshot(structured, s.loc, meta)
+	s.snapshot = s.buildSnapshot(structured, s.loc, meta)
 	s.touchLocked()
 	s.mu.Unlock()
 }
@@ -805,14 +805,17 @@ func (s *LiveSession) dequeueCookieEffect() *CookieEffect {
 
 func (s *LiveSession) onPatch(ops []diff.Op) error {
 	var template *templateUpdate
+	var componentBoots []componentTemplateUpdate
 	if s.component != nil {
 		template = s.component.consumeTemplateUpdate()
+		componentBoots = s.component.consumeComponentBoots()
 	}
 	frame := protocol.Frame{
 		Delta:   protocol.FrameDelta{Statics: false},
 		Patch:   append([]diff.Op(nil), ops...),
 		Metrics: protocol.FrameMetrics{Ops: len(ops)},
 	}
+	var refDelta protocol.RefDelta
 	if effects := s.dequeueFrameEffects(); len(effects) > 0 {
 		frame.Effects = append(frame.Effects, effects...)
 	}
@@ -828,7 +831,9 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 		s.component.pendingMetrics = nil
 	}
 	if template != nil {
-		snap := buildSnapshot(template.structured, s.loc, s.component.Metadata())
+		previousRefs := s.snapshot.Refs
+		snap := s.buildSnapshot(template.structured, s.loc, s.component.Metadata())
+		refDelta = diffRefs(previousRefs, snap.Refs)
 		s.snapshot = snap
 		boot := protocol.Boot{
 			T:        "boot",
@@ -840,12 +845,74 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 			D:        append([]protocol.DynamicSlot(nil), snap.Dynamics...),
 			Slots:    cloneSlots(snap.Slots),
 			Handlers: cloneHandlers(snap.Handlers),
+			Refs:     cloneRefs(snap.Refs),
 			Location: snap.Location,
 		}
 		frame.Delta.Statics = true
 		frame.Delta.Slots = cloneSlots(snap.Slots)
 		frame.Patch = nil
 		frame.Effects = append(frame.Effects, map[string]any{"type": "boot", "boot": boot})
+	} else if s.component != nil {
+		pending := s.component.pendingRefs
+		s.component.pendingRefs = nil
+		if pending != nil || len(s.snapshot.Refs) > 0 {
+			refDelta = diffRefs(s.snapshot.Refs, pending)
+		}
+	}
+	if hasRefDelta(refDelta) {
+		frame.Refs = refDelta
+	}
+	if len(componentBoots) > 0 {
+		if s.snapshot.Statics == nil && len(componentBoots) > 0 {
+			s.snapshot = s.buildSnapshot(s.component.prev, s.loc, s.component.Metadata())
+		}
+		for _, update := range componentBoots {
+			if update.staticsRange.end <= len(s.snapshot.Statics) && update.staticsRange.start >= 0 && update.staticsRange.end-update.staticsRange.start == len(update.statics) {
+				copy(s.snapshot.Statics[update.staticsRange.start:update.staticsRange.end], update.statics)
+			}
+			for idx, slot := range update.slots {
+				if slot < 0 || slot >= len(s.snapshot.Dynamics) {
+					continue
+				}
+				if idx < len(update.dynamics) {
+					s.snapshot.Dynamics[slot] = update.dynamics[idx]
+				}
+			}
+			if len(update.handlersDel) > 0 && s.snapshot.Handlers != nil {
+				for _, id := range update.handlersDel {
+					delete(s.snapshot.Handlers, id)
+				}
+			}
+			if len(update.handlersAdd) > 0 {
+				if s.snapshot.Handlers == nil {
+					s.snapshot.Handlers = make(map[string]protocol.HandlerMeta)
+				}
+				for id, meta := range update.handlersAdd {
+					s.snapshot.Handlers[id] = meta
+				}
+			}
+			if len(update.handlersAdd) > 0 {
+				if frame.Handlers.Add == nil {
+					frame.Handlers.Add = make(map[string]protocol.HandlerMeta)
+				}
+				for id, meta := range update.handlersAdd {
+					frame.Handlers.Add[id] = meta
+				}
+			}
+			if len(update.handlersDel) > 0 {
+				frame.Handlers.Del = append(frame.Handlers.Del, update.handlersDel...)
+			}
+			effect := map[string]any{
+				"type":        "componentBoot",
+				"componentId": update.id,
+				"html":        update.html,
+				"slots":       update.slots,
+			}
+			if len(update.listSlots) > 0 {
+				effect["listSlots"] = update.listSlots
+			}
+			frame.Effects = append(frame.Effects, effect)
+		}
 	}
 	return s.SendFrame(frame)
 }
@@ -984,6 +1051,7 @@ func (s *LiveSession) buildInitLocked(errors []protocol.ServerError) protocol.In
 		D:        cloneDynamics(s.snapshot.Dynamics),
 		Slots:    cloneSlots(s.snapshot.Slots),
 		Handlers: cloneHandlers(s.snapshot.Handlers),
+		Refs:     cloneRefs(s.snapshot.Refs),
 		Location: s.snapshot.Location,
 		Seq:      s.nextSeq,
 	}
@@ -1013,6 +1081,7 @@ func (s *LiveSession) BuildBoot(html string) protocol.Boot {
 		D:        cloneDynamics(init.D),
 		Slots:    cloneSlots(init.Slots),
 		Handlers: cloneHandlers(init.Handlers),
+		Refs:     cloneRefs(init.Refs),
 		Location: init.Location,
 	}
 	if boot.T == "" {
@@ -1098,11 +1167,12 @@ type snapshot struct {
 	Dynamics []protocol.DynamicSlot
 	Slots    []protocol.SlotMeta
 	Handlers map[string]protocol.HandlerMeta
+	Refs     map[string]protocol.RefMeta
 	Location protocol.Location
 	Metadata *Meta
 }
 
-func buildSnapshot(structured render.Structured, loc SessionLocation, meta *Meta) snapshot {
+func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLocation, meta *Meta) snapshot {
 	statics := append([]string(nil), structured.S...)
 	dynamics := encodeDynamics(structured.D)
 	slots := make([]protocol.SlotMeta, len(dynamics))
@@ -1110,12 +1180,19 @@ func buildSnapshot(structured render.Structured, loc SessionLocation, meta *Meta
 		slots[i] = protocol.SlotMeta{AnchorID: i}
 	}
 	handlers := extractHandlerMeta(structured)
+	var refs map[string]protocol.RefMeta
+	if ids := extractRefIDs(structured); len(ids) > 0 {
+		if comp := s.ComponentSession(); comp != nil {
+			refs = comp.snapshotRefs(ids)
+		}
+	}
 	protoLoc := protocol.Location{Path: loc.Path, Query: loc.Query}
 	return snapshot{
 		Statics:  statics,
 		Dynamics: dynamics,
 		Slots:    slots,
 		Handlers: handlers,
+		Refs:     refs,
 		Location: protoLoc,
 		Metadata: CloneMeta(meta),
 	}
@@ -1187,6 +1264,32 @@ func cloneServerErrors(src []protocol.ServerError) []protocol.ServerError {
 			out[i].Details = &details
 		}
 	}
+	return out
+}
+
+func extractRefIDs(structured render.Structured) []string {
+	refs := map[string]struct{}{}
+	for _, dyn := range structured.D {
+		if dyn.Kind != render.DynAttrs {
+			continue
+		}
+		if dyn.Attrs == nil {
+			continue
+		}
+		id := strings.TrimSpace(dyn.Attrs["data-live-ref"])
+		if id == "" {
+			continue
+		}
+		refs[id] = struct{}{}
+	}
+	if len(refs) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(refs))
+	for id := range refs {
+		out = append(out, id)
+	}
+	sort.Strings(out)
 	return out
 }
 
@@ -1341,4 +1444,120 @@ func cloneHandlers(handlers map[string]protocol.HandlerMeta) map[string]protocol
 		out[k] = meta
 	}
 	return out
+}
+
+func diffRefs(prev, next map[string]protocol.RefMeta) protocol.RefDelta {
+	delta := protocol.RefDelta{}
+	if len(prev) == 0 && len(next) == 0 {
+		return delta
+	}
+	if len(next) > 0 {
+		for id, meta := range next {
+			if prevMeta, ok := prev[id]; !ok || !refMetaEqual(prevMeta, meta) {
+				if delta.Add == nil {
+					delta.Add = make(map[string]protocol.RefMeta)
+				}
+				delta.Add[id] = cloneRefMeta(meta)
+			}
+		}
+	}
+	if len(prev) > 0 {
+		for id := range prev {
+			if len(next) == 0 {
+				delta.Del = append(delta.Del, id)
+				continue
+			}
+			if _, ok := next[id]; !ok {
+				delta.Del = append(delta.Del, id)
+			}
+		}
+	}
+	if len(delta.Del) > 1 {
+		sort.Strings(delta.Del)
+	}
+	return delta
+}
+
+func hasRefDelta(delta protocol.RefDelta) bool {
+	return len(delta.Add) > 0 || len(delta.Del) > 0
+}
+
+func cloneRefs(refs map[string]protocol.RefMeta) map[string]protocol.RefMeta {
+	if len(refs) == 0 {
+		return nil
+	}
+	out := make(map[string]protocol.RefMeta, len(refs))
+	for id, meta := range refs {
+		out[id] = cloneRefMeta(meta)
+	}
+	return out
+}
+
+func cloneRefMeta(meta protocol.RefMeta) protocol.RefMeta {
+	clone := meta
+	if len(meta.Events) > 0 {
+		events := make(map[string]protocol.RefEventMeta, len(meta.Events))
+		for event, evMeta := range meta.Events {
+			events[event] = cloneRefEventMeta(evMeta)
+		}
+		clone.Events = events
+	}
+	return clone
+}
+
+func cloneRefEventMeta(meta protocol.RefEventMeta) protocol.RefEventMeta {
+	clone := meta
+	if len(meta.Listen) > 0 {
+		clone.Listen = append([]string(nil), meta.Listen...)
+	}
+	if len(meta.Props) > 0 {
+		clone.Props = append([]string(nil), meta.Props...)
+	}
+	return clone
+}
+
+func refMetaEqual(a, b protocol.RefMeta) bool {
+	if a.Tag != b.Tag {
+		return false
+	}
+	if len(a.Events) != len(b.Events) {
+		return false
+	}
+	if len(a.Events) == 0 {
+		return true
+	}
+	for event, metaA := range a.Events {
+		metaB, ok := b.Events[event]
+		if !ok {
+			return false
+		}
+		if !refEventMetaEqual(metaA, metaB) {
+			return false
+		}
+	}
+	return true
+}
+
+func refEventMetaEqual(a, b protocol.RefEventMeta) bool {
+	if len(a.Listen) != len(b.Listen) {
+		return false
+	}
+	if len(a.Listen) > 0 {
+		for i, v := range a.Listen {
+			if b.Listen[i] != v {
+				return false
+			}
+		}
+	}
+	if len(a.Props) != len(b.Props) {
+		return false
+	}
+	if len(a.Props) > 0 {
+		for i, v := range a.Props {
+			if b.Props[i] != v {
+				return false
+			}
+		}
+	}
+	return true
 }

@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"reflect"
+
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type StateOpt[T any] interface{ applyStateOpt(*stateCell[T]) }
@@ -97,6 +99,60 @@ func UseRef[T any](ctx Ctx, zero T) *Ref[T] {
 		panicHookMismatch(ctx.comp, idx, "UseRef", ctx.frame.cells[idx])
 	}
 	return ref
+}
+
+type elementRefCell[T h.ElementDescriptor] struct {
+	ref   *h.ElementRef[T]
+	state any
+}
+
+func (c *elementRefCell[T]) resetAttachment() {
+	if c == nil || c.ref == nil {
+		return
+	}
+	c.ref.ResetAttachment()
+}
+
+// UseElement returns a typed ElementRef that can be attached to a generated
+// element. The ref caches state via a UseState cell and carries a stable ref ID
+// for serialization.
+func UseElement[T h.ElementDescriptor](ctx Ctx) *h.ElementRef[T] {
+	if ctx.frame == nil {
+		panic("runtime: UseElement called outside render")
+	}
+	idx := ctx.frame.idx
+	ctx.frame.idx++
+	if idx >= len(ctx.frame.cells) {
+		if ctx.sess == nil {
+			panic("runtime: UseElement requires an active session")
+		}
+		var descriptor T
+		id := ctx.sess.allocateElementRefID()
+		ref := h.NewElementRef[T](id, descriptor)
+		cell := &elementRefCell[T]{ref: ref}
+		ref.InstallState(
+			func() any {
+				return cell.state
+			},
+			func(next any) {
+				if reflect.DeepEqual(cell.state, next) {
+					return
+				}
+				cell.state = next
+				if ctx.sess != nil {
+					ctx.sess.markDirty(ctx.comp)
+				}
+			},
+		)
+		h.ApplyRefDefaults(ref)
+		ctx.sess.registerElementRef(ref)
+		ctx.frame.cells = append(ctx.frame.cells, cell)
+	}
+	cell, ok := ctx.frame.cells[idx].(*elementRefCell[T])
+	if !ok {
+		panicHookMismatch(ctx.comp, idx, "UseElement", ctx.frame.cells[idx])
+	}
+	return cell.ref
 }
 
 type memoCell[T any] struct {

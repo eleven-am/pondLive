@@ -185,6 +185,130 @@ func TestLiveSessionJoinAndReplay(t *testing.T) {
 	}
 }
 
+func TestLiveSessionRefDeltaOnlyMetadata(t *testing.T) {
+	var (
+		setListen func([]string)
+		setProps  func([]string)
+	)
+	component := func(ctx Ctx, _ struct{}) h.Node {
+		getListen, updateListen := UseState(ctx, []string{"click"})
+		getProps, updateProps := UseState(ctx, []string{"detail"})
+		if setListen == nil {
+			setListen = func(next []string) { updateListen(next) }
+		}
+		if setProps == nil {
+			setProps = func(next []string) { updateProps(next) }
+		}
+		ref := UseElement[h.HTMLDivElement](ctx)
+		ref.Bind("focus", h.EventBinding{
+			Listen: append([]string(nil), getListen()...),
+			Props:  append([]string(nil), getProps()...),
+		})
+		return h.Div(h.Attach(ref))
+	}
+
+	transport := &stubTransport{}
+	sess := NewLiveSession("sid-ref-meta", 1, component, struct{}{}, &LiveSessionConfig{Transport: transport})
+
+	if setListen == nil || setProps == nil {
+		t.Fatal("expected state setters to be captured")
+	}
+	if len(sess.snapshot.Refs) != 1 {
+		t.Fatalf("expected one ref in initial snapshot, got %d", len(sess.snapshot.Refs))
+	}
+	var id string
+	for refID := range sess.snapshot.Refs {
+		id = refID
+		break
+	}
+	setListen([]string{"focus", "blur"})
+	setProps([]string{"target.value"})
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+
+	if len(transport.frames) != 1 {
+		t.Fatalf("expected one frame, got %d", len(transport.frames))
+	}
+	frame := transport.frames[0]
+	if len(frame.Patch) != 0 {
+		t.Fatalf("expected no patch operations, got %d", len(frame.Patch))
+	}
+	if len(frame.Refs.Add) != 1 {
+		t.Fatalf("expected ref metadata addition, got %d entries", len(frame.Refs.Add))
+	}
+	meta, ok := frame.Refs.Add[id]
+	if !ok {
+		t.Fatalf("expected ref metadata for id %q", id)
+	}
+	focusMeta, ok := meta.Events["focus"]
+	if !ok {
+		t.Fatalf("expected focus event metadata, got %+v", meta.Events)
+	}
+	if len(focusMeta.Listen) != 2 || !containsString(focusMeta.Listen, "focus") || !containsString(focusMeta.Listen, "blur") {
+		t.Fatalf("expected listen metadata for ref, got %+v", focusMeta.Listen)
+	}
+	if len(focusMeta.Props) != 1 || focusMeta.Props[0] != "target.value" {
+		t.Fatalf("expected props metadata for ref, got %+v", focusMeta.Props)
+	}
+	if len(frame.Refs.Del) != 0 {
+		t.Fatalf("expected no ref deletions, got %v", frame.Refs.Del)
+	}
+	if current, ok := sess.snapshot.Refs[id]; !ok || !refMetaEqual(current, meta) {
+		t.Fatalf("expected snapshot refs updated, got %+v want %+v", sess.snapshot.Refs[id], meta)
+	}
+}
+
+func TestLiveSessionRefDeltaRemovesRef(t *testing.T) {
+	var setAttached func(bool)
+	component := func(ctx Ctx, _ struct{}) h.Node {
+		getAttached, updateAttached := UseState(ctx, true)
+		if setAttached == nil {
+			setAttached = func(next bool) { updateAttached(next) }
+		}
+		if !getAttached() {
+			return h.Div()
+		}
+		ref := UseElement[h.HTMLDivElement](ctx)
+		return h.Div(h.Attach(ref))
+	}
+
+	transport := &stubTransport{}
+	sess := NewLiveSession("sid-ref-remove", 1, component, struct{}{}, &LiveSessionConfig{Transport: transport})
+
+	if setAttached == nil {
+		t.Fatal("expected setter to be captured")
+	}
+	if len(sess.snapshot.Refs) != 1 {
+		t.Fatalf("expected one ref in snapshot, got %d", len(sess.snapshot.Refs))
+	}
+	var id string
+	for refID := range sess.snapshot.Refs {
+		id = refID
+		break
+	}
+
+	setAttached(false)
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+
+	if len(transport.frames) != 1 {
+		t.Fatalf("expected one frame, got %d", len(transport.frames))
+	}
+	frame := transport.frames[0]
+	if len(frame.Refs.Add) != 0 {
+		t.Fatalf("expected no ref additions, got %v", frame.Refs.Add)
+	}
+	if len(frame.Refs.Del) != 1 || frame.Refs.Del[0] != id {
+		t.Fatalf("expected ref deletion for %q, got %v", id, frame.Refs.Del)
+	}
+	if _, ok := sess.snapshot.Refs[id]; ok {
+		t.Fatalf("expected ref %q removed from snapshot", id)
+	}
+}
+
 func TestExtractHandlerMetaIncludesListenAndProps(t *testing.T) {
 	reg := handlers.NewRegistry()
 	handler := func(h.Event) h.Updates { return h.Rerender() }

@@ -36,8 +36,17 @@ type Row struct {
 
 // Structured represents the structured render output of a node tree.
 type Structured struct {
-	S []string
-	D []Dyn
+	S          []string
+	D          []Dyn
+	Components map[string]ComponentSpan
+}
+
+// ComponentSpan captures the statics and dynamic slot ranges associated with a component subtree.
+type ComponentSpan struct {
+	StaticsStart  int
+	StaticsEnd    int
+	DynamicsStart int
+	DynamicsEnd   int
 }
 
 // ToStructured lowers a node tree into structured statics and dynamics.
@@ -55,14 +64,15 @@ func ToStructuredWithHandlers(n h.Node, reg handlers.Registry) Structured {
 	b := &structuredBuilder{}
 	b.visit(n)
 	b.flush()
-	return Structured{S: b.statics, D: b.dynamics}
+	return Structured{S: b.statics, D: b.dynamics, Components: b.components}
 }
 
 type structuredBuilder struct {
-	statics  []string
-	current  strings.Builder
-	dynamics []Dyn
-	stack    []elementFrame
+	statics    []string
+	current    strings.Builder
+	dynamics   []Dyn
+	stack      []elementFrame
+	components map[string]ComponentSpan
 }
 
 type elementFrame struct {
@@ -103,7 +113,45 @@ func (b *structuredBuilder) visit(n h.Node) {
 		b.visitElement(v)
 	case *h.FragmentNode:
 		b.visitFragment(v)
+	case *h.CommentNode:
+		b.writeStatic("<!--")
+		b.writeStatic(escapeComment(v.Value))
+		b.writeStatic("-->")
+	case *h.ComponentNode:
+		b.visitComponentNode(v)
 	}
+}
+
+func (b *structuredBuilder) visitComponentNode(v *h.ComponentNode) {
+	if v == nil || v.ID == "" {
+		if v != nil && v.Child != nil {
+			b.visit(v.Child)
+		}
+		return
+	}
+	b.flush()
+	staticsStart := len(b.statics)
+	dynamicsStart := len(b.dynamics)
+	b.writeStatic("<!--")
+	b.writeStatic(escapeComment(h.ComponentStartMarker(v.ID)))
+	b.writeStatic("-->")
+	if v.Child != nil {
+		b.visit(v.Child)
+	}
+	b.writeStatic("<!--")
+	b.writeStatic(escapeComment(h.ComponentEndMarker(v.ID)))
+	b.writeStatic("-->")
+	b.flush()
+	span := ComponentSpan{
+		StaticsStart:  staticsStart,
+		StaticsEnd:    len(b.statics),
+		DynamicsStart: dynamicsStart,
+		DynamicsEnd:   len(b.dynamics),
+	}
+	if b.components == nil {
+		b.components = make(map[string]ComponentSpan)
+	}
+	b.components[v.ID] = span
 }
 
 func (b *structuredBuilder) visitElement(v *h.Element) {
@@ -225,6 +273,10 @@ func joinSlotBindings(bindings []slotBinding) string {
 		parts = append(parts, token)
 	}
 	return strings.Join(parts, " ")
+}
+
+func escapeComment(value string) string {
+	return strings.ReplaceAll(value, "--", "- -")
 }
 
 func childIndexOf(parent *h.Element, target h.Node) int {

@@ -34,6 +34,7 @@ export interface BootPayload {
   d: DynamicSlot[];
   slots: SlotMeta[];
   handlers: HandlerMap;
+  refs?: RefMap;
   location: Location;
   errors?: ErrorMessage[];
   client?: BootClientConfig;
@@ -53,6 +54,24 @@ export interface HandlerMeta {
 }
 
 export type HandlerMap = Record<string, HandlerMeta>;
+
+// Ref metadata
+export interface RefEventMeta {
+  listen?: string[];
+  props?: string[];
+}
+
+export interface RefMeta {
+  tag: string;
+  events?: Record<string, RefEventMeta>;
+}
+
+export type RefMap = Record<string, RefMeta>;
+
+export interface RefDelta {
+  add?: RefMap;
+  del?: string[];
+}
 
 // Dynamic slot kinds
 export type DynKind = "text" | "attrs" | "list";
@@ -82,6 +101,7 @@ export interface InitMessage {
   d: DynamicSlot[];
   slots: SlotMeta[];
   handlers: HandlerMap;
+  refs?: RefMap;
   location: Location;
   seq?: number;
   errors?: ErrorMessage[];
@@ -139,6 +159,7 @@ export interface FrameMessage {
   effects: any[];
   nav?: NavDelta | null;
   handlers: HandlerDelta;
+  refs: RefDelta;
   metrics: FrameMetrics;
 }
 
@@ -343,7 +364,9 @@ export type EffectType =
   | "Focus"
   | "ScrollTop"
   | "Push"
-  | "Replace";
+  | "Replace"
+  | "componentBoot"
+  | "ComponentBoot";
 
 export interface ScrollEffect {
   type: "scroll" | "ScrollTop";
@@ -463,6 +486,14 @@ export interface CookieEffect {
   Method?: string;
 }
 
+export interface ComponentBootEffect {
+  type: "componentBoot" | "ComponentBoot";
+  componentId: string;
+  html: string;
+  slots: number[];
+  listSlots?: number[];
+}
+
 export interface BootEffect {
   type: "boot";
   boot: BootPayload;
@@ -479,6 +510,7 @@ export type Effect =
   | CustomEffect
   | MetadataEffect
   | CookieEffect
+  | ComponentBootEffect
   | BootEffect;
 
 // Performance metrics

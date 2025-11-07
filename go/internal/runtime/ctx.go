@@ -24,6 +24,14 @@ func (c Ctx) ComponentID() string {
 	return c.comp.id
 }
 
+// RequestComponentBoot schedules a template refresh for the current component instance.
+func (c Ctx) RequestComponentBoot() {
+	if c.sess == nil || c.comp == nil {
+		return
+	}
+	c.sess.RequestComponentBoot(c.comp.id)
+}
+
 // Render renders a child component with optional key.
 func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) h.Node {
 	if ctx.sess == nil || ctx.comp == nil {

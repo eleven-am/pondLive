@@ -13,6 +13,14 @@ func Textf(format string, args ...any) *TextNode {
 // Fragment constructs a fragment node from children.
 func Fragment(children ...Node) *FragmentNode { return &FragmentNode{Children: children} }
 
+// Comment creates an HTML comment node.
+func Comment(value string) *CommentNode { return &CommentNode{Value: value} }
+
+// WrapComponent wraps a component subtree so render passes can attach metadata.
+func WrapComponent(id string, child Node) *ComponentNode {
+	return &ComponentNode{ID: id, Child: child}
+}
+
 // If includes the node when cond is true; otherwise it contributes nothing.
 func If(cond bool, node Node) Node {
 	if cond {

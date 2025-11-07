@@ -14,18 +14,14 @@ func RouterReplace(ctx Ctx, href string) {
 }
 
 func RouterNavigateWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
-	state := requireRouterState(ctx)
-	current := state.getLoc()
-	nextQuery := cloneValues(current.Query)
-	if patch != nil {
-		nextQuery = patch(nextQuery)
-	}
-	next := current
-	next.Query = canonicalizeValues(nextQuery)
-	performLocationUpdate(ctx, next, false, true)
+	updateSearchWithNavigation(ctx, patch, false)
 }
 
 func RouterReplaceWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
+	updateSearchWithNavigation(ctx, patch, true)
+}
+
+func updateSearchWithNavigation(ctx Ctx, patch func(url.Values) url.Values, replace bool) {
 	state := requireRouterState(ctx)
 	current := state.getLoc()
 	nextQuery := cloneValues(current.Query)
@@ -34,7 +30,7 @@ func RouterReplaceWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
 	}
 	next := current
 	next.Query = canonicalizeValues(nextQuery)
-	performLocationUpdate(ctx, next, true, true)
+	performLocationUpdate(ctx, next, replace, true)
 }
 
 // InternalHandleNav applies a navigation message to the session. Internal use only.
@@ -130,10 +126,10 @@ func performLocationUpdate(ctx Ctx, target Location, replace bool, record bool) 
 }
 
 func resolveHref(base Location, href string) Location {
-	if strings.TrimSpace(href) == "" {
+	trimmed := strings.TrimSpace(href)
+	if trimmed == "" {
 		return base
 	}
-	trimmed := strings.TrimSpace(href)
 	if strings.HasPrefix(trimmed, "#") {
 		next := base
 		next.Hash = normalizeHash(trimmed)

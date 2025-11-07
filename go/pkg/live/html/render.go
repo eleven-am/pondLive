@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+const (
+	componentCommentPrefix = "live-component"
+)
+
 var voidElements = map[string]struct{}{
 	"area": {}, "base": {}, "br": {}, "col": {}, "embed": {}, "hr": {}, "img": {}, "input": {},
 	"link": {}, "meta": {}, "param": {}, "source": {}, "track": {}, "wbr": {},
@@ -129,6 +133,28 @@ func joinStyles(styleMap map[string]string, existing string) string {
 	return b.String()
 }
 
+func escapeComment(value string) string {
+
+	return strings.ReplaceAll(value, "--", "- -")
+}
+
+func componentStartComment(id string) string {
+	return componentCommentPrefix + ":start:" + id
+}
+
+func componentEndComment(id string) string {
+	return componentCommentPrefix + ":end:" + id
+}
+
+// ComponentStartMarker exposes the comment marker used to denote the start of a component subtree.
+func ComponentStartMarker(id string) string { return componentStartComment(id) }
+
+// ComponentEndMarker exposes the comment marker used to denote the end of a component subtree.
+func ComponentEndMarker(id string) string { return componentEndComment(id) }
+
+// ComponentCommentPrefix returns the prefix used for component boundary comments.
+func ComponentCommentPrefix() string { return componentCommentPrefix }
+
 // RenderHTML renders a Node tree into an escaped HTML string.
 func RenderHTML(n Node) string {
 	if n == nil {
@@ -152,7 +178,21 @@ func renderNode(b *strings.Builder, n Node) {
 			}
 			renderNode(b, child)
 		}
+	case *CommentNode:
+		renderComment(b, v.Value)
+	case *ComponentNode:
+		renderComment(b, componentStartComment(v.ID))
+		if v.Child != nil {
+			renderNode(b, v.Child)
+		}
+		renderComment(b, componentEndComment(v.ID))
 	}
+}
+
+func renderComment(b *strings.Builder, value string) {
+	b.WriteString("<!--")
+	b.WriteString(escapeComment(value))
+	b.WriteString("-->")
 }
 
 func renderElement(b *strings.Builder, e *Element) {

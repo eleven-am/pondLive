@@ -33,7 +33,21 @@ func renderNode(b *strings.Builder, n h.Node) {
 			}
 			renderNode(b, child)
 		}
+	case *h.CommentNode:
+		renderComment(b, v.Value)
+	case *h.ComponentNode:
+		renderComment(b, h.ComponentStartMarker(v.ID))
+		if v.Child != nil {
+			renderNode(b, v.Child)
+		}
+		renderComment(b, h.ComponentEndMarker(v.ID))
 	}
+}
+
+func renderComment(b *strings.Builder, value string) {
+	b.WriteString("<!--")
+	b.WriteString(strings.ReplaceAll(value, "--", "- -"))
+	b.WriteString("-->")
 }
 
 func renderElement(b *strings.Builder, e *h.Element) {

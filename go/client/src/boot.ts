@@ -6,6 +6,7 @@
 
 import * as dom from './dom-index';
 import { clearHandlers, registerHandlers, syncEventListeners } from './events';
+import { bindRefsInTree, clearRefs, registerRefs } from './refs';
 import type { BootPayload, DynamicSlot, Location } from './types';
 
 export class BootHandler {
@@ -68,6 +69,13 @@ export class BootHandler {
       clearHandlers();
       registerHandlers(boot.handlers);
       syncEventListeners();
+    }
+
+    // Register element refs and index current DOM
+    clearRefs();
+    registerRefs(boot.refs);
+    if (typeof document !== 'undefined') {
+      bindRefsInTree(document);
     }
 
     // Register DOM slots

@@ -115,6 +115,27 @@ func TestRouterOutletRerender(t *testing.T) {
 		t.Fatalf("flush error: %v", err)
 	}
 
+	if sess.consumeTemplateUpdate() != nil {
+		t.Fatal("unexpected template update")
+	}
+
+	if updates := sess.consumeComponentBoots(); len(updates) > 0 {
+		found := false
+		for _, update := range updates {
+			if strings.Contains(update.html, "Security") {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected component boot html to contain Security, got %+v", updates)
+		}
+		if len(ops) != 0 {
+			t.Fatalf("expected no diff ops when component boot is emitted, got %d", len(ops))
+		}
+		return
+	}
+
 	switch len(ops) {
 	case 1:
 		set, ok := ops[0].(diff.SetText)

@@ -88,6 +88,10 @@ type component struct {
 	pendingDescendantDirty int32
 }
 
+type attachmentResetter interface {
+	resetAttachment()
+}
+
 func newComponent[P any](sess *ComponentSession, parent *component, key string, fn Component[P], props P) *component {
 	adapter := newComponentAdapter(fn)
 	return newComponentWithCallable(sess, parent, key, adapter, props)
@@ -109,6 +113,9 @@ func newComponentWithCallable(sess *ComponentSession, parent *component, key str
 		dirty:    true,
 	}
 	c.id = buildComponentID(parent, callable, key)
+	if sess != nil {
+		sess.registerComponentInstance(c)
+	}
 	return c
 }
 
@@ -130,11 +137,23 @@ func (c *component) beginRender() {
 	if c.frame == nil {
 		c.frame = &hookFrame{}
 	}
+	for _, cell := range c.frame.cells {
+		if resetter, ok := cell.(interface{ resetAttachment() }); ok {
+			resetter.resetAttachment()
+		}
+	}
 	c.frame.idx = 0
 	c.nextIdx = 0
 	c.renderEpoch++
 	if c.rendered == nil {
 		c.rendered = make(map[string]int, len(c.children))
+	}
+	if len(c.frame.cells) > 0 {
+		for _, cell := range c.frame.cells {
+			if resetter, ok := cell.(attachmentResetter); ok {
+				resetter.resetAttachment()
+			}
+		}
 	}
 }
 
@@ -218,6 +237,7 @@ func (c *component) render() h.Node {
 		}
 		node = carrier.BodyNode()
 	}
+	node = ensureComponentWrapper(c.id, node)
 	c.endRender()
 	if atomic.SwapInt32(&c.pendingDescendantDirty, 0) == 1 {
 		c.markDescendantsDirtyLocked()
@@ -343,6 +363,7 @@ func (c *component) unmount() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.sess != nil {
+		c.sess.unregisterComponentInstance(c)
 		c.sess.releaseUploadSlots(c)
 		c.sess.removeMetadataForComponent(c)
 	}
@@ -362,6 +383,17 @@ func (c *component) unmount() {
 			}
 		}
 	}
+}
+
+func ensureComponentWrapper(id string, node h.Node) h.Node {
+	if existing, ok := node.(*h.ComponentNode); ok {
+		if existing.ID == id {
+			return existing
+		}
+
+		node = existing.Child
+	}
+	return h.WrapComponent(id, node)
 }
 
 // hookFrame tracks per-component hook state.

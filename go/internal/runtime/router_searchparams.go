@@ -21,50 +21,46 @@ func BuildHref(path string, q url.Values, hash string) string {
 }
 
 func SetSearch(q url.Values, key string, values ...string) url.Values {
-	out := cloneValues(q)
-	if out == nil {
-		out = url.Values{}
-	}
+	out := canonicalizeValues(q)
 	if len(values) == 0 {
 		delete(out, key)
-		return canonicalizeValues(out)
+		return out
 	}
-	cleaned := make([]string, 0, len(values))
-	for _, v := range values {
-		cleaned = append(cleaned, strings.TrimSpace(v))
-	}
-	out[key] = cleaned
-	return canonicalizeValues(out)
+	out[key] = canonicalizeList(values)
+	return out
 }
 
 func AddSearch(q url.Values, key string, values ...string) url.Values {
+	out := canonicalizeValues(q)
 	if len(values) == 0 {
-		return canonicalizeValues(q)
+		return out
 	}
-	out := cloneValues(q)
-	base := append([]string{}, out[key]...)
-	for _, v := range values {
-		base = append(base, strings.TrimSpace(v))
-	}
-	out[key] = base
-	return canonicalizeValues(out)
+	combined := make([]string, 0, len(out[key])+len(values))
+	combined = append(combined, out[key]...)
+	combined = append(combined, values...)
+	out[key] = canonicalizeList(combined)
+	return out
 }
 
 func DelSearch(q url.Values, key string) url.Values {
-	out := cloneValues(q)
+	out := canonicalizeValues(q)
 	delete(out, key)
-	return canonicalizeValues(out)
+	return out
 }
 
 func MergeSearch(q url.Values, other url.Values) url.Values {
-	out := cloneValues(q)
+	out := canonicalizeValues(q)
 	if len(other) == 0 {
-		return canonicalizeValues(out)
+		return out
 	}
 	for key, values := range other {
-		out = SetSearch(out, key, values...)
+		if len(values) == 0 {
+			delete(out, key)
+			continue
+		}
+		out[key] = canonicalizeList(values)
 	}
-	return canonicalizeValues(out)
+	return out
 }
 
 func ClearSearch(url.Values) url.Values {

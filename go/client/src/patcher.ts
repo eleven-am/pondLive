@@ -13,6 +13,7 @@
  */
 
 import * as dom from './dom-index';
+import { bindRefsInTree, unbindRefsInTree, updateRefBinding } from './refs';
 import type {DiffOp, ListChildOp} from './types';
 
 // ============================================================================
@@ -272,6 +273,7 @@ function applySetAttrs(
         throw new Error(`liveui: slot ${slotIndex} is not an element`);
     }
 
+    const previousRef = node.getAttribute('data-live-ref');
     const applyAttrs = () => {
         if (upsert) {
             for (const [k, v] of Object.entries(upsert)) {
@@ -293,6 +295,9 @@ function applySetAttrs(
                 }
             }
         }
+
+        const nextRef = node.getAttribute('data-live-ref');
+        updateRefBinding(node, previousRef, nextRef);
     };
 
     if (config.enableBatching) {
@@ -422,6 +427,7 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
 
                 if (row && row.parentNode === container) {
                     const removeNode = () => {
+                        unbindRefsInTree(row);
                         container.removeChild(row);
                     };
 
@@ -467,6 +473,12 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                         : container.children[pos] || null;
 
                     container.insertBefore(fragment, refNode);
+
+                    for (const inserted of nodes) {
+                        if (inserted instanceof Element) {
+                            bindRefsInTree(inserted);
+                        }
+                    }
 
                     const root = nodes[0];
                     if (root instanceof Element) {

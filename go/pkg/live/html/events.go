@@ -1,6 +1,10 @@
 package html
 
-import "strings"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 var defaultEventPresets = map[string]EventOptions{
 	"input": {
@@ -109,6 +113,183 @@ func defaultEventOptions(event string) EventOptions {
 		out.Props = append(out.Props, preset.Props...)
 	}
 	return out
+}
+
+func mergeEventBinding(existing, addition EventBinding) EventBinding {
+	merged := existing
+	if merged.Handler == nil {
+		merged.Handler = addition.Handler
+	} else if addition.Handler != nil {
+		first := merged.Handler
+		second := addition.Handler
+		merged.Handler = func(ev Event) Updates {
+			var result Updates
+			if first != nil {
+				if out := first(ev); out != nil {
+					result = out
+				}
+			}
+			if second != nil {
+				if out := second(ev); out != nil {
+					result = out
+				}
+			}
+			return result
+		}
+	}
+	merged.Listen = mergeStringSet(existing.Listen, addition.Listen, true)
+	merged.Props = mergeStringSet(existing.Props, addition.Props, false)
+	return merged
+}
+
+func mergeStringSet(base, extra []string, fold bool) []string {
+	if len(base) == 0 && len(extra) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(base)+len(extra))
+	add := func(values []string) {
+		for _, v := range values {
+			if v == "" {
+				continue
+			}
+			key := v
+			if fold {
+				key = strings.ToLower(v)
+			}
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			out = append(out, v)
+		}
+	}
+	add(base)
+	add(extra)
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func payloadFloat(payload map[string]any, key string, fallback float64) float64 {
+	if payload == nil {
+		return fallback
+	}
+	raw, ok := payload[key]
+	if !ok {
+		return fallback
+	}
+	switch v := raw.(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case int32:
+		return float64(v)
+	case uint:
+		return float64(v)
+	case uint64:
+		return float64(v)
+	case uint32:
+		return float64(v)
+	case string:
+		if val, err := strconv.ParseFloat(v, 64); err == nil {
+			return val
+		}
+	}
+	return fallback
+}
+
+func payloadBool(payload map[string]any, key string, fallback bool) bool {
+	if payload == nil {
+		return fallback
+	}
+	raw, ok := payload[key]
+	if !ok {
+		return fallback
+	}
+	switch v := raw.(type) {
+	case bool:
+		return v
+	case string:
+		if val, err := strconv.ParseBool(v); err == nil {
+			return val
+		}
+	case float64:
+		return v != 0
+	case float32:
+		return v != 0
+	case int:
+		return v != 0
+	case int32:
+		return v != 0
+	case int64:
+		return v != 0
+	case uint:
+		return v != 0
+	case uint32:
+		return v != 0
+	case uint64:
+		return v != 0
+	}
+	return fallback
+}
+
+func payloadString(payload map[string]any, key string, fallback string) string {
+	if payload == nil {
+		return fallback
+	}
+	raw, ok := payload[key]
+	if !ok {
+		return fallback
+	}
+	switch v := raw.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	case fmt.Stringer:
+		return v.String()
+	}
+	return fallback
+}
+
+func payloadInt(payload map[string]any, key string, fallback int) int {
+	if payload == nil {
+		return fallback
+	}
+	raw, ok := payload[key]
+	if !ok {
+		return fallback
+	}
+	switch v := raw.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case int32:
+		return int(v)
+	case uint:
+		return int(v)
+	case uint64:
+		return int(v)
+	case uint32:
+		return int(v)
+	case float64:
+		return int(v)
+	case float32:
+		return int(v)
+	case string:
+		if val, err := strconv.Atoi(v); err == nil {
+			return val
+		}
+	}
+	return fallback
 }
 
 func sanitizeEventList(primary string, events []string) []string {
