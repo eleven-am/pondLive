@@ -5,6 +5,12 @@ package html
 
 import internalhtml "github.com/eleven-am/pondlive/go/internal/html"
 
+// elementHookCtx is satisfied by live.Ctx (runtime contexts). Kept unexported so
+// consumers can't forge arbitrary contexts easily.
+type elementHookCtx interface {
+	elementHookContext()
+}
+
 // Core interfaces and types
 type (
 	// Node is anything that renders into markup.
