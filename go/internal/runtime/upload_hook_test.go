@@ -138,6 +138,11 @@ func findUploadID(structured render.Structured) string {
 			return id
 		}
 	}
+	for _, attrs := range staticAttrMaps(structured.S) {
+		if id := attrs["data-pond-upload"]; id != "" {
+			return id
+		}
+	}
 	return ""
 }
 

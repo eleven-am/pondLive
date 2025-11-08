@@ -125,7 +125,12 @@ func TestUseStreamListOperations(t *testing.T) {
 		t.Fatal("expected list slot after reorder")
 	}
 	lists = sink.takeList(slot)
-	if !hasMov(lists, 1, 0) {
+	boots := sess.consumeComponentBoots()
+	if len(boots) > 0 {
+		if !bootHasListOrder(boots, slot, []string{"b", "a"}) {
+			t.Fatalf("expected component boot to reorder rows, got %+v", boots)
+		}
+	} else if !hasMov(lists, 1, 0) {
 		t.Fatalf("expected move operation when reordering rows, got %+v", lists)
 	}
 	assertRowOrder(t, sess.prev, slot, []string{"b", "a"})
@@ -340,6 +345,44 @@ func hasMov(lists []diff.List, from, to int) bool {
 				continue
 			}
 			if mov.From == from && mov.To == to {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func bootHasListOrder(boots []componentTemplateUpdate, slot int, expected []string) bool {
+	for _, boot := range boots {
+		if len(boot.listSlots) == 0 {
+			continue
+		}
+		for _, listSlot := range boot.listSlots {
+			if listSlot != slot {
+				continue
+			}
+			idx := -1
+			for i, global := range boot.slots {
+				if global == listSlot {
+					idx = i
+					break
+				}
+			}
+			if idx < 0 || idx >= len(boot.dynamics) {
+				continue
+			}
+			rows := boot.dynamics[idx].List
+			if len(rows) != len(expected) {
+				continue
+			}
+			match := true
+			for i, row := range rows {
+				if row.Key != expected[i] {
+					match = false
+					break
+				}
+			}
+			if match {
 				return true
 			}
 		}

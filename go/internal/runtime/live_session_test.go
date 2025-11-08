@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"errors"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -75,11 +77,20 @@ func counterComponent(ctx Ctx, _ struct{}) h.Node {
 }
 
 func findClickHandler(structured render.Structured) handlers.ID {
+	return findHandlerAttr(structured, "data-onclick")
+}
+
+func findHandlerAttr(structured render.Structured, attr string) handlers.ID {
 	for _, dyn := range structured.D {
 		if dyn.Kind != render.DynAttrs {
 			continue
 		}
-		if id, ok := dyn.Attrs["data-onclick"]; ok {
+		if id := strings.TrimSpace(dyn.Attrs[attr]); id != "" {
+			return handlers.ID(id)
+		}
+	}
+	for _, attrs := range staticAttrMaps(structured.S) {
+		if id := strings.TrimSpace(attrs[attr]); id != "" {
 			return handlers.ID(id)
 		}
 	}
@@ -257,6 +268,24 @@ func TestLiveSessionRefDeltaOnlyMetadata(t *testing.T) {
 	}
 	if current, ok := sess.snapshot.Refs[id]; !ok || !refMetaEqual(current, meta) {
 		t.Fatalf("expected snapshot refs updated, got %+v want %+v", sess.snapshot.Refs[id], meta)
+	}
+}
+
+func TestEnsureSnapshotStaticsOwnedCopiesOnWrite(t *testing.T) {
+	transport := &stubTransport{}
+	sess := NewLiveSession("sid-copy", 1, counterComponent, struct{}{}, &LiveSessionConfig{Transport: transport})
+	if len(sess.snapshot.Statics) == 0 {
+		t.Fatalf("expected initial snapshot statics to be populated")
+	}
+	firstPtr := reflect.ValueOf(sess.snapshot.Statics).Pointer()
+	sess.ensureSnapshotStaticsOwned()
+	ownedPtr := reflect.ValueOf(sess.snapshot.Statics).Pointer()
+	if firstPtr == ownedPtr {
+		t.Fatalf("expected ensureSnapshotStaticsOwned to clone statics slice")
+	}
+	sess.ensureSnapshotStaticsOwned()
+	if reflect.ValueOf(sess.snapshot.Statics).Pointer() != ownedPtr {
+		t.Fatalf("expected second ensureSnapshotStaticsOwned call to avoid additional copies")
 	}
 }
 

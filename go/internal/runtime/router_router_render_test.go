@@ -88,8 +88,16 @@ func findClickHandlerID(structured render.Structured) handlers.ID {
 		if dyn.Kind != render.DynAttrs {
 			continue
 		}
-		if id, ok := dyn.Attrs["data-onclick"]; ok && id != "" {
+		if id := strings.TrimSpace(dyn.Attrs["data-onclick"]); id != "" {
 			return handlers.ID(id)
+		}
+	}
+	combined := strings.Join(structured.S, "")
+	needle := "data-onclick=\""
+	if idx := strings.Index(combined, needle); idx >= 0 {
+		start := idx + len(needle)
+		if end := strings.Index(combined[start:], "\""); end >= 0 {
+			return handlers.ID(combined[start : start+end])
 		}
 	}
 	return ""
@@ -115,11 +123,31 @@ func TestRouterOutletRerender(t *testing.T) {
 		t.Fatalf("flush error: %v", err)
 	}
 
-	if sess.consumeTemplateUpdate() != nil {
-		t.Fatal("unexpected template update")
+	update := sess.consumeTemplateUpdate()
+	updates := sess.consumeComponentBoots()
+	if update != nil {
+		if !strings.Contains(update.html, "Security") {
+			t.Fatalf("expected template update html to contain Security, got %q", update.html)
+		}
+		if len(ops) != 0 {
+			t.Fatalf("expected no diff ops when template update emitted, got %d", len(ops))
+		}
+		if len(updates) > 0 {
+			found := false
+			for _, component := range updates {
+				if strings.Contains(component.html, "Security") {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("expected component boot html to contain Security, got %+v", updates)
+			}
+		}
+		return
 	}
 
-	if updates := sess.consumeComponentBoots(); len(updates) > 0 {
+	if len(updates) > 0 {
 		found := false
 		for _, update := range updates {
 			if strings.Contains(update.html, "Security") {

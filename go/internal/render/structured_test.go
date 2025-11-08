@@ -13,7 +13,7 @@ func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	click := func(h.Event) h.Updates { return h.Rerender() }
 	tree := h.Div(
 		h.Class("wrapper"),
-		h.Button(h.On("click", click), h.Text("0")),
+		h.Button(h.On("click", click), h.Textf("%d", 0)),
 	)
 
 	structured := ToStructuredWithHandlers(tree, reg)
@@ -36,30 +36,16 @@ func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	if textSlots == 0 {
 		t.Fatal("expected at least one text slot")
 	}
-	if attrSlots == 0 {
-		t.Fatal("expected at least one attr slot")
+	if attrSlots != 0 {
+		t.Fatalf("expected no dynamic attr slots, got %d", attrSlots)
 	}
 
-	found := false
-	annotated := 0
-	for idx, dyn := range structured.D {
-		if dyn.Kind != DynAttrs {
-			continue
-		}
-		if _, ok := dyn.Attrs["data-onclick"]; ok {
-			found = true
-		}
-		if token := strings.TrimSpace(dyn.Attrs["data-slot-index"]); token == "" {
-			t.Fatalf("expected data-slot-index on attr slot %d", idx)
-		} else {
-			annotated++
-		}
+	combined := strings.Join(structured.S, "")
+	if !strings.Contains(combined, "data-onclick=") {
+		t.Fatalf("expected static markup to include data-onclick attribute, got %q", combined)
 	}
-	if !found {
-		t.Fatal("expected button attrs to include data-onclick")
-	}
-	if annotated == 0 {
-		t.Fatal("expected attr slots to be annotated with data-slot-index")
+	if !strings.Contains(combined, "data-slot-index=") {
+		t.Fatalf("expected static markup to include data-slot-index, got %q", combined)
 	}
 }
 
@@ -70,13 +56,9 @@ func TestToStructuredKeyedList(t *testing.T) {
 	)
 	structured := ToStructured(nodes)
 	var listSlots int
-	attrTagged := false
 	var listSlotIndex int
 	for i, dyn := range structured.D {
 		if dyn.Kind != DynList {
-			if dyn.Kind == DynAttrs && dyn.Attrs["data-list-slot"] != "" {
-				attrTagged = true
-			}
 			continue
 		}
 		listSlots++
@@ -98,27 +80,91 @@ func TestToStructuredKeyedList(t *testing.T) {
 	if listSlots != 1 {
 		t.Fatalf("expected a single list slot, got %d", listSlots)
 	}
-	if !attrTagged {
-		t.Fatalf("expected parent attrs to be tagged with list slot, structured=%+v", structured.D)
+	combined := strings.Join(structured.S, "")
+	if !strings.Contains(combined, "data-list-slot=") {
+		t.Fatalf("expected static markup to include data-list-slot attribute, got %q", combined)
 	}
-	if listSlotIndex <= 0 {
-		t.Fatalf("expected list slot index to be positive, got %d", listSlotIndex)
+	if listSlotIndex < 0 {
+		t.Fatalf("expected list slot index to be non-negative, got %d", listSlotIndex)
 	}
 }
 
 func TestDataSlotIndexesEncodeChildOffsets(t *testing.T) {
 	tree := h.Div(
-		h.Span(h.Text("first")),
-		h.Text(" tail"),
+		h.Span(h.Textf("%s", "first")),
+		h.Textf("%s", " tail"),
 	)
 	structured := ToStructured(tree)
-	if len(structured.D) < 4 {
-		t.Fatalf("expected at least 4 dynamic slots, got %d", len(structured.D))
+	combined := strings.Join(structured.S, "")
+	if !strings.Contains(combined, `data-slot-index="1@1"`) {
+		t.Fatalf("expected div markup to include slot annotation, got %q", combined)
 	}
-	if got := structured.D[0].Attrs["data-slot-index"]; got != "0 3@1" {
-		t.Fatalf("unexpected div annotation: got %q want %q", got, "0 3@1")
+	if !strings.Contains(combined, `data-slot-index="0@0"`) {
+		t.Fatalf("expected span markup to include slot annotation, got %q", combined)
 	}
-	if got := structured.D[1].Attrs["data-slot-index"]; got != "1 2@0" {
-		t.Fatalf("unexpected span annotation: got %q want %q", got, "1 2@0")
+}
+
+func TestStaticTextDefaultsToStatics(t *testing.T) {
+	tree := h.Div(h.Text("hello"))
+	structured := ToStructured(tree)
+	for _, dyn := range structured.D {
+		if dyn.Kind == DynText {
+			t.Fatalf("expected no dynamic text slots, got %+v", structured.D)
+		}
+	}
+}
+
+type recordingTracker struct {
+	decisions []promotionCall
+	promote   bool
+}
+
+type promotionCall struct {
+	id      string
+	path    []int
+	value   string
+	mutable bool
+}
+
+func (r *recordingTracker) ResolveTextPromotion(id string, path []int, value string, mutable bool) bool {
+	call := promotionCall{id: id, path: append([]int(nil), path...), value: value, mutable: mutable}
+	r.decisions = append(r.decisions, call)
+	return r.promote
+}
+
+func (r *recordingTracker) ResolveAttrPromotion(string, []int, map[string]string, map[string]bool) bool {
+	return r.promote
+}
+
+func TestPromotionTrackerControlsDynamicText(t *testing.T) {
+	component := h.WrapComponent("comp", h.Div(h.Text("static")))
+	tracker := &recordingTracker{}
+	structured := ToStructuredWithOptions(component, StructuredOptions{Promotions: tracker})
+	if len(tracker.decisions) != 1 {
+		t.Fatalf("expected tracker to see one text node, got %d", len(tracker.decisions))
+	}
+	if tracker.decisions[0].id != "comp" {
+		t.Fatalf("expected component id 'comp', got %q", tracker.decisions[0].id)
+	}
+	if len(tracker.decisions[0].path) != 1 || tracker.decisions[0].path[0] != 0 {
+		t.Fatalf("unexpected path: %+v", tracker.decisions[0].path)
+	}
+	for _, dyn := range structured.D {
+		if dyn.Kind == DynText {
+			t.Fatalf("expected no dynamic text slots when tracker does not promote, got %+v", structured.D)
+		}
+	}
+
+	promoteTracker := &recordingTracker{promote: true}
+	promoted := ToStructuredWithOptions(component, StructuredOptions{Promotions: promoteTracker})
+	foundText := false
+	for _, dyn := range promoted.D {
+		if dyn.Kind == DynText {
+			foundText = true
+			break
+		}
+	}
+	if !foundText {
+		t.Fatalf("expected promoted render to include a dynamic text slot, got %+v", promoted.D)
 	}
 }

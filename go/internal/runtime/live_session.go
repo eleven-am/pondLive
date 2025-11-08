@@ -863,16 +863,30 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 		frame.Refs = refDelta
 	}
 	if len(componentBoots) > 0 {
-		if s.snapshot.Statics == nil && len(componentBoots) > 0 {
+		if s.snapshot.Statics == nil {
 			s.snapshot = s.buildSnapshot(s.component.prev, s.loc, s.component.Metadata())
 		}
+		s.ensureSnapshotStaticsOwned()
 		for _, update := range componentBoots {
 			if update.staticsRange.end <= len(s.snapshot.Statics) && update.staticsRange.start >= 0 && update.staticsRange.end-update.staticsRange.start == len(update.statics) {
 				copy(s.snapshot.Statics[update.staticsRange.start:update.staticsRange.end], update.statics)
 			}
 			for idx, slot := range update.slots {
-				if slot < 0 || slot >= len(s.snapshot.Dynamics) {
+				if slot < 0 {
 					continue
+				}
+				if slot >= len(s.snapshot.Dynamics) {
+					extended := make([]protocol.DynamicSlot, slot+1)
+					copy(extended, s.snapshot.Dynamics)
+					s.snapshot.Dynamics = extended
+				}
+				if slot >= len(s.snapshot.Slots) {
+					extended := make([]protocol.SlotMeta, slot+1)
+					copy(extended, s.snapshot.Slots)
+					for i := len(s.snapshot.Slots); i < len(extended); i++ {
+						extended[i] = protocol.SlotMeta{AnchorID: i}
+					}
+					s.snapshot.Slots = extended
 				}
 				if idx < len(update.dynamics) {
 					s.snapshot.Dynamics[slot] = update.dynamics[idx]
@@ -1163,17 +1177,18 @@ func paramsEqual(a, b map[string]string) bool {
 }
 
 type snapshot struct {
-	Statics  []string
-	Dynamics []protocol.DynamicSlot
-	Slots    []protocol.SlotMeta
-	Handlers map[string]protocol.HandlerMeta
-	Refs     map[string]protocol.RefMeta
-	Location protocol.Location
-	Metadata *Meta
+	Statics      []string
+	staticsOwned bool
+	Dynamics     []protocol.DynamicSlot
+	Slots        []protocol.SlotMeta
+	Handlers     map[string]protocol.HandlerMeta
+	Refs         map[string]protocol.RefMeta
+	Location     protocol.Location
+	Metadata     *Meta
 }
 
 func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLocation, meta *Meta) snapshot {
-	statics := append([]string(nil), structured.S...)
+	statics := globalTemplateIntern.InternStatics(structured.S)
 	dynamics := encodeDynamics(structured.D)
 	slots := make([]protocol.SlotMeta, len(dynamics))
 	for i := range slots {
@@ -1188,14 +1203,30 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 	}
 	protoLoc := protocol.Location{Path: loc.Path, Query: loc.Query}
 	return snapshot{
-		Statics:  statics,
-		Dynamics: dynamics,
-		Slots:    slots,
-		Handlers: handlers,
-		Refs:     refs,
-		Location: protoLoc,
-		Metadata: CloneMeta(meta),
+		Statics:      statics,
+		Dynamics:     dynamics,
+		Slots:        slots,
+		Handlers:     handlers,
+		Refs:         refs,
+		Location:     protoLoc,
+		Metadata:     CloneMeta(meta),
+		staticsOwned: false,
 	}
+}
+
+func (s *LiveSession) ensureSnapshotStaticsOwned() {
+	if s == nil {
+		return
+	}
+	if s.snapshot.staticsOwned {
+		return
+	}
+	if len(s.snapshot.Statics) == 0 {
+		s.snapshot.staticsOwned = true
+		return
+	}
+	s.snapshot.Statics = append([]string(nil), s.snapshot.Statics...)
+	s.snapshot.staticsOwned = true
 }
 
 func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
@@ -1282,6 +1313,13 @@ func extractRefIDs(structured render.Structured) []string {
 		}
 		refs[id] = struct{}{}
 	}
+	for _, attrs := range staticAttrMaps(structured.S) {
+		id := strings.TrimSpace(attrs["data-live-ref"])
+		if id == "" {
+			continue
+		}
+		refs[id] = struct{}{}
+	}
 	if len(refs) == 0 {
 		return nil
 	}
@@ -1299,67 +1337,160 @@ func extractHandlerMeta(structured render.Structured) map[string]protocol.Handle
 		if dyn.Kind != render.DynAttrs {
 			continue
 		}
-
-		for attr, val := range dyn.Attrs {
-			if val == "" || !strings.HasPrefix(attr, "data-on") {
-				continue
-			}
-			suffix := strings.TrimPrefix(attr, "data-on")
-			if suffix == "" || strings.HasSuffix(suffix, "-listen") || strings.HasSuffix(suffix, "-props") {
-				continue
-			}
-			event := suffix
-			if event == "" {
-				continue
-			}
-			id := val
-			if id == "" {
-				continue
-			}
-			meta := handlers[id]
-			if meta.Event == "" {
-				meta.Event = event
-			} else if meta.Event != event {
-				meta.Listen = appendIfMissing(meta.Listen, event)
-			}
-			handlers[id] = meta
-		}
-
-		for attr, raw := range dyn.Attrs {
-			if raw == "" || !strings.HasPrefix(attr, "data-on") {
-				continue
-			}
-			suffix := strings.TrimPrefix(attr, "data-on")
-			if suffix == "" {
-				continue
-			}
-			idx := strings.LastIndex(suffix, "-")
-			if idx == -1 {
-				continue
-			}
-			event := suffix[:idx]
-			metaType := suffix[idx+1:]
-			if event == "" || metaType == "" {
-				continue
-			}
-			id := dyn.Attrs["data-on"+event]
-			if id == "" {
-				continue
-			}
-			meta := handlers[id]
-			switch metaType {
-			case "listen":
-				meta.Listen = appendFields(meta.Listen, raw, meta.Event)
-			case "props":
-				meta.Props = appendFields(meta.Props, raw, "")
-			}
-			handlers[id] = meta
-		}
+		mergeHandlerAttrs(handlers, dyn.Attrs)
+	}
+	for _, attrs := range staticAttrMaps(structured.S) {
+		mergeHandlerAttrs(handlers, attrs)
 	}
 	if len(handlers) == 0 {
 		return nil
 	}
 	return handlers
+}
+
+func mergeHandlerAttrs(handlers map[string]protocol.HandlerMeta, attrs map[string]string) {
+	if len(attrs) == 0 {
+		return
+	}
+	for attr, val := range attrs {
+		if val == "" || !strings.HasPrefix(attr, "data-on") {
+			continue
+		}
+		suffix := strings.TrimPrefix(attr, "data-on")
+		if suffix == "" || strings.HasSuffix(suffix, "-listen") || strings.HasSuffix(suffix, "-props") {
+			continue
+		}
+		event := suffix
+		if event == "" {
+			continue
+		}
+		id := val
+		if id == "" {
+			continue
+		}
+		meta := handlers[id]
+		if meta.Event == "" {
+			meta.Event = event
+		} else if meta.Event != event {
+			meta.Listen = appendIfMissing(meta.Listen, event)
+		}
+		handlers[id] = meta
+	}
+	for attr, raw := range attrs {
+		if raw == "" || !strings.HasPrefix(attr, "data-on") {
+			continue
+		}
+		suffix := strings.TrimPrefix(attr, "data-on")
+		if suffix == "" {
+			continue
+		}
+		idx := strings.LastIndex(suffix, "-")
+		if idx == -1 {
+			continue
+		}
+		event := suffix[:idx]
+		metaType := suffix[idx+1:]
+		if event == "" || metaType == "" {
+			continue
+		}
+		id := attrs["data-on"+event]
+		if id == "" {
+			continue
+		}
+		meta := handlers[id]
+		switch metaType {
+		case "listen":
+			meta.Listen = appendFields(meta.Listen, raw, meta.Event)
+		case "props":
+			meta.Props = appendFields(meta.Props, raw, "")
+		}
+		handlers[id] = meta
+	}
+}
+
+func staticAttrMaps(statics []string) []map[string]string {
+	if len(statics) == 0 {
+		return nil
+	}
+	combined := strings.Join(statics, "")
+	out := make([]map[string]string, 0)
+	i := 0
+	for i < len(combined) {
+		if combined[i] != '<' {
+			i++
+			continue
+		}
+		if i+1 < len(combined) {
+			next := combined[i+1]
+			if next == '/' || next == '!' {
+				i++
+				continue
+			}
+		}
+		j := i + 1
+		for j < len(combined) && combined[j] != '>' && !isSpace(combined[j]) {
+			j++
+		}
+		attrs := map[string]string{}
+		k := j
+		for k < len(combined) && combined[k] != '>' {
+			for k < len(combined) && isSpace(combined[k]) {
+				k++
+			}
+			if k >= len(combined) || combined[k] == '>' {
+				break
+			}
+			nameStart := k
+			for k < len(combined) && combined[k] != '=' && !isSpace(combined[k]) && combined[k] != '>' {
+				k++
+			}
+			if k >= len(combined) || combined[k] != '=' {
+				for k < len(combined) && combined[k] != '>' {
+					k++
+				}
+				break
+			}
+			name := combined[nameStart:k]
+			k++
+			for k < len(combined) && isSpace(combined[k]) {
+				k++
+			}
+			if k >= len(combined) || combined[k] != '"' {
+				break
+			}
+			k++
+			valueStart := k
+			for k < len(combined) && combined[k] != '"' {
+				k++
+			}
+			if k >= len(combined) {
+				break
+			}
+			value := combined[valueStart:k]
+			attrs[name] = value
+			k++
+		}
+		if len(attrs) > 0 {
+			out = append(out, attrs)
+		}
+		for i < len(combined) && combined[i] != '>' {
+			i++
+		}
+		i++
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func isSpace(ch byte) bool {
+	switch ch {
+	case ' ', '\n', '\r', '\t':
+		return true
+	default:
+		return false
+	}
 }
 
 func appendIfMissing(list []string, value string) []string {

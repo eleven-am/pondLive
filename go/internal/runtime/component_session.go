@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -78,6 +79,8 @@ type ComponentSession struct {
 	componentBoots        map[string]*componentBootRequest
 	pendingComponentBoots []componentTemplateUpdate
 
+	promotions map[string]*componentPromotionState
+
 	mu sync.Mutex
 }
 
@@ -109,6 +112,33 @@ type componentTemplateUpdate struct {
 	listSlots     []int
 	handlersAdd   map[string]protocol.HandlerMeta
 	handlersDel   []string
+}
+
+type componentPromotionState struct {
+	texts map[string]*textPromotionSlot
+	attrs map[string]*attrPromotionSlot
+}
+
+type textPromotionSlot struct {
+	value   string
+	dynamic bool
+}
+
+type attrPromotionSlot struct {
+	values  map[string]string
+	dynamic bool
+}
+
+type componentSpanPair struct {
+	prev render.ComponentSpan
+	next render.ComponentSpan
+}
+
+type spanRangePair struct {
+	prevStart int
+	prevEnd   int
+	nextStart int
+	nextEnd   int
 }
 
 type pubsubTask struct {
@@ -307,6 +337,297 @@ func stringSliceEqual(a, b []string) bool {
 	return true
 }
 
+func shouldForceDynamicAttr(mutable map[string]bool, attrs map[string]string) bool {
+	if len(mutable) == 0 {
+		return false
+	}
+	if mutable["*"] {
+		return true
+	}
+	if len(attrs) == 0 {
+		return false
+	}
+	for key := range attrs {
+		if mutable[key] {
+			return true
+		}
+	}
+	return false
+}
+
+func attrMapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 {
+		return true
+	}
+	for k, v := range a {
+		if b == nil {
+			return false
+		}
+		if bv, ok := b[k]; !ok || bv != v {
+			return false
+		}
+	}
+	return true
+}
+
+// ResolveTextPromotion implements render.PromotionTracker to decide whether a text node should be dynamic.
+func (s *ComponentSession) ResolveTextPromotion(componentID string, path []int, value string, mutable bool) bool {
+	if s == nil {
+		return mutable
+	}
+	if mutable {
+		if componentID == "" {
+			return true
+		}
+		state := s.ensurePromotionState(componentID)
+		if state == nil {
+			return true
+		}
+		key := promotionPathKey(path)
+		slot, _ := state.ensureTextSlot(key)
+		slot.dynamic = true
+		slot.value = value
+		return true
+	}
+	if componentID == "" {
+		return false
+	}
+	state := s.ensurePromotionState(componentID)
+	if state == nil {
+		return false
+	}
+	key := promotionPathKey(path)
+	slot, created := state.ensureTextSlot(key)
+	if created {
+		slot.value = value
+		return false
+	}
+	if slot.dynamic {
+		slot.value = value
+		return true
+	}
+	if slot.value == value {
+		return false
+	}
+	slot.dynamic = true
+	slot.value = value
+	s.requestComponentBootInternal(componentID)
+	return true
+}
+
+// ResolveAttrPromotion implements render.PromotionTracker to decide whether an element's attributes should be dynamic.
+func (s *ComponentSession) ResolveAttrPromotion(componentID string, path []int, attrs map[string]string, mutable map[string]bool) bool {
+	forceDynamic := shouldForceDynamicAttr(mutable, attrs)
+	if s == nil {
+		return forceDynamic
+	}
+	if componentID == "" {
+		return forceDynamic
+	}
+	state := s.ensurePromotionState(componentID)
+	if state == nil {
+		return forceDynamic
+	}
+	key := promotionPathKey(path)
+	slot, created := state.ensureAttrSlot(key)
+	values := cloneStringMap(attrs)
+	if forceDynamic {
+		slot.dynamic = true
+		slot.values = values
+		return true
+	}
+	if created {
+		slot.values = values
+		return false
+	}
+	if slot.dynamic {
+		slot.values = values
+		return true
+	}
+	if attrMapsEqual(slot.values, attrs) {
+		return false
+	}
+	slot.dynamic = true
+	slot.values = values
+	s.requestComponentBootInternal(componentID)
+	return true
+}
+
+func (s *ComponentSession) ensurePromotionState(componentID string) *componentPromotionState {
+	if componentID == "" {
+		return nil
+	}
+	if s.promotions == nil {
+		s.promotions = make(map[string]*componentPromotionState)
+	}
+	state, ok := s.promotions[componentID]
+	if !ok {
+		state = &componentPromotionState{}
+		s.promotions[componentID] = state
+	}
+	return state
+}
+
+func (s *ComponentSession) clearPromotionState(componentID string) {
+	if s == nil || componentID == "" {
+		return
+	}
+	if s.promotions != nil {
+		delete(s.promotions, componentID)
+	}
+}
+
+func promotionPathKey(path []int) string {
+	if len(path) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for i, idx := range path {
+		if i > 0 {
+			b.WriteByte('/')
+		}
+		b.WriteString(strconv.Itoa(idx))
+	}
+	return b.String()
+}
+
+func (s *componentPromotionState) ensureTextSlot(key string) (*textPromotionSlot, bool) {
+	if s == nil {
+		return nil, false
+	}
+	if s.texts == nil {
+		s.texts = make(map[string]*textPromotionSlot)
+	}
+	slot, ok := s.texts[key]
+	if !ok {
+		slot = &textPromotionSlot{}
+		s.texts[key] = slot
+		return slot, true
+	}
+	return slot, false
+}
+
+func (s *componentPromotionState) ensureAttrSlot(key string) (*attrPromotionSlot, bool) {
+	if s == nil {
+		return nil, false
+	}
+	if s.attrs == nil {
+		s.attrs = make(map[string]*attrPromotionSlot)
+	}
+	slot, ok := s.attrs[key]
+	if !ok {
+		slot = &attrPromotionSlot{}
+		s.attrs[key] = slot
+		return slot, true
+	}
+	return slot, false
+}
+
+func alignStructured(prev, next render.Structured, spans []componentSpanPair) render.Structured {
+	if len(spans) == 0 {
+		return render.Structured{}
+	}
+	aligned := render.Structured{}
+	staticsPairs := make([]spanRangePair, 0, len(spans))
+	dynamicsPairs := make([]spanRangePair, 0, len(spans))
+	for _, pair := range spans {
+		staticsPairs = append(staticsPairs, spanRangePair{
+			prevStart: pair.prev.StaticsStart,
+			prevEnd:   pair.prev.StaticsEnd,
+			nextStart: pair.next.StaticsStart,
+			nextEnd:   pair.next.StaticsEnd,
+		})
+		dynamicsPairs = append(dynamicsPairs, spanRangePair{
+			prevStart: pair.prev.DynamicsStart,
+			prevEnd:   pair.prev.DynamicsEnd,
+			nextStart: pair.next.DynamicsStart,
+			nextEnd:   pair.next.DynamicsEnd,
+		})
+	}
+	sort.Slice(staticsPairs, func(i, j int) bool { return staticsPairs[i].nextStart < staticsPairs[j].nextStart })
+	sort.Slice(dynamicsPairs, func(i, j int) bool { return dynamicsPairs[i].nextStart < dynamicsPairs[j].nextStart })
+	if len(next.S) > 0 {
+		aligned.S = alignStrings(prev.S, next.S, staticsPairs)
+	}
+	if len(next.D) > 0 {
+		aligned.D = alignDynamics(prev.D, next.D, dynamicsPairs)
+	}
+	return aligned
+}
+
+func alignStrings(prev, next []string, pairs []spanRangePair) []string {
+	if len(next) == 0 {
+		return nil
+	}
+	aligned := make([]string, len(next))
+	delta := 0
+	pairIdx := 0
+	for nextIdx := 0; nextIdx < len(next); nextIdx++ {
+		for pairIdx < len(pairs) && nextIdx >= pairs[pairIdx].nextEnd {
+			delta += (pairs[pairIdx].nextEnd - pairs[pairIdx].nextStart) - (pairs[pairIdx].prevEnd - pairs[pairIdx].prevStart)
+			pairIdx++
+		}
+		if pairIdx < len(pairs) && nextIdx >= pairs[pairIdx].nextStart && nextIdx < pairs[pairIdx].nextEnd {
+			offset := nextIdx - pairs[pairIdx].nextStart
+			prevLen := pairs[pairIdx].prevEnd - pairs[pairIdx].prevStart
+			if offset < prevLen {
+				idx := pairs[pairIdx].prevStart + offset
+				if idx >= 0 && idx < len(prev) {
+					aligned[nextIdx] = prev[idx]
+					continue
+				}
+			}
+			aligned[nextIdx] = next[nextIdx]
+			continue
+		}
+		prevIdx := nextIdx - delta
+		if prevIdx >= 0 && prevIdx < len(prev) {
+			aligned[nextIdx] = prev[prevIdx]
+		} else {
+			aligned[nextIdx] = next[nextIdx]
+		}
+	}
+	return aligned
+}
+
+func alignDynamics(prev, next []render.Dyn, pairs []spanRangePair) []render.Dyn {
+	if len(next) == 0 {
+		return nil
+	}
+	aligned := make([]render.Dyn, len(next))
+	delta := 0
+	pairIdx := 0
+	for nextIdx := 0; nextIdx < len(next); nextIdx++ {
+		for pairIdx < len(pairs) && nextIdx >= pairs[pairIdx].nextEnd {
+			delta += (pairs[pairIdx].nextEnd - pairs[pairIdx].nextStart) - (pairs[pairIdx].prevEnd - pairs[pairIdx].prevStart)
+			pairIdx++
+		}
+		if pairIdx < len(pairs) && nextIdx >= pairs[pairIdx].nextStart && nextIdx < pairs[pairIdx].nextEnd {
+			offset := nextIdx - pairs[pairIdx].nextStart
+			prevLen := pairs[pairIdx].prevEnd - pairs[pairIdx].prevStart
+			if offset < prevLen {
+				idx := pairs[pairIdx].prevStart + offset
+				if idx >= 0 && idx < len(prev) {
+					aligned[nextIdx] = prev[idx]
+					continue
+				}
+			}
+			aligned[nextIdx] = next[nextIdx]
+			continue
+		}
+		prevIdx := nextIdx - delta
+		if prevIdx >= 0 && prevIdx < len(prev) {
+			aligned[nextIdx] = prev[prevIdx]
+		} else {
+			aligned[nextIdx] = next[nextIdx]
+		}
+	}
+	return aligned
+}
+
 func (s *ComponentSession) requestTemplateReset() {
 	if s == nil {
 		return
@@ -338,6 +659,7 @@ func (s *ComponentSession) unregisterComponentInstance(c *component) {
 		delete(s.componentBoots, c.id)
 	}
 	s.componentsMu.Unlock()
+	s.clearPromotionState(c.id)
 }
 
 func (s *ComponentSession) componentByID(id string) *component {
@@ -350,15 +672,15 @@ func (s *ComponentSession) componentByID(id string) *component {
 }
 
 // RequestComponentBoot schedules a template refresh for the component identified by id.
-func (s *ComponentSession) RequestComponentBoot(id string) {
+func (s *ComponentSession) requestComponentBootInternal(id string) *component {
 	if s == nil || id == "" {
-		return
+		return nil
 	}
 	s.componentsMu.RLock()
 	comp := s.components[id]
 	s.componentsMu.RUnlock()
 	if comp == nil {
-		return
+		return nil
 	}
 
 	s.componentsMu.Lock()
@@ -367,6 +689,16 @@ func (s *ComponentSession) RequestComponentBoot(id string) {
 	}
 	s.componentBoots[id] = &componentBootRequest{component: comp}
 	s.componentsMu.Unlock()
+
+	return comp
+}
+
+// RequestComponentBoot schedules a template refresh for the component identified by id.
+func (s *ComponentSession) RequestComponentBoot(id string) {
+	comp := s.requestComponentBootInternal(id)
+	if comp == nil {
+		return
+	}
 
 	if s.currentComponent() != nil {
 		return
@@ -744,7 +1076,7 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 	if err := s.withRecovery("initial", func() error {
 		reg := s.ensureRegistry()
 		node := s.root.render()
-		structured = render.ToStructuredWithHandlers(node, reg)
+		structured = render.ToStructuredWithOptions(node, render.StructuredOptions{Handlers: reg, Promotions: s})
 		s.prev = structured
 		s.dirtyRoot = false
 		s.pendingFlush = false
@@ -850,12 +1182,10 @@ func (s *ComponentSession) Flush() error {
 			s.root.markSelfDirty()
 		}
 		node := s.root.render()
-		next := render.ToStructuredWithHandlers(node, reg)
+		next := render.ToStructuredWithOptions(node, render.StructuredOptions{Handlers: reg, Promotions: s})
 		requests := s.consumeComponentBootRequests()
 		autoRequests, rootChange := s.autoComponentBootRequests(s.prev, next)
-		if rootChange {
-			requests = nil
-		} else if len(autoRequests) > 0 {
+		if len(autoRequests) > 0 {
 			if requests == nil {
 				requests = autoRequests
 			} else {
@@ -870,25 +1200,37 @@ func (s *ComponentSession) Flush() error {
 		if rootChange {
 			forceTemplate = true
 		}
+		skipDiff := false
 		var opDiff []diff.Op
 		diffInput := next
-		if len(requests) > 0 && !forceTemplate {
-			if len(next.S) != len(s.prev.S) || len(next.D) != len(s.prev.D) {
+		prevForDiff := s.prev
+		if len(requests) > 0 {
+			var sanitized render.Structured
+			var prevAligned render.Structured
+			var ok bool
+			componentUpdates, sanitized, prevAligned, ok = s.prepareComponentBoots(requests, s.prev, next, reg)
+			if !ok {
 				forceTemplate = true
+				componentUpdates = nil
 				requests = nil
-			} else {
-				var sanitized render.Structured
-				componentUpdates, sanitized = s.prepareComponentBoots(requests, s.prev, next, reg)
+			} else if !forceTemplate {
 				diffInput = sanitized
+				if len(prevAligned.S) > 0 || len(prevAligned.D) > 0 {
+					prevForDiff = prevAligned
+				}
+				if rootChange {
+					skipDiff = true
+				}
 			}
 		}
 		if forceTemplate {
 			html := render.RenderHTML(node, reg)
 			s.setTemplateUpdate(templateUpdate{structured: next, html: html})
 			opDiff = nil
-			componentUpdates = nil
+		} else if skipDiff {
+			opDiff = nil
 		} else {
-			sanitizedPrev := sanitizeStructuredForDiff(s.prev)
+			sanitizedPrev := sanitizeStructuredForDiff(prevForDiff)
 			sanitizedNext := sanitizeStructuredForDiff(diffInput)
 			opDiff = diff.Diff(sanitizedPrev, sanitizedNext)
 		}
@@ -1045,9 +1387,9 @@ func runEffects(tasks []effectTask) (total time.Duration, max time.Duration, slo
 	return
 }
 
-func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentBootRequest, prev, next render.Structured, reg handlers.Registry) ([]componentTemplateUpdate, render.Structured) {
+func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentBootRequest, prev, next render.Structured, reg handlers.Registry) ([]componentTemplateUpdate, render.Structured, render.Structured, bool) {
 	if len(requests) == 0 {
-		return nil, next
+		return nil, next, render.Structured{}, true
 	}
 	sanitized := render.Structured{
 		S:          append([]string(nil), next.S...),
@@ -1055,6 +1397,7 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		Components: next.Components,
 	}
 	updates := make([]componentTemplateUpdate, 0, len(requests))
+	spanPairs := make([]componentSpanPair, 0, len(requests))
 	for id, req := range requests {
 		span, ok := next.Components[id]
 		if !ok {
@@ -1080,7 +1423,14 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 			}
 		}
 		if req != nil && req.component != nil {
-			update.html = render.RenderHTML(req.component.node, reg)
+			node := req.component.render()
+			if html := render.RenderHTML(node, reg); html != "" {
+				update.html = html
+			} else {
+				update.html = strings.Join(update.statics, "")
+			}
+		} else {
+			update.html = strings.Join(update.statics, "")
 		}
 		newStructured := render.Structured{
 			S: append([]string(nil), update.statics...),
@@ -1094,6 +1444,7 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 				D: append([]render.Dyn(nil), prev.D[prevSpan.DynamicsStart:prevSpan.DynamicsEnd]...),
 			}
 			oldHandlers = extractHandlerMeta(oldStructured)
+			spanPairs = append(spanPairs, componentSpanPair{prev: prevSpan, next: span})
 		}
 		addHandlers, removeHandlers := diffHandlerMeta(oldHandlers, newHandlers)
 		if len(addHandlers) > 0 {
@@ -1110,7 +1461,11 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		}
 		updates = append(updates, update)
 	}
-	return updates, sanitized
+	if len(spanPairs) == 0 && (len(prev.S) != len(next.S) || len(prev.D) != len(next.D)) {
+		return nil, render.Structured{}, render.Structured{}, false
+	}
+	alignedPrev := alignStructured(prev, next, spanPairs)
+	return updates, sanitized, alignedPrev, true
 }
 
 func (s *ComponentSession) autoComponentBootRequests(prev, next render.Structured) (map[string]*componentBootRequest, bool) {

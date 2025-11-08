@@ -1165,6 +1165,8 @@ var LiveUIModule = (() => {
     dom: () => dom_index_exports,
     getPatcherConfig: () => getPatcherConfig,
     getPatcherStats: () => getPatcherStats,
+    getRefElement: () => getRefElement,
+    getRefMeta: () => getRefMeta,
     morphElement: () => morphElement
   });
 
@@ -1183,6 +1185,7 @@ var LiveUIModule = (() => {
     registerSlot: () => registerSlot,
     reset: () => reset,
     setRow: () => setRow,
+    unregisterList: () => unregisterList,
     unregisterSlot: () => unregisterSlot
   });
   var slotMap = /* @__PURE__ */ new Map();
@@ -1208,6 +1211,9 @@ var LiveUIModule = (() => {
   }
   function unregisterSlot(index) {
     slotMap.delete(index);
+  }
+  function unregisterList(slotIndex) {
+    listMap.delete(slotIndex);
   }
   function reset() {
     slotMap.clear();
@@ -1252,6 +1258,194 @@ var LiveUIModule = (() => {
   function deleteRow(slotIndex, key) {
     const list = ensureList(slotIndex);
     list.rows.delete(key);
+  }
+
+  // src/refs.ts
+  var registry = /* @__PURE__ */ new Map();
+  function escapeAttributeValue(value) {
+    if (typeof value !== "string") {
+      return "";
+    }
+    if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+      return CSS.escape(value);
+    }
+    return value.replace(/["]|\\/g, "\\$&");
+  }
+  function queryRefElement(id) {
+    if (typeof document === "undefined" || !id) {
+      return null;
+    }
+    const selector = `[data-live-ref="${escapeAttributeValue(id)}"]`;
+    try {
+      return document.querySelector(selector);
+    } catch (_error) {
+      return document.querySelector(`[data-live-ref="${id}"]`);
+    }
+  }
+  function ensureRecord(id, meta) {
+    let record = registry.get(id);
+    if (!record) {
+      record = {
+        id,
+        meta: meta ?? { tag: "" },
+        element: queryRefElement(id)
+      };
+      registry.set(id, record);
+    } else if (meta) {
+      record.meta = meta;
+      if (!record.element) {
+        record.element = queryRefElement(id);
+      }
+    }
+    return record;
+  }
+  function attachRef(id, element) {
+    if (!id) {
+      return;
+    }
+    const record = ensureRecord(id);
+    record.element = element;
+    if (!record.meta.tag) {
+      record.meta = { ...record.meta, tag: element.tagName.toLowerCase() };
+    }
+  }
+  function detachRef(id, element) {
+    const record = registry.get(id);
+    if (!record) {
+      return;
+    }
+    if (!element || record.element === element) {
+      record.element = null;
+    }
+  }
+  function forEachRefElement(root, visit) {
+    if (root instanceof Element) {
+      visit(root);
+    }
+    const selectorAll = root.querySelectorAll?.bind(root);
+    if (typeof selectorAll !== "function") {
+      return;
+    }
+    const matches = selectorAll("[data-live-ref]");
+    matches.forEach((node) => {
+      if (node instanceof Element) {
+        visit(node);
+      }
+    });
+  }
+  function clearRefs() {
+    registry.clear();
+  }
+  function registerRefs(refs) {
+    if (!refs) {
+      return;
+    }
+    for (const [id, meta] of Object.entries(refs)) {
+      if (!id) {
+        continue;
+      }
+      ensureRecord(id, meta);
+    }
+  }
+  function unregisterRefs(ids) {
+    if (!Array.isArray(ids)) {
+      return;
+    }
+    for (const id of ids) {
+      if (!id) {
+        continue;
+      }
+      registry.delete(id);
+    }
+  }
+  function bindRefsInTree(root) {
+    if (!root || typeof document === "undefined") {
+      return;
+    }
+    forEachRefElement(root, (el) => {
+      const id = el.getAttribute("data-live-ref");
+      if (id) {
+        attachRef(id, el);
+      }
+    });
+  }
+  function unbindRefsInTree(root) {
+    if (!root || typeof document === "undefined") {
+      return;
+    }
+    forEachRefElement(root, (el) => {
+      const id = el.getAttribute("data-live-ref");
+      if (id) {
+        detachRef(id, el);
+      }
+    });
+  }
+  function updateRefBinding(element, previousId, nextId) {
+    if (previousId && (!nextId || previousId !== nextId)) {
+      detachRef(previousId, element);
+    }
+    if (nextId) {
+      attachRef(nextId, element);
+    } else if (previousId && !nextId) {
+      detachRef(previousId, element);
+    }
+  }
+  function getRefElement(id) {
+    const record = registry.get(id);
+    return record?.element ?? null;
+  }
+  function getRefMeta(id) {
+    const record = registry.get(id);
+    return record?.meta ?? null;
+  }
+  function findClosestRefElement(element) {
+    let current = element;
+    while (current) {
+      if (typeof current.getAttribute === "function") {
+        const id = current.getAttribute("data-live-ref");
+        if (id) {
+          return current;
+        }
+      }
+      current = current.parentElement;
+    }
+    return null;
+  }
+  function refSupportsEvent(meta, eventType) {
+    if (!meta || !meta.events) {
+      return false;
+    }
+    for (const [primary, eventMeta] of Object.entries(meta.events)) {
+      if (primary === eventType) {
+        return true;
+      }
+      if (eventMeta?.listen && eventMeta.listen.includes(eventType)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  function notifyRefEvent(element, eventType, payload) {
+    if (!element || !eventType) {
+      return;
+    }
+    const refElement = findClosestRefElement(element);
+    if (!refElement) {
+      return;
+    }
+    const id = refElement.getAttribute("data-live-ref");
+    if (!id) {
+      return;
+    }
+    const record = ensureRecord(id);
+    record.element = refElement;
+    if (!refSupportsEvent(record.meta, eventType)) {
+      return;
+    }
+    if (!record.lastPayloads) {
+      record.lastPayloads = /* @__PURE__ */ Object.create(null);
+    }
+    record.lastPayloads[eventType] = { ...payload };
   }
 
   // src/patcher.ts
@@ -1390,6 +1584,7 @@ var LiveUIModule = (() => {
     if (!(node instanceof Element)) {
       throw new Error(`liveui: slot ${slotIndex} is not an element`);
     }
+    const previousRef = node.getAttribute("data-live-ref");
     const applyAttrs = () => {
       if (upsert) {
         for (const [k, v] of Object.entries(upsert)) {
@@ -1407,6 +1602,8 @@ var LiveUIModule = (() => {
           }
         }
       }
+      const nextRef = node.getAttribute("data-live-ref");
+      updateRefBinding(node, previousRef, nextRef);
     };
     if (config.enableBatching) {
       batcher.scheduleWrite(applyAttrs);
@@ -1492,6 +1689,7 @@ var LiveUIModule = (() => {
           const row = getRow(slotIndex, key);
           if (row && row.parentNode === container) {
             const removeNode = () => {
+              unbindRefsInTree(row);
               container.removeChild(row);
             };
             if (config.enableBatching) {
@@ -1525,6 +1723,11 @@ var LiveUIModule = (() => {
           const insertNode = () => {
             const refNode = config.enableBatching ? children[pos] || null : container.children[pos] || null;
             container.insertBefore(fragment, refNode);
+            for (const inserted of nodes) {
+              if (inserted instanceof Element) {
+                bindRefsInTree(inserted);
+              }
+            }
             const root = nodes[0];
             if (root instanceof Element) {
               setRow(slotIndex, payload.key, root);
@@ -1795,6 +1998,7 @@ var LiveUIModule = (() => {
       const handler = handlers.get(handlerInfo.id);
       if (handler && handlerSupportsEvent(handler, eventType)) {
         const payload = extractEventPayload(e, target, handler.props, handlerInfo.element);
+        notifyRefEvent(handlerInfo.element, eventType, payload);
         if (eventType === "submit") {
           e.preventDefault();
         }
@@ -2522,6 +2726,11 @@ var LiveUIModule = (() => {
         registerHandlers(boot.handlers);
         syncEventListeners();
       }
+      clearRefs();
+      registerRefs(boot.refs);
+      if (typeof document !== "undefined") {
+        bindRefsInTree(document);
+      }
       this.registerInitialDom(boot);
       if (typeof window !== "undefined" && boot.location) {
         const queryPart = boot.location.q ? `?${boot.location.q}` : "";
@@ -2908,6 +3117,7 @@ var LiveUIModule = (() => {
       this.sessionId.set(null);
       this.version.set(0);
       clearHandlers();
+      clearRefs();
       teardownEventDelegation();
       unregisterNavigationHandler();
       this.uploads?.onDisconnect();
@@ -3132,6 +3342,11 @@ var LiveUIModule = (() => {
         registerHandlers(msg.handlers);
         syncEventListeners();
       }
+      clearRefs();
+      registerRefs(msg.refs);
+      if (typeof document !== "undefined") {
+        bindRefsInTree(document);
+      }
       if (msg.seq !== void 0) {
         this.lastAck = msg.seq;
         this.sendAck(msg.seq);
@@ -3210,6 +3425,14 @@ var LiveUIModule = (() => {
         }
         syncEventListeners();
       }
+      if (msg.refs) {
+        if (msg.refs.del) {
+          unregisterRefs(msg.refs.del);
+        }
+        if (msg.refs.add) {
+          registerRefs(msg.refs.add);
+        }
+      }
       if (msg.nav) {
         const now = Date.now();
         const wasOptimistic = now - this.lastOptimisticNavTime < this.OPTIMISTIC_NAV_WINDOW;
@@ -3267,6 +3490,9 @@ var LiveUIModule = (() => {
           switch (effectType) {
             case "boot":
               this.applyBootEffect(effect);
+              break;
+            case "componentboot":
+              this.applyComponentBootEffect(effect);
               break;
             case "scroll":
             case "scrolltop":
@@ -3610,6 +3836,129 @@ var LiveUIModule = (() => {
       }
       this.bootHandler.load(boot);
       syncEventListeners();
+    }
+    applyComponentBootEffect(effect) {
+      if (typeof document === "undefined") return;
+      if (!effect || !effect.componentId) return;
+      const { componentId, html, slots, listSlots } = effect;
+      const bounds = this.findComponentBounds(componentId);
+      if (!bounds) {
+        if (this.options.debug) {
+          console.warn(`liveui: component ${componentId} bounds not found for componentBoot effect`);
+        }
+        return;
+      }
+      if (Array.isArray(slots)) {
+        for (const slot of slots) {
+          unregisterSlot(slot);
+        }
+      }
+      if (Array.isArray(listSlots)) {
+        for (const slot of listSlots) {
+          unregisterList(slot);
+        }
+      }
+      clearPatcherCaches();
+      const template = document.createElement("template");
+      template.innerHTML = html || "";
+      const fragment = template.content.cloneNode(true);
+      const range = document.createRange();
+      range.setStartBefore(bounds.start);
+      range.setEndAfter(bounds.end);
+      range.deleteContents();
+      range.insertNode(fragment);
+      range.detach();
+      const refreshed = this.findComponentBounds(componentId);
+      if (!refreshed) {
+        if (this.options.debug) {
+          console.warn(`liveui: component ${componentId} bounds missing after componentBoot replacement`);
+        }
+        return;
+      }
+      this.registerComponentAnchors(
+        refreshed,
+        Array.isArray(slots) ? slots : [],
+        Array.isArray(listSlots) ? listSlots : []
+      );
+    }
+    findComponentBounds(id) {
+      if (typeof document === "undefined" || !id) return null;
+      const startMarker = `live-component:start:${id}`;
+      const endMarker = `live-component:end:${id}`;
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_COMMENT
+      );
+      let startNode = null;
+      while (walker.nextNode()) {
+        const current = walker.currentNode;
+        if (current.data === startMarker) {
+          startNode = current;
+          break;
+        }
+      }
+      if (!startNode) return null;
+      let endNode = null;
+      while (walker.nextNode()) {
+        const current = walker.currentNode;
+        if (current.data === endMarker) {
+          endNode = current;
+          break;
+        }
+      }
+      if (!endNode) return null;
+      return { start: startNode, end: endNode };
+    }
+    registerComponentAnchors(bounds, slots, listSlots) {
+      const slotSet = new Set(slots ?? []);
+      const listSet = new Set(listSlots ?? []);
+      const queue = [];
+      for (let node = bounds.start.nextSibling; node && node !== bounds.end; node = node.nextSibling) {
+        queue.push(node);
+      }
+      while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current) continue;
+        if (current instanceof Element) {
+          this.registerElementSlots(current, slotSet);
+          this.registerListContainer(current, listSet);
+          for (let child = current.firstChild; child; child = child.nextSibling) {
+            queue.push(child);
+          }
+        }
+      }
+    }
+    registerElementSlots(element, slots) {
+      const raw = element.getAttribute("data-slot-index");
+      if (!raw) return;
+      const tokens = raw.split(/\s+/);
+      for (const token of tokens) {
+        const trimmed = token.trim();
+        if (trimmed.length === 0) continue;
+        const [slotPart, childPart] = trimmed.split("@", 2);
+        const slotId = Number(slotPart);
+        if (Number.isNaN(slotId)) continue;
+        if (slots.size > 0 && !slots.has(slotId)) continue;
+        let target = element;
+        if (childPart !== void 0) {
+          const childIndex = Number(childPart);
+          if (!Number.isNaN(childIndex)) {
+            const childNode = element.childNodes.item(childIndex);
+            if (childNode) {
+              target = childNode;
+            }
+          }
+        }
+        registerSlot(slotId, target);
+      }
+    }
+    registerListContainer(element, listSlots) {
+      const attr = element.getAttribute("data-list-slot");
+      if (!attr) return;
+      const slotId = Number(attr);
+      if (Number.isNaN(slotId)) return;
+      if (listSlots.size > 0 && !listSlots.has(slotId)) return;
+      registerList(slotId, element);
     }
     dispatchCustomEvent(eventName, detail) {
       const event = new CustomEvent(eventName, {

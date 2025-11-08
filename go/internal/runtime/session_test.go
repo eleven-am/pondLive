@@ -8,7 +8,6 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
-	render "github.com/eleven-am/pondlive/go/internal/render"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -43,15 +42,7 @@ func TestSessionUseStateAndFlush(t *testing.T) {
 	if len(structured.D) == 0 {
 		t.Fatalf("expected structured render to have dynamics")
 	}
-	var handlerID handlers.ID
-	for _, dyn := range structured.D {
-		if dyn.Kind == render.DynAttrs {
-			if id, ok := dyn.Attrs["data-onclick"]; ok {
-				handlerID = handlers.ID(id)
-				break
-			}
-		}
-	}
+	handlerID := findHandlerAttr(structured, "data-onclick")
 	if handlerID == "" {
 		t.Fatal("expected click handler id")
 	}

@@ -18,6 +18,51 @@ func firstText(structured render.Structured) string {
 			return dyn.Text
 		}
 	}
+	combined := strings.Join(structured.S, "")
+	if combined == "" {
+		return ""
+	}
+	var segment strings.Builder
+	inTag := false
+	inComment := false
+	for i := 0; i < len(combined); i++ {
+		if inComment {
+			if i+2 < len(combined) && combined[i] == '-' && combined[i+1] == '-' && combined[i+2] == '>' {
+				inComment = false
+				i += 2
+			}
+			continue
+		}
+		ch := combined[i]
+		if ch == '<' {
+			if segment.Len() > 0 {
+				text := strings.TrimSpace(segment.String())
+				segment.Reset()
+				if text != "" {
+					return text
+				}
+			}
+			inTag = true
+			if i+3 < len(combined) && combined[i+1] == '!' && combined[i+2] == '-' && combined[i+3] == '-' {
+				inComment = true
+			}
+			continue
+		}
+		if ch == '>' && inTag {
+			inTag = false
+			continue
+		}
+		if inTag {
+			continue
+		}
+		segment.WriteByte(ch)
+	}
+	if segment.Len() > 0 {
+		text := strings.TrimSpace(segment.String())
+		if text != "" {
+			return text
+		}
+	}
 	return ""
 }
 
@@ -293,7 +338,10 @@ func TestContextUseSelect(t *testing.T) {
 		t.Fatalf("flush error: %v", err)
 	}
 	if len(recorder.ops) == 0 {
-		t.Fatalf("expected ops when derived value changes")
+		boots := sess.consumeComponentBoots()
+		if len(boots) == 0 {
+			t.Fatalf("expected ops or component boot when derived value changes")
+		}
 	}
 }
 

@@ -25,6 +25,8 @@ type Element struct {
 	Events map[string]EventBinding
 	Unsafe *string
 	RefID  string
+
+	MutableAttrs map[string]bool
 }
 
 func (*Element) isNode()         {}
@@ -32,7 +34,8 @@ func (*Element) privateNodeTag() {}
 
 // TextNode is a text node; Value is escaped at render time.
 type TextNode struct {
-	Value string
+	Value   string
+	Mutable bool
 }
 
 func (*TextNode) isNode()         {}

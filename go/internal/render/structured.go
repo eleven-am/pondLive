@@ -1,6 +1,7 @@
 package render
 
 import (
+	"html"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,6 +42,18 @@ type Structured struct {
 	Components map[string]ComponentSpan
 }
 
+// PromotionTracker allows callers to control when static nodes should become dynamic.
+type PromotionTracker interface {
+	ResolveTextPromotion(componentID string, path []int, value string, mutable bool) bool
+	ResolveAttrPromotion(componentID string, path []int, attrs map[string]string, mutable map[string]bool) bool
+}
+
+// StructuredOptions configures structured rendering.
+type StructuredOptions struct {
+	Handlers   handlers.Registry
+	Promotions PromotionTracker
+}
+
 // ComponentSpan captures the statics and dynamic slot ranges associated with a component subtree.
 type ComponentSpan struct {
 	StaticsStart  int
@@ -51,17 +64,22 @@ type ComponentSpan struct {
 
 // ToStructured lowers a node tree into structured statics and dynamics.
 func ToStructured(n h.Node) Structured {
-	return ToStructuredWithHandlers(n, nil)
+	return ToStructuredWithOptions(n, StructuredOptions{})
 }
 
 // ToStructuredWithHandlers lowers a node tree into structured statics and
 // dynamics while registering handlers in the provided registry.
 func ToStructuredWithHandlers(n h.Node, reg handlers.Registry) Structured {
+	return ToStructuredWithOptions(n, StructuredOptions{Handlers: reg})
+}
+
+// ToStructuredWithOptions lowers a node tree into structured statics and dynamics with custom behaviour.
+func ToStructuredWithOptions(n h.Node, opts StructuredOptions) Structured {
 	if n == nil {
 		return Structured{}
 	}
-	FinalizeWithHandlers(n, reg)
-	b := &structuredBuilder{}
+	FinalizeWithHandlers(n, opts.Handlers)
+	b := &structuredBuilder{tracker: opts.Promotions}
 	b.visit(n)
 	b.flush()
 	return Structured{S: b.statics, D: b.dynamics, Components: b.components}
@@ -73,12 +91,24 @@ type structuredBuilder struct {
 	dynamics   []Dyn
 	stack      []elementFrame
 	components map[string]ComponentSpan
+
+	tracker        PromotionTracker
+	componentStack []componentFrame
+	componentPath  []int
 }
 
 type elementFrame struct {
-	attrSlot int
-	element  *h.Element
-	bindings []slotBinding
+	attrSlot    int
+	element     *h.Element
+	bindings    []slotBinding
+	startStatic int
+	void        bool
+	staticAttrs bool
+}
+
+type componentFrame struct {
+	id       string
+	prevPath []int
 }
 
 type slotBinding struct {
@@ -107,8 +137,7 @@ func (b *structuredBuilder) addDyn(d Dyn) int {
 func (b *structuredBuilder) visit(n h.Node) {
 	switch v := n.(type) {
 	case *h.TextNode:
-		idx := b.addDyn(Dyn{Kind: DynText, Text: v.Value})
-		b.appendSlotToCurrent(idx, v)
+		b.visitText(v)
 	case *h.Element:
 		b.visitElement(v)
 	case *h.FragmentNode:
@@ -120,6 +149,26 @@ func (b *structuredBuilder) visit(n h.Node) {
 	case *h.ComponentNode:
 		b.visitComponentNode(v)
 	}
+}
+
+func (b *structuredBuilder) visitText(t *h.TextNode) {
+	if t == nil {
+		return
+	}
+	dynamic := t.Mutable
+	if !dynamic {
+		if tracker := b.tracker; tracker != nil {
+			componentID := b.currentComponentID()
+			path := b.currentComponentPath()
+			dynamic = tracker.ResolveTextPromotion(componentID, path, t.Value, t.Mutable)
+		}
+	}
+	if dynamic {
+		idx := b.addDyn(Dyn{Kind: DynText, Text: t.Value})
+		b.appendSlotToCurrent(idx, t)
+		return
+	}
+	b.writeStatic(html.EscapeString(t.Value))
 }
 
 func (b *structuredBuilder) visitComponentNode(v *h.ComponentNode) {
@@ -135,9 +184,11 @@ func (b *structuredBuilder) visitComponentNode(v *h.ComponentNode) {
 	b.writeStatic("<!--")
 	b.writeStatic(escapeComment(h.ComponentStartMarker(v.ID)))
 	b.writeStatic("-->")
+	b.pushComponent(v.ID)
 	if v.Child != nil {
 		b.visit(v.Child)
 	}
+	b.popComponent()
 	b.writeStatic("<!--")
 	b.writeStatic(escapeComment(h.ComponentEndMarker(v.ID)))
 	b.writeStatic("-->")
@@ -158,35 +209,67 @@ func (b *structuredBuilder) visitElement(v *h.Element) {
 	if v == nil {
 		return
 	}
-	b.writeStatic("<")
-	b.writeStatic(v.Tag)
-	d := Dyn{Kind: DynAttrs}
-	if len(v.Attrs) > 0 {
-		d.Attrs = copyAttrs(v.Attrs)
-	} else {
-		d.Attrs = map[string]string{}
-	}
-	attrSlot := b.addDyn(d)
-	b.pushFrame(v, attrSlot)
-	defer b.popFrame()
+	void := false
 	if _, ok := voidElements[strings.ToLower(v.Tag)]; ok {
-		b.writeStatic("/>")
+		void = true
+	}
+	dynamicAttrs := b.shouldUseDynamicAttrs(v)
+	attrSlot := -1
+	startStatic := -1
+	if dynamicAttrs {
+		b.writeStatic("<")
+		b.writeStatic(v.Tag)
+		attrs := copyAttrs(v.Attrs)
+		if attrs == nil {
+			attrs = map[string]string{}
+		}
+		attrSlot = b.addDyn(Dyn{Kind: DynAttrs, Attrs: attrs})
+		startStatic = len(b.statics) - 1
+	} else {
+		start := renderStartTag(v, void)
+		b.writeStatic(start)
+		b.flush()
+		startStatic = len(b.statics) - 1
+	}
+	b.pushFrame(v, attrSlot, startStatic, void, !dynamicAttrs)
+	defer b.popFrame()
+	if dynamicAttrs {
+		if void {
+			b.writeStatic("/>")
+			return
+		}
+		b.writeStatic(">")
+	} else if void {
 		return
 	}
-	b.writeStatic(">")
 	if v.Unsafe != nil {
 		b.writeStatic(*v.Unsafe)
 	} else if !b.tryKeyedChildren(v, v.Children, attrSlot) {
-		for _, child := range v.Children {
+		for idx, child := range v.Children {
 			if child == nil {
 				continue
 			}
+			b.pushChildIndex(idx)
 			b.visit(child)
+			b.popChildIndex()
 		}
 	}
 	b.writeStatic("</")
 	b.writeStatic(v.Tag)
 	b.writeStatic(">")
+}
+
+func (b *structuredBuilder) shouldUseDynamicAttrs(el *h.Element) bool {
+	if el == nil {
+		return false
+	}
+	mutable := el.MutableAttrs
+	if tracker := b.tracker; tracker != nil {
+		componentID := b.currentComponentID()
+		path := b.currentComponentPath()
+		return tracker.ResolveAttrPromotion(componentID, path, el.Attrs, mutable)
+	}
+	return shouldForceDynamicAttrs(mutable, el.Attrs)
 }
 
 func (b *structuredBuilder) visitFragment(f *h.FragmentNode) {
@@ -196,17 +279,21 @@ func (b *structuredBuilder) visitFragment(f *h.FragmentNode) {
 	if b.tryKeyedChildren(nil, f.Children, -1) {
 		return
 	}
-	for _, child := range f.Children {
+	for idx, child := range f.Children {
 		if child == nil {
 			continue
 		}
+		b.pushChildIndex(idx)
 		b.visit(child)
+		b.popChildIndex()
 	}
 }
 
-func (b *structuredBuilder) pushFrame(el *h.Element, attrSlot int) {
-	frame := elementFrame{attrSlot: attrSlot, element: el}
-	frame.bindings = append(frame.bindings, slotBinding{slot: attrSlot, childIndex: -1})
+func (b *structuredBuilder) pushFrame(el *h.Element, attrSlot, startStatic int, void, staticAttrs bool) {
+	frame := elementFrame{attrSlot: attrSlot, element: el, startStatic: startStatic, void: void, staticAttrs: staticAttrs}
+	if attrSlot >= 0 {
+		frame.bindings = append(frame.bindings, slotBinding{slot: attrSlot, childIndex: -1})
+	}
 	b.stack = append(b.stack, frame)
 }
 
@@ -222,6 +309,52 @@ func (b *structuredBuilder) appendSlotToCurrent(slot int, node h.Node) {
 	frame.bindings = append(frame.bindings, binding)
 }
 
+func (b *structuredBuilder) pushChildIndex(idx int) {
+	if len(b.componentStack) == 0 {
+		return
+	}
+	b.componentPath = append(b.componentPath, idx)
+}
+
+func (b *structuredBuilder) popChildIndex() {
+	if len(b.componentStack) == 0 {
+		return
+	}
+	if l := len(b.componentPath); l > 0 {
+		b.componentPath = b.componentPath[:l-1]
+	}
+}
+
+func (b *structuredBuilder) pushComponent(id string) {
+	frame := componentFrame{id: id, prevPath: append([]int(nil), b.componentPath...)}
+	b.componentStack = append(b.componentStack, frame)
+	b.componentPath = b.componentPath[:0]
+}
+
+func (b *structuredBuilder) popComponent() {
+	if len(b.componentStack) == 0 {
+		return
+	}
+	lastIdx := len(b.componentStack) - 1
+	frame := b.componentStack[lastIdx]
+	b.componentStack = b.componentStack[:lastIdx]
+	b.componentPath = append([]int(nil), frame.prevPath...)
+}
+
+func (b *structuredBuilder) currentComponentID() string {
+	if len(b.componentStack) == 0 {
+		return ""
+	}
+	return b.componentStack[len(b.componentStack)-1].id
+}
+
+func (b *structuredBuilder) currentComponentPath() []int {
+	if len(b.componentStack) == 0 {
+		return nil
+	}
+	return append([]int(nil), b.componentPath...)
+}
+
 func (b *structuredBuilder) popFrame() {
 	if len(b.stack) == 0 {
 		return
@@ -233,26 +366,26 @@ func (b *structuredBuilder) popFrame() {
 }
 
 func (b *structuredBuilder) assignSlotIndices(frame elementFrame) {
-	if frame.attrSlot < 0 || frame.attrSlot >= len(b.dynamics) {
-		return
-	}
 	value := joinSlotBindings(frame.bindings)
-	if value == "" {
-		return
+	if value != "" {
+		attrs := frame.element.Attrs
+		if attrs == nil {
+			attrs = map[string]string{}
+		}
+		attrs["data-slot-index"] = value
+		frame.element.Attrs = attrs
+		if frame.attrSlot >= 0 && frame.attrSlot < len(b.dynamics) {
+			dynAttrs := b.dynamics[frame.attrSlot].Attrs
+			if dynAttrs == nil {
+				dynAttrs = map[string]string{}
+			}
+			dynAttrs["data-slot-index"] = value
+			b.dynamics[frame.attrSlot].Attrs = dynAttrs
+		}
 	}
-	attrs := frame.element.Attrs
-	if attrs == nil {
-		attrs = map[string]string{}
+	if frame.staticAttrs && frame.startStatic >= 0 && frame.startStatic < len(b.statics) {
+		b.statics[frame.startStatic] = renderStartTag(frame.element, frame.void)
 	}
-	attrs["data-slot-index"] = value
-	frame.element.Attrs = attrs
-
-	dynAttrs := b.dynamics[frame.attrSlot].Attrs
-	if dynAttrs == nil {
-		dynAttrs = map[string]string{}
-	}
-	dynAttrs["data-slot-index"] = value
-	b.dynamics[frame.attrSlot].Attrs = dynAttrs
 }
 
 func joinSlotBindings(bindings []slotBinding) string {
@@ -305,4 +438,55 @@ func copyAttrs(src map[string]string) map[string]string {
 		m[k] = src[k]
 	}
 	return m
+}
+
+func shouldForceDynamicAttrs(mutable map[string]bool, attrs map[string]string) bool {
+	if len(mutable) == 0 {
+		return false
+	}
+	if mutable["*"] {
+		return true
+	}
+	if len(attrs) == 0 {
+		return false
+	}
+	for key := range attrs {
+		if mutable[key] {
+			return true
+		}
+	}
+	return false
+}
+
+func renderStartTag(el *h.Element, void bool) string {
+	if el == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteByte('<')
+	b.WriteString(el.Tag)
+	if len(el.Attrs) > 0 {
+		keys := make([]string, 0, len(el.Attrs))
+		for k := range el.Attrs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v := el.Attrs[k]
+			if v == "" {
+				continue
+			}
+			b.WriteByte(' ')
+			b.WriteString(k)
+			b.WriteString("=\"")
+			b.WriteString(html.EscapeString(v))
+			b.WriteString("\"")
+		}
+	}
+	if void {
+		b.WriteString("/>")
+	} else {
+		b.WriteByte('>')
+	}
+	return b.String()
 }

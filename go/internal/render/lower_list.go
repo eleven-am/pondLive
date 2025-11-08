@@ -13,12 +13,14 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 	}
 	listSlot := b.addDyn(Dyn{Kind: DynList})
 	rowEntries := make([]Row, 0, len(rows))
-	for _, row := range rows {
+	for idx, row := range rows {
 		if row == nil {
 			continue
 		}
 		start := len(b.dynamics)
+		b.pushChildIndex(idx)
 		b.visit(row)
+		b.popChildIndex()
 		end := len(b.dynamics)
 		if end <= start {
 			rowEntries = append(rowEntries, Row{Key: row.Key})

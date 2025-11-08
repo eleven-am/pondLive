@@ -13,8 +13,21 @@ func (p attrProp) applyTo(e *Element) {
 	e.Attrs[p.k] = p.v
 }
 
+type mutableAttrProp struct{ attrProp }
+
+func (p mutableAttrProp) applyTo(e *Element) {
+	p.attrProp.applyTo(e)
+	if e.MutableAttrs == nil {
+		e.MutableAttrs = map[string]bool{}
+	}
+	e.MutableAttrs[p.k] = true
+}
+
 // Attr sets an arbitrary attribute on the element.
 func Attr(k, v string) Prop { return attrProp{k: k, v: v} }
+
+// MutableAttr sets an attribute and marks it as dynamic so it renders via a dynamic slot immediately.
+func MutableAttr(k, v string) Prop { return mutableAttrProp{attrProp{k: k, v: v}} }
 
 // ID sets the id attribute.
 func ID(id string) Prop { return Attr("id", id) }

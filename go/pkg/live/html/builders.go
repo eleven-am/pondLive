@@ -7,7 +7,7 @@ func Text(s string) *TextNode { return &TextNode{Value: s} }
 
 // Textf formats according to fmt.Sprintf and wraps result in a text node.
 func Textf(format string, args ...any) *TextNode {
-	return &TextNode{Value: fmt.Sprintf(format, args...)}
+	return &TextNode{Value: fmt.Sprintf(format, args...), Mutable: true}
 }
 
 // Fragment constructs a fragment node from children.
