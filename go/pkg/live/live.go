@@ -9,7 +9,6 @@ import (
 
 type (
 	Ctx                               = runtime.Ctx
-	Component[P any]                  = runtime.Component[P]
 	RenderOption                      = runtime.RenderOption
 	StateOpt[T any]                   = runtime.StateOpt[T]
 	Cleanup                           = runtime.Cleanup
@@ -30,12 +29,64 @@ type (
 	Pubsub[T any]                     = runtime.Pubsub[T]
 	StreamItem[T any]                 = runtime.StreamItem[T]
 	StreamHandle[T any]               = runtime.StreamHandle[T]
+	RuntimeComponent[P any]           = runtime.Component[P]
 )
+
+// Component wraps a stateless component function so it can be invoked directly
+// from HTML builders without manually calling Render.
+//
+// Example:
+//
+//	counter := live.Component(func(ctx live.Ctx) h.Node {
+//	       return h.Div()
+//	})
+//
+// Within another component you can render it with:
+//
+//	counter(ctx, live.WithKey("counter"))
+//
+// Prefer invoking the returned function instead of calling Render for
+// stateless children.
+func Component(fn func(Ctx) h.Node) func(Ctx, ...RenderOption) h.Node {
+	if fn == nil {
+		return nil
+	}
+	wrapped := func(ctx Ctx, _ struct{}) h.Node {
+		return fn(ctx)
+	}
+	return func(ctx Ctx, opts ...RenderOption) h.Node {
+		return runtime.Render(ctx, wrapped, struct{}{}, opts...)
+	}
+}
+
+// PropsComponent wraps a component function that expects props so it can be
+// called directly with a context, props, and optional render options.
+//
+// Example:
+//
+//	card := live.PropsComponent(func(ctx live.Ctx, props CardProps) h.Node {
+//	       return h.Div(h.Text(props.Title))
+//	})
+//
+// Render it via:
+//
+//	card(ctx, CardProps{Title: "Inbox"}, live.WithKey("card"))
+func PropsComponent[P any](fn func(Ctx, P) h.Node) func(Ctx, P, ...RenderOption) h.Node {
+	if fn == nil {
+		return nil
+	}
+	return func(ctx Ctx, props P, opts ...RenderOption) h.Node {
+		return runtime.Render(ctx, fn, props, opts...)
+	}
+}
 
 // Render invokes the supplied child component with props, returning its node.
 // Use it within your component to manually compose children. Combine with
 // WithKey to give siblings stable identities in lists.
-func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) h.Node {
+//
+// Deprecated: Wrap the child with Component or PropsComponent and call the
+// returned function directly.
+func Render[P any](ctx Ctx, fn RuntimeComponent[P], props P, opts ...RenderOption) h.Node {
 	return runtime.Render(ctx, fn, props, opts...)
 }
 

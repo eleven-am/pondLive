@@ -401,7 +401,7 @@ func ensureComponentWrapper(id string, node h.Node) h.Node {
 		if existing.ID == id {
 			return existing
 		}
-
+		// Preserve existing child when re-wrapping with matching id.
 		node = existing.Child
 	}
 	return h.WrapComponent(id, node)
