@@ -134,7 +134,7 @@ func joinStyles(styleMap map[string]string, existing string) string {
 }
 
 func escapeComment(value string) string {
-	// Prevent closing the comment prematurely; replace occurrences of "--".
+
 	return strings.ReplaceAll(value, "--", "- -")
 }
 
