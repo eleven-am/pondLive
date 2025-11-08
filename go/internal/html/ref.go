@@ -17,7 +17,11 @@ type ElementRef[T ElementDescriptor] struct {
 	stateGetter func() any
 	stateSetter func(any)
 	listenersMu sync.RWMutex
-	listeners   map[string][]any
+	listeners   map[string]*listenerBucket
+}
+
+type RefListener interface {
+	AddListener(event string, handler any, props []string)
 }
 
 // NewElementRef constructs a ref bound to the provided descriptor and id. The
@@ -128,31 +132,70 @@ func (r *ElementRef[T]) ResetAttachment() {
 	r.resetAttachment()
 }
 
-func (r *ElementRef[T]) addListener(event string, listener any) {
-	if r == nil || event == "" || listener == nil {
+type listenerBucket struct {
+	handlers []EventHandler
+	props    []string
+}
+
+func (r *ElementRef[T]) AddListener(event string, handler any, props []string) {
+	fn := normalizeEventHandler(handler)
+	if r == nil || event == "" || fn == nil {
 		return
 	}
+
+	r.bindingsMu.Lock()
+	if r.bindings == nil {
+		r.bindings = make(map[string]EventBinding)
+	}
+	binding, exists := r.bindings[event]
+	if !exists {
+		binding = EventBinding{
+			Handler: func(evt Event) Updates {
+				return r.dispatchEvent(event, evt)
+			},
+		}
+	}
+	binding.Props = mergeSelectorLists(binding.Props, props)
+	r.bindings[event] = binding
+	r.bindingsMu.Unlock()
+
 	r.listenersMu.Lock()
 	defer r.listenersMu.Unlock()
 	if r.listeners == nil {
-		r.listeners = make(map[string][]any)
+		r.listeners = make(map[string]*listenerBucket)
 	}
-	r.listeners[event] = append(r.listeners[event], listener)
+	bucket := r.listeners[event]
+	if bucket == nil {
+		bucket = &listenerBucket{}
+		r.listeners[event] = bucket
+	}
+	bucket.handlers = append(bucket.handlers, fn)
+	bucket.props = mergeSelectorLists(bucket.props, props)
 }
 
-func (r *ElementRef[T]) listenersFor(event string) []any {
-	if r == nil || event == "" {
+func (r *ElementRef[T]) dispatchEvent(event string, evt Event) Updates {
+	if r == nil {
 		return nil
 	}
 	r.listenersMu.RLock()
-	defer r.listenersMu.RUnlock()
-	listeners := r.listeners[event]
-	if len(listeners) == 0 {
+	bucket := r.listeners[event]
+	if bucket == nil || len(bucket.handlers) == 0 {
+		r.listenersMu.RUnlock()
 		return nil
 	}
-	out := make([]any, len(listeners))
-	copy(out, listeners)
-	return out
+	handlers := append([]EventHandler(nil), bucket.handlers...)
+	r.listenersMu.RUnlock()
+
+	var result Updates
+	for _, handler := range handlers {
+		if handler == nil {
+			continue
+		}
+		if out := handler(evt); out != nil {
+			result = out
+		}
+	}
+	return result
 }
 
 // Attach wires the provided ref into the element. The ref may only be attached
@@ -206,16 +249,6 @@ func (p elementAttachProp[T]) applyTo(e *Element) {
 	e.RefID = p.ref.id
 }
 
-var applyRefDefaultsFunc = func(any) {}
-
-// ApplyRefDefaults invokes any generator-provided default bindings for the ref.
-func ApplyRefDefaults[T ElementDescriptor](ref *ElementRef[T]) {
-	if ref == nil {
-		return
-	}
-	applyRefDefaultsFunc(ref)
-}
-
 func cloneEventBinding(binding EventBinding) EventBinding {
 	clone := binding
 	if len(binding.Listen) > 0 {
@@ -225,4 +258,43 @@ func cloneEventBinding(binding EventBinding) EventBinding {
 		clone.Props = append([]string(nil), binding.Props...)
 	}
 	return clone
+}
+
+func normalizeEventHandler(handler any) EventHandler {
+	switch h := handler.(type) {
+	case nil:
+		return nil
+	case EventHandler:
+		return h
+	case func(Event) Updates:
+		return h
+	default:
+		return nil
+	}
+}
+
+func mergeSelectorLists(base, add []string) []string {
+	if len(base) == 0 && len(add) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(base)+len(add))
+	out := make([]string, 0, len(base)+len(add))
+	appendVals := func(values []string) {
+		for _, v := range values {
+			if v == "" {
+				continue
+			}
+			if _, ok := seen[v]; ok {
+				continue
+			}
+			seen[v] = struct{}{}
+			out = append(out, v)
+		}
+	}
+	appendVals(base)
+	appendVals(add)
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }

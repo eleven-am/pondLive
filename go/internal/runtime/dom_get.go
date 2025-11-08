@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 // DOMGet requests DOM properties for the provided element ref by delegating to the session.

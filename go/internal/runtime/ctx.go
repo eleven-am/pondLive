@@ -3,7 +3,7 @@ package runtime
 import (
 	"fmt"
 
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 // Ctx represents the runtime context passed to every component render call.
@@ -12,6 +12,10 @@ type Ctx struct {
 	comp  *component
 	frame *hookFrame
 }
+
+// elementHookContext ensures runtime contexts satisfy html.ElementHookContext so
+// html-level hooks can request typed refs without creating package cycles.
+func (Ctx) elementHookContext() {}
 
 // Session returns the backing runtime session.
 func (c Ctx) Session() *ComponentSession { return c.sess }

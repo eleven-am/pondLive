@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 // UploadStatus enumerates the states an upload slot can be in.

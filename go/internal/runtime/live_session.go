@@ -15,9 +15,9 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	"github.com/eleven-am/pondlive/go/internal/handlers"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/render"
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 const (

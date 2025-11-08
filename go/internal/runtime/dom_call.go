@@ -3,7 +3,7 @@ package runtime
 import (
 	"strings"
 
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 // DOMCall instructs the client to invoke a method on the referenced element.

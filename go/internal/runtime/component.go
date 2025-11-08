@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 // Component defines a function component with props of type P that returns an HTML node.

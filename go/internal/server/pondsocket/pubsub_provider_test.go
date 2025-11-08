@@ -6,10 +6,10 @@ import (
 	"sync"
 	"testing"
 
+	h "github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type stubPubsubSession struct {

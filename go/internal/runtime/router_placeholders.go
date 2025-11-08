@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 type routerChildrenProps struct {

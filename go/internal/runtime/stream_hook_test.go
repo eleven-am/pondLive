@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 	render "github.com/eleven-am/pondlive/go/internal/render"
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type listItem struct {

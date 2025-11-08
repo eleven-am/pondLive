@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 func TestDrainNavUpdateUsesProvider(t *testing.T) {

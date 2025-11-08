@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/handlers"
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 func TestFinalizeWithHandlersMergesMetadata(t *testing.T) {

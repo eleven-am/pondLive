@@ -3,7 +3,7 @@ package runtime
 import (
 	"reflect"
 
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 type StateOpt[T any] interface{ applyStateOpt(*stateCell[T]) }
@@ -144,7 +144,6 @@ func UseElement[T h.ElementDescriptor](ctx Ctx) *h.ElementRef[T] {
 				}
 			},
 		)
-		h.ApplyRefDefaults(ref)
 		ctx.sess.registerElementRef(ref)
 		ctx.frame.cells = append(ctx.frame.cells, cell)
 	}
