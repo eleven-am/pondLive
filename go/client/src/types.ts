@@ -265,6 +265,20 @@ export interface UploadControlMessage {
   op: "cancel";
 }
 
+export interface DOMRequestMessage {
+  t: "domreq";
+  id: string;
+  ref: string;
+  props?: string[];
+}
+
+export interface DOMResponseMessage {
+  t: "domres";
+  id: string;
+  values?: Record<string, any>;
+  error?: string;
+}
+
 // Event payload
 export interface EventPayload {
   type: string;
@@ -290,7 +304,8 @@ export type ServerMessage =
   | ResumeMessage
   | ErrorMessage
   | PubsubControlMessage
-  | UploadControlMessage;
+  | UploadControlMessage
+  | DOMRequestMessage;
 
 // Union of all client messages
 export type ClientMessage =
@@ -298,7 +313,8 @@ export type ClientMessage =
   | ClientAckMessage
   | ClientNavMessage
   | ClientRecoverMessage
-  | UploadClientMessage;
+  | UploadClientMessage
+  | DOMResponseMessage;
 
 // PondSocket EventMap for LiveUI protocol
 export interface LiveUIEventMap {
@@ -314,6 +330,8 @@ export interface LiveUIEventMap {
   pop: ClientNavMessage;
   recover: ClientRecoverMessage;
   upload: UploadClientMessage;
+  domreq: DOMRequestMessage;
+  domres: DOMResponseMessage;
 
   [key: string]: any; // Index signature for PondEventMap compatibility
 }
@@ -354,6 +372,7 @@ export type EffectType =
   | "dispatch"
   | "custom"
   | "toast"
+  | "domcall"
   | "scrollTop"
   | "push"
   | "replace"
@@ -363,6 +382,7 @@ export type EffectType =
   | "Toast"
   | "Focus"
   | "ScrollTop"
+  | "DOMCall"
   | "Push"
   | "Replace"
   | "componentBoot"
@@ -416,6 +436,16 @@ export interface CustomEffect {
   type: "custom";
   name: string;
   data: any;
+}
+
+export interface DOMCallEffect {
+  type: "domcall" | "DOMCall";
+  ref?: string;
+  Ref?: string;
+  method?: string;
+  Method?: string;
+  args?: any[];
+  Args?: any[];
 }
 
 export interface MetadataTagPayload {
@@ -508,6 +538,7 @@ export type Effect =
   | ReplaceEffect
   | DispatchEffect
   | CustomEffect
+  | DOMCallEffect
   | MetadataEffect
   | CookieEffect
   | ComponentBootEffect

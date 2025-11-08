@@ -126,6 +126,16 @@ func UseElement[T h.ElementDescriptor](ctx Ctx) *ElementRef[T] {
 	return runtime.UseElement[T](ctx)
 }
 
+// DOMCall enqueues a client-side invocation of the provided DOM method on the ref.
+func DOMCall[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], method string, args ...any) {
+	runtime.DOMCall[T](ctx, ref, method, args...)
+}
+
+// DOMGet retrieves DOM properties for the referenced element by delegating to the client runtime.
+func DOMGet[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], selectors ...string) (map[string]any, error) {
+	return runtime.DOMGet[T](ctx, ref, selectors...)
+}
+
 // UseStream renders and manages a keyed list. It returns a fragment node and a
 // handle exposing mutation helpers for the backing collection.
 func UseStream[T any](ctx Ctx, renderRow func(StreamItem[T]) h.Node, initial ...StreamItem[T]) (h.Node, StreamHandle[T]) {

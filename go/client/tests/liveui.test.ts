@@ -18,6 +18,7 @@ vi.mock('@eleven-am/pondsocket-client', () => {
         onMessage: vi.fn(),
         onLeave: vi.fn(),
         join: vi.fn(),
+        sendMessage: vi.fn(),
         send: vi.fn(),
         leave: vi.fn(),
       }),

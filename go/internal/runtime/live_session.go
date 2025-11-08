@@ -21,8 +21,14 @@ import (
 )
 
 const (
-	defaultFrameHistory = 64
-	defaultSessionTTL   = 90 * time.Second
+	defaultFrameHistory  = 64
+	defaultSessionTTL    = 90 * time.Second
+	defaultDOMGetTimeout = 5 * time.Second
+)
+
+var (
+	errDOMGetNoTransport = errors.New("runtime: domget requires active transport")
+	errDOMGetTimeout     = errors.New("runtime: domget timed out")
 )
 
 // Transport delivers messages to the client connection backing a session.
@@ -33,6 +39,7 @@ type Transport interface {
 	SendServerError(protocol.ServerError) error
 	SendPubsubControl(protocol.PubsubControl) error
 	SendUploadControl(protocol.UploadControl) error
+	SendDOMRequest(protocol.DOMRequest) error
 }
 
 // LiveSession wires a component tree to the PondSocket protocol and tracks
@@ -65,6 +72,11 @@ type LiveSession struct {
 	cookieBatches map[string]cookieBatch
 	cookieCounter atomic.Uint64
 
+	domGetCounter atomic.Uint64
+	domGetMu      sync.Mutex
+	domGetPending map[string]chan domGetResult
+	domGetTimeout time.Duration
+
 	transport Transport
 	devMode   bool
 
@@ -75,6 +87,11 @@ type LiveSession struct {
 	hasInit bool
 
 	clientConfig *protocol.ClientConfig
+}
+
+type domGetResult struct {
+	values map[string]any
+	err    error
 }
 
 // LiveSessionConfig captures the optional configuration applied when constructing a live session.
@@ -143,8 +160,9 @@ func NewLiveSession[P any](sid SessionID, version int, root Component[P], props 
 			Query:  "",
 			Params: map[string]string{},
 		},
-		nextSeq:      1,
-		pubsubCounts: make(map[string]int),
+		nextSeq:       1,
+		pubsubCounts:  make(map[string]int),
+		domGetTimeout: defaultDOMGetTimeout,
 	}
 
 	component.setOwner(session)
@@ -492,6 +510,164 @@ func (s *LiveSession) DetachTransport(t Transport) {
 		s.transport = nil
 	}
 	s.mu.Unlock()
+	s.failDOMRequests(errDOMGetNoTransport)
+}
+
+func (s *LiveSession) failDOMRequests(err error) {
+	if s == nil {
+		return
+	}
+	s.domGetMu.Lock()
+	pending := s.domGetPending
+	if len(pending) > 0 {
+		s.domGetPending = nil
+	}
+	s.domGetMu.Unlock()
+	if len(pending) == 0 {
+		return
+	}
+	for _, ch := range pending {
+		if ch == nil {
+			continue
+		}
+		select {
+		case ch <- domGetResult{err: err}:
+		default:
+		}
+	}
+}
+
+func sanitizeSelectors(selectors []string) []string {
+	if len(selectors) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(selectors))
+	out := make([]string, 0, len(selectors))
+	for _, sel := range selectors {
+		trimmed := strings.TrimSpace(sel)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// DOMGet requests the provided selectors from the client for the given element ref.
+func (s *LiveSession) DOMGet(ref string, selectors ...string) (map[string]any, error) {
+	if s == nil {
+		return nil, errors.New("runtime: session is nil")
+	}
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return nil, errors.New("runtime: domget requires element ref")
+	}
+	props := sanitizeSelectors(selectors)
+	if len(props) == 0 {
+		return map[string]any{}, nil
+	}
+
+	s.mu.Lock()
+	transport := s.transport
+	timeout := s.domGetTimeout
+	if timeout <= 0 {
+		timeout = defaultDOMGetTimeout
+	}
+	s.mu.Unlock()
+
+	if transport == nil {
+		return nil, errDOMGetNoTransport
+	}
+
+	id := fmt.Sprintf("domget:%d", s.domGetCounter.Add(1))
+	ch := make(chan domGetResult, 1)
+
+	s.domGetMu.Lock()
+	if s.domGetPending == nil {
+		s.domGetPending = make(map[string]chan domGetResult)
+	}
+	s.domGetPending[id] = ch
+	s.domGetMu.Unlock()
+
+	req := protocol.DOMRequest{
+		ID:    id,
+		Ref:   ref,
+		Props: append([]string(nil), props...),
+	}
+
+	if err := transport.SendDOMRequest(req); err != nil {
+		s.domGetMu.Lock()
+		delete(s.domGetPending, id)
+		s.domGetMu.Unlock()
+		return nil, err
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case result := <-ch:
+		if result.err != nil {
+			return nil, result.err
+		}
+		if result.values == nil {
+			return map[string]any{}, nil
+		}
+		return result.values, nil
+	case <-timer.C:
+		s.domGetMu.Lock()
+		delete(s.domGetPending, id)
+		s.domGetMu.Unlock()
+		return nil, errDOMGetTimeout
+	}
+}
+
+// HandleDOMResponse resolves a pending DOMGet request with data from the client.
+func (s *LiveSession) HandleDOMResponse(resp protocol.DOMResponse) {
+	if s == nil {
+		return
+	}
+	if resp.ID == "" {
+		return
+	}
+
+	s.domGetMu.Lock()
+	ch, ok := s.domGetPending[resp.ID]
+	if ok {
+		delete(s.domGetPending, resp.ID)
+	}
+	s.domGetMu.Unlock()
+
+	if !ok || ch == nil {
+		return
+	}
+
+	result := domGetResult{}
+	if resp.Error != "" {
+		result.err = errors.New(resp.Error)
+	} else {
+		if len(resp.Values) > 0 {
+			clone := make(map[string]any, len(resp.Values))
+			for k, v := range resp.Values {
+				clone[k] = v
+			}
+			result.values = clone
+		} else {
+			result.values = map[string]any{}
+		}
+	}
+
+	select {
+	case ch <- result:
+	default:
+	}
 }
 
 // ID returns the session identifier.

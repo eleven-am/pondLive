@@ -63,6 +63,7 @@ func (s *stubServerTransport) SendResume(protocol.ResumeOK) error             { 
 func (s *stubServerTransport) SendFrame(protocol.Frame) error                 { return nil }
 func (s *stubServerTransport) SendPubsubControl(protocol.PubsubControl) error { return nil }
 func (s *stubServerTransport) SendUploadControl(protocol.UploadControl) error { return nil }
+func (s *stubServerTransport) SendDOMRequest(protocol.DOMRequest) error       { return nil }
 func (s *stubServerTransport) SendEventAck(protocol.EventAck) error           { return nil }
 func (s *stubServerTransport) SendServerError(err protocol.ServerError) error {
 	s.mu.Lock()

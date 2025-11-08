@@ -160,6 +160,20 @@ type RefEventMeta struct {
 	Props  []string `json:"props,omitempty"`
 }
 
+type DOMRequest struct {
+	T     string   `json:"t"`
+	ID    string   `json:"id"`
+	Ref   string   `json:"ref"`
+	Props []string `json:"props,omitempty"`
+}
+
+type DOMResponse struct {
+	T      string         `json:"t"`
+	ID     string         `json:"id"`
+	Values map[string]any `json:"values,omitempty"`
+	Error  string         `json:"error,omitempty"`
+}
+
 type FrameMetrics struct {
 	RenderMs    float64 `json:"renderMs"`
 	Ops         int     `json:"ops"`

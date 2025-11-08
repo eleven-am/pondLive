@@ -63,6 +63,7 @@ func (e *Endpoint) configure() {
 	lobby.OnMessage("pop", e.onPopState)
 	lobby.OnMessage("recover", e.onRecover)
 	lobby.OnMessage("upload", e.onUpload)
+	lobby.OnMessage("domres", e.onDOMResponse)
 	lobby.OnLeave(e.onLeave)
 
 	if e.pubsub != nil {
@@ -234,6 +235,26 @@ func (e *Endpoint) onAck(ctx *pond.EventContext) error {
 	}
 
 	session.Ack(ack.Seq)
+	return nil
+}
+
+func (e *Endpoint) onDOMResponse(ctx *pond.EventContext) error {
+	user := ctx.GetUser()
+	if user == nil {
+		return nil
+	}
+
+	session, _, ok := e.registry.LookupByConnection(user.UserID)
+	if !ok || session == nil {
+		return nil
+	}
+
+	var payload protocol.DOMResponse
+	if err := ctx.ParsePayload(&payload); err != nil {
+		return nil
+	}
+
+	session.HandleDOMResponse(payload)
 	return nil
 }
 

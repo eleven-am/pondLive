@@ -1299,6 +1299,66 @@ var LiveUIModule = (() => {
     }
     return record;
   }
+  function collectRefEventProps(meta, eventType) {
+    if (!meta || !meta.events) {
+      return [];
+    }
+    const selectors = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const [primary, eventMeta] of Object.entries(meta.events)) {
+      if (!eventMeta) {
+        continue;
+      }
+      const listens = Array.isArray(eventMeta.listen) ? eventMeta.listen : [];
+      if (primary !== eventType && !listens.includes(eventType)) {
+        continue;
+      }
+      if (!Array.isArray(eventMeta.props)) {
+        continue;
+      }
+      for (const prop of eventMeta.props) {
+        if (typeof prop !== "string" || prop.length === 0) {
+          continue;
+        }
+        if (seen.has(prop)) {
+          continue;
+        }
+        seen.add(prop);
+        selectors.push(prop);
+      }
+    }
+    return selectors;
+  }
+  function resolveRefEventContext(element, eventType) {
+    if (!element || !eventType) {
+      return null;
+    }
+    const refElement = findClosestRefElement(element);
+    if (!refElement) {
+      return null;
+    }
+    const id = refElement.getAttribute("data-live-ref");
+    if (!id) {
+      return null;
+    }
+    const record = ensureRecord(id);
+    record.element = refElement;
+    if (!refSupportsEvent(record.meta, eventType)) {
+      return null;
+    }
+    const props = collectRefEventProps(record.meta, eventType);
+    return {
+      id,
+      element: refElement,
+      props,
+      notify(payload) {
+        if (!record.lastPayloads) {
+          record.lastPayloads = /* @__PURE__ */ Object.create(null);
+        }
+        record.lastPayloads[eventType] = { ...payload };
+      }
+    };
+  }
   function attachRef(id, element) {
     if (!id) {
       return;
@@ -1425,27 +1485,166 @@ var LiveUIModule = (() => {
     }
     return false;
   }
-  function notifyRefEvent(element, eventType, payload) {
-    if (!element || !eventType) {
-      return;
+
+  // src/dom.ts
+  function pickSource(scope, ctx) {
+    switch (scope) {
+      case "event":
+        return ctx.event ?? void 0;
+      case "target":
+        return ctx.target ?? void 0;
+      case "currentTarget":
+        if (ctx.handlerElement) {
+          return ctx.handlerElement;
+        }
+        return ctx.event && "currentTarget" in ctx.event ? ctx.event.currentTarget ?? void 0 : void 0;
+      case "element":
+      case "ref":
+        return ctx.refElement ?? ctx.handlerElement ?? ctx.target ?? void 0;
+      default:
+        return void 0;
     }
-    const refElement = findClosestRefElement(element);
-    if (!refElement) {
-      return;
+  }
+  function resolvePath(source, parts) {
+    let value = source;
+    for (const part of parts) {
+      if (!part) {
+        continue;
+      }
+      if (value == null) {
+        return void 0;
+      }
+      try {
+        value = value[part];
+      } catch (_error) {
+        return void 0;
+      }
     }
-    const id = refElement.getAttribute("data-live-ref");
-    if (!id) {
-      return;
+    return value;
+  }
+  function resolvePropertySelector(selector, ctx) {
+    if (typeof selector !== "string") {
+      return void 0;
     }
-    const record = ensureRecord(id);
-    record.element = refElement;
-    if (!refSupportsEvent(record.meta, eventType)) {
-      return;
+    const trimmed = selector.trim();
+    if (!trimmed) {
+      return void 0;
     }
-    if (!record.lastPayloads) {
-      record.lastPayloads = /* @__PURE__ */ Object.create(null);
+    const parts = trimmed.split(".");
+    if (parts.length === 0) {
+      return void 0;
     }
-    record.lastPayloads[eventType] = { ...payload };
+    const scope = parts.shift();
+    if (!scope) {
+      return void 0;
+    }
+    const source = pickSource(scope, ctx);
+    if (source === void 0) {
+      return void 0;
+    }
+    return resolvePath(source, parts);
+  }
+  function domGetSync(selectors, ctx) {
+    if (!Array.isArray(selectors) || selectors.length === 0) {
+      return null;
+    }
+    const result = {};
+    for (const selector of selectors) {
+      if (typeof selector !== "string" || selector.length === 0) {
+        continue;
+      }
+      const raw = resolvePropertySelector(selector, ctx);
+      if (raw === void 0) {
+        continue;
+      }
+      const normalized = normalizePropertyValue(raw);
+      if (normalized !== void 0) {
+        result[selector] = normalized;
+      }
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  }
+  function normalizePropertyValue(value) {
+    if (value === null) {
+      return null;
+    }
+    const type = typeof value;
+    if (type === "string" || type === "number" || type === "boolean") {
+      return value;
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof FileList !== "undefined" && value instanceof FileList) {
+      return serializeFileList(value);
+    }
+    if (typeof File !== "undefined" && value instanceof File) {
+      return { name: value.name, size: value.size, type: value.type };
+    }
+    if (typeof DOMTokenList !== "undefined" && value instanceof DOMTokenList) {
+      return Array.from(value);
+    }
+    if (typeof TimeRanges !== "undefined" && value instanceof TimeRanges) {
+      const ranges = [];
+      for (let i = 0; i < value.length; i++) {
+        try {
+          ranges.push({ start: value.start(i), end: value.end(i) });
+        } catch (_error) {
+        }
+      }
+      return ranges;
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => normalizePropertyValue(item)).filter((item) => item !== void 0);
+    }
+    if (value && typeof value === "object") {
+      try {
+        return JSON.parse(JSON.stringify(value));
+      } catch (_error) {
+        return void 0;
+      }
+    }
+    return void 0;
+  }
+  function serializeFileList(list) {
+    const files = [];
+    for (let i = 0; i < list.length; i++) {
+      const file = list.item(i);
+      if (file) {
+        files.push({ name: file.name, size: file.size, type: file.type });
+      }
+    }
+    return files;
+  }
+  function callElementMethod(refId, method, args = [], options) {
+    const element = refId ? getRefElement(refId) : null;
+    if (!element) {
+      if (!options?.allowMissing) {
+        console.warn("[LiveUI] DOMCall target missing", { refId, method });
+      }
+      return void 0;
+    }
+    const fn = element[method];
+    if (typeof fn !== "function") {
+      console.warn("[LiveUI] DOMCall method missing", { refId, method });
+      return void 0;
+    }
+    try {
+      const result = fn.apply(element, Array.isArray(args) ? args : []);
+      if (result && typeof result.then === "function") {
+        result.catch((error) => {
+          console.warn("[LiveUI] DOMCall promise rejected", {
+            refId,
+            method,
+            error
+          });
+        });
+      }
+      return result;
+    } catch (error) {
+      console.error("[LiveUI] DOMCall failed", { refId, method, error });
+      return void 0;
+    }
   }
 
   // src/patcher.ts
@@ -1884,6 +2083,28 @@ var LiveUIModule = (() => {
   var eventUsageCounts = /* @__PURE__ */ new Map();
   var installedListeners = /* @__PURE__ */ new Map();
   var ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
+  function mergeSelectorLists(primary, secondary) {
+    const merged = [];
+    const seen = /* @__PURE__ */ new Set();
+    const add = (list) => {
+      if (!Array.isArray(list)) {
+        return;
+      }
+      for (const value of list) {
+        if (typeof value !== "string" || value.length === 0) {
+          continue;
+        }
+        if (seen.has(value)) {
+          continue;
+        }
+        seen.add(value);
+        merged.push(value);
+      }
+    };
+    add(primary);
+    add(secondary);
+    return merged.length > 0 ? merged : void 0;
+  }
   function isLiveAnchor(element) {
     const hasHref = element.hasAttribute("href") || element.hasAttribute("xlink:href");
     if (!hasHref) {
@@ -1997,8 +2218,18 @@ var LiveUIModule = (() => {
     if (handlerInfo) {
       const handler = handlers.get(handlerInfo.id);
       if (handler && handlerSupportsEvent(handler, eventType)) {
-        const payload = extractEventPayload(e, target, handler.props, handlerInfo.element);
-        notifyRefEvent(handlerInfo.element, eventType, payload);
+        const refContext = resolveRefEventContext(handlerInfo.element, eventType);
+        const combinedProps = mergeSelectorLists(handler.props, refContext?.props);
+        const payload = extractEventPayload(
+          e,
+          target,
+          combinedProps,
+          handlerInfo.element,
+          refContext?.element ?? null
+        );
+        if (refContext) {
+          refContext.notify(payload);
+        }
         if (eventType === "submit") {
           e.preventDefault();
         }
@@ -2069,7 +2300,7 @@ var LiveUIModule = (() => {
     }
     return null;
   }
-  function extractEventPayload(e, target, props, handlerElement) {
+  function extractEventPayload(e, target, props, handlerElement, refElement) {
     const payload = {
       type: e.type
     };
@@ -2094,14 +2325,15 @@ var LiveUIModule = (() => {
       payload.clientY = e.clientY;
     }
     if (Array.isArray(props)) {
-      for (const selector of props) {
-        const value = resolvePropertySelector(selector, e, target, handlerElement);
-        if (value === void 0) {
-          continue;
-        }
-        const normalized = normalizePropertyValue(value);
-        if (normalized !== void 0) {
-          payload[selector] = normalized;
+      const domValues = domGetSync(props, {
+        event: e,
+        target,
+        handlerElement: handlerElement ?? null,
+        refElement: refElement ?? null
+      });
+      if (domValues) {
+        for (const [key, value] of Object.entries(domValues)) {
+          payload[key] = value;
         }
       }
     }
@@ -2197,97 +2429,6 @@ var LiveUIModule = (() => {
       return meta.listen.includes(eventType);
     }
     return false;
-  }
-  function resolvePropertySelector(selector, event, target, handlerElement) {
-    if (typeof selector !== "string") {
-      return void 0;
-    }
-    const trimmed = selector.trim();
-    if (trimmed.length === 0) {
-      return void 0;
-    }
-    const parts = trimmed.split(".");
-    if (parts.length === 0) {
-      return void 0;
-    }
-    const scope = parts.shift();
-    let source;
-    switch (scope) {
-      case "event":
-        source = event;
-        break;
-      case "target":
-        source = target;
-        break;
-      case "currentTarget":
-        source = handlerElement ?? event.currentTarget ?? void 0;
-        break;
-      default:
-        return void 0;
-    }
-    let value = source;
-    for (const part of parts) {
-      if (!part) {
-        continue;
-      }
-      if (value == null) {
-        return void 0;
-      }
-      value = value[part];
-    }
-    return value;
-  }
-  function normalizePropertyValue(value) {
-    if (value === null) {
-      return null;
-    }
-    const type = typeof value;
-    if (type === "string" || type === "number" || type === "boolean") {
-      return value;
-    }
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-    if (typeof FileList !== "undefined" && value instanceof FileList) {
-      return serializeFileList(value);
-    }
-    if (typeof File !== "undefined" && value instanceof File) {
-      return { name: value.name, size: value.size, type: value.type };
-    }
-    if (typeof DOMTokenList !== "undefined" && value instanceof DOMTokenList) {
-      return Array.from(value);
-    }
-    if (typeof TimeRanges !== "undefined" && value instanceof TimeRanges) {
-      const ranges = [];
-      for (let i = 0; i < value.length; i++) {
-        try {
-          ranges.push({ start: value.start(i), end: value.end(i) });
-        } catch (err) {
-        }
-      }
-      return ranges;
-    }
-    if (Array.isArray(value)) {
-      return value.map((item) => normalizePropertyValue(item)).filter((item) => item !== void 0);
-    }
-    if (value && typeof value === "object") {
-      try {
-        return JSON.parse(JSON.stringify(value));
-      } catch (err) {
-        return void 0;
-      }
-    }
-    return void 0;
-  }
-  function serializeFileList(list) {
-    const files = [];
-    for (let i = 0; i < list.length; i++) {
-      const file = list.item(i);
-      if (file) {
-        files.push({ name: file.name, size: file.size, type: file.type });
-      }
-    }
-    return files;
   }
 
   // src/uploads.ts
@@ -3321,6 +3462,9 @@ var LiveUIModule = (() => {
         case "upload":
           this.uploads?.handleControl(msg);
           break;
+        case "domreq":
+          this.handleDOMRequest(msg);
+          break;
         default:
           this.log("Unknown message type:", msg.t);
       }
@@ -3494,6 +3638,9 @@ var LiveUIModule = (() => {
             case "componentboot":
               this.applyComponentBootEffect(effect);
               break;
+            case "domcall":
+              this.applyDOMCallEffect(effect);
+              break;
             case "scroll":
             case "scrolltop":
               this.applyScrollEffect(effect);
@@ -3535,6 +3682,75 @@ var LiveUIModule = (() => {
           this.log("Error applying effect:", effect, error);
           this.emit("error", { error, context: "effect" });
         }
+      }
+    }
+    handleDOMRequest(msg) {
+      if (!msg || !msg.id) {
+        return;
+      }
+      const refId = msg.ref ?? "";
+      const selectors = Array.isArray(msg.props) ? msg.props : [];
+      const response = { t: "domres", id: msg.id };
+      if (!refId) {
+        response.error = "missing_ref";
+        this.sendDOMResponse(response);
+        return;
+      }
+      const element = getRefElement(refId);
+      if (!element) {
+        response.error = "not_found";
+        this.sendDOMResponse(response);
+        return;
+      }
+      if (selectors.length > 0) {
+        try {
+          const values = domGetSync(selectors, {
+            event: null,
+            target: element,
+            handlerElement: element,
+            refElement: element
+          });
+          if (values && Object.keys(values).length > 0) {
+            response.values = values;
+          } else {
+            response.values = {};
+          }
+        } catch (error) {
+          response.error = error instanceof Error ? error.message : String(error);
+        }
+      } else {
+        response.values = {};
+      }
+      this.sendDOMResponse(response);
+    }
+    applyDOMCallEffect(effect) {
+      const refId = effect.ref ?? effect.Ref ?? "";
+      const method = effect.method ?? effect.Method ?? "";
+      if (!refId || !method) {
+        this.log("DOMCall effect missing ref or method", effect);
+        return;
+      }
+      let args = [];
+      if (Array.isArray(effect.args)) {
+        args = effect.args;
+      } else if (Array.isArray(effect.Args)) {
+        args = effect.Args;
+      } else if (effect.args !== void 0) {
+        args = [effect.args];
+      } else if (effect.Args !== void 0) {
+        args = [effect.Args];
+      }
+      callElementMethod(refId, method, args);
+    }
+    sendDOMResponse(payload) {
+      if (!this.channel) {
+        this.log("Cannot send DOM response without channel", payload);
+        return;
+      }
+      try {
+        this.channel.sendMessage("domres", payload);
+      } catch (error) {
+        this.log("Failed to send DOM response", error);
       }
     }
     applyScrollEffect(effect) {

@@ -20,6 +20,7 @@ type stubTransport struct {
 	errors   []protocol.ServerError
 	controls []protocol.PubsubControl
 	uploads  []protocol.UploadControl
+	dom      []protocol.DOMRequest
 }
 
 func (s *stubTransport) Close() error {
@@ -75,6 +76,13 @@ func (s *stubTransport) SendUploadControl(ctrl protocol.UploadControl) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.uploads = append(s.uploads, ctrl)
+	return nil
+}
+
+func (s *stubTransport) SendDOMRequest(req protocol.DOMRequest) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dom = append(s.dom, req)
 	return nil
 }
 

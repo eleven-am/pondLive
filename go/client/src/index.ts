@@ -7,6 +7,7 @@
 
 import { PondClient } from "@eleven-am/pondsocket-client";
 import * as dom from "./dom-index";
+import { callElementMethod, domGetSync } from "./dom";
 import {
   applyOps,
   clearPatcherCaches,
@@ -29,6 +30,7 @@ import {
 import {
   bindRefsInTree,
   clearRefs as clearRefRegistry,
+  getRefElement,
   registerRefs as registerRefMetadata,
   unregisterRefs as unregisterRefMetadata,
 } from "./refs";
@@ -43,6 +45,9 @@ import type {
   ConnectionState,
   DiffOp,
   DispatchEffect,
+  DOMCallEffect,
+  DOMRequestMessage,
+  DOMResponseMessage,
   Effect,
   ErrorDetails,
   ErrorMessage,
@@ -640,6 +645,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       case "upload":
         this.uploads?.handleControl(msg as UploadControlMessage);
         break;
+      case "domreq":
+        this.handleDOMRequest(msg as DOMRequestMessage);
+        break;
       default:
         this.log("Unknown message type:", (msg as any).t);
     }
@@ -866,6 +874,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
           case "componentboot":
             this.applyComponentBootEffect(effect as ComponentBootEffect);
             break;
+          case "domcall":
+            this.applyDOMCallEffect(effect as DOMCallEffect);
+            break;
           case "scroll":
           case "scrolltop":
             this.applyScrollEffect(effect as ScrollEffect);
@@ -909,6 +920,83 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
         this.log("Error applying effect:", effect, error);
         this.emit("error", { error: error as Error, context: "effect" });
       }
+    }
+  }
+
+  private handleDOMRequest(msg: DOMRequestMessage): void {
+    if (!msg || !msg.id) {
+      return;
+    }
+
+    const refId = msg.ref ?? "";
+    const selectors = Array.isArray(msg.props) ? msg.props : [];
+    const response: DOMResponseMessage = { t: "domres", id: msg.id };
+
+    if (!refId) {
+      response.error = "missing_ref";
+      this.sendDOMResponse(response);
+      return;
+    }
+
+    const element = getRefElement(refId);
+    if (!element) {
+      response.error = "not_found";
+      this.sendDOMResponse(response);
+      return;
+    }
+
+    if (selectors.length > 0) {
+      try {
+        const values = domGetSync(selectors, {
+          event: null,
+          target: element,
+          handlerElement: element,
+          refElement: element,
+        });
+        if (values && Object.keys(values).length > 0) {
+          response.values = values;
+        } else {
+          response.values = {};
+        }
+      } catch (error) {
+        response.error = error instanceof Error ? error.message : String(error);
+      }
+    } else {
+      response.values = {};
+    }
+
+    this.sendDOMResponse(response);
+  }
+
+  private applyDOMCallEffect(effect: DOMCallEffect): void {
+    const refId = effect.ref ?? effect.Ref ?? "";
+    const method = effect.method ?? effect.Method ?? "";
+    if (!refId || !method) {
+      this.log("DOMCall effect missing ref or method", effect);
+      return;
+    }
+    let args: any[] = [];
+    if (Array.isArray(effect.args)) {
+      args = effect.args;
+    } else if (Array.isArray(effect.Args)) {
+      args = effect.Args;
+    } else if (effect.args !== undefined) {
+      args = [effect.args];
+    } else if (effect.Args !== undefined) {
+      args = [effect.Args];
+    }
+    callElementMethod(refId, method, args);
+  }
+
+  private sendDOMResponse(payload: DOMResponseMessage): void {
+    if (!this.channel) {
+      this.log("Cannot send DOM response without channel", payload);
+      return;
+    }
+    try {
+      this.channel.sendMessage("domres", payload);
+    } catch (error) {
+      this.log("Failed to send DOM response", error);
     }
   }
 

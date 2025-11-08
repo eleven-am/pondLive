@@ -6,13 +6,43 @@
  */
 
 import type { EventPayload, HandlerMap, HandlerMeta } from "./types";
-import { notifyRefEvent } from "./refs";
+import { domGetSync } from "./dom";
+import { resolveRefEventContext } from "./refs";
 
 const handlers = new Map<string, HandlerMeta>();
 const eventUsageCounts = new Map<string, number>();
 const installedListeners = new Map<string, (e: Event) => void>();
 
 const ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
+
+function mergeSelectorLists(
+  primary?: string[] | null,
+  secondary?: string[] | null,
+): string[] | undefined {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (list?: string[] | null) => {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    for (const value of list) {
+      if (typeof value !== "string" || value.length === 0) {
+        continue;
+      }
+      if (seen.has(value)) {
+        continue;
+      }
+      seen.add(value);
+      merged.push(value);
+    }
+  };
+
+  add(primary);
+  add(secondary);
+
+  return merged.length > 0 ? merged : undefined;
+}
 
 function isLiveAnchor(
   element: Element,
@@ -235,9 +265,19 @@ function handleEvent(
     if (handler && handlerSupportsEvent(handler, eventType)) {
       // Extract event payload based on event type
       // Pass the handler element so that "currentTarget" in selectors refers to the element with the handler
-      const payload = extractEventPayload(e, target, handler.props, handlerInfo.element);
+      const refContext = resolveRefEventContext(handlerInfo.element, eventType);
+      const combinedProps = mergeSelectorLists(handler.props, refContext?.props);
+      const payload = extractEventPayload(
+        e,
+        target,
+        combinedProps,
+        handlerInfo.element,
+        refContext?.element ?? null,
+      );
 
-      notifyRefEvent(handlerInfo.element, eventType, payload);
+      if (refContext) {
+        refContext.notify(payload);
+      }
 
       // Prevent default for submit events
       if (eventType === "submit") {
@@ -337,6 +377,7 @@ function extractEventPayload(
   target: Element,
   props?: string[] | null,
   handlerElement?: Element,
+  refElement?: Element | null,
 ): EventPayload {
   const payload: EventPayload = {
     type: e.type,
@@ -373,14 +414,15 @@ function extractEventPayload(
   }
 
   if (Array.isArray(props)) {
-    for (const selector of props) {
-      const value = resolvePropertySelector(selector, e, target, handlerElement);
-      if (value === undefined) {
-        continue;
-      }
-      const normalized = normalizePropertyValue(value);
-      if (normalized !== undefined) {
-        payload[selector] = normalized;
+    const domValues = domGetSync(props, {
+      event: e,
+      target,
+      handlerElement: handlerElement ?? null,
+      refElement: refElement ?? null,
+    });
+    if (domValues) {
+      for (const [key, value] of Object.entries(domValues)) {
+        payload[key] = value;
       }
     }
   }
@@ -519,116 +561,4 @@ function handlerSupportsEvent(meta: HandlerMeta, eventType: string): boolean {
     return meta.listen.includes(eventType);
   }
   return false;
-}
-
-function resolvePropertySelector(
-  selector: string,
-  event: Event,
-  target: Element,
-  handlerElement?: Element,
-): any {
-  if (typeof selector !== "string") {
-    return undefined;
-  }
-  const trimmed = selector.trim();
-  if (trimmed.length === 0) {
-    return undefined;
-  }
-
-  const parts = trimmed.split(".");
-  if (parts.length === 0) {
-    return undefined;
-  }
-
-  const scope = parts.shift();
-  let source: any;
-  switch (scope) {
-    case "event":
-      source = event;
-      break;
-    case "target":
-      source = target;
-      break;
-    case "currentTarget":
-      // In event delegation, use the handler element (the element with the data-onclick attribute)
-      // instead of event.currentTarget (which would be document)
-      source = handlerElement ?? event.currentTarget ?? undefined;
-      break;
-    default:
-      return undefined;
-  }
-
-  let value = source;
-  for (const part of parts) {
-    if (!part) {
-      continue;
-    }
-    if (value == null) {
-      return undefined;
-    }
-    value = (value as any)[part];
-  }
-
-  return value;
-}
-
-function normalizePropertyValue(value: any): any {
-  if (value === null) {
-    return null;
-  }
-  const type = typeof value;
-  if (type === "string" || type === "number" || type === "boolean") {
-    return value;
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (typeof FileList !== "undefined" && value instanceof FileList) {
-    return serializeFileList(value);
-  }
-  if (typeof File !== "undefined" && value instanceof File) {
-    return { name: value.name, size: value.size, type: value.type };
-  }
-  if (typeof DOMTokenList !== "undefined" && value instanceof DOMTokenList) {
-    return Array.from(value);
-  }
-  if (typeof TimeRanges !== "undefined" && value instanceof TimeRanges) {
-    const ranges: Array<{ start: number; end: number }> = [];
-    for (let i = 0; i < value.length; i++) {
-      try {
-        ranges.push({ start: value.start(i), end: value.end(i) });
-      } catch (err) {
-        // Ignore invalid ranges
-      }
-    }
-    return ranges;
-  }
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => normalizePropertyValue(item))
-      .filter((item) => item !== undefined);
-  }
-  if (value && typeof value === "object") {
-    try {
-      return JSON.parse(JSON.stringify(value));
-    } catch (err) {
-      return undefined;
-    }
-  }
-  return undefined;
-}
-
-function serializeFileList(list: FileList): Array<{
-  name: string;
-  size: number;
-  type: string;
-}> {
-  const files: Array<{ name: string; size: number; type: string }> = [];
-  for (let i = 0; i < list.length; i++) {
-    const file = list.item(i);
-    if (file) {
-      files.push({ name: file.name, size: file.size, type: file.type });
-    }
-  }
-  return files;
 }

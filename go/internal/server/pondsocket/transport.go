@@ -81,6 +81,13 @@ func (t *transport) SendUploadControl(ctrl protocol.UploadControl) error {
 	return t.send("upload", ctrl)
 }
 
+func (t *transport) SendDOMRequest(req protocol.DOMRequest) error {
+	if req.T == "" {
+		req.T = "domreq"
+	}
+	return t.send("domreq", req)
+}
+
 func (t *transport) send(event string, payload any) error {
 	if t.closed.Load() {
 		return errTransportClosed

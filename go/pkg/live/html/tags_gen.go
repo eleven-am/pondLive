@@ -37,7 +37,105 @@ type refSpec struct {
 	StateMethod string
 	Fields      []stateFieldSpec
 	Events      []refEventSpec
+	Mixins      []string
 }
+
+type mixinSpec struct {
+	Name string
+	Ref  refSpec
+}
+
+var mixins = []mixinSpec{
+	{
+		Name: "element",
+		Ref: refSpec{
+			StateName: "HTMLElementState",
+			Fields: []stateFieldSpec{
+				{Name: "AltKey", Type: "bool", Selector: "event.altKey"},
+				{Name: "CtrlKey", Type: "bool", Selector: "event.ctrlKey"},
+				{Name: "ShiftKey", Type: "bool", Selector: "event.shiftKey"},
+				{Name: "MetaKey", Type: "bool", Selector: "event.metaKey"},
+				{Name: "PointerType", Type: "string", Selector: "event.pointerType"},
+				{Name: "PointerID", Type: "int", Selector: "event.pointerId"},
+				{Name: "Button", Type: "int", Selector: "event.button"},
+				{Name: "Buttons", Type: "int", Selector: "event.buttons"},
+				{Name: "ClientX", Type: "float64", Selector: "event.clientX"},
+				{Name: "ClientY", Type: "float64", Selector: "event.clientY"},
+				{Name: "MovementX", Type: "float64", Selector: "event.movementX"},
+				{Name: "MovementY", Type: "float64", Selector: "event.movementY"},
+				{Name: "OffsetX", Type: "float64", Selector: "event.offsetX"},
+				{Name: "OffsetY", Type: "float64", Selector: "event.offsetY"},
+				{Name: "PageX", Type: "float64", Selector: "event.pageX"},
+				{Name: "PageY", Type: "float64", Selector: "event.pageY"},
+				{Name: "ScreenX", Type: "float64", Selector: "event.screenX"},
+				{Name: "ScreenY", Type: "float64", Selector: "event.screenY"},
+				{Name: "IsPrimary", Type: "bool", Selector: "event.isPrimary"},
+				{Name: "WheelDeltaX", Type: "float64", Selector: "event.deltaX"},
+				{Name: "WheelDeltaY", Type: "float64", Selector: "event.deltaY"},
+				{Name: "WheelDeltaZ", Type: "float64", Selector: "event.deltaZ"},
+			},
+			Events: []refEventSpec{
+				{Method: "OnFocus", Event: "focus"},
+				{Method: "OnBlur", Event: "blur"},
+				{Method: "OnClick", Event: "click", Props: []string{"event.detail"}},
+				{Method: "OnDoubleClick", Event: "dblclick", Props: []string{"event.detail"}},
+				{Method: "OnContextMenu", Event: "contextmenu"},
+				{Method: "OnPointerDown", Event: "pointerdown"},
+				{Method: "OnPointerUp", Event: "pointerup"},
+				{Method: "OnPointerMove", Event: "pointermove"},
+				{Method: "OnPointerEnter", Event: "pointerenter"},
+				{Method: "OnPointerLeave", Event: "pointerleave"},
+				{Method: "OnPointerOver", Event: "pointerover"},
+				{Method: "OnPointerOut", Event: "pointerout"},
+				{Method: "OnPointerCancel", Event: "pointercancel"},
+				{Method: "OnWheel", Event: "wheel"},
+			},
+		},
+	},
+	{
+		Name: "keyboard",
+		Ref: refSpec{
+			StateName: "HTMLKeyboardState",
+			Fields: []stateFieldSpec{
+				{Name: "Key", Type: "string", Selector: "event.key"},
+				{Name: "Code", Type: "string", Selector: "event.code"},
+				{Name: "Location", Type: "int", Selector: "event.location"},
+				{Name: "Repeat", Type: "bool", Selector: "event.repeat"},
+				{Name: "IsComposing", Type: "bool", Selector: "event.isComposing"},
+			},
+			Events: []refEventSpec{
+				{Method: "OnKeyDown", Event: "keydown"},
+				{Method: "OnKeyUp", Event: "keyup"},
+				{Method: "OnKeyPress", Event: "keypress"},
+			},
+		},
+	},
+	{
+		Name: "media",
+		Ref: refSpec{
+			StateName: "HTMLMediaState",
+			Fields: []stateFieldSpec{
+				{Name: "CurrentTime", Type: "float64", Selector: "target.currentTime"},
+				{Name: "Duration", Type: "float64", Selector: "target.duration"},
+				{Name: "Paused", Type: "bool", Selector: "target.paused"},
+				{Name: "Muted", Type: "bool", Selector: "target.muted"},
+				{Name: "Volume", Type: "float64", Selector: "target.volume"},
+				{Name: "Seeking", Type: "bool", Selector: "target.seeking"},
+				{Name: "Ended", Type: "bool", Selector: "target.ended"},
+				{Name: "PlaybackRate", Type: "float64", Selector: "target.playbackRate"},
+				{Name: "ReadyState", Type: "int", Selector: "target.readyState"},
+			},
+		},
+	},
+}
+
+var mixinRegistry = func() map[string]*refSpec {
+	out := make(map[string]*refSpec, len(mixins))
+	for i := range mixins {
+		out[mixins[i].Name] = &mixins[i].Ref
+	}
+	return out
+}()
 
 var tags = []tagSpec{
 	{"A", "a", "A creates an <a> element.", "html", nil},
@@ -48,17 +146,7 @@ var tags = []tagSpec{
 	{"Aside", "aside", "Aside creates an <aside> element.", "html", nil},
 	{"Audio", "audio", "Audio creates an <audio> element.", "html", &refSpec{
 		StateMethod: "AudioState",
-		Fields: []stateFieldSpec{
-			{Name: "CurrentTime", Type: "float64", Selector: "target.currentTime"},
-			{Name: "Duration", Type: "float64", Selector: "target.duration"},
-			{Name: "Paused", Type: "bool", Selector: "target.paused"},
-			{Name: "Muted", Type: "bool", Selector: "target.muted"},
-			{Name: "Volume", Type: "float64", Selector: "target.volume"},
-			{Name: "Seeking", Type: "bool", Selector: "target.seeking"},
-			{Name: "Ended", Type: "bool", Selector: "target.ended"},
-			{Name: "PlaybackRate", Type: "float64", Selector: "target.playbackRate"},
-			{Name: "ReadyState", Type: "int", Selector: "target.readyState"},
-		},
+		Mixins:      []string{"media"},
 		Events: []refEventSpec{
 			{Method: "OnAudioTimeUpdate", Event: "timeupdate", Listen: []string{"durationchange", "play", "pause", "seeking", "seeked"}},
 			{Method: "OnAudioPlay", Event: "play", Listen: []string{"playing"}},
@@ -96,19 +184,10 @@ var tags = []tagSpec{
 	{"Canvas", "canvas", "Canvas creates a <canvas> element.", "html", &refSpec{
 		StateMethod: "CanvasState",
 		Fields: []stateFieldSpec{
-			{Name: "PointerType", Type: "string", Selector: "event.pointerType"},
-			{Name: "Buttons", Type: "int", Selector: "event.buttons"},
-			{Name: "ClientX", Type: "float64", Selector: "event.clientX"},
-			{Name: "ClientY", Type: "float64", Selector: "event.clientY"},
-			{Name: "OffsetX", Type: "float64", Selector: "event.offsetX"},
-			{Name: "OffsetY", Type: "float64", Selector: "event.offsetY"},
 			{Name: "Pressure", Type: "float64", Selector: "event.pressure"},
 			{Name: "TangentialPressure", Type: "float64", Selector: "event.tangentialPressure"},
 			{Name: "TiltX", Type: "float64", Selector: "event.tiltX"},
 			{Name: "TiltY", Type: "float64", Selector: "event.tiltY"},
-			{Name: "WheelDeltaX", Type: "float64", Selector: "event.deltaX"},
-			{Name: "WheelDeltaY", Type: "float64", Selector: "event.deltaY"},
-			{Name: "WheelDeltaZ", Type: "float64", Selector: "event.deltaZ"},
 		},
 		Events: []refEventSpec{
 			{Method: "OnCanvasPointerMove", Event: "pointermove"},
@@ -150,13 +229,6 @@ var tags = []tagSpec{
 	{"Div", "div", "Div creates a <div> element.", "html", &refSpec{
 		StateMethod: "DivState",
 		Fields: []stateFieldSpec{
-			{Name: "AltKey", Type: "bool", Selector: "event.altKey"},
-			{Name: "CtrlKey", Type: "bool", Selector: "event.ctrlKey"},
-			{Name: "ShiftKey", Type: "bool", Selector: "event.shiftKey"},
-			{Name: "MetaKey", Type: "bool", Selector: "event.metaKey"},
-			{Name: "Button", Type: "int", Selector: "event.button"},
-			{Name: "ClientX", Type: "float64", Selector: "event.clientX"},
-			{Name: "ClientY", Type: "float64", Selector: "event.clientY"},
 			{Name: "TargetID", Type: "string", Selector: "target.id"},
 		},
 		Events: []refEventSpec{
@@ -217,8 +289,6 @@ var tags = []tagSpec{
 		Events: []refEventSpec{
 			{Method: "OnInput", Event: "input", Props: []string{"event.inputType", "event.isComposing"}},
 			{Method: "OnChange", Event: "change"},
-			{Method: "OnFocus", Event: "focus"},
-			{Method: "OnBlur", Event: "blur"},
 		},
 	}},
 	{"InsEl", "ins", "InsEl creates an <ins> element.", "html", nil},
@@ -304,11 +374,6 @@ var tags = []tagSpec{
 	{"Summary", "summary", "Summary creates a <summary> element.", "html", &refSpec{
 		StateMethod: "SummaryState",
 		Fields: []stateFieldSpec{
-			{Name: "AltKey", Type: "bool", Selector: "event.altKey"},
-			{Name: "CtrlKey", Type: "bool", Selector: "event.ctrlKey"},
-			{Name: "ShiftKey", Type: "bool", Selector: "event.shiftKey"},
-			{Name: "MetaKey", Type: "bool", Selector: "event.metaKey"},
-			{Name: "Button", Type: "int", Selector: "event.button"},
 			{Name: "Detail", Type: "int", Selector: "event.detail"},
 		},
 		Events: []refEventSpec{
@@ -348,17 +413,7 @@ var tags = []tagSpec{
 	{"Ul", "ul", "Ul creates a <ul> element.", "html", nil},
 	{"Var", "var", "Var creates a <var> element.", "html", nil},
 	{"Video", "video", "Video creates a <video> element.", "html", &refSpec{
-		Fields: []stateFieldSpec{
-			{Name: "CurrentTime", Type: "float64", Selector: "target.currentTime"},
-			{Name: "Duration", Type: "float64", Selector: "target.duration"},
-			{Name: "Paused", Type: "bool", Selector: "target.paused"},
-			{Name: "Muted", Type: "bool", Selector: "target.muted"},
-			{Name: "Volume", Type: "float64", Selector: "target.volume"},
-			{Name: "Seeking", Type: "bool", Selector: "target.seeking"},
-			{Name: "Ended", Type: "bool", Selector: "target.ended"},
-			{Name: "PlaybackRate", Type: "float64", Selector: "target.playbackRate"},
-			{Name: "ReadyState", Type: "int", Selector: "target.readyState"},
-		},
+		Mixins: []string{"media"},
 		Events: []refEventSpec{
 			{Method: "OnTimeUpdate", Event: "timeupdate", Listen: []string{"durationchange", "play", "pause", "seeking", "seeked"}},
 			{Method: "OnPlay", Event: "play", Listen: []string{"playing"}},
@@ -395,6 +450,59 @@ var tags = []tagSpec{
 	{"Use", "use", "Use creates a <use> element.", "svg", nil},
 }
 
+func normalizeTagSpecs() {
+	for i := range tags {
+		ref := tags[i].Ref
+		if ref == nil {
+			ref = &refSpec{}
+			tags[i].Ref = ref
+		}
+		if strings.TrimSpace(ref.StateMethod) == "" {
+			ref.StateMethod = defaultStateMethod(tags[i])
+		}
+		ref.Mixins = appendUniqueMixins(ref.Mixins, "element", "keyboard")
+	}
+}
+
+func appendUniqueMixins(existing []string, names ...string) []string {
+	if len(existing) == 0 && len(names) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(existing))
+	result := make([]string, 0, len(existing)+len(names))
+	for _, name := range existing {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		result = append(result, name)
+	}
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		result = append(result, name)
+	}
+	return result
+}
+
+func defaultStateMethod(spec tagSpec) string {
+	name := strings.TrimSpace(spec.Name)
+	if name == "" {
+		return "State"
+	}
+	return name + "State"
+}
+
 func descriptorName(spec tagSpec) string {
 	base := spec.Name
 	if strings.HasSuffix(base, "El") {
@@ -408,6 +516,7 @@ func descriptorName(spec tagSpec) string {
 }
 
 func main() {
+	normalizeTagSpecs()
 	sort.Slice(tags, func(i, j int) bool { return tags[i].Name < tags[j].Name })
 
 	var descriptors strings.Builder
@@ -447,7 +556,7 @@ func main() {
 		descriptors.WriteString("\", items...) }\n\n")
 	}
 
-	descriptorTarget := filepath.Join("pkg", "live", "html", "tags_generated.go")
+	descriptorTarget := filepath.Join("tags_generated.go")
 	if err := os.WriteFile(descriptorTarget, []byte(descriptors.String()), 0o644); err != nil {
 		panic(err)
 	}
@@ -456,6 +565,7 @@ func main() {
 	refs.WriteString("// Code generated by tags_gen.go; DO NOT EDIT.\n")
 	refs.WriteString("package html\n\n")
 	if len(refSpecs) > 0 {
+		writeMixins(&refs, refSpecs)
 		for _, spec := range refSpecs {
 			writeRefSpec(&refs, spec)
 		}
@@ -464,7 +574,7 @@ func main() {
 		refs.WriteString("func init() {}\n")
 	}
 
-	refsTarget := filepath.Join("pkg", "live", "html", "refs_generated.go")
+	refsTarget := filepath.Join("refs_generated.go")
 	if err := os.WriteFile(refsTarget, []byte(refs.String()), 0o644); err != nil {
 		panic(err)
 	}
@@ -481,11 +591,17 @@ func writeRefSpec(b *strings.Builder, spec tagSpec) {
 	stateName := stateStructName(spec)
 	buildName := buildFuncName(spec)
 	dispatchName := dispatchFuncName(spec)
+	mixinSpecs := resolveMixins(spec.Ref.Mixins)
+	allFields := mergeFields(mixinSpecs, spec.Ref.Fields)
+	events := mergeEvents(spec, mixinSpecs, spec.Ref.Events)
 
 	fmt.Fprintf(b, "type %s struct {\n", stateName)
-	if len(spec.Ref.Fields) == 0 {
+	if len(mixinSpecs) == 0 && len(spec.Ref.Fields) == 0 {
 		fmt.Fprintf(b, "}\n\n")
 	} else {
+		for _, mixin := range mixinSpecs {
+			fmt.Fprintf(b, "\t%s\n", mixin.StateName)
+		}
 		for _, field := range spec.Ref.Fields {
 			fmt.Fprintf(b, "\t%s %s\n", field.Name, field.Type)
 		}
@@ -512,7 +628,7 @@ func writeRefSpec(b *strings.Builder, spec tagSpec) {
 
 	fmt.Fprintf(b, "func %s(prev %s, payload map[string]any) %s {\n", buildName, stateName, stateName)
 	fmt.Fprintf(b, "\tnext := prev\n")
-	for _, field := range spec.Ref.Fields {
+	for _, field := range allFields {
 		helper := payloadHelper(field.Type)
 		fmt.Fprintf(b, "\tnext.%s = %s(payload, %q, prev.%s)\n", field.Name, helper, field.Selector, field.Name)
 	}
@@ -521,34 +637,34 @@ func writeRefSpec(b *strings.Builder, spec tagSpec) {
 	applyName := applyFuncName(spec)
 	fmt.Fprintf(b, "func %s(ref *ElementRef[%s]) {\n", applyName, descriptor)
 	fmt.Fprintf(b, "\tif ref == nil {\n\t\treturn\n\t}\n")
-	for _, event := range spec.Ref.Events {
-		props := collectEventProps(event, spec.Ref.Fields)
+	bindings := collectBindingSpecs(events, allFields)
+	for _, binding := range bindings {
 		fmt.Fprintf(b, "\t{\n")
 		fmt.Fprintf(b, "\t\thandler := func(evt Event) Updates {\n")
 		fmt.Fprintf(b, "\t\t\tprev := ref.%s()\n", stateMethod)
 		fmt.Fprintf(b, "\t\t\tnext := %s(prev, evt.Payload)\n", buildName)
 		fmt.Fprintf(b, "\t\t\tref.updateState(next)\n")
-		fmt.Fprintf(b, "\t\t\treturn ref.%s(%q, next, evt)\n", dispatchName, event.Event)
+		fmt.Fprintf(b, "\t\t\treturn ref.%s(%q, next, evt)\n", dispatchName, binding.Event)
 		fmt.Fprintf(b, "\t\t}\n")
-		if len(event.Listen) == 0 && len(props) == 0 {
-			fmt.Fprintf(b, "\t\topts := defaultEventOptions(%q)\n", event.Event)
+		if len(binding.Listen) == 0 && len(binding.Props) == 0 {
+			fmt.Fprintf(b, "\t\topts := defaultEventOptions(%q)\n", binding.Event)
 		} else {
-			fmt.Fprintf(b, "\t\topts := mergeEventOptions(defaultEventOptions(%q), EventOptions{\n", event.Event)
-			if len(event.Listen) > 0 {
-				fmt.Fprintf(b, "\t\t\tListen: []string{%s},\n", formatStringSlice(event.Listen))
+			fmt.Fprintf(b, "\t\topts := mergeEventOptions(defaultEventOptions(%q), EventOptions{\n", binding.Event)
+			if len(binding.Listen) > 0 {
+				fmt.Fprintf(b, "\t\t\tListen: []string{%s},\n", formatStringSlice(binding.Listen))
 			}
-			if len(props) > 0 {
-				fmt.Fprintf(b, "\t\t\tProps: []string{%s},\n", formatStringSlice(props))
+			if len(binding.Props) > 0 {
+				fmt.Fprintf(b, "\t\t\tProps: []string{%s},\n", formatStringSlice(binding.Props))
 			}
 			fmt.Fprintf(b, "\t\t})\n")
 		}
-		fmt.Fprintf(b, "\t\tbinding := (EventBinding{Handler: handler}).withOptions(opts, %q)\n", event.Event)
-		fmt.Fprintf(b, "\t\tref.Bind(%q, binding)\n", event.Event)
+		fmt.Fprintf(b, "\t\tbinding := (EventBinding{Handler: handler}).withOptions(opts, %q)\n", binding.Event)
+		fmt.Fprintf(b, "\t\tref.Bind(%q, binding)\n", binding.Event)
 		fmt.Fprintf(b, "\t}\n")
 	}
 	fmt.Fprintf(b, "}\n\n")
 
-	for _, event := range spec.Ref.Events {
+	for _, event := range events {
 		doc := strings.TrimSpace(event.Doc)
 		if doc == "" {
 			doc = fmt.Sprintf("%s registers a handler for the %q event.", event.Method, event.Event)
@@ -573,6 +689,118 @@ func writeRefInit(b *strings.Builder, specs []tagSpec) {
 		fmt.Fprintf(b, "\t\t\t%s(typed)\n", applyFuncName(spec))
 	}
 	fmt.Fprintf(b, "\t\t}\n\t}\n}\n")
+}
+
+func writeMixins(b *strings.Builder, specs []tagSpec) {
+	used := map[string]struct{}{}
+	for _, spec := range specs {
+		if spec.Ref == nil {
+			continue
+		}
+		for _, name := range spec.Ref.Mixins {
+			used[name] = struct{}{}
+		}
+	}
+	if len(used) == 0 {
+		return
+	}
+	for _, mixin := range mixins {
+		if _, ok := used[mixin.Name]; !ok {
+			continue
+		}
+		stateName := mixin.Ref.StateName
+		if stateName == "" {
+			continue
+		}
+		if len(mixin.Ref.Fields) == 0 {
+			fmt.Fprintf(b, "type %s struct{}\n\n", stateName)
+			continue
+		}
+		fmt.Fprintf(b, "type %s struct {\n", stateName)
+		for _, field := range mixin.Ref.Fields {
+			fmt.Fprintf(b, "\t%s %s\n", field.Name, field.Type)
+		}
+		fmt.Fprintf(b, "}\n\n")
+	}
+}
+
+func resolveMixins(names []string) []*refSpec {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]*refSpec, 0, len(names))
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		spec, ok := mixinRegistry[name]
+		if !ok {
+			panic(fmt.Sprintf("unknown mixin %q", name))
+		}
+		out = append(out, spec)
+	}
+	return out
+}
+
+func mergeFields(mixins []*refSpec, own []stateFieldSpec) []stateFieldSpec {
+	if len(mixins) == 0 {
+		return append([]stateFieldSpec(nil), own...)
+	}
+	seen := map[string]int{}
+	var merged []stateFieldSpec
+	for _, mixin := range mixins {
+		for _, field := range mixin.Fields {
+			merged = append(merged, field)
+			seen[field.Name] = len(merged) - 1
+		}
+	}
+	for _, field := range own {
+		if idx, ok := seen[field.Name]; ok {
+			merged[idx] = field
+			continue
+		}
+		merged = append(merged, field)
+		seen[field.Name] = len(merged) - 1
+	}
+	return merged
+}
+
+func mergeEvents(spec tagSpec, mixins []*refSpec, own []refEventSpec) []refEventSpec {
+	if len(mixins) == 0 {
+		return append([]refEventSpec(nil), own...)
+	}
+	index := map[string]int{}
+	var merged []refEventSpec
+	for _, mixin := range mixins {
+		for _, event := range mixin.Events {
+			qualified := event
+			qualified.Method = qualifyEventMethod(spec, event.Method)
+			merged = append(merged, qualified)
+			index[qualified.Method] = len(merged) - 1
+		}
+	}
+	for _, event := range own {
+		if pos, ok := index[event.Method]; ok {
+			merged[pos] = event
+			continue
+		}
+		merged = append(merged, event)
+		index[event.Method] = len(merged) - 1
+	}
+	return merged
+}
+
+func qualifyEventMethod(spec tagSpec, method string) string {
+	method = strings.TrimSpace(method)
+	if method == "" {
+		return descriptorName(spec)
+	}
+	descriptor := descriptorName(spec)
+	if strings.HasPrefix(method, "On") {
+		return "On" + descriptor + strings.TrimPrefix(method, "On")
+	}
+	return descriptor + method
 }
 
 func stateStructName(spec tagSpec) string {
@@ -602,32 +830,88 @@ func formatStringSlice(values []string) string {
 	return strings.Join(quoted, ", ")
 }
 
-func collectEventProps(event refEventSpec, fields []stateFieldSpec) []string {
+type bindingSpec struct {
+	Event  string
+	Listen []string
+	Props  []string
+}
+
+func collectBindingSpecs(events []refEventSpec, fields []stateFieldSpec) []bindingSpec {
+	if len(events) == 0 {
+		return nil
+	}
+	selectors := selectorsFromFields(fields)
+	index := make(map[string]int, len(events))
+	bindings := make([]bindingSpec, 0, len(events))
+	for _, evt := range events {
+		eventName := strings.TrimSpace(evt.Event)
+		if eventName == "" {
+			continue
+		}
+		pos, ok := index[eventName]
+		if !ok {
+			bindings = append(bindings, bindingSpec{Event: eventName})
+			pos = len(bindings) - 1
+			index[eventName] = pos
+		}
+		bindings[pos].Listen = mergeOrderedUnique(bindings[pos].Listen, evt.Listen)
+		bindings[pos].Props = mergeOrderedUnique(bindings[pos].Props, evt.Props)
+	}
+	for i := range bindings {
+		bindings[i].Props = mergeOrderedUnique(bindings[i].Props, selectors)
+	}
+	return bindings
+}
+
+func selectorsFromFields(fields []stateFieldSpec) []string {
+	if len(fields) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(fields))
 	seen := map[string]struct{}{}
-	props := make([]string, 0, len(event.Props)+len(fields))
-	for _, p := range event.Props {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		if _, ok := seen[p]; ok {
-			continue
-		}
-		seen[p] = struct{}{}
-		props = append(props, p)
-	}
 	for _, field := range fields {
-		sel := strings.TrimSpace(field.Selector)
-		if sel == "" {
+		selector := strings.TrimSpace(field.Selector)
+		if selector == "" {
 			continue
 		}
-		if _, ok := seen[sel]; ok {
+		if _, ok := seen[selector]; ok {
 			continue
 		}
-		seen[sel] = struct{}{}
-		props = append(props, sel)
+		seen[selector] = struct{}{}
+		out = append(out, selector)
 	}
-	return props
+	return out
+}
+
+func mergeOrderedUnique(dst, src []string) []string {
+	if len(src) == 0 && len(dst) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(dst))
+	result := make([]string, 0, len(dst)+len(src))
+	for _, value := range dst {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	for _, value := range src {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }
 
 func payloadHelper(fieldType string) string {

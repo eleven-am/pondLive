@@ -62,15 +62,18 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 	if err := tr.SendUploadControl(protocol.UploadControl{Op: "cancel", ID: "u1"}); err != nil {
 		t.Fatalf("SendUploadControl: %v", err)
 	}
+	if err := tr.SendDOMRequest(protocol.DOMRequest{ID: "req-1", Ref: "ref:1"}); err != nil {
+		t.Fatalf("SendDOMRequest: %v", err)
+	}
 
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
 
-	if len(ch.calls) != 7 {
-		t.Fatalf("expected 7 calls, got %d", len(ch.calls))
+	if len(ch.calls) != 8 {
+		t.Fatalf("expected 8 calls, got %d", len(ch.calls))
 	}
 
-	want := []string{"init", "resume", "frame", "evt-ack", "error", "pubsub", "upload"}
+	want := []string{"init", "resume", "frame", "evt-ack", "error", "pubsub", "upload", "domreq"}
 	for i, event := range want {
 		if ch.calls[i].event != event {
 			t.Fatalf("call %d expecting event %q, got %q", i, event, ch.calls[i].event)
@@ -113,6 +116,13 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 			}
 			if payload.Op != "cancel" || payload.ID != "u1" {
 				t.Fatalf("unexpected upload payload: %#v", payload)
+			}
+		case protocol.DOMRequest:
+			if payload.T != "domreq" {
+				t.Fatalf("expected domreq payload T, got %q", payload.T)
+			}
+			if payload.ID != "req-1" || payload.Ref != "ref:1" {
+				t.Fatalf("unexpected dom request payload: %#v", payload)
 			}
 		default:
 			t.Fatalf("unexpected payload type %T", payload)

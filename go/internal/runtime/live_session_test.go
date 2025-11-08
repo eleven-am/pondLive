@@ -20,6 +20,7 @@ type stubTransport struct {
 	errors   []protocol.ServerError
 	controls []protocol.PubsubControl
 	uploads  []protocol.UploadControl
+	dom      []protocol.DOMRequest
 }
 
 func (s *stubTransport) SendInit(init protocol.Init) error {
@@ -52,6 +53,11 @@ func (s *stubTransport) SendUploadControl(ctrl protocol.UploadControl) error {
 	return nil
 }
 
+func (s *stubTransport) SendDOMRequest(req protocol.DOMRequest) error {
+	s.dom = append(s.dom, req)
+	return nil
+}
+
 type fakeClock struct {
 	now time.Time
 }
@@ -74,6 +80,22 @@ func counterComponent(ctx Ctx, _ struct{}) h.Node {
 			h.Textf("%d", value()),
 		),
 	)
+}
+
+func awaitDOMRequest(t *testing.T, transport *stubTransport) protocol.DOMRequest {
+	t.Helper()
+	deadline := time.After(time.Second)
+	for {
+		if len(transport.dom) > 0 {
+			return transport.dom[len(transport.dom)-1]
+		}
+		select {
+		case <-deadline:
+			t.Fatal("timeout waiting for dom request")
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
 }
 
 func findClickHandler(structured render.Structured) handlers.ID {
@@ -634,5 +656,58 @@ func TestLiveSessionRecoverClearsError(t *testing.T) {
 
 	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 1); err != nil {
 		t.Fatalf("dispatch after recovery failed: %v", err)
+	}
+}
+
+func TestLiveSessionDOMGetLifecycle(t *testing.T) {
+	transport := &stubTransport{}
+	sess := NewLiveSession(SessionID("dom-get"), 1, counterComponent, struct{}{}, &LiveSessionConfig{Transport: transport})
+
+	done := make(chan struct{})
+	go func() {
+		values, err := sess.DOMGet("ref:7", "element.value")
+		if err != nil {
+			t.Errorf("DOMGet returned error: %v", err)
+		} else if values["element.value"] != "ready" {
+			t.Errorf("unexpected DOMGet values: %#v", values)
+		}
+		close(done)
+	}()
+
+	req := awaitDOMRequest(t, transport)
+	if req.Ref != "ref:7" {
+		t.Fatalf("expected ref ref:7, got %q", req.Ref)
+	}
+	if len(req.Props) != 1 || req.Props[0] != "element.value" {
+		t.Fatalf("unexpected selectors: %#v", req.Props)
+	}
+
+	sess.HandleDOMResponse(protocol.DOMResponse{ID: req.ID, Values: map[string]any{"element.value": "ready"}})
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("DOMGet did not complete")
+	}
+}
+
+func TestLiveSessionDOMGetTimeout(t *testing.T) {
+	transport := &stubTransport{}
+	sess := NewLiveSession(SessionID("dom-timeout"), 1, counterComponent, struct{}{}, &LiveSessionConfig{Transport: transport})
+	sess.domGetTimeout = 20 * time.Millisecond
+
+	start := time.Now()
+	values, err := sess.DOMGet("ref:9", "element.value")
+	if !errors.Is(err, errDOMGetTimeout) {
+		t.Fatalf("expected timeout error, got %v", err)
+	}
+	if values != nil {
+		t.Fatalf("expected nil values on timeout, got %#v", values)
+	}
+	if len(transport.dom) != 1 {
+		t.Fatalf("expected exactly one dom request, got %d", len(transport.dom))
+	}
+	if time.Since(start) < sess.domGetTimeout {
+		t.Fatalf("DOMGet returned before timeout elapsed")
 	}
 }
