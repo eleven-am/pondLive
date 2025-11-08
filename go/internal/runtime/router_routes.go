@@ -14,7 +14,8 @@ type RouteProps struct {
 
 type routeNode struct {
 	*h.FragmentNode
-	entry routeEntry
+	entry      routeEntry
+	rawPattern string
 }
 
 type routeEntry struct {
@@ -24,42 +25,39 @@ type routeEntry struct {
 }
 
 func Route(ctx Ctx, p RouteProps, children ...h.Node) h.Node {
-	pattern := p.Path
+	pattern := strings.TrimSpace(p.Path)
 	if pattern == "" {
 		pattern = "/"
 	}
-	normalized := pattern
-	if !strings.HasPrefix(normalized, "/") {
-		normalized = "/" + normalized
-	}
 	entry := routeEntry{
-		pattern:   normalizePath(normalized),
 		component: p.Component,
 		children:  children,
 	}
-	return &routeNode{FragmentNode: h.Fragment(), entry: entry}
+	return &routeNode{FragmentNode: h.Fragment(), entry: entry, rawPattern: pattern}
 }
 
 type routesNode struct {
 	*h.FragmentNode
-	entries []routeEntry
+	entries  []routeEntry
+	children []h.Node
 }
 
 func Routes(ctx Ctx, children ...h.Node) h.Node {
-	entries := collectRouteEntries(children)
+	base := routeBaseCtx.Use(ctx)
+	entries := collectRouteEntries(children, base)
 	sess := ctx.Session()
 	if !sessionRendering(sess) {
-		return newRoutesPlaceholder(sess, entries)
+		return newRoutesPlaceholder(sess, entries, children)
 	}
 	state := routerStateCtx.Use(ctx)
 	if state.getLoc == nil || state.setLoc == nil {
-		return newRoutesPlaceholder(sess, entries)
+		return newRoutesPlaceholder(sess, entries, children)
 	}
 	return renderRoutes(ctx, entries)
 }
 
-func newRoutesPlaceholder(sess *ComponentSession, entries []routeEntry) *routesNode {
-	node := &routesNode{FragmentNode: h.Fragment(), entries: entries}
+func newRoutesPlaceholder(sess *ComponentSession, entries []routeEntry, children []h.Node) *routesNode {
+	node := &routesNode{FragmentNode: h.Fragment(), entries: entries, children: append([]h.Node(nil), children...)}
 	if sess != nil {
 		sess.storeRoutesPlaceholder(node.FragmentNode, node)
 	}
@@ -78,7 +76,7 @@ type routeMatch struct {
 	match Match
 }
 
-func collectRouteEntries(nodes []h.Node) []routeEntry {
+func collectRouteEntries(nodes []h.Node, base string) []routeEntry {
 	if len(nodes) == 0 {
 		return nil
 	}
@@ -86,11 +84,17 @@ func collectRouteEntries(nodes []h.Node) []routeEntry {
 	for _, node := range nodes {
 		switch v := node.(type) {
 		case *routeNode:
-			entries = append(entries, v.entry)
+			entry := v.entry
+			entry.pattern = resolveRoutePattern(v.rawPattern, base)
+			entries = append(entries, entry)
 		case *h.FragmentNode:
-			entries = append(entries, collectRouteEntries(v.Children)...)
+			entries = append(entries, collectRouteEntries(v.Children, base)...)
 		case *routesNode:
-			entries = append(entries, v.entries...)
+			if len(v.children) > 0 {
+				entries = append(entries, collectRouteEntries(v.children, base)...)
+			} else {
+				entries = append(entries, v.entries...)
+			}
 		}
 	}
 	return entries
@@ -152,7 +156,9 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 		if len(chosen.entry.children) == 0 {
 			return h.Fragment()
 		}
-		return Routes(ctx, chosen.entry.children...)
+		return routeBaseCtx.Provide(ctx, chosen.entry.pattern, func() h.Node {
+			return Routes(ctx, chosen.entry.children...)
+		})
 	}
 	key := chosen.entry.pattern
 	if key == "" {
@@ -168,9 +174,11 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 		}
 	}
 	return ParamsCtx.Provide(ctx, params, func() h.Node {
-		return outletCtx.Provide(ctx, outletRender, func() h.Node {
-			node := Render(ctx, chosen.entry.component, chosen.match, WithKey(key))
-			return ensureRouteKey(node, key)
+		return routeBaseCtx.Provide(ctx, chosen.entry.pattern, func() h.Node {
+			return outletCtx.Provide(ctx, outletRender, func() h.Node {
+				node := Render(ctx, chosen.entry.component, chosen.match, WithKey(key))
+				return ensureRouteKey(node, key)
+			})
 		})
 	})
 }
@@ -187,6 +195,7 @@ func copyParams(src map[string]string) map[string]string {
 }
 
 var outletCtx = NewContext(func() h.Node { return h.Fragment() })
+var routeBaseCtx = NewContext("/")
 
 func Outlet(ctx Ctx) h.Node {
 	render := outletCtx.Use(ctx)
@@ -194,6 +203,54 @@ func Outlet(ctx Ctx) h.Node {
 		return h.Fragment()
 	}
 	return render()
+}
+
+func resolveRoutePattern(raw, base string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		trimmed = "/"
+	}
+	if strings.HasPrefix(trimmed, "./") {
+		rel := strings.TrimPrefix(trimmed, ".")
+		return normalizePath(joinRelativePath(base, rel))
+	}
+	return normalizePath(trimmed)
+}
+
+func joinRelativePath(base, rel string) string {
+	rel = normalizePath(rel)
+	base = normalizePath(base)
+	base = trimWildcardSuffix(base)
+	if base == "/" {
+		return rel
+	}
+	if rel == "/" {
+		return base
+	}
+	return normalizePath(strings.TrimSuffix(base, "/") + rel)
+}
+
+func trimWildcardSuffix(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "/"
+	}
+	normalized := normalizePath(trimmed)
+	if normalized == "/" {
+		return "/"
+	}
+	segments := strings.Split(strings.Trim(normalized, "/"), "/")
+	if len(segments) == 0 {
+		return "/"
+	}
+	last := segments[len(segments)-1]
+	if strings.HasPrefix(last, "*") {
+		segments = segments[:len(segments)-1]
+	}
+	if len(segments) == 0 {
+		return "/"
+	}
+	return "/" + strings.Join(segments, "/")
 }
 
 func ensureRouteKey(node h.Node, key string) h.Node {

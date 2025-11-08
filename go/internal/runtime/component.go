@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -127,10 +128,20 @@ func buildComponentID(parent *component, callable componentCallable, key string)
 	if key == "" {
 		key = "_"
 	}
+
+	hasher := sha256.New()
 	if parent == nil {
-		return fmt.Sprintf("root:%s#%s", base, key)
+		hasher.Write([]byte("root"))
+	} else {
+		hasher.Write([]byte(parent.id))
 	}
-	return fmt.Sprintf("%s/%s#%s", parent.id, base, key)
+	hasher.Write([]byte{0})
+	hasher.Write([]byte(base))
+	hasher.Write([]byte{0})
+	hasher.Write([]byte(key))
+
+	sum := hasher.Sum(nil)
+	return fmt.Sprintf("c%x", sum[:12])
 }
 
 func (c *component) beginRender() {

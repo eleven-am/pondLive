@@ -31,7 +31,11 @@ func normalizeRouterNode(ctx Ctx, sess *ComponentSession, node h.Node) h.Node {
 	switch v := node.(type) {
 	case *routesNode:
 		sess.clearRoutesPlaceholder(v.FragmentNode)
-		return normalizeRouterNode(ctx, sess, renderRoutes(ctx, v.entries))
+		entries := v.entries
+		if len(v.children) > 0 {
+			entries = collectRouteEntries(v.children, routeBaseCtx.Use(ctx))
+		}
+		return normalizeRouterNode(ctx, sess, renderRoutes(ctx, entries))
 	case *linkNode:
 		sess.clearLinkPlaceholder(v.FragmentNode)
 		return renderLink(ctx, v.props, v.children...)
@@ -60,7 +64,11 @@ func normalizeRouterNode(ctx Ctx, sess *ComponentSession, node h.Node) h.Node {
 			return renderLink(ctx, placeholder.props, placeholder.children...)
 		}
 		if placeholder, ok := consumeRoutesPlaceholder(sess, v); ok {
-			return normalizeRouterNode(ctx, sess, renderRoutes(ctx, placeholder.entries))
+			entries := placeholder.entries
+			if len(placeholder.children) > 0 {
+				entries = collectRouteEntries(placeholder.children, routeBaseCtx.Use(ctx))
+			}
+			return normalizeRouterNode(ctx, sess, renderRoutes(ctx, entries))
 		}
 		if v == nil || len(v.Children) == 0 {
 			return node

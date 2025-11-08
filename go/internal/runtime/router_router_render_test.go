@@ -30,8 +30,8 @@ func settingsApp(ctx Ctx, _ routerRenderProps) h.Node {
 		Routes(ctx,
 			Route(ctx, RouteProps{Path: "/settings/*", Component: settingsLayout},
 				Routes(ctx,
-					Route(ctx, RouteProps{Path: "/settings/profile", Component: settingsPage("Profile")}),
-					Route(ctx, RouteProps{Path: "/settings/security", Component: settingsPage("Security")}),
+					Route(ctx, RouteProps{Path: "./profile", Component: settingsPage("Profile")}),
+					Route(ctx, RouteProps{Path: "./security", Component: settingsPage("Security")}),
 				),
 			),
 		),
@@ -230,5 +230,27 @@ func TestRouterUsesSeededLocationDuringSSR(t *testing.T) {
 	}
 	if strings.Contains(html, "page:home:/") {
 		t.Fatalf("expected home route to be inactive, got %q", html)
+	}
+}
+
+func TestRouterLinkRendersStaticAnchorWithoutRouter(t *testing.T) {
+	sess := NewSession(func(ctx Ctx, _ routerRenderProps) h.Node {
+		return RouterLink(ctx, LinkProps{To: "../settings"}, h.Text("Settings"))
+	}, routerRenderProps{})
+	sess.SetRegistry(handlers.NewRegistry())
+
+	InternalSeedSessionLocation(sess, ParseHref("/users/123/"))
+
+	node := sess.RenderNode()
+	html := render.RenderHTML(node, sess.Registry())
+
+	if !strings.Contains(html, "<a ") {
+		t.Fatalf("expected fallback anchor in SSR output, got %q", html)
+	}
+	if !strings.Contains(html, "href=\"/settings\"") {
+		t.Fatalf("expected fallback anchor href to resolve relative path, got %q", html)
+	}
+	if !strings.Contains(html, ">Settings<") {
+		t.Fatalf("expected fallback anchor text, got %q", html)
 	}
 }

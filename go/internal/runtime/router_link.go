@@ -28,12 +28,14 @@ type linkNode struct {
 	children []h.Item
 }
 
-func newLinkPlaceholder(sess *ComponentSession, p LinkProps, children []h.Item) *linkNode {
-	node := &linkNode{FragmentNode: h.Fragment(), props: p, children: children}
+func newLinkPlaceholder(sess *ComponentSession, p LinkProps, children []h.Item) h.Node {
+	fragment := h.Fragment()
+	node := &linkNode{FragmentNode: fragment, props: p, children: children}
 	if sess != nil {
-		sess.storeLinkPlaceholder(node.FragmentNode, node)
+		sess.storeLinkPlaceholder(fragment, node)
 	}
-	return node
+	fragment.Children = append(fragment.Children, renderStaticLink(sess, p, children...))
+	return fragment
 }
 
 func consumeLinkPlaceholder(sess *ComponentSession, f *h.FragmentNode) (*linkNode, bool) {
@@ -88,6 +90,23 @@ func renderLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
 		items = append(items, children...)
 	}
 	return h.A(items...)
+}
+
+func renderStaticLink(sess *ComponentSession, p LinkProps, children ...h.Item) h.Node {
+	href := fallbackLinkHref(sess, p)
+	items := make([]h.Item, 0, len(children)+1)
+	items = append(items, h.Href(href))
+	items = append(items, children...)
+	return h.A(items...)
+}
+
+func fallbackLinkHref(sess *ComponentSession, p LinkProps) string {
+	if sess == nil {
+		return p.To
+	}
+	base := currentSessionLocation(sess)
+	target := resolveHref(base, p.To)
+	return BuildHref(target.Path, target.Query, target.Hash)
 }
 
 func extractTargetFromEvent(ev h.Event, base Location) Location {
