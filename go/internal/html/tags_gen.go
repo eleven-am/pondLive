@@ -561,6 +561,14 @@ func generatePublicFacade(specs []tagSpec) {
 	}
 	b.WriteString(")\n\n")
 
+	// Re-export element hooks
+	for _, spec := range specs {
+		useName := "Use" + spec.Name
+		fmt.Fprintf(&b, "func %s(ctx Ctx) *%sRef {\n", useName, spec.Name)
+		fmt.Fprintf(&b, "\treturn internalhtml.%s(ctx)\n", useName)
+		b.WriteString("}\n\n")
+	}
+
 	target := filepath.Join("..", "..", "pkg", "live", "html", "generated.go")
 	writeFormatted(target, b.String())
 }
