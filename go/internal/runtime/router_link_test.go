@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 func TestExtractTargetFromEventPrefersCurrentTargetDataset(t *testing.T) {

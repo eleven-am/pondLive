@@ -49,7 +49,7 @@ func MetaTags(tags ...MetaTag) []Node {
 				items = append(items, Attr(k, tag.Attrs[k]))
 			}
 		}
-		nodes = append(nodes, Meta(items...))
+		nodes = append(nodes, El(HTMLMetaElement{}, "meta", items...))
 	}
 	return nodes
 }
@@ -121,7 +121,7 @@ func LinkTags(tags ...LinkTag) []Node {
 				items = append(items, Attr(k, tag.Attrs[k]))
 			}
 		}
-		nodes = append(nodes, Link(items...))
+		nodes = append(nodes, El(HTMLLinkElement{}, "link", items...))
 	}
 	return nodes
 }
@@ -190,7 +190,7 @@ func ScriptTags(tags ...ScriptTag) []Node {
 				items = append(items, Attr(k, tag.Attrs[k]))
 			}
 		}
-		script := Script(items...)
+		script := El(HTMLScriptElement{}, "script", items...)
 		if tag.Inner != "" {
 			script.Unsafe = &tag.Inner
 		}

@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 func TestInMemoryPubsubPublish(t *testing.T) {

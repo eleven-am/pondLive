@@ -3,7 +3,6 @@ package live
 
 import (
 	"fmt"
-
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	internalhtml "github.com/eleven-am/pondlive/go/internal/html"
 )

@@ -146,147 +146,695 @@ type (
 	HTMLWbrElement           = internalhtml.HTMLWbrElement
 )
 
-// Element builder functions
-var (
-	A              = internalhtml.A
-	Abbr           = internalhtml.Abbr
-	Address        = internalhtml.Address
-	Area           = internalhtml.Area
-	Article        = internalhtml.Article
-	Aside          = internalhtml.Aside
-	Audio          = internalhtml.Audio
-	B              = internalhtml.B
-	Base           = internalhtml.Base
-	Bdi            = internalhtml.Bdi
-	Bdo            = internalhtml.Bdo
-	Blockquote     = internalhtml.Blockquote
-	Body           = internalhtml.Body
-	Br             = internalhtml.Br
-	Button         = internalhtml.Button
-	Canvas         = internalhtml.Canvas
-	Caption        = internalhtml.Caption
-	Circle         = internalhtml.Circle
-	Cite           = internalhtml.Cite
-	ClipPath       = internalhtml.ClipPath
-	Code           = internalhtml.Code
-	Col            = internalhtml.Col
-	Colgroup       = internalhtml.Colgroup
-	DataEl         = internalhtml.DataEl
-	Datalist       = internalhtml.Datalist
-	Dd             = internalhtml.Dd
-	Defs           = internalhtml.Defs
-	DelEl          = internalhtml.DelEl
-	Details        = internalhtml.Details
-	Dfn            = internalhtml.Dfn
-	Dialog         = internalhtml.Dialog
-	Div            = internalhtml.Div
-	Dl             = internalhtml.Dl
-	Dt             = internalhtml.Dt
-	Ellipse        = internalhtml.Ellipse
-	Em             = internalhtml.Em
-	Embed          = internalhtml.Embed
-	Fieldset       = internalhtml.Fieldset
-	Figcaption     = internalhtml.Figcaption
-	Figure         = internalhtml.Figure
-	Footer         = internalhtml.Footer
-	ForeignObject  = internalhtml.ForeignObject
-	Form           = internalhtml.Form
-	G              = internalhtml.G
-	H1             = internalhtml.H1
-	H2             = internalhtml.H2
-	H3             = internalhtml.H3
-	H4             = internalhtml.H4
-	H5             = internalhtml.H5
-	H6             = internalhtml.H6
-	Head           = internalhtml.Head
-	Header         = internalhtml.Header
-	Hgroup         = internalhtml.Hgroup
-	Hr             = internalhtml.Hr
-	Html           = internalhtml.Html
-	I              = internalhtml.I
-	Iframe         = internalhtml.Iframe
-	Image          = internalhtml.Image
-	Img            = internalhtml.Img
-	Input          = internalhtml.Input
-	InsEl          = internalhtml.InsEl
-	Kbd            = internalhtml.Kbd
-	Label          = internalhtml.Label
-	Legend         = internalhtml.Legend
-	Li             = internalhtml.Li
-	Line           = internalhtml.Line
-	LinearGradient = internalhtml.LinearGradient
-	Link           = internalhtml.Link
-	Main           = internalhtml.Main
-	MapEl          = internalhtml.MapEl
-	Mark           = internalhtml.Mark
-	Marker         = internalhtml.Marker
-	Mask           = internalhtml.Mask
-	Menu           = internalhtml.Menu
-	MenuItem       = internalhtml.MenuItem
-	Meta           = internalhtml.Meta
-	Meter          = internalhtml.Meter
-	Nav            = internalhtml.Nav
-	Noscript       = internalhtml.Noscript
-	Object         = internalhtml.Object
-	Ol             = internalhtml.Ol
-	Optgroup       = internalhtml.Optgroup
-	Option         = internalhtml.Option
-	Output         = internalhtml.Output
-	P              = internalhtml.P
-	Param          = internalhtml.Param
-	Path           = internalhtml.Path
-	Pattern        = internalhtml.Pattern
-	Picture        = internalhtml.Picture
-	Polygon        = internalhtml.Polygon
-	Polyline       = internalhtml.Polyline
-	Portal         = internalhtml.Portal
-	Pre            = internalhtml.Pre
-	Progress       = internalhtml.Progress
-	Q              = internalhtml.Q
-	RadialGradient = internalhtml.RadialGradient
-	Rb             = internalhtml.Rb
-	Rect           = internalhtml.Rect
-	Rp             = internalhtml.Rp
-	Rt             = internalhtml.Rt
-	Rtc            = internalhtml.Rtc
-	Ruby           = internalhtml.Ruby
-	S              = internalhtml.S
-	Samp           = internalhtml.Samp
-	Script         = internalhtml.Script
-	Section        = internalhtml.Section
-	Select         = internalhtml.Select
-	Slot           = internalhtml.Slot
-	Small          = internalhtml.Small
-	Source         = internalhtml.Source
-	Span           = internalhtml.Span
-	Stop           = internalhtml.Stop
-	Strong         = internalhtml.Strong
-	StyleEl        = internalhtml.StyleEl
-	Sub            = internalhtml.Sub
-	Summary        = internalhtml.Summary
-	Sup            = internalhtml.Sup
-	Svg            = internalhtml.Svg
-	SvgText        = internalhtml.SvgText
-	TSpan          = internalhtml.TSpan
-	Table          = internalhtml.Table
-	Tbody          = internalhtml.Tbody
-	Td             = internalhtml.Td
-	Template       = internalhtml.Template
-	Textarea       = internalhtml.Textarea
-	Tfoot          = internalhtml.Tfoot
-	Th             = internalhtml.Th
-	Thead          = internalhtml.Thead
-	Time           = internalhtml.Time
-	TitleEl        = internalhtml.TitleEl
-	Tr             = internalhtml.Tr
-	Track          = internalhtml.Track
-	U              = internalhtml.U
-	Ul             = internalhtml.Ul
-	Use            = internalhtml.Use
-	Var            = internalhtml.Var
-	Video          = internalhtml.Video
-	Wbr            = internalhtml.Wbr
-)
+// A creates an <a> element.
+func A(items ...Item) *Element {
+	return internalhtml.El(HTMLAElement{}, "a", items...)
+}
+
+// Abbr creates an <abbr> element.
+func Abbr(items ...Item) *Element {
+	return internalhtml.El(HTMLAbbrElement{}, "abbr", items...)
+}
+
+// Address creates an <address> element.
+func Address(items ...Item) *Element {
+	return internalhtml.El(HTMLAddressElement{}, "address", items...)
+}
+
+// Area creates an <area> element.
+func Area(items ...Item) *Element {
+	return internalhtml.El(HTMLAreaElement{}, "area", items...)
+}
+
+// Article creates an <article> element.
+func Article(items ...Item) *Element {
+	return internalhtml.El(HTMLArticleElement{}, "article", items...)
+}
+
+// Aside creates an <aside> element.
+func Aside(items ...Item) *Element {
+	return internalhtml.El(HTMLAsideElement{}, "aside", items...)
+}
+
+// Audio creates an <audio> element.
+func Audio(items ...Item) *Element {
+	return internalhtml.El(HTMLAudioElement{}, "audio", items...)
+}
+
+// B creates a <b> element.
+func B(items ...Item) *Element {
+	return internalhtml.El(HTMLBElement{}, "b", items...)
+}
+
+// Base creates a <base> element.
+func Base(items ...Item) *Element {
+	return internalhtml.El(HTMLBaseElement{}, "base", items...)
+}
+
+// Bdi creates a <bdi> element.
+func Bdi(items ...Item) *Element {
+	return internalhtml.El(HTMLBdiElement{}, "bdi", items...)
+}
+
+// Bdo creates a <bdo> element.
+func Bdo(items ...Item) *Element {
+	return internalhtml.El(HTMLBdoElement{}, "bdo", items...)
+}
+
+// Blockquote creates a <blockquote> element.
+func Blockquote(items ...Item) *Element {
+	return internalhtml.El(HTMLBlockquoteElement{}, "blockquote", items...)
+}
+
+// Body creates a <body> element.
+func Body(items ...Item) *Element {
+	return internalhtml.El(HTMLBodyElement{}, "body", items...)
+}
+
+// Br creates a <br> element.
+func Br(items ...Item) *Element {
+	return internalhtml.El(HTMLBrElement{}, "br", items...)
+}
+
+// Button creates a <button> element.
+func Button(items ...Item) *Element {
+	return internalhtml.El(HTMLButtonElement{}, "button", items...)
+}
+
+// Canvas creates a <canvas> element.
+func Canvas(items ...Item) *Element {
+	return internalhtml.El(HTMLCanvasElement{}, "canvas", items...)
+}
+
+// Caption creates a <caption> element.
+func Caption(items ...Item) *Element {
+	return internalhtml.El(HTMLCaptionElement{}, "caption", items...)
+}
+
+// Circle creates a <circle> element.
+func Circle(items ...Item) *Element {
+	return internalhtml.El(SVGCircleElement{}, "circle", items...)
+}
+
+// Cite creates a <cite> element.
+func Cite(items ...Item) *Element {
+	return internalhtml.El(HTMLCiteElement{}, "cite", items...)
+}
+
+// ClipPath creates a <clipPath> element.
+func ClipPath(items ...Item) *Element {
+	return internalhtml.El(SVGClipPathElement{}, "clipPath", items...)
+}
+
+// Code creates a <code> element.
+func Code(items ...Item) *Element {
+	return internalhtml.El(HTMLCodeElement{}, "code", items...)
+}
+
+// Col creates a <col> element.
+func Col(items ...Item) *Element {
+	return internalhtml.El(HTMLColElement{}, "col", items...)
+}
+
+// Colgroup creates a <colgroup> element.
+func Colgroup(items ...Item) *Element {
+	return internalhtml.El(HTMLColgroupElement{}, "colgroup", items...)
+}
+
+// DataEl creates a <data> element.
+func DataEl(items ...Item) *Element {
+	return internalhtml.El(HTMLDataElement{}, "data", items...)
+}
+
+// Datalist creates a <datalist> element.
+func Datalist(items ...Item) *Element {
+	return internalhtml.El(HTMLDatalistElement{}, "datalist", items...)
+}
+
+// Dd creates a <dd> element.
+func Dd(items ...Item) *Element {
+	return internalhtml.El(HTMLDdElement{}, "dd", items...)
+}
+
+// Defs creates a <defs> element.
+func Defs(items ...Item) *Element {
+	return internalhtml.El(SVGDefsElement{}, "defs", items...)
+}
+
+// DelEl creates a <del> element.
+func DelEl(items ...Item) *Element {
+	return internalhtml.El(HTMLDelElement{}, "del", items...)
+}
+
+// Details creates a <details> element.
+func Details(items ...Item) *Element {
+	return internalhtml.El(HTMLDetailsElement{}, "details", items...)
+}
+
+// Dfn creates a <dfn> element.
+func Dfn(items ...Item) *Element {
+	return internalhtml.El(HTMLDfnElement{}, "dfn", items...)
+}
+
+// Dialog creates a <dialog> element.
+func Dialog(items ...Item) *Element {
+	return internalhtml.El(HTMLDialogElement{}, "dialog", items...)
+}
+
+// Div creates a <div> element.
+func Div(items ...Item) *Element {
+	return internalhtml.El(HTMLDivElement{}, "div", items...)
+}
+
+// Dl creates a <dl> element.
+func Dl(items ...Item) *Element {
+	return internalhtml.El(HTMLDlElement{}, "dl", items...)
+}
+
+// Dt creates a <dt> element.
+func Dt(items ...Item) *Element {
+	return internalhtml.El(HTMLDtElement{}, "dt", items...)
+}
+
+// Ellipse creates an <ellipse> element.
+func Ellipse(items ...Item) *Element {
+	return internalhtml.El(SVGEllipseElement{}, "ellipse", items...)
+}
+
+// Em creates an <em> element.
+func Em(items ...Item) *Element {
+	return internalhtml.El(HTMLEmElement{}, "em", items...)
+}
+
+// Embed creates an <embed> element.
+func Embed(items ...Item) *Element {
+	return internalhtml.El(HTMLEmbedElement{}, "embed", items...)
+}
+
+// Fieldset creates a <fieldset> element.
+func Fieldset(items ...Item) *Element {
+	return internalhtml.El(HTMLFieldsetElement{}, "fieldset", items...)
+}
+
+// Figcaption creates a <figcaption> element.
+func Figcaption(items ...Item) *Element {
+	return internalhtml.El(HTMLFigcaptionElement{}, "figcaption", items...)
+}
+
+// Figure creates a <figure> element.
+func Figure(items ...Item) *Element {
+	return internalhtml.El(HTMLFigureElement{}, "figure", items...)
+}
+
+// Footer creates a <footer> element.
+func Footer(items ...Item) *Element {
+	return internalhtml.El(HTMLFooterElement{}, "footer", items...)
+}
+
+// ForeignObject creates a <foreignObject> element.
+func ForeignObject(items ...Item) *Element {
+	return internalhtml.El(SVGForeignObjectElement{}, "foreignObject", items...)
+}
+
+// Form creates a <form> element.
+func Form(items ...Item) *Element {
+	return internalhtml.El(HTMLFormElement{}, "form", items...)
+}
+
+// G creates a <g> element.
+func G(items ...Item) *Element {
+	return internalhtml.El(SVGGElement{}, "g", items...)
+}
+
+// H1 creates an <h1> element.
+func H1(items ...Item) *Element {
+	return internalhtml.El(HTMLH1Element{}, "h1", items...)
+}
+
+// H2 creates an <h2> element.
+func H2(items ...Item) *Element {
+	return internalhtml.El(HTMLH2Element{}, "h2", items...)
+}
+
+// H3 creates an <h3> element.
+func H3(items ...Item) *Element {
+	return internalhtml.El(HTMLH3Element{}, "h3", items...)
+}
+
+// H4 creates an <h4> element.
+func H4(items ...Item) *Element {
+	return internalhtml.El(HTMLH4Element{}, "h4", items...)
+}
+
+// H5 creates an <h5> element.
+func H5(items ...Item) *Element {
+	return internalhtml.El(HTMLH5Element{}, "h5", items...)
+}
+
+// H6 creates an <h6> element.
+func H6(items ...Item) *Element {
+	return internalhtml.El(HTMLH6Element{}, "h6", items...)
+}
+
+// Head creates a <head> element.
+func Head(items ...Item) *Element {
+	return internalhtml.El(HTMLHeadElement{}, "head", items...)
+}
+
+// Header creates a <header> element.
+func Header(items ...Item) *Element {
+	return internalhtml.El(HTMLHeaderElement{}, "header", items...)
+}
+
+// Hgroup creates an <hgroup> element.
+func Hgroup(items ...Item) *Element {
+	return internalhtml.El(HTMLHgroupElement{}, "hgroup", items...)
+}
+
+// Hr creates an <hr> element.
+func Hr(items ...Item) *Element {
+	return internalhtml.El(HTMLHrElement{}, "hr", items...)
+}
+
+// Html creates an <html> element.
+func Html(items ...Item) *Element {
+	return internalhtml.El(HTMLHtmlElement{}, "html", items...)
+}
+
+// I creates an <i> element.
+func I(items ...Item) *Element {
+	return internalhtml.El(HTMLIElement{}, "i", items...)
+}
+
+// Iframe creates an <iframe> element.
+func Iframe(items ...Item) *Element {
+	return internalhtml.El(HTMLIframeElement{}, "iframe", items...)
+}
+
+// Image creates an <image> element.
+func Image(items ...Item) *Element {
+	return internalhtml.El(SVGImageElement{}, "image", items...)
+}
+
+// Img creates an <img> element.
+func Img(items ...Item) *Element {
+	return internalhtml.El(HTMLImgElement{}, "img", items...)
+}
+
+// Input creates an <input> element.
+func Input(items ...Item) *Element {
+	return internalhtml.El(HTMLInputElement{}, "input", items...)
+}
+
+// InsEl creates an <ins> element.
+func InsEl(items ...Item) *Element {
+	return internalhtml.El(HTMLInsElement{}, "ins", items...)
+}
+
+// Kbd creates a <kbd> element.
+func Kbd(items ...Item) *Element {
+	return internalhtml.El(HTMLKbdElement{}, "kbd", items...)
+}
+
+// Label creates a <label> element.
+func Label(items ...Item) *Element {
+	return internalhtml.El(HTMLLabelElement{}, "label", items...)
+}
+
+// Legend creates a <legend> element.
+func Legend(items ...Item) *Element {
+	return internalhtml.El(HTMLLegendElement{}, "legend", items...)
+}
+
+// Li creates an <li> element.
+func Li(items ...Item) *Element {
+	return internalhtml.El(HTMLLiElement{}, "li", items...)
+}
+
+// Line creates a <line> element.
+func Line(items ...Item) *Element {
+	return internalhtml.El(SVGLineElement{}, "line", items...)
+}
+
+// LinearGradient creates a <linearGradient> element.
+func LinearGradient(items ...Item) *Element {
+	return internalhtml.El(SVGLinearGradientElement{}, "linearGradient", items...)
+}
+
+// Link creates a <link> element.
+func Link(items ...Item) *Element {
+	return internalhtml.El(HTMLLinkElement{}, "link", items...)
+}
+
+// Main creates a <main> element.
+func Main(items ...Item) *Element {
+	return internalhtml.El(HTMLMainElement{}, "main", items...)
+}
+
+// MapEl creates a <map> element.
+func MapEl(items ...Item) *Element {
+	return internalhtml.El(HTMLMapElement{}, "map", items...)
+}
+
+// Mark creates a <mark> element.
+func Mark(items ...Item) *Element {
+	return internalhtml.El(HTMLMarkElement{}, "mark", items...)
+}
+
+// Marker creates a <marker> element.
+func Marker(items ...Item) *Element {
+	return internalhtml.El(SVGMarkerElement{}, "marker", items...)
+}
+
+// Mask creates a <mask> element.
+func Mask(items ...Item) *Element {
+	return internalhtml.El(SVGMaskElement{}, "mask", items...)
+}
+
+// Menu creates a <menu> element.
+func Menu(items ...Item) *Element {
+	return internalhtml.El(HTMLMenuElement{}, "menu", items...)
+}
+
+// MenuItem creates a <menuitem> element.
+func MenuItem(items ...Item) *Element {
+	return internalhtml.El(HTMLMenuItemElement{}, "menuitem", items...)
+}
+
+// Meta creates a <meta> element.
+func Meta(items ...Item) *Element {
+	return internalhtml.El(HTMLMetaElement{}, "meta", items...)
+}
+
+// Meter creates a <meter> element.
+func Meter(items ...Item) *Element {
+	return internalhtml.El(HTMLMeterElement{}, "meter", items...)
+}
+
+// Nav creates a <nav> element.
+func Nav(items ...Item) *Element {
+	return internalhtml.El(HTMLNavElement{}, "nav", items...)
+}
+
+// Noscript creates a <noscript> element.
+func Noscript(items ...Item) *Element {
+	return internalhtml.El(HTMLNoscriptElement{}, "noscript", items...)
+}
+
+// Object creates an <object> element.
+func Object(items ...Item) *Element {
+	return internalhtml.El(HTMLObjectElement{}, "object", items...)
+}
+
+// Ol creates an <ol> element.
+func Ol(items ...Item) *Element {
+	return internalhtml.El(HTMLOlElement{}, "ol", items...)
+}
+
+// Optgroup creates an <optgroup> element.
+func Optgroup(items ...Item) *Element {
+	return internalhtml.El(HTMLOptgroupElement{}, "optgroup", items...)
+}
+
+// Option creates an <option> element.
+func Option(items ...Item) *Element {
+	return internalhtml.El(HTMLOptionElement{}, "option", items...)
+}
+
+// Output creates an <output> element.
+func Output(items ...Item) *Element {
+	return internalhtml.El(HTMLOutputElement{}, "output", items...)
+}
+
+// P creates a <p> element.
+func P(items ...Item) *Element {
+	return internalhtml.El(HTMLPElement{}, "p", items...)
+}
+
+// Param creates a <param> element.
+func Param(items ...Item) *Element {
+	return internalhtml.El(HTMLParamElement{}, "param", items...)
+}
+
+// Path creates a <path> element.
+func Path(items ...Item) *Element {
+	return internalhtml.El(SVGPathElement{}, "path", items...)
+}
+
+// Pattern creates a <pattern> element.
+func Pattern(items ...Item) *Element {
+	return internalhtml.El(SVGPatternElement{}, "pattern", items...)
+}
+
+// Picture creates a <picture> element.
+func Picture(items ...Item) *Element {
+	return internalhtml.El(HTMLPictureElement{}, "picture", items...)
+}
+
+// Polygon creates a <polygon> element.
+func Polygon(items ...Item) *Element {
+	return internalhtml.El(SVGPolygonElement{}, "polygon", items...)
+}
+
+// Polyline creates a <polyline> element.
+func Polyline(items ...Item) *Element {
+	return internalhtml.El(SVGPolylineElement{}, "polyline", items...)
+}
+
+// Portal creates a <portal> element.
+func Portal(items ...Item) *Element {
+	return internalhtml.El(HTMLPortalElement{}, "portal", items...)
+}
+
+// Pre creates a <pre> element.
+func Pre(items ...Item) *Element {
+	return internalhtml.El(HTMLPreElement{}, "pre", items...)
+}
+
+// Progress creates a <progress> element.
+func Progress(items ...Item) *Element {
+	return internalhtml.El(HTMLProgressElement{}, "progress", items...)
+}
+
+// Q creates a <q> element.
+func Q(items ...Item) *Element {
+	return internalhtml.El(HTMLQElement{}, "q", items...)
+}
+
+// RadialGradient creates a <radialGradient> element.
+func RadialGradient(items ...Item) *Element {
+	return internalhtml.El(SVGRadialGradientElement{}, "radialGradient", items...)
+}
+
+// Rb creates an <rb> element.
+func Rb(items ...Item) *Element {
+	return internalhtml.El(HTMLRbElement{}, "rb", items...)
+}
+
+// Rect creates a <rect> element.
+func Rect(items ...Item) *Element {
+	return internalhtml.El(SVGRectElement{}, "rect", items...)
+}
+
+// Rp creates an <rp> element.
+func Rp(items ...Item) *Element {
+	return internalhtml.El(HTMLRpElement{}, "rp", items...)
+}
+
+// Rt creates an <rt> element.
+func Rt(items ...Item) *Element {
+	return internalhtml.El(HTMLRtElement{}, "rt", items...)
+}
+
+// Rtc creates a <rtc> element.
+func Rtc(items ...Item) *Element {
+	return internalhtml.El(HTMLRtcElement{}, "rtc", items...)
+}
+
+// Ruby creates a <ruby> element.
+func Ruby(items ...Item) *Element {
+	return internalhtml.El(HTMLRubyElement{}, "ruby", items...)
+}
+
+// S creates an <s> element.
+func S(items ...Item) *Element {
+	return internalhtml.El(HTMLSElement{}, "s", items...)
+}
+
+// Samp creates a <samp> element.
+func Samp(items ...Item) *Element {
+	return internalhtml.El(HTMLSampElement{}, "samp", items...)
+}
+
+// Script creates a <script> element.
+func Script(items ...Item) *Element {
+	return internalhtml.El(HTMLScriptElement{}, "script", items...)
+}
+
+// Section creates a <section> element.
+func Section(items ...Item) *Element {
+	return internalhtml.El(HTMLSectionElement{}, "section", items...)
+}
+
+// Select creates a <select> element.
+func Select(items ...Item) *Element {
+	return internalhtml.El(HTMLSelectElement{}, "select", items...)
+}
+
+// Slot creates a <slot> element.
+func Slot(items ...Item) *Element {
+	return internalhtml.El(HTMLSlotElement{}, "slot", items...)
+}
+
+// Small creates a <small> element.
+func Small(items ...Item) *Element {
+	return internalhtml.El(HTMLSmallElement{}, "small", items...)
+}
+
+// Source creates a <source> element.
+func Source(items ...Item) *Element {
+	return internalhtml.El(HTMLSourceElement{}, "source", items...)
+}
+
+// Span creates a <span> element.
+func Span(items ...Item) *Element {
+	return internalhtml.El(HTMLSpanElement{}, "span", items...)
+}
+
+// Stop creates a <stop> element.
+func Stop(items ...Item) *Element {
+	return internalhtml.El(SVGStopElement{}, "stop", items...)
+}
+
+// Strong creates a <strong> element.
+func Strong(items ...Item) *Element {
+	return internalhtml.El(HTMLStrongElement{}, "strong", items...)
+}
+
+// StyleEl creates a <style> element.
+func StyleEl(items ...Item) *Element {
+	return internalhtml.El(HTMLStyleElement{}, "style", items...)
+}
+
+// Sub creates a <sub> element.
+func Sub(items ...Item) *Element {
+	return internalhtml.El(HTMLSubElement{}, "sub", items...)
+}
+
+// Summary creates a <summary> element.
+func Summary(items ...Item) *Element {
+	return internalhtml.El(HTMLSummaryElement{}, "summary", items...)
+}
+
+// Sup creates a <sup> element.
+func Sup(items ...Item) *Element {
+	return internalhtml.El(HTMLSupElement{}, "sup", items...)
+}
+
+// Svg creates an <svg> element.
+func Svg(items ...Item) *Element {
+	return internalhtml.El(SVGSvgElement{}, "svg", items...)
+}
+
+// SvgText creates an SVG <text> element.
+func SvgText(items ...Item) *Element {
+	return internalhtml.El(SVGSvgTextElement{}, "text", items...)
+}
+
+// TSpan creates a <tspan> element.
+func TSpan(items ...Item) *Element {
+	return internalhtml.El(SVGTSpanElement{}, "tspan", items...)
+}
+
+// Table creates a <table> element.
+func Table(items ...Item) *Element {
+	return internalhtml.El(HTMLTableElement{}, "table", items...)
+}
+
+// Tbody creates a <tbody> element.
+func Tbody(items ...Item) *Element {
+	return internalhtml.El(HTMLTbodyElement{}, "tbody", items...)
+}
+
+// Td creates a <td> element.
+func Td(items ...Item) *Element {
+	return internalhtml.El(HTMLTdElement{}, "td", items...)
+}
+
+// Template creates a <template> element.
+func Template(items ...Item) *Element {
+	return internalhtml.El(HTMLTemplateElement{}, "template", items...)
+}
+
+// Textarea creates a <textarea> element.
+func Textarea(items ...Item) *Element {
+	return internalhtml.El(HTMLTextareaElement{}, "textarea", items...)
+}
+
+// Tfoot creates a <tfoot> element.
+func Tfoot(items ...Item) *Element {
+	return internalhtml.El(HTMLTfootElement{}, "tfoot", items...)
+}
+
+// Th creates a <th> element.
+func Th(items ...Item) *Element {
+	return internalhtml.El(HTMLThElement{}, "th", items...)
+}
+
+// Thead creates a <thead> element.
+func Thead(items ...Item) *Element {
+	return internalhtml.El(HTMLTheadElement{}, "thead", items...)
+}
+
+// Time creates a <time> element.
+func Time(items ...Item) *Element {
+	return internalhtml.El(HTMLTimeElement{}, "time", items...)
+}
+
+// TitleEl creates a <title> element.
+func TitleEl(items ...Item) *Element {
+	return internalhtml.El(HTMLTitleElement{}, "title", items...)
+}
+
+// Tr creates a <tr> element.
+func Tr(items ...Item) *Element {
+	return internalhtml.El(HTMLTrElement{}, "tr", items...)
+}
+
+// Track creates a <track> element.
+func Track(items ...Item) *Element {
+	return internalhtml.El(HTMLTrackElement{}, "track", items...)
+}
+
+// U creates a <u> element.
+func U(items ...Item) *Element {
+	return internalhtml.El(HTMLUElement{}, "u", items...)
+}
+
+// Ul creates a <ul> element.
+func Ul(items ...Item) *Element {
+	return internalhtml.El(HTMLUlElement{}, "ul", items...)
+}
+
+// Use creates a <use> element.
+func Use(items ...Item) *Element {
+	return internalhtml.El(SVGUseElement{}, "use", items...)
+}
+
+// Var creates a <var> element.
+func Var(items ...Item) *Element {
+	return internalhtml.El(HTMLVarElement{}, "var", items...)
+}
+
+// Video creates a <video> element.
+func Video(items ...Item) *Element {
+	return internalhtml.El(HTMLVideoElement{}, "video", items...)
+}
+
+// Wbr creates a <wbr> element.
+func Wbr(items ...Item) *Element {
+	return internalhtml.El(HTMLWbrElement{}, "wbr", items...)
+}
 
 // Element ref types
 type (

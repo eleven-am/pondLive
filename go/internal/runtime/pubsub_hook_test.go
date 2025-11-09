@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type pubsubHandleCollector struct {

@@ -4,11 +4,11 @@ import (
 	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
-	internalhtml "github.com/eleven-am/pondlive/go/internal/html"
+	html "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // DOMCall instructs the client to invoke a method on the referenced element.
-func DOMCall[T dom.ElementDescriptor](ctx Ctx, ref *internalhtml.ElementRef[T], method string, args ...any) {
+func DOMCall[T dom.ElementDescriptor](ctx Ctx, ref *html.ElementRef[T], method string, args ...any) {
 	if ctx.sess == nil || ctx.sess.owner == nil {
 		return
 	}

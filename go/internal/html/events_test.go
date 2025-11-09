@@ -4,7 +4,7 @@ import "testing"
 
 func TestOnAppliesDefaultEventOptions(t *testing.T) {
 	callback := func(Event) Updates { return nil }
-	el := Video(On("timeupdate", callback))
+	el := El(HTMLVideoElement{}, "video", On("timeupdate", callback))
 
 	binding, ok := el.Events["timeupdate"]
 	if !ok {
@@ -25,7 +25,7 @@ func TestOnAppliesDefaultEventOptions(t *testing.T) {
 
 func TestOnWithMergesDefaultAndCustomOptions(t *testing.T) {
 	callback := func(Event) Updates { return nil }
-	el := Video(OnWith("timeupdate", EventOptions{
+	el := El(HTMLVideoElement{}, "video", OnWith("timeupdate", EventOptions{
 		Listen: []string{"seeking", "pause"},
 		Props:  []string{"target.buffered"},
 	}, callback))

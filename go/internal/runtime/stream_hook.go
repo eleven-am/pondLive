@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // StreamItem represents a keyed value managed by UseStream. Keys must be

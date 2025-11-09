@@ -18,3 +18,8 @@ func el(desc ElementDescriptor, tag string, items ...Item) *Element {
 	}
 	return e
 }
+
+// El constructs an Element with the provided descriptor, tag name, and content.
+func El(desc ElementDescriptor, tag string, items ...Item) *Element {
+	return el(desc, tag, items...)
+}

@@ -8,7 +8,7 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type patchSink struct {

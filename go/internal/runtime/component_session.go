@@ -14,9 +14,9 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
-	h "github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	render "github.com/eleven-am/pondlive/go/internal/render"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // ComponentSession drives component rendering, diffing, and event handling for a live UI connection.

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type stubTransport struct {

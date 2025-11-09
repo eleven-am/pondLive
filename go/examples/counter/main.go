@@ -15,6 +15,8 @@ import (
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 	liveserver "github.com/eleven-am/pondlive/go/pkg/live/server"
+
+	"github.com/sanity-io/litter"
 )
 
 //go:embed public/*
@@ -59,7 +61,7 @@ func counter(ctx ui.Ctx) h.Node {
 
 	buttonRef := h.UseButton(ctx)
 	buttonRef.OnClick(func(evt h.ClickEvent) h.Updates {
-		fmt.Println("Button clicked!", evt)
+		litter.Dump("Div clicked!", evt)
 		return nil
 	})
 

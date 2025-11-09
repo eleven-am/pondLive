@@ -427,20 +427,6 @@ func main() {
 		descriptors.WriteString("\" }\n\n")
 	}
 
-	for _, t := range tags {
-		descriptor := descriptorName(t)
-		descriptors.WriteString("// ")
-		descriptors.WriteString(t.Doc)
-		descriptors.WriteString("\n")
-		descriptors.WriteString("func ")
-		descriptors.WriteString(t.Name)
-		descriptors.WriteString("(items ...Item) *Element { return el(")
-		descriptors.WriteString(descriptor)
-		descriptors.WriteString("{}, \"")
-		descriptors.WriteString(t.Tag)
-		descriptors.WriteString("\", items...) }\n\n")
-	}
-
 	descriptorTarget := filepath.Join("tags_generated.go")
 	if err := os.WriteFile(descriptorTarget, []byte(descriptors.String()), 0o644); err != nil {
 		panic(err)
@@ -551,12 +537,13 @@ func generatePublicFacade(specs []tagSpec) {
 	}
 	b.WriteString(")\n\n")
 
-	b.WriteString("// Element builder functions\n")
-	b.WriteString("var (\n")
 	for _, spec := range specs {
-		fmt.Fprintf(&b, "\t%s = internalhtml.%s\n", spec.Name, spec.Name)
+		descriptor := descriptorName(spec)
+		fmt.Fprintf(&b, "// %s\n", spec.Doc)
+		fmt.Fprintf(&b, "func %s(items ...Item) *Element {\n", spec.Name)
+		fmt.Fprintf(&b, "\treturn internalhtml.El(%s{}, \"%s\", items...)\n", descriptor, spec.Tag)
+		b.WriteString("}\n\n")
 	}
-	b.WriteString(")\n\n")
 
 	b.WriteString("// Element ref types\n")
 	b.WriteString("type (\n")

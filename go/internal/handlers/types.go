@@ -1,6 +1,6 @@
 package handlers
 
-import h "github.com/eleven-am/pondlive/go/internal/html"
+import h "github.com/eleven-am/pondlive/go/pkg/live/html"
 
 type ID string
 

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
 	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type stubTTLStore struct {

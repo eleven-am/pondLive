@@ -3,8 +3,8 @@ package runtime
 import (
 	"testing"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
 	render "github.com/eleven-am/pondlive/go/internal/render"
+	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 func TestCloneMetaDeepCopy(t *testing.T) {
