@@ -18,6 +18,7 @@ type ElementRef[T ElementDescriptor] struct {
 	stateSetter func(any)
 	listenersMu sync.RWMutex
 	listeners   map[string]*listenerBucket
+	listenerGen uint64
 }
 
 // RefListener exposes the subset of the ElementRef API required by code that
@@ -126,6 +127,9 @@ func (r *ElementRef[T]) resetAttachment() {
 		return
 	}
 	r.attached = false
+	r.listenersMu.Lock()
+	r.listenerGen++
+	r.listenersMu.Unlock()
 }
 
 // ResetAttachment clears the internal attachment guard so the ref can be
@@ -135,8 +139,9 @@ func (r *ElementRef[T]) ResetAttachment() {
 }
 
 type listenerBucket struct {
-	handlers []EventHandler
-	props    []string
+	handlers   []EventHandler
+	props      []string
+	generation uint64
 }
 
 func (r *ElementRef[T]) AddListener(event string, handler any, props []string) {
@@ -170,6 +175,16 @@ func (r *ElementRef[T]) AddListener(event string, handler any, props []string) {
 	if bucket == nil {
 		bucket = &listenerBucket{}
 		r.listeners[event] = bucket
+	}
+	if bucket.generation != r.listenerGen {
+		if len(bucket.handlers) > 0 {
+			for i := range bucket.handlers {
+				bucket.handlers[i] = nil
+			}
+			bucket.handlers = bucket.handlers[:0]
+		}
+		bucket.props = nil
+		bucket.generation = r.listenerGen
 	}
 	bucket.handlers = append(bucket.handlers, fn)
 	bucket.props = mergeSelectorLists(bucket.props, props)

@@ -1188,77 +1188,6 @@ var LiveUIModule = (() => {
     unregisterList: () => unregisterList,
     unregisterSlot: () => unregisterSlot
   });
-  var slotMap = /* @__PURE__ */ new Map();
-  var listMap = /* @__PURE__ */ new Map();
-  function collectRows(container) {
-    const rows = /* @__PURE__ */ new Map();
-    if (!container) return rows;
-    const elements = container.querySelectorAll("[data-row-key]");
-    elements.forEach((el) => {
-      const key = el.getAttribute("data-row-key");
-      if (!key) return;
-      rows.set(key, el);
-    });
-    return rows;
-  }
-  function registerSlot(index, node) {
-    if (node) {
-      slotMap.set(index, node);
-    }
-  }
-  function getSlot(index) {
-    return slotMap.get(index) || null;
-  }
-  function unregisterSlot(index) {
-    slotMap.delete(index);
-  }
-  function unregisterList(slotIndex) {
-    listMap.delete(slotIndex);
-  }
-  function reset() {
-    slotMap.clear();
-    listMap.clear();
-  }
-  function initLists(slotIndexes) {
-    if (!Array.isArray(slotIndexes)) return;
-    if (typeof document === "undefined") return;
-    for (const slotIndex of slotIndexes) {
-      if (!listMap.has(slotIndex)) {
-        const container = document.querySelector(`[data-list-slot="${slotIndex}"]`);
-        if (container) {
-          listMap.set(slotIndex, { container, rows: collectRows(container) });
-        }
-      }
-    }
-  }
-  function ensureList(slotIndex) {
-    if (listMap.has(slotIndex)) {
-      return listMap.get(slotIndex);
-    }
-    const container = document.querySelector(`[data-list-slot="${slotIndex}"]`);
-    if (!container) {
-      throw new Error(`liveui: list slot ${slotIndex} not registered`);
-    }
-    const record = { container, rows: collectRows(container) };
-    listMap.set(slotIndex, record);
-    return record;
-  }
-  function registerList(slotIndex, container, rows) {
-    if (!container) return;
-    listMap.set(slotIndex, { container, rows: rows ?? collectRows(container) });
-  }
-  function setRow(slotIndex, key, root) {
-    const list = ensureList(slotIndex);
-    list.rows.set(key, root);
-  }
-  function getRow(slotIndex, key) {
-    const list = ensureList(slotIndex);
-    return list.rows.get(key) || null;
-  }
-  function deleteRow(slotIndex, key) {
-    const list = ensureList(slotIndex);
-    list.rows.delete(key);
-  }
 
   // src/refs.ts
   var registry = /* @__PURE__ */ new Map();
@@ -1647,6 +1576,808 @@ var LiveUIModule = (() => {
     }
   }
 
+  // src/events.ts
+  var handlers = /* @__PURE__ */ new Map();
+  var eventUsageCounts = /* @__PURE__ */ new Map();
+  var installedListeners = /* @__PURE__ */ new Map();
+  var handlerBindings = /* @__PURE__ */ new WeakMap();
+  var slotBindingSpecs = /* @__PURE__ */ new Map();
+  var slotElements = /* @__PURE__ */ new Map();
+  var routerBindings = /* @__PURE__ */ new WeakMap();
+  var DATA_EVENT_ATTR_PREFIX = "data-on";
+  var DATA_ROUTER_ATTR_PREFIX2 = "data-router-";
+  var ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
+  function setRouterMetaValue(element, field, value) {
+    let meta = routerBindings.get(element);
+    if (value === null || value === void 0 || value === "") {
+      if (!meta) {
+        return;
+      }
+      delete meta[field];
+      if (!meta.path && !meta.query && !meta.hash && !meta.replace) {
+        routerBindings.delete(element);
+      }
+      return;
+    }
+    if (!meta) {
+      meta = {};
+      routerBindings.set(element, meta);
+    }
+    meta[field] = value;
+  }
+  function applyRouterAttribute(element, key, value) {
+    if (!element || typeof key !== "string" || key.length === 0) {
+      return;
+    }
+    switch (key) {
+      case "path":
+      case "query":
+      case "hash":
+      case "replace":
+        setRouterMetaValue(element, key, value);
+        break;
+      default:
+        break;
+    }
+  }
+  function clearRouterAttributes(element) {
+    if (!element) {
+      return;
+    }
+    routerBindings.delete(element);
+  }
+  function cloneSlotBindingList(specs) {
+    if (!Array.isArray(specs)) {
+      return [];
+    }
+    return specs.map((spec) => {
+      const clone = {
+        event: spec?.event || "",
+        handler: spec?.handler || ""
+      };
+      if (Array.isArray(spec?.listen) && spec.listen.length > 0) {
+        clone.listen = [...spec.listen];
+      }
+      if (Array.isArray(spec?.props) && spec.props.length > 0) {
+        clone.props = [...spec.props];
+      }
+      return clone;
+    });
+  }
+  function applySlotBindings(slotId) {
+    const element = slotElements.get(slotId);
+    if (!element) {
+      return;
+    }
+    const specs = slotBindingSpecs.get(slotId) ?? [];
+    if (!Array.isArray(specs) || specs.length === 0) {
+      handlerBindings.delete(element);
+      return;
+    }
+    const map = /* @__PURE__ */ new Map();
+    for (const spec of specs) {
+      if (!spec || typeof spec.event !== "string" || typeof spec.handler !== "string") {
+        continue;
+      }
+      const eventName = spec.event.trim();
+      const handlerId = spec.handler.trim();
+      if (eventName.length === 0 || handlerId.length === 0) {
+        continue;
+      }
+      map.set(eventName, handlerId);
+    }
+    if (map.size === 0) {
+      handlerBindings.delete(element);
+      return;
+    }
+    handlerBindings.set(element, map);
+  }
+  function primeSlotBindings(table) {
+    slotBindingSpecs.clear();
+    if (table && typeof table === "object") {
+      for (const [key, value] of Object.entries(table)) {
+        const slotId = Number(key);
+        if (Number.isNaN(slotId)) {
+          continue;
+        }
+        slotBindingSpecs.set(slotId, cloneSlotBindingList(value));
+      }
+    }
+    slotElements.forEach((_element, slotId) => {
+      applySlotBindings(slotId);
+    });
+  }
+  function registerBindingsForSlot(slotId, specs) {
+    if (!Number.isFinite(slotId)) {
+      return;
+    }
+    if (!Array.isArray(specs)) {
+      slotBindingSpecs.set(slotId, []);
+    } else {
+      slotBindingSpecs.set(slotId, cloneSlotBindingList(specs));
+    }
+    applySlotBindings(slotId);
+  }
+  function getRegisteredSlotBindings(slotId) {
+    const specs = slotBindingSpecs.get(slotId);
+    if (!specs) {
+      return void 0;
+    }
+    return cloneSlotBindingList(specs);
+  }
+  function onSlotRegistered(slotId, node) {
+    if (!Number.isFinite(slotId) || !node) {
+      return;
+    }
+    if (node instanceof Element) {
+      slotElements.set(slotId, node);
+      applySlotBindings(slotId);
+      return;
+    }
+    slotElements.delete(slotId);
+  }
+  function onSlotUnregistered(slotId) {
+    const element = slotElements.get(slotId);
+    if (element) {
+      handlerBindings.delete(element);
+      clearRouterAttributes(element);
+    }
+    slotElements.delete(slotId);
+  }
+  function mergeSelectorLists(primary, secondary) {
+    const merged = [];
+    const seen = /* @__PURE__ */ new Set();
+    const add = (list) => {
+      if (!Array.isArray(list)) {
+        return;
+      }
+      for (const value of list) {
+        if (typeof value !== "string" || value.length === 0) {
+          continue;
+        }
+        if (seen.has(value)) {
+          continue;
+        }
+        seen.add(value);
+        merged.push(value);
+      }
+    };
+    add(primary);
+    add(secondary);
+    return merged.length > 0 ? merged : void 0;
+  }
+  function isLiveAnchor(element) {
+    const hasHref = element.hasAttribute("href") || element.hasAttribute("xlink:href");
+    if (!hasHref) {
+      return false;
+    }
+    const isHtmlAnchor = element instanceof HTMLAnchorElement;
+    const isSvgAnchor = element.namespaceURI === "http://www.w3.org/2000/svg" && element.tagName.toLowerCase() === "a";
+    return isHtmlAnchor || isSvgAnchor;
+  }
+  function registerHandlers(handlerMap) {
+    if (!handlerMap) return;
+    for (const [id, meta] of Object.entries(handlerMap)) {
+      const previous = handlers.get(id);
+      if (previous) {
+        for (const eventName of collectEventTypes(previous)) {
+          decrementEventUsage(eventName);
+        }
+      }
+      handlers.set(id, meta);
+      for (const eventName of collectEventTypes(meta)) {
+        incrementEventUsage(eventName);
+      }
+    }
+  }
+  function unregisterHandlers(handlerIds) {
+    if (!Array.isArray(handlerIds)) return;
+    for (const id of handlerIds) {
+      const handler = handlers.get(id);
+      handlers.delete(id);
+      if (handler) {
+        for (const eventName of collectEventTypes(handler)) {
+          decrementEventUsage(eventName);
+        }
+      }
+    }
+  }
+  function clearHandlers() {
+    handlers.clear();
+    eventUsageCounts.clear();
+    syncEventListeners();
+  }
+  function extractPrimaryEventName(attrName) {
+    if (!attrName || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX)) {
+      return null;
+    }
+    const suffix = attrName.slice(DATA_EVENT_ATTR_PREFIX.length);
+    if (suffix.length === 0) {
+      return null;
+    }
+    const normalized = suffix.startsWith("-") ? suffix.slice(1) : suffix;
+    if (normalized.length === 0) {
+      return null;
+    }
+    const separatorIndex = normalized.indexOf("-");
+    const eventName = separatorIndex === -1 ? normalized : normalized.slice(0, separatorIndex);
+    return eventName.length > 0 ? eventName : null;
+  }
+  function collectAttributeNames(element) {
+    if (!element) return [];
+    if (typeof element.getAttributeNames === "function") {
+      return element.getAttributeNames();
+    }
+    const out = [];
+    if (element.attributes) {
+      for (let i = 0; i < element.attributes.length; i++) {
+        const attr = element.attributes.item(i);
+        if (!attr) continue;
+        out.push(attr.name);
+      }
+    }
+    return out;
+  }
+  function refreshHandlerBindings(element) {
+    if (!element) {
+      return;
+    }
+    const attributeNames = collectAttributeNames(element);
+    if (attributeNames.length === 0) {
+      if (handlerBindings.has(element)) {
+        handlerBindings.delete(element);
+      }
+      if (routerBindings.has(element)) {
+        routerBindings.delete(element);
+      }
+      return;
+    }
+    let bindings = null;
+    let sawEventAttr = false;
+    for (const name of attributeNames) {
+      if (!name.startsWith(DATA_EVENT_ATTR_PREFIX)) {
+        if (name.startsWith(DATA_ROUTER_ATTR_PREFIX2)) {
+          const key = name.slice(DATA_ROUTER_ATTR_PREFIX2.length);
+          const value2 = element.getAttribute(name);
+          element.removeAttribute(name);
+          applyRouterAttribute(element, key, value2 ?? "");
+        }
+        continue;
+      }
+      const remainder = name.slice(DATA_EVENT_ATTR_PREFIX.length);
+      const value = element.getAttribute(name);
+      element.removeAttribute(name);
+      const isMeta = remainder.includes("-");
+      if (isMeta) {
+        continue;
+      }
+      sawEventAttr = true;
+      const eventName = extractPrimaryEventName(name);
+      if (!eventName || !value) {
+        continue;
+      }
+      if (!bindings) {
+        bindings = /* @__PURE__ */ new Map();
+      }
+      bindings.set(eventName, value);
+    }
+    if (bindings && bindings.size > 0) {
+      handlerBindings.set(element, bindings);
+    } else if (sawEventAttr || handlerBindings.has(element)) {
+      handlerBindings.delete(element);
+    }
+  }
+  function primeHandlerBindings(root) {
+    if (!root) return;
+    const doc = root instanceof Document ? root : root.ownerDocument ?? (typeof document !== "undefined" ? document : null);
+    if (!doc) return;
+    const startNode = root instanceof Document ? doc.documentElement ?? null : root;
+    if (!startNode) {
+      return;
+    }
+    const walker = doc.createTreeWalker(startNode, NodeFilter.SHOW_ELEMENT);
+    if (startNode instanceof Element) {
+      refreshHandlerBindings(startNode);
+    }
+    let current = walker.nextNode();
+    while (current) {
+      if (current instanceof Element) {
+        refreshHandlerBindings(current);
+      }
+      current = walker.nextNode();
+    }
+  }
+  var sendEventCallback = null;
+  var navigationHandler = null;
+  var uploadDelegate = null;
+  function setupEventDelegation(sendEvent) {
+    sendEventCallback = sendEvent;
+    ALWAYS_ACTIVE_EVENTS.forEach((eventType) => {
+      installListener(eventType);
+    });
+  }
+  function teardownEventDelegation() {
+    installedListeners.forEach((listener, eventType) => {
+      const useCapture = eventType === "blur" || eventType === "focus";
+      document.removeEventListener(eventType, listener, useCapture);
+    });
+    installedListeners.clear();
+    sendEventCallback = null;
+    uploadDelegate = null;
+  }
+  function registerUploadDelegate(delegate) {
+    uploadDelegate = delegate;
+  }
+  function registerNavigationHandler(handler) {
+    navigationHandler = handler;
+    if (!installedListeners.has("click")) {
+      installListener("click");
+    }
+  }
+  function unregisterNavigationHandler() {
+    navigationHandler = null;
+  }
+  function installListener(eventType) {
+    if (installedListeners.has(eventType)) return;
+    const useCapture = eventType === "blur" || eventType === "focus";
+    const listener = (e) => {
+      if (sendEventCallback) {
+        handleEvent(e, eventType, sendEventCallback);
+      }
+    };
+    document.addEventListener(eventType, listener, useCapture);
+    installedListeners.set(eventType, listener);
+  }
+  function removeListener(eventType) {
+    const listener = installedListeners.get(eventType);
+    if (!listener) return;
+    const useCapture = eventType === "blur" || eventType === "focus";
+    document.removeEventListener(eventType, listener, useCapture);
+    installedListeners.delete(eventType);
+  }
+  function syncEventListeners() {
+    eventUsageCounts.forEach((_, eventType) => {
+      installListener(eventType);
+    });
+    installedListeners.forEach((_, eventType) => {
+      if (!eventUsageCounts.has(eventType) && !ALWAYS_ACTIVE_EVENTS.includes(eventType)) {
+        removeListener(eventType);
+      }
+    });
+  }
+  function handleEvent(e, eventType, sendEvent) {
+    const target = e.target;
+    if (!target || !(target instanceof Element)) return;
+    if (uploadDelegate) {
+      try {
+        uploadDelegate(e, eventType);
+      } catch (error) {
+        console.error("[LiveUI] upload delegate error", error);
+      }
+    }
+    const handlerInfo = findHandlerInfo(target, eventType);
+    if (handlerInfo) {
+      const handler = handlers.get(handlerInfo.id);
+      if (handler && handlerSupportsEvent(handler, eventType)) {
+        const refContext = resolveRefEventContext(handlerInfo.element, eventType);
+        const combinedProps = mergeSelectorLists(handler.props, refContext?.props);
+        const payload = extractEventPayload(
+          e,
+          target,
+          combinedProps,
+          handlerInfo.element,
+          refContext?.element ?? null
+        );
+        const routerMeta = routerBindings.get(handlerInfo.element);
+        if (routerMeta) {
+          if (routerMeta.path !== void 0 && payload["currentTarget.dataset.routerPath"] === void 0) {
+            payload["currentTarget.dataset.routerPath"] = routerMeta.path;
+          }
+          if (routerMeta.query !== void 0 && payload["currentTarget.dataset.routerQuery"] === void 0) {
+            payload["currentTarget.dataset.routerQuery"] = routerMeta.query;
+          }
+          if (routerMeta.hash !== void 0 && payload["currentTarget.dataset.routerHash"] === void 0) {
+            payload["currentTarget.dataset.routerHash"] = routerMeta.hash;
+          }
+          if (routerMeta.replace !== void 0 && payload["currentTarget.dataset.routerReplace"] === void 0) {
+            payload["currentTarget.dataset.routerReplace"] = routerMeta.replace;
+          }
+        }
+        if (refContext) {
+          refContext.notify(payload);
+        }
+        if (eventType === "submit") {
+          e.preventDefault();
+        }
+        if (eventType === "click") {
+          const anchor = findAnchorElement(target);
+          if (anchor && shouldInterceptNavigation(e, anchor)) {
+            e.preventDefault();
+          }
+        }
+        sendEvent({
+          hid: handlerInfo.id,
+          payload
+        });
+        return;
+      }
+    }
+    if (eventType === "click" && navigationHandler && e instanceof MouseEvent) {
+      const anchor = findAnchorElement(target);
+      if (anchor && shouldInterceptNavigation(e, anchor)) {
+        const href = anchor.getAttribute("href") ?? anchor.getAttribute("xlink:href");
+        if (href) {
+          try {
+            const url = new URL(href, window.location.href);
+            const path = url.pathname;
+            const query = url.search.substring(1);
+            const hash = url.hash.startsWith("#") ? url.hash.substring(1) : url.hash;
+            if (navigationHandler(path, query, hash)) {
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+          } catch (err) {
+          }
+        }
+      }
+    }
+  }
+  function findHandlerInfo(element, eventType) {
+    let current = element;
+    while (current && current !== document.documentElement) {
+      let binding = handlerBindings.get(current);
+      if (!binding) {
+        const attributeNames = collectAttributeNames(current);
+        if (attributeNames.some((name) => name.startsWith(DATA_EVENT_ATTR_PREFIX))) {
+          refreshHandlerBindings(current);
+          binding = handlerBindings.get(current);
+        }
+      }
+      if (binding && binding.size > 0) {
+        const directId = binding.get(eventType);
+        if (directId) {
+          const meta = handlers.get(directId);
+          if (!meta || handlerSupportsEvent(meta, eventType)) {
+            return { id: directId, element: current };
+          }
+        }
+        for (const [registeredEvent, handlerId] of binding.entries()) {
+          if (registeredEvent === eventType) {
+            continue;
+          }
+          const meta = handlers.get(handlerId);
+          if (meta && handlerSupportsEvent(meta, eventType)) {
+            return { id: handlerId, element: current };
+          }
+        }
+      }
+      current = current.parentElement;
+    }
+    return null;
+  }
+  function extractEventPayload(e, target, props, handlerElement, refElement) {
+    const payload = {
+      type: e.type
+    };
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+      payload.value = target.value;
+      if (target instanceof HTMLInputElement) {
+        if (target.type === "checkbox" || target.type === "radio") {
+          payload.checked = target.checked;
+        }
+      }
+    }
+    if (e instanceof KeyboardEvent) {
+      payload.key = e.key;
+      payload.keyCode = e.keyCode;
+      payload.altKey = e.altKey;
+      payload.ctrlKey = e.ctrlKey;
+      payload.metaKey = e.metaKey;
+      payload.shiftKey = e.shiftKey;
+    }
+    if (e instanceof MouseEvent) {
+      payload.clientX = e.clientX;
+      payload.clientY = e.clientY;
+    }
+    if (Array.isArray(props)) {
+      const domValues = domGetSync(props, {
+        event: e,
+        target,
+        handlerElement: handlerElement ?? null,
+        refElement: refElement ?? null
+      });
+      if (domValues) {
+        for (const [key, value] of Object.entries(domValues)) {
+          payload[key] = value;
+        }
+      }
+    }
+    return payload;
+  }
+  function findAnchorElement(element) {
+    let current = element;
+    while (current && current !== document.documentElement) {
+      if (isLiveAnchor(current)) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return null;
+  }
+  function shouldInterceptNavigation(e, anchor) {
+    if (e.button !== 0) {
+      return false;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) {
+      return false;
+    }
+    if (!isLiveAnchor(anchor)) {
+      return false;
+    }
+    const href = anchor.getAttribute("href") ?? anchor.getAttribute("xlink:href") ?? void 0;
+    if (!href) {
+      return false;
+    }
+    const target = anchor.getAttribute("target");
+    if (target && target !== "_self") {
+      return false;
+    }
+    try {
+      const url = new URL(href, window.location.href);
+      if (url.origin !== window.location.origin) {
+        return false;
+      }
+      if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) {
+        return false;
+      }
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+  function incrementEventUsage(eventType) {
+    const current = eventUsageCounts.get(eventType) ?? 0;
+    eventUsageCounts.set(eventType, current + 1);
+  }
+  function decrementEventUsage(eventType) {
+    const current = eventUsageCounts.get(eventType);
+    if (!current) {
+      return;
+    }
+    if (current <= 1) {
+      eventUsageCounts.delete(eventType);
+    } else {
+      eventUsageCounts.set(eventType, current - 1);
+    }
+  }
+  function collectEventTypes(meta) {
+    if (!meta) {
+      return [];
+    }
+    const seen = /* @__PURE__ */ new Set();
+    const order = [];
+    if (meta.event) {
+      seen.add(meta.event);
+      order.push(meta.event);
+    }
+    if (Array.isArray(meta.listen)) {
+      for (const evt of meta.listen) {
+        if (typeof evt !== "string" || evt.length === 0) {
+          continue;
+        }
+        if (!seen.has(evt)) {
+          seen.add(evt);
+          order.push(evt);
+        }
+      }
+    }
+    return order;
+  }
+  function handlerSupportsEvent(meta, eventType) {
+    if (!meta) {
+      return false;
+    }
+    if (meta.event === eventType) {
+      return true;
+    }
+    if (Array.isArray(meta.listen)) {
+      return meta.listen.includes(eventType);
+    }
+    return false;
+  }
+
+  // src/dom-index.ts
+  var slotMap = /* @__PURE__ */ new Map();
+  var listMap = /* @__PURE__ */ new Map();
+  function collectRows(container) {
+    const rows = /* @__PURE__ */ new Map();
+    if (!container) return rows;
+    const elements = container.querySelectorAll("[data-row-key]");
+    elements.forEach((el) => {
+      const key = el.getAttribute("data-row-key");
+      if (!key) return;
+      rows.set(key, el);
+    });
+    return rows;
+  }
+  function registerSlot(index, node) {
+    if (!node) return;
+    slotMap.set(index, node);
+    onSlotRegistered(index, node);
+  }
+  function getSlot(index) {
+    return slotMap.get(index) ?? null;
+  }
+  function unregisterSlot(index) {
+    onSlotUnregistered(index);
+    slotMap.delete(index);
+  }
+  function unregisterList(slotIndex) {
+    listMap.delete(slotIndex);
+  }
+  function reset() {
+    slotMap.forEach((_node, index) => {
+      onSlotUnregistered(index);
+    });
+    slotMap.clear();
+    listMap.clear();
+  }
+  function initLists(slotIndexes) {
+    if (!Array.isArray(slotIndexes)) return;
+    if (typeof document === "undefined") return;
+    for (const slotIndex of slotIndexes) {
+      if (!listMap.has(slotIndex)) {
+        const container = document.querySelector(
+          `[data-list-slot="${slotIndex}"]`
+        );
+        if (container) {
+          listMap.set(slotIndex, { container, rows: collectRows(container) });
+        }
+      }
+    }
+  }
+  function ensureList(slotIndex) {
+    if (listMap.has(slotIndex)) {
+      return listMap.get(slotIndex);
+    }
+    const container = document.querySelector(`[data-list-slot="${slotIndex}"]`);
+    if (!container) {
+      throw new Error(`liveui: list slot ${slotIndex} not registered`);
+    }
+    const record = { container, rows: collectRows(container) };
+    listMap.set(slotIndex, record);
+    return record;
+  }
+  function registerList(slotIndex, container, rows) {
+    if (!container) return;
+    listMap.set(slotIndex, { container, rows: rows ?? collectRows(container) });
+  }
+  function setRow(slotIndex, key, root) {
+    const list = ensureList(slotIndex);
+    list.rows.set(key, root);
+  }
+  function getRow(slotIndex, key) {
+    const list = ensureList(slotIndex);
+    return list.rows.get(key) ?? null;
+  }
+  function deleteRow(slotIndex, key) {
+    const list = ensureList(slotIndex);
+    list.rows.delete(key);
+  }
+
+  // src/componentMarkers.ts
+  var componentMarkerIndex = /* @__PURE__ */ new Map();
+  function ensureDocument(root) {
+    if (!root) {
+      return typeof document !== "undefined" ? document : null;
+    }
+    if (root instanceof Document) {
+      return root;
+    }
+    const node = root;
+    if (node && node.ownerDocument) {
+      return node.ownerDocument;
+    }
+    return typeof document !== "undefined" ? document : null;
+  }
+  function cloneDescriptors(descriptors) {
+    const out = {};
+    for (const [id, descriptor] of Object.entries(descriptors)) {
+      if (!descriptor) continue;
+      const start = Number(descriptor.start);
+      const end = Number(descriptor.end);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+      out[id] = { start, end };
+    }
+    return out;
+  }
+  function assignMarkers(descriptors, root, resetExisting) {
+    const target = root ?? (typeof document !== "undefined" ? document : null);
+    if (!target) {
+      return;
+    }
+    const doc = ensureDocument(target);
+    if (!doc) {
+      return;
+    }
+    if (resetExisting) {
+      componentMarkerIndex.clear();
+    }
+    const startLookup = /* @__PURE__ */ new Map();
+    const endLookup = /* @__PURE__ */ new Map();
+    for (const [id, descriptor] of Object.entries(descriptors)) {
+      if (!descriptor) continue;
+      const start = Number(descriptor.start);
+      const end = Number(descriptor.end);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+      startLookup.set(start, id);
+      endLookup.set(end, id);
+    }
+    if (startLookup.size === 0 && endLookup.size === 0) {
+      return;
+    }
+    const walker = doc.createTreeWalker(
+      target instanceof Document ? target : target,
+      NodeFilter.SHOW_COMMENT
+    );
+    let index = 0;
+    let current = walker.nextNode();
+    while (current) {
+      const startId = startLookup.get(index);
+      if (startId) {
+        registerComponentMarker(startId, current, componentMarkerIndex.get(startId)?.end ?? null);
+      }
+      const endId = endLookup.get(index);
+      if (endId) {
+        registerComponentMarker(endId, componentMarkerIndex.get(endId)?.start ?? null, current);
+      }
+      current.data = "";
+      index++;
+      current = walker.nextNode();
+    }
+  }
+  function resetComponentMarkers() {
+    componentMarkerIndex.clear();
+  }
+  function initializeComponentMarkers(descriptors, root) {
+    if (!descriptors) {
+      resetComponentMarkers();
+      return;
+    }
+    assignMarkers(cloneDescriptors(descriptors), root ?? null, true);
+  }
+  function registerComponentMarkers(descriptors, root) {
+    if (!descriptors) {
+      return;
+    }
+    assignMarkers(cloneDescriptors(descriptors), root, false);
+  }
+  function registerComponentMarker(id, start, end) {
+    if (!id) return;
+    const entry = componentMarkerIndex.get(id) ?? { start: null, end: null };
+    if (start) {
+      entry.start = start;
+      start.data = "";
+    }
+    if (end) {
+      entry.end = end;
+      end.data = "";
+    }
+    componentMarkerIndex.set(id, entry);
+  }
+  function getComponentBounds(id) {
+    if (!id) return null;
+    const entry = componentMarkerIndex.get(id);
+    if (entry && entry.start?.isConnected && entry.end?.isConnected) {
+      return { start: entry.start, end: entry.end };
+    }
+    if (entry?.start && entry?.end) {
+      return { start: entry.start, end: entry.end };
+    }
+    return null;
+  }
+
   // src/patcher.ts
   var config = {
     enableDirtyChecking: true,
@@ -1658,6 +2389,7 @@ var LiveUIModule = (() => {
     // Start virtual scrolling after 100 items
     memoizationCacheSize: 1e3
   };
+  var DATA_EVENT_ATTR_PREFIX2 = "data-on";
   var templateCache = document.createElement("template");
   var htmlCache = /* @__PURE__ */ new Map();
   function createFragment(html) {
@@ -1783,6 +2515,116 @@ var LiveUIModule = (() => {
     if (!(node instanceof Element)) {
       throw new Error(`liveui: slot ${slotIndex} is not an element`);
     }
+    const existingBindings = getRegisteredSlotBindings(slotIndex) ?? [];
+    const bindingMap = /* @__PURE__ */ new Map();
+    for (const spec of existingBindings) {
+      if (!spec || typeof spec.event !== "string") continue;
+      bindingMap.set(spec.event, {
+        handler: spec.handler,
+        listen: spec.listen ? [...spec.listen] : void 0,
+        props: spec.props ? [...spec.props] : void 0
+      });
+    }
+    const parseTokens = (value) => {
+      if (typeof value !== "string") {
+        return void 0;
+      }
+      const tokens = value.split(/\s+/).map((token) => token.trim()).filter((token) => token.length > 0);
+      return tokens.length > 0 ? tokens : void 0;
+    };
+    let bindingChanged = false;
+    if (upsert) {
+      for (const key of Object.keys(upsert)) {
+        if (typeof key === "string" && key.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
+          const routerKey = key.slice(DATA_ROUTER_ATTR_PREFIX.length);
+          applyRouterAttribute(node, routerKey, upsert[key]);
+          delete upsert[key];
+          continue;
+        }
+        if (typeof key !== "string" || !key.startsWith(DATA_EVENT_ATTR_PREFIX2)) {
+          continue;
+        }
+        bindingChanged = true;
+        const value = upsert[key];
+        delete upsert[key];
+        let remainder = key.slice(DATA_EVENT_ATTR_PREFIX2.length);
+        if (remainder.startsWith("-")) {
+          remainder = remainder.slice(1);
+        }
+        if (remainder.length === 0) {
+          continue;
+        }
+        let metaType = "";
+        const dashIndex = remainder.indexOf("-");
+        if (dashIndex !== -1) {
+          metaType = remainder.slice(dashIndex + 1);
+          remainder = remainder.slice(0, dashIndex);
+        }
+        const eventName = remainder.trim();
+        if (eventName.length === 0) {
+          continue;
+        }
+        const entry = bindingMap.get(eventName) ?? {};
+        if (metaType === "listen") {
+          entry.listen = parseTokens(value);
+        } else if (metaType === "props") {
+          entry.props = parseTokens(value);
+        } else {
+          entry.handler = typeof value === "string" ? value : value != null ? String(value) : "";
+        }
+        bindingMap.set(eventName, entry);
+      }
+    }
+    if (Array.isArray(remove) && remove.length > 0) {
+      for (let i = remove.length - 1; i >= 0; i--) {
+        const attrName = remove[i];
+        if (typeof attrName === "string" && attrName.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
+          const routerKey = attrName.slice(DATA_ROUTER_ATTR_PREFIX.length);
+          applyRouterAttribute(node, routerKey, void 0);
+          remove.splice(i, 1);
+          continue;
+        }
+        if (typeof attrName !== "string" || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX2)) {
+          continue;
+        }
+        bindingChanged = true;
+        remove.splice(i, 1);
+        let remainder = attrName.slice(DATA_EVENT_ATTR_PREFIX2.length);
+        if (remainder.startsWith("-")) {
+          remainder = remainder.slice(1);
+        }
+        if (remainder.length === 0) {
+          continue;
+        }
+        const dashIndex = remainder.indexOf("-");
+        if (dashIndex !== -1) {
+          remainder = remainder.slice(0, dashIndex);
+        }
+        const eventName = remainder.trim();
+        if (eventName.length === 0) {
+          continue;
+        }
+        bindingMap.delete(eventName);
+      }
+    }
+    if (bindingChanged) {
+      const specs = [];
+      bindingMap.forEach((info, eventName) => {
+        const handlerId = info.handler?.trim();
+        if (!handlerId) {
+          return;
+        }
+        const spec = { event: eventName, handler: handlerId };
+        if (info.listen && info.listen.length > 0) {
+          spec.listen = [...info.listen];
+        }
+        if (info.props && info.props.length > 0) {
+          spec.props = [...info.props];
+        }
+        specs.push(spec);
+      });
+      registerBindingsForSlot(slotIndex, specs);
+    }
     const previousRef = node.getAttribute("data-live-ref");
     const applyAttrs = () => {
       if (upsert) {
@@ -1803,6 +2645,7 @@ var LiveUIModule = (() => {
       }
       const nextRef = node.getAttribute("data-live-ref");
       updateRefBinding(node, previousRef, nextRef);
+      refreshHandlerBindings(node);
     };
     if (config.enableBatching) {
       batcher.scheduleWrite(applyAttrs);
@@ -1904,6 +2747,15 @@ var LiveUIModule = (() => {
         case "ins": {
           const pos = op[1];
           const payload = op[2] || { key: "", html: "" };
+          if (payload && typeof payload === "object" && payload.bindings) {
+            for (const [slotKey, specs] of Object.entries(payload.bindings)) {
+              const slotId = Number(slotKey);
+              if (Number.isNaN(slotId)) {
+                continue;
+              }
+              registerBindingsForSlot(slotId, specs ?? []);
+            }
+          }
           const memoKey = memoizer.key("ins", slotIndex, payload.html);
           let fragment;
           if (config.enableMemoization && memoizer.has(memoKey)) {
@@ -1913,6 +2765,10 @@ var LiveUIModule = (() => {
             if (config.enableMemoization) {
               memoizer.set(memoKey, fragment.cloneNode(true));
             }
+          }
+          primeHandlerBindings(fragment);
+          if (payload.markers) {
+            registerComponentMarkers(payload.markers, fragment);
           }
           const nodes = Array.from(fragment.childNodes);
           if (nodes.length === 0) {
@@ -2076,359 +2932,6 @@ var LiveUIModule = (() => {
       }
     }
     return inverseOps.reverse();
-  }
-
-  // src/events.ts
-  var handlers = /* @__PURE__ */ new Map();
-  var eventUsageCounts = /* @__PURE__ */ new Map();
-  var installedListeners = /* @__PURE__ */ new Map();
-  var ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
-  function mergeSelectorLists(primary, secondary) {
-    const merged = [];
-    const seen = /* @__PURE__ */ new Set();
-    const add = (list) => {
-      if (!Array.isArray(list)) {
-        return;
-      }
-      for (const value of list) {
-        if (typeof value !== "string" || value.length === 0) {
-          continue;
-        }
-        if (seen.has(value)) {
-          continue;
-        }
-        seen.add(value);
-        merged.push(value);
-      }
-    };
-    add(primary);
-    add(secondary);
-    return merged.length > 0 ? merged : void 0;
-  }
-  function isLiveAnchor(element) {
-    const hasHref = element.hasAttribute("href") || element.hasAttribute("xlink:href");
-    if (!hasHref) {
-      return false;
-    }
-    const isHtmlAnchor = element instanceof HTMLAnchorElement;
-    const isSvgAnchor = element.namespaceURI === "http://www.w3.org/2000/svg" && element.tagName.toLowerCase() === "a";
-    return isHtmlAnchor || isSvgAnchor;
-  }
-  function registerHandlers(handlerMap) {
-    if (!handlerMap) return;
-    for (const [id, meta] of Object.entries(handlerMap)) {
-      const previous = handlers.get(id);
-      if (previous) {
-        for (const eventName of collectEventTypes(previous)) {
-          decrementEventUsage(eventName);
-        }
-      }
-      handlers.set(id, meta);
-      for (const eventName of collectEventTypes(meta)) {
-        incrementEventUsage(eventName);
-      }
-    }
-  }
-  function unregisterHandlers(handlerIds) {
-    if (!Array.isArray(handlerIds)) return;
-    for (const id of handlerIds) {
-      const handler = handlers.get(id);
-      handlers.delete(id);
-      if (handler) {
-        for (const eventName of collectEventTypes(handler)) {
-          decrementEventUsage(eventName);
-        }
-      }
-    }
-  }
-  function clearHandlers() {
-    handlers.clear();
-    eventUsageCounts.clear();
-    syncEventListeners();
-  }
-  var sendEventCallback = null;
-  var navigationHandler = null;
-  var uploadDelegate = null;
-  function setupEventDelegation(sendEvent) {
-    sendEventCallback = sendEvent;
-    ALWAYS_ACTIVE_EVENTS.forEach((eventType) => {
-      installListener(eventType);
-    });
-  }
-  function teardownEventDelegation() {
-    installedListeners.forEach((listener, eventType) => {
-      const useCapture = eventType === "blur" || eventType === "focus";
-      document.removeEventListener(eventType, listener, useCapture);
-    });
-    installedListeners.clear();
-    sendEventCallback = null;
-    uploadDelegate = null;
-  }
-  function registerUploadDelegate(delegate) {
-    uploadDelegate = delegate;
-  }
-  function registerNavigationHandler(handler) {
-    navigationHandler = handler;
-    if (!installedListeners.has("click")) {
-      installListener("click");
-    }
-  }
-  function unregisterNavigationHandler() {
-    navigationHandler = null;
-  }
-  function installListener(eventType) {
-    if (installedListeners.has(eventType)) return;
-    const useCapture = eventType === "blur" || eventType === "focus";
-    const listener = (e) => {
-      if (sendEventCallback) {
-        handleEvent(e, eventType, sendEventCallback);
-      }
-    };
-    document.addEventListener(eventType, listener, useCapture);
-    installedListeners.set(eventType, listener);
-  }
-  function removeListener(eventType) {
-    const listener = installedListeners.get(eventType);
-    if (!listener) return;
-    const useCapture = eventType === "blur" || eventType === "focus";
-    document.removeEventListener(eventType, listener, useCapture);
-    installedListeners.delete(eventType);
-  }
-  function syncEventListeners() {
-    eventUsageCounts.forEach((_, eventType) => {
-      installListener(eventType);
-    });
-    installedListeners.forEach((_, eventType) => {
-      if (!eventUsageCounts.has(eventType) && !ALWAYS_ACTIVE_EVENTS.includes(eventType)) {
-        removeListener(eventType);
-      }
-    });
-  }
-  function handleEvent(e, eventType, sendEvent) {
-    const target = e.target;
-    if (!target || !(target instanceof Element)) return;
-    if (uploadDelegate) {
-      try {
-        uploadDelegate(e, eventType);
-      } catch (error) {
-        console.error("[LiveUI] upload delegate error", error);
-      }
-    }
-    const handlerInfo = findHandlerInfo(target, eventType);
-    if (handlerInfo) {
-      const handler = handlers.get(handlerInfo.id);
-      if (handler && handlerSupportsEvent(handler, eventType)) {
-        const refContext = resolveRefEventContext(handlerInfo.element, eventType);
-        const combinedProps = mergeSelectorLists(handler.props, refContext?.props);
-        const payload = extractEventPayload(
-          e,
-          target,
-          combinedProps,
-          handlerInfo.element,
-          refContext?.element ?? null
-        );
-        if (refContext) {
-          refContext.notify(payload);
-        }
-        if (eventType === "submit") {
-          e.preventDefault();
-        }
-        if (eventType === "click") {
-          const anchor = findAnchorElement(target);
-          if (anchor && shouldInterceptNavigation(e, anchor)) {
-            e.preventDefault();
-          }
-        }
-        sendEvent({
-          hid: handlerInfo.id,
-          payload
-        });
-        return;
-      }
-    }
-    if (eventType === "click" && navigationHandler && e instanceof MouseEvent) {
-      const anchor = findAnchorElement(target);
-      if (anchor && shouldInterceptNavigation(e, anchor)) {
-        const href = anchor.getAttribute("href") ?? anchor.getAttribute("xlink:href");
-        if (href) {
-          try {
-            const url = new URL(href, window.location.href);
-            const path = url.pathname;
-            const query = url.search.substring(1);
-            const hash = url.hash.startsWith("#") ? url.hash.substring(1) : url.hash;
-            if (navigationHandler(path, query, hash)) {
-              e.preventDefault();
-              e.stopPropagation();
-              return;
-            }
-          } catch (err) {
-          }
-        }
-      }
-    }
-  }
-  function findHandlerInfo(element, eventType) {
-    let current = element;
-    while (current && current !== document.documentElement) {
-      const directAttr = `data-on${eventType}`;
-      if (typeof current.hasAttribute === "function" && current.hasAttribute(directAttr)) {
-        const handlerId = current.getAttribute(directAttr);
-        if (handlerId) {
-          const meta = handlers.get(handlerId);
-          if (!meta || handlerSupportsEvent(meta, eventType)) {
-            return { id: handlerId, element: current };
-          }
-        }
-      }
-      const attributeNames = typeof current.getAttributeNames === "function" ? current.getAttributeNames() : null;
-      if (Array.isArray(attributeNames)) {
-        for (const name of attributeNames) {
-          if (!name.startsWith("data-on")) {
-            continue;
-          }
-          const handlerId = current.getAttribute(name);
-          if (!handlerId) {
-            continue;
-          }
-          const meta = handlers.get(handlerId);
-          if (meta && handlerSupportsEvent(meta, eventType)) {
-            return { id: handlerId, element: current };
-          }
-        }
-      }
-      current = current.parentElement;
-    }
-    return null;
-  }
-  function extractEventPayload(e, target, props, handlerElement, refElement) {
-    const payload = {
-      type: e.type
-    };
-    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
-      payload.value = target.value;
-      if (target instanceof HTMLInputElement) {
-        if (target.type === "checkbox" || target.type === "radio") {
-          payload.checked = target.checked;
-        }
-      }
-    }
-    if (e instanceof KeyboardEvent) {
-      payload.key = e.key;
-      payload.keyCode = e.keyCode;
-      payload.altKey = e.altKey;
-      payload.ctrlKey = e.ctrlKey;
-      payload.metaKey = e.metaKey;
-      payload.shiftKey = e.shiftKey;
-    }
-    if (e instanceof MouseEvent) {
-      payload.clientX = e.clientX;
-      payload.clientY = e.clientY;
-    }
-    if (Array.isArray(props)) {
-      const domValues = domGetSync(props, {
-        event: e,
-        target,
-        handlerElement: handlerElement ?? null,
-        refElement: refElement ?? null
-      });
-      if (domValues) {
-        for (const [key, value] of Object.entries(domValues)) {
-          payload[key] = value;
-        }
-      }
-    }
-    return payload;
-  }
-  function findAnchorElement(element) {
-    let current = element;
-    while (current && current !== document.documentElement) {
-      if (isLiveAnchor(current)) {
-        return current;
-      }
-      current = current.parentElement;
-    }
-    return null;
-  }
-  function shouldInterceptNavigation(e, anchor) {
-    if (e.button !== 0) {
-      return false;
-    }
-    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) {
-      return false;
-    }
-    if (!isLiveAnchor(anchor)) {
-      return false;
-    }
-    const href = anchor.getAttribute("href") ?? anchor.getAttribute("xlink:href") ?? void 0;
-    if (!href) {
-      return false;
-    }
-    const target = anchor.getAttribute("target");
-    if (target && target !== "_self") {
-      return false;
-    }
-    try {
-      const url = new URL(href, window.location.href);
-      if (url.origin !== window.location.origin) {
-        return false;
-      }
-      if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) {
-        return false;
-      }
-      return true;
-    } catch (err) {
-      return false;
-    }
-  }
-  function incrementEventUsage(eventType) {
-    const current = eventUsageCounts.get(eventType) ?? 0;
-    eventUsageCounts.set(eventType, current + 1);
-  }
-  function decrementEventUsage(eventType) {
-    const current = eventUsageCounts.get(eventType);
-    if (!current) {
-      return;
-    }
-    if (current <= 1) {
-      eventUsageCounts.delete(eventType);
-    } else {
-      eventUsageCounts.set(eventType, current - 1);
-    }
-  }
-  function collectEventTypes(meta) {
-    if (!meta) {
-      return [];
-    }
-    const seen = /* @__PURE__ */ new Set();
-    const order = [];
-    if (meta.event) {
-      seen.add(meta.event);
-      order.push(meta.event);
-    }
-    if (Array.isArray(meta.listen)) {
-      for (const evt of meta.listen) {
-        if (typeof evt !== "string" || evt.length === 0) {
-          continue;
-        }
-        if (!seen.has(evt)) {
-          seen.add(evt);
-          order.push(evt);
-        }
-      }
-    }
-    return order;
-  }
-  function handlerSupportsEvent(meta, eventType) {
-    if (!meta) {
-      return false;
-    }
-    if (meta.event === eventType) {
-      return true;
-    }
-    if (Array.isArray(meta.listen)) {
-      return meta.listen.includes(eventType);
-    }
-    return false;
   }
 
   // src/uploads.ts
@@ -2867,10 +3370,12 @@ var LiveUIModule = (() => {
         registerHandlers(boot.handlers);
         syncEventListeners();
       }
+      primeSlotBindings(boot.bindings);
       clearRefs();
       registerRefs(boot.refs);
       if (typeof document !== "undefined") {
         bindRefsInTree(document);
+        initializeComponentMarkers(boot.markers ?? null, document);
       }
       this.registerInitialDom(boot);
       if (typeof window !== "undefined" && boot.location) {
@@ -3122,6 +3627,9 @@ var LiveUIModule = (() => {
         }
         if (boot.client?.upload && typeof boot.client.upload === "string") {
           this.options.uploadEndpoint = boot.client.upload;
+        }
+        if (typeof boot.client?.debug === "boolean") {
+          this.options.debug = boot.client.debug;
         }
         this.sessionId.set(boot.sid);
         this.version.set(boot.ver ?? 0);
@@ -3486,10 +3994,13 @@ var LiveUIModule = (() => {
         registerHandlers(msg.handlers);
         syncEventListeners();
       }
+      primeSlotBindings(msg.bindings ?? null);
       clearRefs();
       registerRefs(msg.refs);
       if (typeof document !== "undefined") {
         bindRefsInTree(document);
+        primeHandlerBindings(document);
+        initializeComponentMarkers(msg.markers ?? null, document);
       }
       if (msg.seq !== void 0) {
         this.lastAck = msg.seq;
@@ -4049,6 +4560,8 @@ var LiveUIModule = (() => {
       reset();
       if (typeof document !== "undefined") {
         document.body.innerHTML = boot.html;
+        primeHandlerBindings(document);
+        initializeComponentMarkers(boot.markers ?? null, document);
       }
       this.bootHandler.load(boot);
       syncEventListeners();
@@ -4056,7 +4569,7 @@ var LiveUIModule = (() => {
     applyComponentBootEffect(effect) {
       if (typeof document === "undefined") return;
       if (!effect || !effect.componentId) return;
-      const { componentId, html, slots, listSlots } = effect;
+      const { componentId, html, slots, listSlots, bindings } = effect;
       const bounds = this.findComponentBounds(componentId);
       if (!bounds) {
         if (this.options.debug) {
@@ -4078,6 +4591,10 @@ var LiveUIModule = (() => {
       const template = document.createElement("template");
       template.innerHTML = html || "";
       const fragment = template.content.cloneNode(true);
+      primeHandlerBindings(fragment);
+      if (effect.markers) {
+        registerComponentMarkers(effect.markers, fragment);
+      }
       const range = document.createRange();
       range.setStartBefore(bounds.start);
       range.setEndAfter(bounds.end);
@@ -4091,6 +4608,15 @@ var LiveUIModule = (() => {
         }
         return;
       }
+      if (bindings && typeof bindings === "object") {
+        for (const [slotKey, specs] of Object.entries(bindings)) {
+          const slotId = Number(slotKey);
+          if (Number.isNaN(slotId)) {
+            continue;
+          }
+          registerBindingsForSlot(slotId, Array.isArray(specs) ? specs : []);
+        }
+      }
       this.registerComponentAnchors(
         refreshed,
         Array.isArray(slots) ? slots : [],
@@ -4099,31 +4625,7 @@ var LiveUIModule = (() => {
     }
     findComponentBounds(id) {
       if (typeof document === "undefined" || !id) return null;
-      const startMarker = `live-component:start:${id}`;
-      const endMarker = `live-component:end:${id}`;
-      const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_COMMENT
-      );
-      let startNode = null;
-      while (walker.nextNode()) {
-        const current = walker.currentNode;
-        if (current.data === startMarker) {
-          startNode = current;
-          break;
-        }
-      }
-      if (!startNode) return null;
-      let endNode = null;
-      while (walker.nextNode()) {
-        const current = walker.currentNode;
-        if (current.data === endMarker) {
-          endNode = current;
-          break;
-        }
-      }
-      if (!endNode) return null;
-      return { start: startNode, end: endNode };
+      return getComponentBounds(id);
     }
     registerComponentAnchors(bounds, slots, listSlots) {
       const slotSet = new Set(slots ?? []);
@@ -4860,7 +5362,13 @@ var LiveUIModule = (() => {
     const inlineBoot = inlineOptions.boot;
     const resolvedBootPayload = bootPayload ?? inlineBoot ?? null;
     const shouldAutoConnect = inlineOptions.autoConnect !== false;
-    const options = { ...inlineOptions, autoConnect: false, debug: true };
+    const options = { ...inlineOptions, autoConnect: false };
+    const bootDebug = typeof resolvedBootPayload?.client?.debug === "boolean" ? resolvedBootPayload.client.debug : void 0;
+    if (typeof bootDebug !== "undefined") {
+      options.debug = bootDebug;
+    } else if (typeof options.debug === "undefined") {
+      options.debug = true;
+    }
     if (resolvedBootPayload) {
       options.boot = resolvedBootPayload;
       if (!bootPayload) {

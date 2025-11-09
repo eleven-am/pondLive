@@ -562,6 +562,40 @@ func TestLiveSessionBootIncludesClientConfig(t *testing.T) {
 	}
 }
 
+func TestLiveSessionBootEnablesClientDebugInDevMode(t *testing.T) {
+	sess := NewLiveSession("boot-client-debug", 1, counterComponent, struct{}{}, &LiveSessionConfig{DevMode: boolPtr(true)})
+	html := render.RenderHTML(sess.RenderRoot(), sess.Registry())
+
+	boot := sess.BuildBoot(html)
+	if boot.Client == nil {
+		t.Fatal("expected boot client config to be populated in dev mode")
+	}
+	if boot.Client.Debug == nil || !*boot.Client.Debug {
+		t.Fatalf("expected client debug to be enabled in dev mode, got %+v", boot.Client.Debug)
+	}
+}
+
+func TestLiveSessionBootHonorsConfiguredClientDebug(t *testing.T) {
+	debug := false
+	cfg := &LiveSessionConfig{
+		DevMode:      boolPtr(true),
+		ClientConfig: &protocol.ClientConfig{Debug: &debug},
+	}
+	sess := NewLiveSession("boot-client-debug-override", 1, counterComponent, struct{}{}, cfg)
+	html := render.RenderHTML(sess.RenderRoot(), sess.Registry())
+
+	boot := sess.BuildBoot(html)
+	if boot.Client == nil {
+		t.Fatal("expected boot client config to be populated when provided")
+	}
+	if boot.Client.Debug == nil {
+		t.Fatal("expected boot client debug flag to be present")
+	}
+	if *boot.Client.Debug {
+		t.Fatalf("expected boot client debug to remain false, got true")
+	}
+}
+
 type stubRecorder struct {
 	records []FrameRecord
 }

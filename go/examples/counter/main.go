@@ -22,7 +22,11 @@ var publicFS embed.FS
 
 func main() {
 	ctx := context.Background()
-	app, err := liveserver.NewApp(ctx, counter)
+	app, err := liveserver.NewApp(
+		ctx,
+		counter,
+		liveserver.WithDevMode(false),
+	)
 	if err != nil {
 		log.Fatalf("build live app: %v", err)
 	}

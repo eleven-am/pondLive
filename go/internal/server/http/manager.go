@@ -89,6 +89,10 @@ func cloneLiveSessionConfig(in runtime.LiveSessionConfig) runtime.LiveSessionCon
 
 func cloneClientConfig(in protocol.ClientConfig) protocol.ClientConfig {
 	out := in
+	if in.Debug != nil {
+		value := *in.Debug
+		out.Debug = &value
+	}
 	return out
 }
 

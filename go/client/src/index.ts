@@ -237,6 +237,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       if (boot.client?.upload && typeof boot.client.upload === "string") {
         this.options.uploadEndpoint = boot.client.upload;
       }
+      if (typeof boot.client?.debug === "boolean") {
+        this.options.debug = boot.client.debug;
+      }
       this.sessionId.set(boot.sid);
       this.version.set(boot.ver ?? 0);
       this.lastAck = boot.seq ?? 0;

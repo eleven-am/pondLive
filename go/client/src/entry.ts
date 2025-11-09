@@ -108,7 +108,17 @@ function createClient(target: LiveUIWindow): LiveUIInstance {
   const resolvedBootPayload = bootPayload ?? inlineBoot ?? null;
   const shouldAutoConnect = inlineOptions.autoConnect !== false;
 
-  const options: LiveUIOptions = { ...inlineOptions, autoConnect: false, debug: true };
+  const options: LiveUIOptions = { ...inlineOptions, autoConnect: false };
+  const bootDebug =
+    typeof resolvedBootPayload?.client?.debug === 'boolean'
+      ? resolvedBootPayload.client.debug
+      : undefined;
+
+  if (typeof bootDebug !== 'undefined') {
+    options.debug = bootDebug;
+  } else if (typeof options.debug === 'undefined') {
+    options.debug = true;
+  }
   if (resolvedBootPayload) {
     options.boot = resolvedBootPayload;
     if (!bootPayload) {

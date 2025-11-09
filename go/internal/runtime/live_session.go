@@ -1315,8 +1315,18 @@ func (s *LiveSession) BuildBoot(html string) protocol.Boot {
 	if boot.T == "" {
 		boot.T = "boot"
 	}
-	if s.clientConfig != nil {
-		boot.Client = cloneClientConfig(s.clientConfig)
+	clientCfg := cloneClientConfig(s.clientConfig)
+	if s.devMode {
+		if clientCfg == nil {
+			clientCfg = &protocol.ClientConfig{}
+		}
+		if clientCfg.Debug == nil {
+			value := true
+			clientCfg.Debug = &value
+		}
+	}
+	if clientCfg != nil {
+		boot.Client = clientCfg
 	}
 	if len(diagSnapshot) > 0 {
 		boot.Errors = cloneServerErrors(diagSnapshot)
@@ -1370,6 +1380,10 @@ func cloneClientConfig(src *protocol.ClientConfig) *protocol.ClientConfig {
 		return nil
 	}
 	clone := *src
+	if src.Debug != nil {
+		value := *src.Debug
+		clone.Debug = &value
+	}
 	return &clone
 }
 

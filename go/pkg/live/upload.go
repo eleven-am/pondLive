@@ -1,6 +1,6 @@
 package live
 
-import runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+import "github.com/eleven-am/pondlive/go/internal/runtime"
 
 type (
 	UploadStatus   = runtime.UploadStatus

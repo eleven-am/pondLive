@@ -50,6 +50,7 @@ export interface BootPayload {
 export interface BootClientConfig {
   endpoint?: string;
   upload?: string;
+  debug?: boolean;
   [key: string]: unknown;
 }
 

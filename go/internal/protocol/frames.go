@@ -23,6 +23,7 @@ type Boot struct {
 type ClientConfig struct {
 	Endpoint       string `json:"endpoint,omitempty"`
 	UploadEndpoint string `json:"upload,omitempty"`
+	Debug          *bool  `json:"debug,omitempty"`
 }
 
 type Init struct {
