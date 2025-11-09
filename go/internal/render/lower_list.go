@@ -18,10 +18,15 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 			continue
 		}
 		start := len(b.dynamics)
+		bindingStart := len(b.handlerBindings)
+		markerBase := b.markerCounter
+		orderStart := len(b.componentOrder)
 		b.pushChildIndex(idx)
 		b.visit(row)
 		b.popChildIndex()
 		end := len(b.dynamics)
+		bindingEnd := len(b.handlerBindings)
+		orderEnd := len(b.componentOrder)
 		if end <= start {
 			rowEntries = append(rowEntries, Row{Key: row.Key})
 			continue
@@ -30,10 +35,27 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 		for i := start; i < end; i++ {
 			slots = append(slots, i)
 		}
+		var bindings []HandlerBinding
+		if bindingEnd > bindingStart {
+			bindings = append([]HandlerBinding(nil), b.handlerBindings[bindingStart:bindingEnd]...)
+		}
+		var markers map[string]ComponentMarker
+		if orderEnd > orderStart {
+			markers = make(map[string]ComponentMarker, orderEnd-orderStart)
+			for _, id := range b.componentOrder[orderStart:orderEnd] {
+				span := b.components[id]
+				markers[id] = ComponentMarker{
+					Start: span.MarkerStart - markerBase,
+					End:   span.MarkerEnd - markerBase,
+				}
+			}
+		}
 		rowEntries = append(rowEntries, Row{
-			Key:   row.Key,
-			HTML:  renderFinalizedNode(row),
-			Slots: slots,
+			Key:      row.Key,
+			HTML:     renderFinalizedNode(row),
+			Slots:    slots,
+			Bindings: bindings,
+			Markers:  markers,
 		})
 	}
 	if listSlot >= 0 && listSlot < len(b.dynamics) {

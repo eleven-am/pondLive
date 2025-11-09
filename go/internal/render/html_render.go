@@ -37,11 +37,11 @@ func renderNode(b *strings.Builder, n h.Node) {
 	case *h.CommentNode:
 		renderComment(b, v.Value)
 	case *h.ComponentNode:
-		renderComment(b, h.ComponentStartMarker(v.ID))
+		b.WriteString("<!---->")
 		if v.Child != nil {
 			renderNode(b, v.Child)
 		}
-		renderComment(b, h.ComponentEndMarker(v.ID))
+		b.WriteString("<!---->")
 	}
 }
 
@@ -66,6 +66,9 @@ func renderElement(b *strings.Builder, e *h.Element) {
 		for _, k := range keys {
 			v := e.Attrs[k]
 			if v == "" {
+				continue
+			}
+			if strings.HasPrefix(k, "data-on") {
 				continue
 			}
 			b.WriteByte(' ')

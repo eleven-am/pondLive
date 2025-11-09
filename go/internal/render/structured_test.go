@@ -25,27 +25,45 @@ func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	}
 	var textSlots int
 	var attrSlots int
+	var attrSlotValue string
 	for _, dyn := range structured.D {
 		switch dyn.Kind {
 		case DynText:
 			textSlots++
 		case DynAttrs:
 			attrSlots++
+			attrSlotValue = dyn.Attrs["data-slot-index"]
 		}
 	}
 	if textSlots == 0 {
 		t.Fatal("expected at least one text slot")
 	}
-	if attrSlots != 0 {
-		t.Fatalf("expected no dynamic attr slots, got %d", attrSlots)
+	if attrSlots == 0 {
+		t.Fatal("expected dynamic attr slot for handler bindings")
 	}
 
-	combined := strings.Join(structured.S, "")
-	if !strings.Contains(combined, "data-onclick=") {
-		t.Fatalf("expected static markup to include data-onclick attribute, got %q", combined)
+	if attrSlotValue == "" {
+		t.Fatal("expected attr slot to include data-slot-index value")
 	}
-	if !strings.Contains(combined, "data-slot-index=") {
-		t.Fatalf("expected static markup to include data-slot-index, got %q", combined)
+	combined := strings.Join(structured.S, "")
+	if strings.Contains(combined, "data-slot-index=") {
+		t.Fatalf("expected slot annotations to move to dynamic attrs, got %q", combined)
+	}
+	if strings.Contains(combined, "data-onclick=") {
+		t.Fatalf("expected static markup to omit data-onclick attribute, got %q", combined)
+	}
+	if len(structured.Bindings) == 0 {
+		t.Fatal("expected handler bindings to be recorded")
+	}
+	var found bool
+	for _, binding := range structured.Bindings {
+		if binding.Event == "click" && binding.Handler != "" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected click handler binding to be recorded, got %+v", structured.Bindings)
 	}
 }
 

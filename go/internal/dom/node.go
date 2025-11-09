@@ -30,6 +30,8 @@ type Element struct {
 	RefID  string
 
 	MutableAttrs map[string]bool
+
+	HandlerAssignments map[string]EventAssignment
 }
 
 func (*Element) isNode()         {}

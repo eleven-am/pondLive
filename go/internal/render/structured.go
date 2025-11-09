@@ -31,9 +31,11 @@ type Dyn struct {
 
 // Row represents a keyed row inside a dynamic list slot.
 type Row struct {
-	Key   string
-	HTML  string
-	Slots []int
+	Key      string
+	HTML     string
+	Slots    []int
+	Bindings []HandlerBinding
+	Markers  map[string]ComponentMarker
 }
 
 // Structured represents the structured render output of a node tree.
@@ -41,6 +43,7 @@ type Structured struct {
 	S          []string
 	D          []Dyn
 	Components map[string]ComponentSpan
+	Bindings   []HandlerBinding
 }
 
 // PromotionTracker allows callers to control when static nodes should become dynamic.
@@ -61,6 +64,14 @@ type ComponentSpan struct {
 	StaticsEnd    int
 	DynamicsStart int
 	DynamicsEnd   int
+	MarkerStart   int
+	MarkerEnd     int
+}
+
+// ComponentMarker captures the start and end comment offsets for a component within a fragment.
+type ComponentMarker struct {
+	Start int
+	End   int
 }
 
 // ToStructured lowers a node tree into structured statics and dynamics.
@@ -83,19 +94,22 @@ func ToStructuredWithOptions(n h.Node, opts StructuredOptions) Structured {
 	b := &structuredBuilder{tracker: opts.Promotions}
 	b.visit(n)
 	b.flush()
-	return Structured{S: b.statics, D: b.dynamics, Components: b.components}
+	return Structured{S: b.statics, D: b.dynamics, Components: b.components, Bindings: append([]HandlerBinding(nil), b.handlerBindings...)}
 }
 
 type structuredBuilder struct {
-	statics    []string
-	current    strings.Builder
-	dynamics   []Dyn
-	stack      []elementFrame
-	components map[string]ComponentSpan
+	statics         []string
+	current         strings.Builder
+	dynamics        []Dyn
+	stack           []elementFrame
+	components      map[string]ComponentSpan
+	handlerBindings []HandlerBinding
 
 	tracker        PromotionTracker
 	componentStack []componentFrame
 	componentPath  []int
+	markerCounter  int
+	componentOrder []string
 }
 
 type elementFrame struct {
@@ -115,6 +129,15 @@ type componentFrame struct {
 type slotBinding struct {
 	slot       int
 	childIndex int
+}
+
+// HandlerBinding captures the association between a dynamic slot anchor and a handler ID.
+type HandlerBinding struct {
+	Slot    int
+	Event   string
+	Handler string
+	Listen  []string
+	Props   []string
 }
 
 func (b *structuredBuilder) writeStatic(s string) {
@@ -182,28 +205,37 @@ func (b *structuredBuilder) visitComponentNode(v *h.ComponentNode) {
 	b.flush()
 	staticsStart := len(b.statics)
 	dynamicsStart := len(b.dynamics)
-	b.writeStatic("<!--")
-	b.writeStatic(escapeComment(h.ComponentStartMarker(v.ID)))
-	b.writeStatic("-->")
+	startMarker := b.nextComponentMarker()
+	b.writeStatic("<!---->")
 	b.pushComponent(v.ID)
 	if v.Child != nil {
 		b.visit(v.Child)
 	}
 	b.popComponent()
-	b.writeStatic("<!--")
-	b.writeStatic(escapeComment(h.ComponentEndMarker(v.ID)))
-	b.writeStatic("-->")
+	endMarker := b.nextComponentMarker()
+	b.writeStatic("<!---->")
 	b.flush()
 	span := ComponentSpan{
 		StaticsStart:  staticsStart,
 		StaticsEnd:    len(b.statics),
 		DynamicsStart: dynamicsStart,
 		DynamicsEnd:   len(b.dynamics),
+		MarkerStart:   startMarker,
+		MarkerEnd:     endMarker,
 	}
 	if b.components == nil {
 		b.components = make(map[string]ComponentSpan)
 	}
+	if _, exists := b.components[v.ID]; !exists {
+		b.componentOrder = append(b.componentOrder, v.ID)
+	}
 	b.components[v.ID] = span
+}
+
+func (b *structuredBuilder) nextComponentMarker() int {
+	index := b.markerCounter
+	b.markerCounter++
+	return index
 }
 
 func (b *structuredBuilder) visitElement(v *h.Element) {
@@ -260,6 +292,9 @@ func (b *structuredBuilder) visitElement(v *h.Element) {
 func (b *structuredBuilder) shouldUseDynamicAttrs(el *h.Element) bool {
 	if el == nil {
 		return false
+	}
+	if len(el.HandlerAssignments) > 0 {
+		return true
 	}
 	mutable := el.MutableAttrs
 	if tracker := b.tracker; tracker != nil {
@@ -384,6 +419,19 @@ func (b *structuredBuilder) assignSlotIndices(frame elementFrame) {
 	if frame.staticAttrs && frame.startStatic >= 0 && frame.startStatic < len(b.statics) {
 		b.statics[frame.startStatic] = renderStartTag(frame.element, frame.void)
 	}
+	if len(frame.element.HandlerAssignments) > 0 && frame.attrSlot >= 0 {
+		if attrs := frame.element.HandlerAssignments; len(attrs) > 0 {
+			for event, assignment := range attrs {
+				b.handlerBindings = append(b.handlerBindings, HandlerBinding{
+					Slot:    frame.attrSlot,
+					Event:   event,
+					Handler: assignment.ID,
+					Listen:  append([]string(nil), assignment.Listen...),
+					Props:   append([]string(nil), assignment.Props...),
+				})
+			}
+		}
+	}
 }
 
 func joinSlotBindings(bindings []slotBinding) string {
@@ -472,6 +520,9 @@ func renderStartTag(el *h.Element, void bool) string {
 		for _, k := range keys {
 			v := el.Attrs[k]
 			if v == "" {
+				continue
+			}
+			if strings.HasPrefix(k, "data-on") || strings.HasPrefix(k, "data-router-") {
 				continue
 			}
 			b.WriteByte(' ')

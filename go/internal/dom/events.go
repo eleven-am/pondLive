@@ -69,6 +69,13 @@ type EventBinding struct {
 	Props   []string
 }
 
+// EventAssignment captures the runtime metadata associated with a handler ID.
+type EventAssignment struct {
+	ID     string
+	Listen []string
+	Props  []string
+}
+
 func (b EventBinding) WithOptions(opts EventOptions, primary string) EventBinding {
 	b.Listen = sanitizeEventList(primary, opts.Listen)
 	b.Props = sanitizeSelectorList(opts.Props)

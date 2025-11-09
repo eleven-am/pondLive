@@ -1021,6 +1021,8 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 			D:        append([]protocol.DynamicSlot(nil), snap.Dynamics...),
 			Slots:    cloneSlots(snap.Slots),
 			Handlers: cloneHandlers(snap.Handlers),
+			Bindings: cloneBindingTable(snap.Bindings),
+			Markers:  cloneMarkers(snap.Markers),
 			Refs:     cloneRefs(snap.Refs),
 			Location: snap.Location,
 		}
@@ -1092,6 +1094,32 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 			if len(update.handlersDel) > 0 {
 				frame.Handlers.Del = append(frame.Handlers.Del, update.handlersDel...)
 			}
+			if len(update.slots) > 0 {
+				if s.snapshot.Bindings == nil && (len(update.bindings) > 0) {
+					s.snapshot.Bindings = make(protocol.BindingTable)
+				}
+				for _, slot := range update.slots {
+					entries, ok := update.bindings[slot]
+					if !ok || len(entries) == 0 {
+						if s.snapshot.Bindings != nil {
+							delete(s.snapshot.Bindings, slot)
+						}
+						continue
+					}
+					if s.snapshot.Bindings == nil {
+						s.snapshot.Bindings = make(protocol.BindingTable)
+					}
+					s.snapshot.Bindings[slot] = copySlotBindings(entries)
+				}
+			}
+			if len(update.markers) > 0 {
+				if s.snapshot.Markers == nil {
+					s.snapshot.Markers = make(map[string]protocol.ComponentMarker)
+				}
+				for id, marker := range update.markers {
+					s.snapshot.Markers[id] = marker
+				}
+			}
 			effect := map[string]any{
 				"type":        "componentBoot",
 				"componentId": update.id,
@@ -1100,6 +1128,12 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 			}
 			if len(update.listSlots) > 0 {
 				effect["listSlots"] = update.listSlots
+			}
+			if update.bindings != nil {
+				effect["bindings"] = update.bindings
+			}
+			if update.markers != nil {
+				effect["markers"] = update.markers
 			}
 			frame.Effects = append(frame.Effects, effect)
 		}
@@ -1241,6 +1275,8 @@ func (s *LiveSession) buildInitLocked(errors []protocol.ServerError) protocol.In
 		D:        cloneDynamics(s.snapshot.Dynamics),
 		Slots:    cloneSlots(s.snapshot.Slots),
 		Handlers: cloneHandlers(s.snapshot.Handlers),
+		Bindings: cloneBindingTable(s.snapshot.Bindings),
+		Markers:  cloneMarkers(s.snapshot.Markers),
 		Refs:     cloneRefs(s.snapshot.Refs),
 		Location: s.snapshot.Location,
 		Seq:      s.nextSeq,
@@ -1271,6 +1307,8 @@ func (s *LiveSession) BuildBoot(html string) protocol.Boot {
 		D:        cloneDynamics(init.D),
 		Slots:    cloneSlots(init.Slots),
 		Handlers: cloneHandlers(init.Handlers),
+		Bindings: cloneBindingTable(init.Bindings),
+		Markers:  cloneMarkers(init.Markers),
 		Refs:     cloneRefs(init.Refs),
 		Location: init.Location,
 	}
@@ -1358,6 +1396,8 @@ type snapshot struct {
 	Dynamics     []protocol.DynamicSlot
 	Slots        []protocol.SlotMeta
 	Handlers     map[string]protocol.HandlerMeta
+	Bindings     protocol.BindingTable
+	Markers      map[string]protocol.ComponentMarker
 	Refs         map[string]protocol.RefMeta
 	Location     protocol.Location
 	Metadata     *Meta
@@ -1383,6 +1423,8 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 		Dynamics:     dynamics,
 		Slots:        slots,
 		Handlers:     handlers,
+		Bindings:     encodeBindingTable(structured.Bindings),
+		Markers:      encodeComponentMarkers(structured.Components),
 		Refs:         refs,
 		Location:     protoLoc,
 		Metadata:     CloneMeta(meta),
@@ -1434,6 +1476,12 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 					if len(row.Slots) > 0 {
 						rows[j].Slots = append([]int(nil), row.Slots...)
 					}
+					if bindings := encodeRowBindingTable(row.Bindings); len(bindings) > 0 {
+						rows[j].Bindings = bindings
+					}
+					if markers := encodeRowMarkers(row.Markers); len(markers) > 0 {
+						rows[j].Markers = markers
+					}
 				}
 				slot.List = rows
 			}
@@ -1441,6 +1489,109 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 			slot.Kind = "unknown"
 		}
 		out[i] = slot
+	}
+	return out
+}
+
+func encodeBindingTable(bindings []render.HandlerBinding) protocol.BindingTable {
+	if len(bindings) == 0 {
+		return nil
+	}
+	table := make(protocol.BindingTable)
+	for _, binding := range bindings {
+		if binding.Slot < 0 || binding.Handler == "" {
+			continue
+		}
+		entry := protocol.SlotBinding{
+			Event:   binding.Event,
+			Handler: binding.Handler,
+		}
+		if len(binding.Listen) > 0 {
+			entry.Listen = append([]string(nil), binding.Listen...)
+		}
+		if len(binding.Props) > 0 {
+			entry.Props = append([]string(nil), binding.Props...)
+		}
+		table[binding.Slot] = append(table[binding.Slot], entry)
+	}
+	if len(table) == 0 {
+		return nil
+	}
+	return table
+}
+
+func encodeComponentMarkers(components map[string]render.ComponentSpan) map[string]protocol.ComponentMarker {
+	if len(components) == 0 {
+		return nil
+	}
+	out := make(map[string]protocol.ComponentMarker, len(components))
+	for id, span := range components {
+		out[id] = protocol.ComponentMarker{Start: span.MarkerStart, End: span.MarkerEnd}
+	}
+	return out
+}
+
+func encodeBindings(bindings []render.HandlerBinding) []protocol.SlotBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.SlotBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.Handler == "" {
+			continue
+		}
+		entry := protocol.SlotBinding{
+			Event:   binding.Event,
+			Handler: binding.Handler,
+		}
+		if len(binding.Listen) > 0 {
+			entry.Listen = append([]string(nil), binding.Listen...)
+		}
+		if len(binding.Props) > 0 {
+			entry.Props = append([]string(nil), binding.Props...)
+		}
+		out = append(out, entry)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func encodeRowBindingTable(bindings []render.HandlerBinding) protocol.BindingTable {
+	if len(bindings) == 0 {
+		return nil
+	}
+	table := make(protocol.BindingTable)
+	for _, binding := range bindings {
+		if binding.Slot < 0 || binding.Handler == "" {
+			continue
+		}
+		entry := protocol.SlotBinding{
+			Event:   binding.Event,
+			Handler: binding.Handler,
+		}
+		if len(binding.Listen) > 0 {
+			entry.Listen = append([]string(nil), binding.Listen...)
+		}
+		if len(binding.Props) > 0 {
+			entry.Props = append([]string(nil), binding.Props...)
+		}
+		table[binding.Slot] = append(table[binding.Slot], entry)
+	}
+	if len(table) == 0 {
+		return nil
+	}
+	return table
+}
+
+func encodeRowMarkers(markers map[string]render.ComponentMarker) map[string]protocol.ComponentMarker {
+	if len(markers) == 0 {
+		return nil
+	}
+	out := make(map[string]protocol.ComponentMarker, len(markers))
+	for id, marker := range markers {
+		out[id] = protocol.ComponentMarker{Start: marker.Start, End: marker.End}
 	}
 	return out
 }
@@ -1718,6 +1869,24 @@ func cloneDynamics(dynamics []protocol.DynamicSlot) []protocol.DynamicSlot {
 				if len(row.Slots) > 0 {
 					rows[j].Slots = append([]int(nil), row.Slots...)
 				}
+				if len(row.Bindings) > 0 {
+					copied := make(protocol.BindingTable, len(row.Bindings))
+					for slot, bindings := range row.Bindings {
+						copied[slot] = copySlotBindings(bindings)
+					}
+					if len(copied) > 0 {
+						rows[j].Bindings = copied
+					}
+				}
+				if len(row.Markers) > 0 {
+					copiedMarkers := make(map[string]protocol.ComponentMarker, len(row.Markers))
+					for id, marker := range row.Markers {
+						copiedMarkers[id] = marker
+					}
+					if len(copiedMarkers) > 0 {
+						rows[j].Markers = copiedMarkers
+					}
+				}
 			}
 			slot.List = rows
 		}
@@ -1749,6 +1918,52 @@ func cloneHandlers(handlers map[string]protocol.HandlerMeta) map[string]protocol
 			meta.Props = append([]string(nil), v.Props...)
 		}
 		out[k] = meta
+	}
+	return out
+}
+
+func cloneBindingTable(bindings protocol.BindingTable) protocol.BindingTable {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make(protocol.BindingTable, len(bindings))
+	for slot, entries := range bindings {
+		out[slot] = copySlotBindings(entries)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func cloneMarkers(markers map[string]protocol.ComponentMarker) map[string]protocol.ComponentMarker {
+	if len(markers) == 0 {
+		return nil
+	}
+	out := make(map[string]protocol.ComponentMarker, len(markers))
+	for id, marker := range markers {
+		out[id] = marker
+	}
+	return out
+}
+
+func copySlotBindings(entries []protocol.SlotBinding) []protocol.SlotBinding {
+	if entries == nil {
+		return nil
+	}
+	if len(entries) == 0 {
+		return []protocol.SlotBinding{}
+	}
+	out := make([]protocol.SlotBinding, len(entries))
+	for i, entry := range entries {
+		clone := entry
+		if len(entry.Listen) > 0 {
+			clone.Listen = append([]string(nil), entry.Listen...)
+		}
+		if len(entry.Props) > 0 {
+			clone.Props = append([]string(nil), entry.Props...)
+		}
+		out[i] = clone
 	}
 	return out
 }

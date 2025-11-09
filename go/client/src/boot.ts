@@ -5,7 +5,8 @@
  */
 
 import * as dom from './dom-index';
-import { clearHandlers, registerHandlers, syncEventListeners } from './events';
+import { clearHandlers, primeSlotBindings, registerHandlers, syncEventListeners } from './events';
+import { initializeComponentMarkers } from './componentMarkers';
 import { bindRefsInTree, clearRefs, registerRefs } from './refs';
 import type { BootPayload, DynamicSlot, Location } from './types';
 
@@ -71,11 +72,14 @@ export class BootHandler {
       syncEventListeners();
     }
 
+    primeSlotBindings(boot.bindings);
+
     // Register element refs and index current DOM
     clearRefs();
     registerRefs(boot.refs);
     if (typeof document !== 'undefined') {
       bindRefsInTree(document);
+      initializeComponentMarkers(boot.markers ?? null, document);
     }
 
     // Register DOM slots

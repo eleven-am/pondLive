@@ -12,9 +12,17 @@
  * - Virtual scrolling support
  */
 
-import * as dom from './dom-index';
-import { bindRefsInTree, unbindRefsInTree, updateRefBinding } from './refs';
-import type {DiffOp, ListChildOp} from './types';
+import * as dom from "./dom-index";
+import {
+  applyRouterAttribute,
+  getRegisteredSlotBindings,
+  primeHandlerBindings,
+  refreshHandlerBindings,
+  registerBindingsForSlot,
+} from "./events";
+import { registerComponentMarkers } from "./componentMarkers";
+import { bindRefsInTree, unbindRefsInTree, updateRefBinding } from "./refs";
+import type { DiffOp, ListChildOp, SlotBinding } from "./types";
 
 // ============================================================================
 // Configuration
@@ -39,6 +47,8 @@ const config: PatcherConfig = {
     virtualScrollThreshold: 100, // Start virtual scrolling after 100 items
     memoizationCacheSize: 1000,
 };
+
+const DATA_EVENT_ATTR_PREFIX = 'data-on';
 
 // ============================================================================
 // Fragment Pooling (for future use)
@@ -273,13 +283,133 @@ function applySetAttrs(
         throw new Error(`liveui: slot ${slotIndex} is not an element`);
     }
 
+    const existingBindings = getRegisteredSlotBindings(slotIndex) ?? [];
+    const bindingMap = new Map<string, { handler?: string; listen?: string[]; props?: string[] }>();
+    for (const spec of existingBindings) {
+        if (!spec || typeof spec.event !== 'string') continue;
+        bindingMap.set(spec.event, {
+            handler: spec.handler,
+            listen: spec.listen ? [...spec.listen] : undefined,
+            props: spec.props ? [...spec.props] : undefined,
+        });
+    }
+
+    const parseTokens = (value: string | null | undefined): string[] | undefined => {
+        if (typeof value !== 'string') {
+            return undefined;
+        }
+        const tokens = value
+            .split(/\s+/)
+            .map((token) => token.trim())
+            .filter((token) => token.length > 0);
+        return tokens.length > 0 ? tokens : undefined;
+    };
+
+    let bindingChanged = false;
+
+    if (upsert) {
+        for (const key of Object.keys(upsert)) {
+            if (typeof key === 'string' && key.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
+                const routerKey = key.slice(DATA_ROUTER_ATTR_PREFIX.length);
+                applyRouterAttribute(node, routerKey, upsert[key]);
+                delete upsert[key];
+                continue;
+            }
+            if (typeof key !== 'string' || !key.startsWith(DATA_EVENT_ATTR_PREFIX)) {
+                continue;
+            }
+            bindingChanged = true;
+            const value = upsert[key];
+            delete upsert[key];
+
+            let remainder = key.slice(DATA_EVENT_ATTR_PREFIX.length);
+            if (remainder.startsWith('-')) {
+                remainder = remainder.slice(1);
+            }
+            if (remainder.length === 0) {
+                continue;
+            }
+            let metaType = '';
+            const dashIndex = remainder.indexOf('-');
+            if (dashIndex !== -1) {
+                metaType = remainder.slice(dashIndex + 1);
+                remainder = remainder.slice(0, dashIndex);
+            }
+            const eventName = remainder.trim();
+            if (eventName.length === 0) {
+                continue;
+            }
+            const entry = bindingMap.get(eventName) ?? {};
+            if (metaType === 'listen') {
+                entry.listen = parseTokens(value);
+            } else if (metaType === 'props') {
+                entry.props = parseTokens(value);
+            } else {
+                entry.handler = typeof value === 'string' ? value : value != null ? String(value) : '';
+            }
+            bindingMap.set(eventName, entry);
+        }
+    }
+
+    if (Array.isArray(remove) && remove.length > 0) {
+        for (let i = remove.length - 1; i >= 0; i--) {
+            const attrName = remove[i];
+            if (typeof attrName === 'string' && attrName.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
+                const routerKey = attrName.slice(DATA_ROUTER_ATTR_PREFIX.length);
+                applyRouterAttribute(node, routerKey, undefined);
+                remove.splice(i, 1);
+                continue;
+            }
+            if (typeof attrName !== 'string' || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX)) {
+                continue;
+            }
+            bindingChanged = true;
+            remove.splice(i, 1);
+
+            let remainder = attrName.slice(DATA_EVENT_ATTR_PREFIX.length);
+            if (remainder.startsWith('-')) {
+                remainder = remainder.slice(1);
+            }
+            if (remainder.length === 0) {
+                continue;
+            }
+            const dashIndex = remainder.indexOf('-');
+            if (dashIndex !== -1) {
+                remainder = remainder.slice(0, dashIndex);
+            }
+            const eventName = remainder.trim();
+            if (eventName.length === 0) {
+                continue;
+            }
+            bindingMap.delete(eventName);
+        }
+    }
+
+    if (bindingChanged) {
+        const specs: SlotBinding[] = [];
+        bindingMap.forEach((info, eventName) => {
+            const handlerId = info.handler?.trim();
+            if (!handlerId) {
+                return;
+            }
+            const spec: SlotBinding = { event: eventName, handler: handlerId };
+            if (info.listen && info.listen.length > 0) {
+                spec.listen = [...info.listen];
+            }
+            if (info.props && info.props.length > 0) {
+                spec.props = [...info.props];
+            }
+            specs.push(spec);
+        });
+        registerBindingsForSlot(slotIndex, specs);
+    }
+
     const previousRef = node.getAttribute('data-live-ref');
     const applyAttrs = () => {
         if (upsert) {
             for (const [k, v] of Object.entries(upsert)) {
                 if (v === undefined || v === null) continue;
 
-                // Dirty checking: only update if changed
                 if (config.enableDirtyChecking && node.getAttribute(k) === String(v)) {
                     continue;
                 }
@@ -298,6 +428,8 @@ function applySetAttrs(
 
         const nextRef = node.getAttribute('data-live-ref');
         updateRefBinding(node, previousRef, nextRef);
+
+        refreshHandlerBindings(node);
     };
 
     if (config.enableBatching) {
@@ -306,7 +438,6 @@ function applySetAttrs(
         applyAttrs();
     }
 }
-
 // ============================================================================
 // Morphdom-style DOM Reconciliation (exported for advanced use cases)
 // ============================================================================
@@ -447,6 +578,16 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                 const pos = op[1];
                 const payload = op[2] || {key: '', html: ''};
 
+                if (payload && typeof payload === 'object' && payload.bindings) {
+                    for (const [slotKey, specs] of Object.entries(payload.bindings)) {
+                        const slotId = Number(slotKey);
+                        if (Number.isNaN(slotId)) {
+                            continue;
+                        }
+                        registerBindingsForSlot(slotId, specs ?? []);
+                    }
+                }
+
                 // Check memoization cache
                 const memoKey = memoizer.key('ins', slotIndex, payload.html);
                 let fragment: DocumentFragment;
@@ -458,6 +599,11 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                     if (config.enableMemoization) {
                         memoizer.set(memoKey, fragment.cloneNode(true));
                     }
+                }
+
+                primeHandlerBindings(fragment);
+                if (payload.markers) {
+                    registerComponentMarkers(payload.markers, fragment);
                 }
 
                 const nodes = Array.from(fragment.childNodes);

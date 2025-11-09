@@ -5,15 +5,201 @@
  * WebSocket connection.
  */
 
-import type { EventPayload, HandlerMap, HandlerMeta } from "./types";
+import type {
+  BindingTable,
+  EventPayload,
+  HandlerMap,
+  HandlerMeta,
+  SlotBinding,
+} from "./types";
 import { domGetSync } from "./dom";
 import { resolveRefEventContext } from "./refs";
 
 const handlers = new Map<string, HandlerMeta>();
 const eventUsageCounts = new Map<string, number>();
 const installedListeners = new Map<string, (e: Event) => void>();
+const handlerBindings = new WeakMap<Element, Map<string, string>>();
+const slotBindingSpecs = new Map<number, SlotBinding[]>();
+const slotElements = new Map<number, Element>();
+const routerBindings = new WeakMap<Element, RouterMeta>();
+
+const DATA_EVENT_ATTR_PREFIX = "data-on";
+const DATA_ROUTER_ATTR_PREFIX = "data-router-";
 
 const ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
+
+interface RouterMeta {
+  path?: string;
+  query?: string;
+  hash?: string;
+  replace?: string;
+}
+
+function setRouterMetaValue(
+  element: Element,
+  field: keyof RouterMeta,
+  value: string | null | undefined,
+): void {
+  let meta = routerBindings.get(element);
+  if (value === null || value === undefined || value === "") {
+    if (!meta) {
+      return;
+    }
+    delete meta[field];
+    if (!meta.path && !meta.query && !meta.hash && !meta.replace) {
+      routerBindings.delete(element);
+    }
+    return;
+  }
+  if (!meta) {
+    meta = {};
+    routerBindings.set(element, meta);
+  }
+  meta[field] = value;
+}
+
+export function applyRouterAttribute(
+  element: Element | null | undefined,
+  key: string,
+  value: string | null | undefined,
+): void {
+  if (!element || typeof key !== "string" || key.length === 0) {
+    return;
+  }
+  switch (key) {
+    case "path":
+    case "query":
+    case "hash":
+    case "replace":
+      setRouterMetaValue(element, key, value);
+      break;
+    default:
+      break;
+  }
+}
+
+export function clearRouterAttributes(
+  element: Element | null | undefined,
+): void {
+  if (!element) {
+    return;
+  }
+  routerBindings.delete(element);
+}
+
+function cloneSlotBindingList(specs: SlotBinding[] | null | undefined): SlotBinding[] {
+  if (!Array.isArray(specs)) {
+    return [];
+  }
+  return specs.map((spec) => {
+    const clone: SlotBinding = {
+      event: spec?.event || "",
+      handler: spec?.handler || "",
+    };
+    if (Array.isArray(spec?.listen) && spec.listen.length > 0) {
+      clone.listen = [...spec.listen];
+    }
+    if (Array.isArray(spec?.props) && spec.props.length > 0) {
+      clone.props = [...spec.props];
+    }
+    return clone;
+  });
+}
+
+function applySlotBindings(slotId: number): void {
+  const element = slotElements.get(slotId);
+  if (!element) {
+    return;
+  }
+
+  const specs = slotBindingSpecs.get(slotId) ?? [];
+  if (!Array.isArray(specs) || specs.length === 0) {
+    handlerBindings.delete(element);
+    return;
+  }
+
+  const map = new Map<string, string>();
+  for (const spec of specs) {
+    if (!spec || typeof spec.event !== "string" || typeof spec.handler !== "string") {
+      continue;
+    }
+    const eventName = spec.event.trim();
+    const handlerId = spec.handler.trim();
+    if (eventName.length === 0 || handlerId.length === 0) {
+      continue;
+    }
+    map.set(eventName, handlerId);
+  }
+
+  if (map.size === 0) {
+    handlerBindings.delete(element);
+    return;
+  }
+
+  handlerBindings.set(element, map);
+}
+
+export function primeSlotBindings(table: BindingTable | null | undefined): void {
+  slotBindingSpecs.clear();
+  if (table && typeof table === "object") {
+    for (const [key, value] of Object.entries(table)) {
+      const slotId = Number(key);
+      if (Number.isNaN(slotId)) {
+        continue;
+      }
+      slotBindingSpecs.set(slotId, cloneSlotBindingList(value));
+    }
+  }
+  slotElements.forEach((_element, slotId) => {
+    applySlotBindings(slotId);
+  });
+}
+
+export function registerBindingsForSlot(
+  slotId: number,
+  specs: SlotBinding[] | null | undefined,
+): void {
+  if (!Number.isFinite(slotId)) {
+    return;
+  }
+  if (!Array.isArray(specs)) {
+    slotBindingSpecs.set(slotId, []);
+  } else {
+    slotBindingSpecs.set(slotId, cloneSlotBindingList(specs));
+  }
+  applySlotBindings(slotId);
+}
+
+export function getRegisteredSlotBindings(
+  slotId: number,
+): ReadonlyArray<SlotBinding> | undefined {
+  const specs = slotBindingSpecs.get(slotId);
+  if (!specs) {
+    return undefined;
+  }
+  return cloneSlotBindingList(specs);
+}
+
+export function onSlotRegistered(slotId: number, node: Node | null | undefined): void {
+  if (!Number.isFinite(slotId) || !node) {
+    return;
+  }
+  if (node instanceof Element) {
+    slotElements.set(slotId, node);
+    applySlotBindings(slotId);
+    return;
+  }
+  slotElements.delete(slotId);
+}
+
+export function onSlotUnregistered(slotId: number): void {
+  const element = slotElements.get(slotId);
+  if (element) {
+    handlerBindings.delete(element);
+    clearRouterAttributes(element);
+  }
+  slotElements.delete(slotId);
+}
 
 function mergeSelectorLists(
   primary?: string[] | null,
@@ -108,6 +294,145 @@ export function clearHandlers(): void {
   handlers.clear();
   eventUsageCounts.clear();
   syncEventListeners();
+}
+
+/** @internal - exposed for tests to introspect cached handler bindings */
+export function getHandlerBindingSnapshot(
+  element: Element | null | undefined,
+): ReadonlyMap<string, string> | undefined {
+  if (!element) {
+    return undefined;
+  }
+  const bindings = handlerBindings.get(element);
+  return bindings ? new Map(bindings) : undefined;
+}
+
+function extractPrimaryEventName(attrName: string): string | null {
+  if (!attrName || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX)) {
+    return null;
+  }
+  const suffix = attrName.slice(DATA_EVENT_ATTR_PREFIX.length);
+  if (suffix.length === 0) {
+    return null;
+  }
+  const normalized = suffix.startsWith("-") ? suffix.slice(1) : suffix;
+  if (normalized.length === 0) {
+    return null;
+  }
+  const separatorIndex = normalized.indexOf("-");
+  const eventName =
+    separatorIndex === -1 ? normalized : normalized.slice(0, separatorIndex);
+  return eventName.length > 0 ? eventName : null;
+}
+
+function collectAttributeNames(element: Element): string[] {
+  if (!element) return [];
+  if (typeof element.getAttributeNames === "function") {
+    return element.getAttributeNames();
+  }
+  const out: string[] = [];
+  if (element.attributes) {
+    for (let i = 0; i < element.attributes.length; i++) {
+      const attr = element.attributes.item(i);
+      if (!attr) continue;
+      out.push(attr.name);
+    }
+  }
+  return out;
+}
+
+/**
+ * Refresh handler bindings for a single element based on its data attributes.
+ * Removes the inline metadata from the DOM while caching the binding map.
+ */
+export function refreshHandlerBindings(element: Element | null | undefined): void {
+  if (!element) {
+    return;
+  }
+
+  const attributeNames = collectAttributeNames(element);
+  if (attributeNames.length === 0) {
+    if (handlerBindings.has(element)) {
+      handlerBindings.delete(element);
+    }
+    if (routerBindings.has(element)) {
+      routerBindings.delete(element);
+    }
+    return;
+  }
+
+  let bindings: Map<string, string> | null = null;
+  let sawEventAttr = false;
+  for (const name of attributeNames) {
+    if (!name.startsWith(DATA_EVENT_ATTR_PREFIX)) {
+      if (name.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
+        const key = name.slice(DATA_ROUTER_ATTR_PREFIX.length);
+        const value = element.getAttribute(name);
+        element.removeAttribute(name);
+        applyRouterAttribute(element, key, value ?? "");
+      }
+      continue;
+    }
+    const remainder = name.slice(DATA_EVENT_ATTR_PREFIX.length);
+    const value = element.getAttribute(name);
+    element.removeAttribute(name);
+    const isMeta = remainder.includes("-");
+    if (isMeta) {
+      continue;
+    }
+    sawEventAttr = true;
+    const eventName = extractPrimaryEventName(name);
+    if (!eventName || !value) {
+      continue;
+    }
+    if (!bindings) {
+      bindings = new Map<string, string>();
+    }
+    bindings.set(eventName, value);
+  }
+
+  if (bindings && bindings.size > 0) {
+    handlerBindings.set(element, bindings);
+  } else if (sawEventAttr || handlerBindings.has(element)) {
+    handlerBindings.delete(element);
+  }
+}
+
+/**
+ * Prime handler bindings for every element in a tree, removing inline metadata.
+ */
+export function primeHandlerBindings(root: ParentNode | null | undefined): void {
+  if (!root) return;
+
+  const doc =
+    root instanceof Document
+      ? root
+      : root.ownerDocument ?? (typeof document !== "undefined" ? document : null);
+
+  if (!doc) return;
+
+  const startNode: Node | null =
+    root instanceof Document
+      ? doc.documentElement ?? null
+      : (root as unknown as Node);
+
+  if (!startNode) {
+    return;
+  }
+
+  const walker = doc.createTreeWalker(startNode, NodeFilter.SHOW_ELEMENT);
+
+  if (startNode instanceof Element) {
+    refreshHandlerBindings(startNode);
+  }
+
+  let current = walker.nextNode();
+  while (current) {
+    if (current instanceof Element) {
+      refreshHandlerBindings(current);
+    }
+    current = walker.nextNode();
+  }
 }
 
 /**
@@ -275,6 +600,34 @@ function handleEvent(
         refContext?.element ?? null,
       );
 
+      const routerMeta = routerBindings.get(handlerInfo.element);
+      if (routerMeta) {
+        if (
+          routerMeta.path !== undefined &&
+          payload["currentTarget.dataset.routerPath"] === undefined
+        ) {
+          payload["currentTarget.dataset.routerPath"] = routerMeta.path;
+        }
+        if (
+          routerMeta.query !== undefined &&
+          payload["currentTarget.dataset.routerQuery"] === undefined
+        ) {
+          payload["currentTarget.dataset.routerQuery"] = routerMeta.query;
+        }
+        if (
+          routerMeta.hash !== undefined &&
+          payload["currentTarget.dataset.routerHash"] === undefined
+        ) {
+          payload["currentTarget.dataset.routerHash"] = routerMeta.hash;
+        }
+        if (
+          routerMeta.replace !== undefined &&
+          payload["currentTarget.dataset.routerReplace"] === undefined
+        ) {
+          payload["currentTarget.dataset.routerReplace"] = routerMeta.replace;
+        }
+      }
+
       if (refContext) {
         refContext.notify(payload);
       }
@@ -331,32 +684,34 @@ function handleEvent(
   }
 }
 
-function findHandlerInfo(element: Element, eventType: string): { id: string; element: Element } | null {
+function findHandlerInfo(
+  element: Element,
+  eventType: string,
+): { id: string; element: Element } | null {
   let current: Element | null = element;
 
   while (current && current !== document.documentElement) {
-    const directAttr = `data-on${eventType}`;
-    if (typeof current.hasAttribute === "function" && current.hasAttribute(directAttr)) {
-      const handlerId = current.getAttribute(directAttr);
-      if (handlerId) {
-        const meta = handlers.get(handlerId);
-        if (!meta || handlerSupportsEvent(meta, eventType)) {
-          return { id: handlerId, element: current };
-        }
+    let binding = handlerBindings.get(current);
+
+    if (!binding) {
+      const attributeNames = collectAttributeNames(current);
+      if (attributeNames.some((name) => name.startsWith(DATA_EVENT_ATTR_PREFIX))) {
+        refreshHandlerBindings(current);
+        binding = handlerBindings.get(current);
       }
     }
 
-    const attributeNames =
-      typeof current.getAttributeNames === "function"
-        ? current.getAttributeNames()
-        : null;
-    if (Array.isArray(attributeNames)) {
-      for (const name of attributeNames) {
-        if (!name.startsWith("data-on")) {
-          continue;
+    if (binding && binding.size > 0) {
+      const directId = binding.get(eventType);
+      if (directId) {
+        const meta = handlers.get(directId);
+        if (!meta || handlerSupportsEvent(meta, eventType)) {
+          return { id: directId, element: current };
         }
-        const handlerId = current.getAttribute(name);
-        if (!handlerId) {
+      }
+
+      for (const [registeredEvent, handlerId] of binding.entries()) {
+        if (registeredEvent === eventType) {
           continue;
         }
         const meta = handlers.get(handlerId);

@@ -70,6 +70,9 @@ func attachHandlers(e *dom.Element, reg handlers.Registry) {
 	if e.Attrs == nil {
 		e.Attrs = map[string]string{}
 	}
+	if e.HandlerAssignments == nil {
+		e.HandlerAssignments = map[string]dom.EventAssignment{}
+	}
 	keys := make([]string, 0, len(e.Events))
 	for name := range e.Events {
 		keys = append(keys, name)
@@ -88,6 +91,11 @@ func attachHandlers(e *dom.Element, reg handlers.Registry) {
 		}
 		if props := binding.Props; len(props) > 0 {
 			e.Attrs[attrName+"-props"] = strings.Join(props, " ")
+		}
+		e.HandlerAssignments[name] = dom.EventAssignment{
+			ID:     string(id),
+			Listen: append([]string(nil), binding.Listen...),
+			Props:  append([]string(nil), binding.Props...),
 		}
 	}
 }

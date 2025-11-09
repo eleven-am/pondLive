@@ -3,19 +3,21 @@ package protocol
 import "github.com/eleven-am/pondlive/go/internal/diff"
 
 type Boot struct {
-	T        string                 `json:"t"`
-	SID      string                 `json:"sid"`
-	Ver      int                    `json:"ver"`
-	Seq      int                    `json:"seq"`
-	HTML     string                 `json:"html"`
-	S        []string               `json:"s"`
-	D        []DynamicSlot          `json:"d"`
-	Slots    []SlotMeta             `json:"slots"`
-	Handlers map[string]HandlerMeta `json:"handlers"`
-	Refs     map[string]RefMeta     `json:"refs,omitempty"`
-	Location Location               `json:"location"`
-	Client   *ClientConfig          `json:"client,omitempty"`
-	Errors   []ServerError          `json:"errors,omitempty"`
+	T        string                     `json:"t"`
+	SID      string                     `json:"sid"`
+	Ver      int                        `json:"ver"`
+	Seq      int                        `json:"seq"`
+	HTML     string                     `json:"html"`
+	S        []string                   `json:"s"`
+	D        []DynamicSlot              `json:"d"`
+	Slots    []SlotMeta                 `json:"slots"`
+	Handlers map[string]HandlerMeta     `json:"handlers"`
+	Bindings BindingTable               `json:"bindings,omitempty"`
+	Markers  map[string]ComponentMarker `json:"markers,omitempty"`
+	Refs     map[string]RefMeta         `json:"refs,omitempty"`
+	Location Location                   `json:"location"`
+	Client   *ClientConfig              `json:"client,omitempty"`
+	Errors   []ServerError              `json:"errors,omitempty"`
 }
 
 type ClientConfig struct {
@@ -24,17 +26,19 @@ type ClientConfig struct {
 }
 
 type Init struct {
-	T        string                 `json:"t"`
-	SID      string                 `json:"sid"`
-	Ver      int                    `json:"ver"`
-	S        []string               `json:"s"`
-	D        []DynamicSlot          `json:"d"`
-	Slots    []SlotMeta             `json:"slots"`
-	Handlers map[string]HandlerMeta `json:"handlers"`
-	Refs     map[string]RefMeta     `json:"refs,omitempty"`
-	Location Location               `json:"location"`
-	Seq      int                    `json:"seq"`
-	Errors   []ServerError          `json:"errors,omitempty"`
+	T        string                     `json:"t"`
+	SID      string                     `json:"sid"`
+	Ver      int                        `json:"ver"`
+	S        []string                   `json:"s"`
+	D        []DynamicSlot              `json:"d"`
+	Slots    []SlotMeta                 `json:"slots"`
+	Handlers map[string]HandlerMeta     `json:"handlers"`
+	Bindings BindingTable               `json:"bindings,omitempty"`
+	Markers  map[string]ComponentMarker `json:"markers,omitempty"`
+	Refs     map[string]RefMeta         `json:"refs,omitempty"`
+	Location Location                   `json:"location"`
+	Seq      int                        `json:"seq"`
+	Errors   []ServerError              `json:"errors,omitempty"`
 }
 
 type DynamicSlot struct {
@@ -45,8 +49,10 @@ type DynamicSlot struct {
 }
 
 type ListRow struct {
-	Key   string `json:"key"`
-	Slots []int  `json:"slots,omitempty"`
+	Key      string                     `json:"key"`
+	Slots    []int                      `json:"slots,omitempty"`
+	Bindings BindingTable               `json:"bindings,omitempty"`
+	Markers  map[string]ComponentMarker `json:"markers,omitempty"`
 }
 
 type SlotMeta struct {
@@ -57,6 +63,20 @@ type HandlerMeta struct {
 	Event  string   `json:"event"`
 	Listen []string `json:"listen,omitempty"`
 	Props  []string `json:"props,omitempty"`
+}
+
+type SlotBinding struct {
+	Event   string   `json:"event"`
+	Handler string   `json:"handler"`
+	Listen  []string `json:"listen,omitempty"`
+	Props   []string `json:"props,omitempty"`
+}
+
+type BindingTable map[int][]SlotBinding
+
+type ComponentMarker struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
 }
 
 type Join struct {

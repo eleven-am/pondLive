@@ -240,8 +240,19 @@ func TestRouterRendersNestedLinkDuringSSR(t *testing.T) {
 	if !strings.Contains(html, "href=\"/nested\"") {
 		t.Fatalf("expected nested link href in SSR output, got %q", html)
 	}
-	if !strings.Contains(html, "data-onclick") {
-		t.Fatalf("expected click handler attribute for nested link, got %q", html)
+	if strings.Contains(html, "data-onclick") {
+		t.Fatalf("expected sanitized SSR output without inline handler metadata, got %q", html)
+	}
+	structured := render.ToStructuredWithHandlers(node, sess.Registry())
+	var found bool
+	for _, binding := range structured.Bindings {
+		if binding.Event == "click" && binding.Handler != "" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected click handler binding to be recorded, got %+v", structured.Bindings)
 	}
 }
 

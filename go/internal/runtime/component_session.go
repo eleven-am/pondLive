@@ -113,6 +113,8 @@ type componentTemplateUpdate struct {
 	listSlots     []int
 	handlersAdd   map[string]protocol.HandlerMeta
 	handlersDel   []string
+	bindings      protocol.BindingTable
+	markers       map[string]protocol.ComponentMarker
 }
 
 type componentPromotionState struct {
@@ -1397,6 +1399,7 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		D:          append([]render.Dyn(nil), next.D...),
 		Components: next.Components,
 	}
+	globalBindings := encodeBindingTable(next.Bindings)
 	updates := make([]componentTemplateUpdate, 0, len(requests))
 	spanPairs := make([]componentSpanPair, 0, len(requests))
 	for id, req := range requests {
@@ -1422,6 +1425,32 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 			if dyn.Kind == render.DynList {
 				update.listSlots = append(update.listSlots, span.DynamicsStart+idx)
 			}
+		}
+		if len(update.slots) > 0 {
+			componentBindings := make(protocol.BindingTable, len(update.slots))
+			for _, slot := range update.slots {
+				entries := globalBindings[slot]
+				if len(entries) == 0 {
+					componentBindings[slot] = []protocol.SlotBinding{}
+					continue
+				}
+				cloned := make([]protocol.SlotBinding, len(entries))
+				for i, entry := range entries {
+					clone := entry
+					if len(entry.Listen) > 0 {
+						clone.Listen = append([]string(nil), entry.Listen...)
+					}
+					if len(entry.Props) > 0 {
+						clone.Props = append([]string(nil), entry.Props...)
+					}
+					cloned[i] = clone
+				}
+				componentBindings[slot] = cloned
+			}
+			update.bindings = componentBindings
+		}
+		if markers := encodeComponentMarkersForSpan(next.Components, span); len(markers) > 0 {
+			update.markers = markers
 		}
 		if req != nil && req.component != nil {
 			node := req.component.render()
@@ -1606,6 +1635,26 @@ func componentEqualDyns(a, b []render.Dyn) bool {
 		}
 	}
 	return true
+}
+
+func encodeComponentMarkersForSpan(components map[string]render.ComponentSpan, span render.ComponentSpan) map[string]protocol.ComponentMarker {
+	if len(components) == 0 {
+		return nil
+	}
+	out := make(map[string]protocol.ComponentMarker)
+	for id, child := range components {
+		if child.MarkerStart < span.MarkerStart || child.MarkerEnd > span.MarkerEnd {
+			continue
+		}
+		out[id] = protocol.ComponentMarker{
+			Start: child.MarkerStart - span.MarkerStart,
+			End:   child.MarkerEnd - span.MarkerStart,
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func componentEqualRows(a, b []render.Row) bool {

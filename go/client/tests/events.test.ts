@@ -1,6 +1,8 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   registerHandlers,
+  primeHandlerBindings,
+  getHandlerBindingSnapshot,
   unregisterHandlers,
   syncEventListeners,
   setupEventDelegation,
@@ -115,6 +117,7 @@ describe('ref metadata payload capture', () => {
 
     registerHandlers({ h1: { event: 'click' } });
     syncEventListeners();
+    primeHandlerBindings(document);
 
     const button = document.getElementById('btn');
     expect(button).not.toBeNull();
@@ -139,5 +142,31 @@ describe('ref metadata payload capture', () => {
         'target.id': 'btn',
       }),
     );
+  });
+
+  it('removes handler annotations after priming', () => {
+    document.body.innerHTML = `
+      <button id="btn" data-onclick="h1" data-onclick-listen="focus"></button>
+    `;
+
+    registerHandlers({ h1: { event: 'click' } });
+    syncEventListeners();
+    primeHandlerBindings(document);
+
+    const button = document.getElementById('btn');
+    expect(button).not.toBeNull();
+    const snapshot = getHandlerBindingSnapshot(button!);
+    expect(snapshot?.get('click')).toBe('h1');
+    expect(button!.hasAttribute('data-onclick')).toBe(false);
+    if (typeof button!.getAttributeNames === 'function') {
+      expect(button!.getAttributeNames().some((name) => name.startsWith('data-on'))).toBe(false);
+    }
+
+    button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(send).toHaveBeenCalledWith({
+      hid: 'h1',
+      payload: expect.objectContaining({ type: 'click' }),
+    });
   });
 });

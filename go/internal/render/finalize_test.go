@@ -43,12 +43,27 @@ func TestFinalizeWithHandlersMergesMetadata(t *testing.T) {
 	}
 }
 
-func TestRenderHTMLWithHandlersIncludesEventData(t *testing.T) {
+func TestRenderHTMLWithHandlersOmitsInlineEventData(t *testing.T) {
 	reg := handlers.NewRegistry()
 	handler := func(h.Event) h.Updates { return h.Rerender() }
-	html := RenderHTML(h.Button(h.On("click", handler), h.Text("hi")), reg)
-	if !strings.Contains(html, "data-onclick") {
-		t.Fatalf("expected rendered html to include data-onclick, got %q", html)
+	button := h.Button(h.On("click", handler), h.Text("hi"))
+	html := RenderHTML(button, reg)
+	if strings.Contains(html, "data-onclick") {
+		t.Fatalf("expected rendered html to omit data-onclick, got %q", html)
+	}
+	structured := ToStructuredWithHandlers(h.Button(h.On("click", handler), h.Text("hi")), reg)
+	if len(structured.Bindings) == 0 {
+		t.Fatalf("expected handler bindings to be recorded, got none")
+	}
+	var found bool
+	for _, binding := range structured.Bindings {
+		if binding.Event == "click" && binding.Handler != "" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected click binding to be recorded, got %+v", structured.Bindings)
 	}
 }
 

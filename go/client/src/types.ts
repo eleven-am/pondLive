@@ -24,6 +24,11 @@ export interface Location {
 }
 
 // Boot payload produced during SSR
+export interface ComponentMarkerDescriptor {
+  start: number;
+  end: number;
+}
+
 export interface BootPayload {
   t: "boot";
   sid: string;
@@ -34,6 +39,8 @@ export interface BootPayload {
   d: DynamicSlot[];
   slots: SlotMeta[];
   handlers: HandlerMap;
+  bindings?: BindingTable;
+  markers?: Record<string, ComponentMarkerDescriptor>;
   refs?: RefMap;
   location: Location;
   errors?: ErrorMessage[];
@@ -54,6 +61,15 @@ export interface HandlerMeta {
 }
 
 export type HandlerMap = Record<string, HandlerMeta>;
+
+export interface SlotBinding {
+  event: string;
+  handler: string;
+  listen?: string[];
+  props?: string[];
+}
+
+export type BindingTable = Record<number, SlotBinding[]>;
 
 // Ref metadata
 export interface RefEventMeta {
@@ -86,6 +102,8 @@ export interface DynamicSlot {
 export interface ListRow {
   key: string;
   slots?: number[];
+  bindings?: BindingTable;
+  markers?: Record<string, ComponentMarkerDescriptor>;
 }
 
 export interface SlotMeta {
@@ -101,6 +119,8 @@ export interface InitMessage {
   d: DynamicSlot[];
   slots: SlotMeta[];
   handlers: HandlerMap;
+  bindings?: BindingTable;
+  markers?: Record<string, ComponentMarkerDescriptor>;
   refs?: RefMap;
   location: Location;
   seq?: number;
@@ -141,7 +161,13 @@ export type ListDelOp = ["del", string];
 export type ListInsOp = [
   "ins",
   number,
-  { key: string; html: string; slots?: number[] },
+  {
+    key: string;
+    html: string;
+    slots?: number[];
+    bindings?: BindingTable;
+    markers?: Record<string, ComponentMarkerDescriptor>;
+  },
 ];
 export type ListMovOp = ["mov", number, number];
 export type ListChildOp = ListDelOp | ListInsOp | ListMovOp;
@@ -522,6 +548,8 @@ export interface ComponentBootEffect {
   html: string;
   slots: number[];
   listSlots?: number[];
+  bindings?: BindingTable;
+  markers?: Record<string, ComponentMarkerDescriptor>;
 }
 
 export interface BootEffect {

@@ -19,6 +19,9 @@ import {
 import { UploadManager } from "./uploads";
 import {
   clearHandlers,
+  primeHandlerBindings,
+  primeSlotBindings,
+  registerBindingsForSlot,
   registerHandlers,
   registerNavigationHandler,
   setupEventDelegation,
@@ -38,6 +41,11 @@ import { ComputedSignal, Signal } from "./reactive";
 import { EventEmitter } from "./emitter";
 import { OptimisticUpdateManager } from "./optimistic";
 import { BootHandler } from "./boot";
+import {
+  getComponentBounds,
+  initializeComponentMarkers,
+  registerComponentMarkers,
+} from "./componentMarkers";
 import type {
   AlertEffect,
   ComponentBootEffect,
@@ -676,10 +684,14 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       syncEventListeners();
     }
 
+    primeSlotBindings(msg.bindings ?? null);
+
     clearRefRegistry();
     registerRefMetadata(msg.refs);
     if (typeof document !== "undefined") {
       bindRefsInTree(document);
+      primeHandlerBindings(document);
+      initializeComponentMarkers(msg.markers ?? null, document);
     }
 
     // Acknowledge if needed
@@ -1344,6 +1356,8 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     dom.reset();
     if (typeof document !== "undefined") {
       document.body.innerHTML = boot.html;
+      primeHandlerBindings(document);
+      initializeComponentMarkers(boot.markers ?? null, document);
     }
     this.bootHandler.load(boot);
     syncEventListeners();
@@ -1353,7 +1367,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     if (typeof document === "undefined") return;
     if (!effect || !effect.componentId) return;
 
-    const { componentId, html, slots, listSlots } = effect;
+    const { componentId, html, slots, listSlots, bindings } = effect;
     const bounds = this.findComponentBounds(componentId);
     if (!bounds) {
       if (this.options.debug) {
@@ -1381,6 +1395,10 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     const template = document.createElement("template");
     template.innerHTML = html || "";
     const fragment = template.content.cloneNode(true);
+    primeHandlerBindings(fragment);
+    if (effect.markers) {
+      registerComponentMarkers(effect.markers, fragment);
+    }
 
     const range = document.createRange();
     range.setStartBefore(bounds.start);
@@ -1397,6 +1415,16 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       return;
     }
 
+    if (bindings && typeof bindings === "object") {
+      for (const [slotKey, specs] of Object.entries(bindings)) {
+        const slotId = Number(slotKey);
+        if (Number.isNaN(slotId)) {
+          continue;
+        }
+        registerBindingsForSlot(slotId, Array.isArray(specs) ? specs : []);
+      }
+    }
+
     this.registerComponentAnchors(
       refreshed,
       Array.isArray(slots) ? slots : [],
@@ -1406,33 +1434,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
 
   private findComponentBounds(id: string): { start: Comment; end: Comment } | null {
     if (typeof document === "undefined" || !id) return null;
-    const startMarker = `live-component:start:${id}`;
-    const endMarker = `live-component:end:${id}`;
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_COMMENT,
-    );
-
-    let startNode: Comment | null = null;
-    while (walker.nextNode()) {
-      const current = walker.currentNode as Comment;
-      if (current.data === startMarker) {
-        startNode = current;
-        break;
-      }
-    }
-    if (!startNode) return null;
-
-    let endNode: Comment | null = null;
-    while (walker.nextNode()) {
-      const current = walker.currentNode as Comment;
-      if (current.data === endMarker) {
-        endNode = current;
-        break;
-      }
-    }
-    if (!endNode) return null;
-    return { start: startNode, end: endNode };
+    return getComponentBounds(id);
   }
 
   private registerComponentAnchors(
