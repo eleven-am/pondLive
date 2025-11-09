@@ -6,9 +6,9 @@
 
 import * as dom from './dom-index';
 import { clearHandlers, primeSlotBindings, registerHandlers, syncEventListeners } from './events';
-import { getRenderableChild, initializeComponentMarkers, resolveParentNode } from './componentMarkers';
+import { initializeComponentMarkers } from './componentMarkers';
 import { bindRefsInTree, clearRefs, registerRefs } from './refs';
-import type { BootPayload, Location, SlotMeta } from './types';
+import type { BootPayload, DynamicSlot, Location } from './types';
 
 export class BootHandler {
   private boot: BootPayload | null = null;
@@ -106,7 +106,9 @@ export class BootHandler {
     }
 
     dom.reset();
-    const anchors = this.resolveSlotAnchors(boot.slots);
+    const anchors = this.collectSlotAnchors();
+
+    // Register individual slots
     if (Array.isArray(boot.slots)) {
       for (const slot of boot.slots) {
         if (!slot || typeof slot.anchorId !== 'number') continue;
@@ -119,143 +121,67 @@ export class BootHandler {
       }
     }
 
-    this.registerInitialLists(boot, anchors);
-  }
-
-  private registerInitialLists(boot: BootPayload, anchors: Map<number, Node>): void {
-    if (!Array.isArray(boot.d)) {
-      return;
+    // Initialize list slots
+    const listSlots = this.collectListSlotIndexes(boot.d);
+    if (listSlots.length > 0) {
+      dom.initLists(listSlots);
     }
-
-    boot.d.forEach((dyn, index) => {
-      if (!dyn || dyn.kind !== 'list') {
-        return;
-      }
-
-      const container = anchors.get(index);
-      if (!(container instanceof Element)) {
-        if (this.debug) {
-          console.warn(`liveui: list slot ${index} missing container anchor during boot`);
-        }
-        return;
-      }
-
-      const rows = new Map<string, Element>();
-      const listRows = Array.isArray(dyn.list) ? dyn.list : [];
-      let position = 0;
-      for (const row of listRows) {
-        if (!row || typeof row.key !== 'string') {
-          continue;
-        }
-        const child = getRenderableChild(container, position);
-        position += 1;
-        if (!(child instanceof Element)) {
-          if (this.debug) {
-            console.warn(`liveui: list slot ${index} row ${row.key} missing element at position ${position - 1}`);
-          }
-          continue;
-        }
-        rows.set(row.key, child);
-        if (Array.isArray(row.slotMeta) && row.slotMeta.length > 0) {
-          const rowAnchors = this.resolveSlotAnchors(row.slotMeta, child);
-          for (const [slotId, node] of rowAnchors.entries()) {
-            dom.registerSlot(slotId, node);
-          }
-        }
-      }
-
-      dom.registerList(index, container, rows);
-    });
   }
 
-  resolveSlotAnchors(slots?: SlotMeta[], root?: ParentNode | null): Map<number, Node> {
+  /**
+   * Collect list slot indexes from dynamic slots
+   */
+  private collectListSlotIndexes(dynamics?: DynamicSlot[]): number[] {
+    if (!Array.isArray(dynamics)) {
+      return [];
+    }
+    const result: number[] = [];
+    dynamics.forEach((dyn, index) => {
+      if (dyn && dyn.kind === 'list') {
+        result.push(index);
+      }
+    });
+    return result;
+  }
+
+  private collectSlotAnchors(): Map<number, Node> {
     const anchors = new Map<number, Node>();
-    const hasDocument = typeof document !== 'undefined';
-    const targetRoot: ParentNode | null = root ?? (hasDocument ? document : null);
-    if (!targetRoot || !Array.isArray(slots)) {
+    if (typeof document === 'undefined') {
       return anchors;
     }
 
-    for (const slot of slots) {
-      if (!slot || typeof slot.anchorId !== 'number') continue;
-      const node = this.resolveAnchorFromMeta(slot, targetRoot);
-      if (node) {
-        anchors.set(slot.anchorId, node);
-      }
-    }
+    const elements = document.querySelectorAll('[data-slot-index]');
+    elements.forEach((element) => {
+      const raw = element.getAttribute('data-slot-index');
+      if (!raw) return;
+
+      raw
+        .split(/\s+/)
+        .map(token => token.trim())
+        .filter(token => token.length > 0)
+        .forEach((token) => {
+          const [slotPart, childPart] = token.split('@');
+          const slotId = Number(slotPart);
+          if (Number.isNaN(slotId) || anchors.has(slotId)) {
+            return;
+          }
+
+          let node: Node = element;
+          if (childPart !== undefined) {
+            const childIndex = Number(childPart);
+            if (!Number.isNaN(childIndex)) {
+              const child = element.childNodes.item(childIndex);
+              if (child) {
+                node = child;
+              }
+            }
+          }
+
+          anchors.set(slotId, node);
+        });
+    });
+
     return anchors;
-  }
-
-  private resolveAnchorFromMeta(slot: SlotMeta, root: ParentNode): Node | null {
-    if (!slot || typeof slot.anchorId !== 'number') {
-      return null;
-    }
-
-    let parentPath: number[] | undefined;
-    if (Array.isArray(slot.parentPath)) {
-      parentPath = [];
-      for (const value of slot.parentPath) {
-        const index = Number(value);
-        if (!Number.isInteger(index) || index < 0) {
-          parentPath = undefined;
-          break;
-        }
-        parentPath.push(index);
-      }
-    }
-
-    const parent = resolveParentNode(root, parentPath);
-    if (!parent) {
-      return null;
-    }
-
-    if (slot.childIndex === undefined || slot.childIndex === null) {
-      return parent;
-    }
-
-    const childIndex = Number(slot.childIndex);
-    if (!Number.isInteger(childIndex) || childIndex < 0) {
-      return null;
-    }
-
-    const child = getRenderableChild(parent, childIndex);
-    return child ?? null;
-  }
-
-  private resolveAnchorFromMeta(slot: SlotMeta, root: ParentNode): Node | null {
-    if (!slot || typeof slot.anchorId !== 'number') {
-      return null;
-    }
-
-    let parentPath: number[] | undefined;
-    if (Array.isArray(slot.parentPath)) {
-      parentPath = [];
-      for (const value of slot.parentPath) {
-        const index = Number(value);
-        if (!Number.isInteger(index) || index < 0) {
-          parentPath = undefined;
-          break;
-        }
-        parentPath.push(index);
-      }
-    }
-
-    const parent = resolveParentNode(root, parentPath);
-    if (!parent) {
-      return null;
-    }
-
-    if (slot.childIndex === undefined || slot.childIndex === null) {
-      return parent;
-    }
-
-    const childIndex = Number(slot.childIndex);
-    if (!Number.isInteger(childIndex) || childIndex < 0) {
-      return null;
-    }
-
-    const child = getRenderableChild(parent, childIndex);
-    return child ?? null;
   }
 
   /**

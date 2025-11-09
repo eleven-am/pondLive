@@ -25,7 +25,6 @@ export interface Location {
 
 // Boot payload produced during SSR
 export interface ComponentMarkerDescriptor {
-  parentPath?: number[];
   start: number;
   end: number;
 }
@@ -104,15 +103,12 @@ export interface DynamicSlot {
 export interface ListRow {
   key: string;
   slots?: number[];
-  slotMeta?: SlotMeta[];
   bindings?: BindingTable;
   markers?: Record<string, ComponentMarkerDescriptor>;
 }
 
 export interface SlotMeta {
   anchorId: number;
-  parentPath?: number[];
-  childIndex?: number;
 }
 
 // Init message
@@ -170,7 +166,6 @@ export type ListInsOp = [
     key: string;
     html: string;
     slots?: number[];
-    slotMeta?: SlotMeta[];
     bindings?: BindingTable;
     markers?: Record<string, ComponentMarkerDescriptor>;
   },
@@ -554,8 +549,6 @@ export interface ComponentBootEffect {
   html: string;
   slots: number[];
   listSlots?: number[];
-  slotMeta?: SlotMeta[];
-  dynamics?: DynamicSlot[];
   bindings?: BindingTable;
   markers?: Record<string, ComponentMarkerDescriptor>;
 }

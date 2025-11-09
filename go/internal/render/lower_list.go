@@ -1,6 +1,8 @@
 package render
 
 import (
+	"strconv"
+
 	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -10,11 +12,6 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 		return false
 	}
 	listSlot := b.addDyn(Dyn{Kind: DynList})
-	if parent != nil {
-		if path := b.elementPaths[parent]; len(path) > 0 {
-			b.registerSlotAnchor(listSlot, path)
-		}
-	}
 	rowEntries := make([]Row, 0, len(rows))
 	for idx, row := range rows {
 		if row == nil {
@@ -22,6 +19,7 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 		}
 		start := len(b.dynamics)
 		bindingStart := len(b.handlerBindings)
+		markerBase := b.markerCounter
 		orderStart := len(b.componentOrder)
 		b.pushChildIndex(idx)
 		b.visit(row)
@@ -41,33 +39,15 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 		if bindingEnd > bindingStart {
 			bindings = append([]HandlerBinding(nil), b.handlerBindings[bindingStart:bindingEnd]...)
 		}
-		var markers map[string]ComponentBoundary
+		var markers map[string]ComponentMarker
 		if orderEnd > orderStart {
-			markers = make(map[string]ComponentBoundary, orderEnd-orderStart)
-			rowPath := b.elementPaths[row]
+			markers = make(map[string]ComponentMarker, orderEnd-orderStart)
 			for _, id := range b.componentOrder[orderStart:orderEnd] {
 				span := b.components[id]
-				if boundary, ok := relativeComponentBoundary(span.Boundary, rowPath); ok {
-					markers[id] = boundary
+				markers[id] = ComponentMarker{
+					Start: span.MarkerStart - markerBase,
+					End:   span.MarkerEnd - markerBase,
 				}
-			}
-		}
-		var anchors map[int]NodeAnchor
-		if len(slots) > 0 {
-			rowPath := b.elementPaths[row]
-			for _, slot := range slots {
-				anchor, ok := b.slotAnchors[slot]
-				if !ok {
-					continue
-				}
-				relative, ok := RelativeNodeAnchor(anchor, rowPath)
-				if !ok {
-					continue
-				}
-				if anchors == nil {
-					anchors = make(map[int]NodeAnchor)
-				}
-				anchors[slot] = relative
 			}
 		}
 		rowEntries = append(rowEntries, Row{
@@ -76,13 +56,30 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 			Slots:    slots,
 			Bindings: bindings,
 			Markers:  markers,
-			Anchors:  anchors,
 		})
 	}
 	if listSlot >= 0 && listSlot < len(b.dynamics) {
 		b.dynamics[listSlot].List = rowEntries
 	}
+	if parent != nil {
+		if parent.Attrs == nil {
+			parent.Attrs = map[string]string{}
+		}
+		parent.Attrs["data-list-slot"] = intToString(listSlot)
+	}
+	if parentAttrSlot >= 0 && parentAttrSlot < len(b.dynamics) {
+		attrs := b.dynamics[parentAttrSlot].Attrs
+		if attrs == nil {
+			attrs = map[string]string{}
+		}
+		attrs["data-list-slot"] = intToString(listSlot)
+		b.dynamics[parentAttrSlot].Attrs = attrs
+	}
 	return true
+}
+
+func intToString(i int) string {
+	return strconv.Itoa(i)
 }
 
 func collectKeyedElements(children []html.Node) []*html.Element {
@@ -101,30 +98,4 @@ func collectKeyedElements(children []html.Node) []*html.Element {
 		return nil
 	}
 	return rows
-}
-
-func relativeComponentBoundary(boundary ComponentBoundary, rowPath []int) (ComponentBoundary, bool) {
-	if len(rowPath) == 0 {
-		return ComponentBoundary{
-			ParentPath: append([]int(nil), boundary.ParentPath...),
-			StartIndex: boundary.StartIndex,
-			EndIndex:   boundary.EndIndex,
-		}, true
-	}
-	if len(boundary.ParentPath) < len(rowPath) {
-		return ComponentBoundary{}, false
-	}
-	for i := range rowPath {
-		if boundary.ParentPath[i] != rowPath[i] {
-			return ComponentBoundary{}, false
-		}
-	}
-	rel := make([]int, 1+len(boundary.ParentPath)-len(rowPath))
-	rel[0] = 0
-	copy(rel[1:], boundary.ParentPath[len(rowPath):])
-	return ComponentBoundary{
-		ParentPath: rel,
-		StartIndex: boundary.StartIndex,
-		EndIndex:   boundary.EndIndex,
-	}, true
 }

@@ -20,9 +20,9 @@ import {
   refreshHandlerBindings,
   registerBindingsForSlot,
 } from "./events";
-import { getRenderableChild, registerComponentMarkers, resolveParentNode } from "./componentMarkers";
+import { registerComponentMarkers } from "./componentMarkers";
 import { bindRefsInTree, unbindRefsInTree, updateRefBinding } from "./refs";
-import type { DiffOp, ListChildOp, SlotBinding, SlotMeta } from "./types";
+import type { DiffOp, ListChildOp, SlotBinding } from "./types";
 
 // ============================================================================
 // Configuration
@@ -477,41 +477,58 @@ export function morphElement(fromEl: Element, toEl: Element): void {
 // Slot Registration (optimized)
 // ============================================================================
 
-function resolveAnchorsFromMeta(metadata: SlotMeta[], root: ParentNode): Map<number, Node> {
-    const anchors = new Map<number, Node>();
-    for (const meta of metadata) {
-        if (!meta || typeof meta.anchorId !== 'number') {
-            continue;
-        }
-        const parent = resolveParentNode(root, meta.parentPath);
-        if (!parent) {
-            continue;
-        }
-        if (meta.childIndex === undefined || meta.childIndex === null) {
-            anchors.set(meta.anchorId, parent);
-            continue;
-        }
-        const index = Number(meta.childIndex);
-        if (!Number.isInteger(index) || index < 0) {
-            continue;
-        }
-        const child = getRenderableChild(parent, index);
-        if (child) {
-            anchors.set(meta.anchorId, child);
-        }
-    }
-    return anchors;
-}
-
-function registerRowSlots(slotMetadata: SlotMeta[] | undefined, root: Element): void {
-    if (!Array.isArray(slotMetadata) || slotMetadata.length === 0) {
+function registerRowSlots(slotIndexes: number[], fragment: DocumentFragment | Element): void {
+    if (!Array.isArray(slotIndexes) || slotIndexes.length === 0) {
         return;
     }
 
-    const anchors = resolveAnchorsFromMeta(slotMetadata, root);
-    anchors.forEach((node, slotId) => {
-        dom.registerSlot(slotId, node);
-    });
+    const pending = new Set(slotIndexes);
+    const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_ELEMENT);
+    let current = walker.nextNode() as Element | null;
+
+    // Track if we found any elements at all to avoid spurious warnings
+    const foundAnyElements = current !== null;
+
+    while (current && pending.size > 0) {
+        const element = current;
+        const attr = element.getAttribute('data-slot-index');
+        if (attr !== null) {
+            attr
+                .split(/\s+/)
+                .map(token => token.trim())
+                .filter(token => token.length > 0)
+                .forEach((token) => {
+                    const [slotPart, childPart] = token.split('@');
+                    const slotId = Number(slotPart);
+                    if (Number.isNaN(slotId) || !pending.has(slotId)) {
+                        return;
+                    }
+
+                    let target: Node = element;
+                    if (childPart !== undefined) {
+                        const childIndex = Number(childPart);
+                        if (!Number.isNaN(childIndex)) {
+                            const child = element.childNodes.item(childIndex);
+                            if (child) {
+                                target = child;
+                            }
+                        }
+                    }
+
+                    dom.registerSlot(slotId, target);
+                    pending.delete(slotId);
+                });
+        }
+        current = walker.nextNode() as Element | null;
+    }
+
+    // Only warn if we found elements but some slots weren't resolved
+    // Skip warnings if fragment had no element nodes at all
+    if (pending.size > 0 && foundAnyElements) {
+        pending.forEach((idx) => {
+            console.warn(`liveui: slot ${idx} not resolved in inserted row`);
+        });
+    }
 }
 
 // ============================================================================
@@ -612,7 +629,7 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                     const root = nodes[0];
                     if (root instanceof Element) {
                         dom.setRow(slotIndex, payload.key, root);
-                        registerRowSlots(payload.slotMeta, root);
+                        registerRowSlots(payload.slots || [], root);
 
                         // Virtual scrolling: hide items outside viewport
                         if (shouldVirtualize(slotIndex, itemCount)) {

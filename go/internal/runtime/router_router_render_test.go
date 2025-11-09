@@ -178,8 +178,8 @@ func TestRouterOutletRerender(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected SetAttrs as first op, got %T", ops[0])
 		}
-		if _, ok := attrs.Upsert["data-row-key"]; ok {
-			t.Fatalf("expected data-row-key to be omitted, got %+v", attrs.Upsert)
+		if attrs.Upsert["data-row-key"] != "/settings/security" {
+			t.Fatalf("expected data-row-key to update to /settings/security, got %q", attrs.Upsert["data-row-key"])
 		}
 		set, ok := ops[1].(diff.SetText)
 		if !ok {

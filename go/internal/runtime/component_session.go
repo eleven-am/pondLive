@@ -110,7 +110,6 @@ type componentTemplateUpdate struct {
 	dynamicsRange spanRange
 	dynamics      []protocol.DynamicSlot
 	slots         []int
-	slotMeta      []protocol.SlotMeta
 	listSlots     []int
 	handlersAdd   map[string]protocol.HandlerMeta
 	handlersDel   []string
@@ -1422,27 +1421,6 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		for slot := span.DynamicsStart; slot < span.DynamicsEnd; slot++ {
 			update.slots = append(update.slots, slot)
 		}
-		if len(update.slots) > 0 {
-			for _, slot := range update.slots {
-				anchor, ok := next.Anchors[slot]
-				if !ok {
-					continue
-				}
-				relative, ok := render.RelativeNodeAnchor(anchor, span.Boundary.ParentPath)
-				if !ok {
-					continue
-				}
-				meta := protocol.SlotMeta{AnchorID: slot}
-				if len(relative.ParentPath) > 0 {
-					meta.ParentPath = append([]int(nil), relative.ParentPath...)
-				}
-				if relative.HasIndex {
-					idx := relative.ChildIndex
-					meta.ChildIndex = &idx
-				}
-				update.slotMeta = append(update.slotMeta, meta)
-			}
-		}
 		for idx, dyn := range dynamicsSlice {
 			if dyn.Kind == render.DynList {
 				update.listSlots = append(update.listSlots, span.DynamicsStart+idx)
@@ -1663,66 +1641,20 @@ func encodeComponentMarkersForSpan(components map[string]render.ComponentSpan, s
 	if len(components) == 0 {
 		return nil
 	}
-	parent := span.Boundary
 	out := make(map[string]protocol.ComponentMarker)
 	for id, child := range components {
-		marker, ok := projectComponentBoundary(parent, child.Boundary)
-		if !ok {
+		if child.MarkerStart < span.MarkerStart || child.MarkerEnd > span.MarkerEnd {
 			continue
 		}
-		out[id] = marker
+		out[id] = protocol.ComponentMarker{
+			Start: child.MarkerStart - span.MarkerStart,
+			End:   child.MarkerEnd - span.MarkerStart,
+		}
 	}
 	if len(out) == 0 {
 		return nil
 	}
 	return out
-}
-
-func projectComponentBoundary(parent render.ComponentBoundary, child render.ComponentBoundary) (protocol.ComponentMarker, bool) {
-	if child.EndIndex < child.StartIndex {
-		return protocol.ComponentMarker{}, false
-	}
-	if parent.EndIndex < parent.StartIndex {
-		return protocol.ComponentMarker{}, false
-	}
-	if len(child.ParentPath) < len(parent.ParentPath) {
-		return protocol.ComponentMarker{}, false
-	}
-	if !pathsEqual(child.ParentPath[:len(parent.ParentPath)], parent.ParentPath) {
-		return protocol.ComponentMarker{}, false
-	}
-	suffix := append([]int(nil), child.ParentPath[len(parent.ParentPath):]...)
-	switch len(suffix) {
-	case 0:
-		if child.StartIndex < parent.StartIndex || child.EndIndex > parent.EndIndex {
-			return protocol.ComponentMarker{}, false
-		}
-		start := child.StartIndex - parent.StartIndex
-		end := child.EndIndex - parent.StartIndex
-		return protocol.ComponentMarker{Start: start, End: end}, true
-	default:
-		suffix[0] = suffix[0] - parent.StartIndex
-		if suffix[0] < 0 || suffix[0] >= parent.EndIndex-parent.StartIndex {
-			return protocol.ComponentMarker{}, false
-		}
-		return protocol.ComponentMarker{
-			ParentPath: suffix,
-			Start:      child.StartIndex,
-			End:        child.EndIndex,
-		}, true
-	}
-}
-
-func pathsEqual(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func componentEqualRows(a, b []render.Row) bool {

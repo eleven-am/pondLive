@@ -3,23 +3,6 @@ import { BootHandler } from '../src/boot';
 import * as dom from '../src/dom-index';
 import type { BootPayload } from '../src/types';
 
-function computeAnchorDescriptor(node: Node): { parentPath: number[]; childIndex: number } {
-  const path: number[] = [];
-  let current: Node | null = node;
-  while (current && current.parentNode) {
-    const parent = current.parentNode;
-    const index = Array.from(parent.childNodes).indexOf(current);
-    if (index < 0) {
-      break;
-    }
-    path.unshift(index);
-    current = parent;
-  }
-  const parentPath = path.slice(0, -1);
-  const childIndex = path[path.length - 1] ?? 0;
-  return { parentPath, childIndex };
-}
-
 vi.mock('../src/dom-index');
 vi.mock('../src/events');
 
@@ -203,13 +186,12 @@ describe('BootHandler', () => {
       const registerSlotMock = vi.spyOn(dom, 'registerSlot');
 
       const slot1 = document.createElement('div');
+      slot1.setAttribute('data-slot-index', '1');
       document.body.appendChild(slot1);
 
       const slot2 = document.createElement('div');
+      slot2.setAttribute('data-slot-index', '2');
       document.body.appendChild(slot2);
-
-      const anchor1 = computeAnchorDescriptor(slot1);
-      const anchor2 = computeAnchorDescriptor(slot2);
 
       const payload: BootPayload = {
         t: 'boot',
@@ -219,8 +201,8 @@ describe('BootHandler', () => {
         s: [],
         d: [],
         slots: [
-          { anchorId: 1, parentPath: anchor1.parentPath, childIndex: anchor1.childIndex },
-          { anchorId: 2, parentPath: anchor2.parentPath, childIndex: anchor2.childIndex },
+          { anchorId: 1, kind: 'text' },
+          { anchorId: 2, kind: 'attrs' },
         ],
         handlers: {},
         location: { path: '/', q: '', hash: '' },
@@ -233,49 +215,8 @@ describe('BootHandler', () => {
       expect(registerSlotMock).toHaveBeenCalledWith(2, slot2);
     });
 
-    it('should use anchor descriptors when slot attributes are absent', () => {
-      const registerSlotMock = vi.spyOn(dom, 'registerSlot');
-
-      const container = document.createElement('section');
-      const textNode = document.createTextNode('hello');
-      container.appendChild(textNode);
-      document.body.appendChild(container);
-
-      const { parentPath, childIndex } = computeAnchorDescriptor(textNode);
-
-      const payload: BootPayload = {
-        t: 'boot',
-        sid: 'meta',
-        ver: 1,
-        seq: 0,
-        s: [],
-        d: [],
-        slots: [
-          {
-            anchorId: 5,
-            parentPath,
-            childIndex,
-          },
-        ],
-        handlers: {},
-        location: { path: '/', q: '', hash: '' },
-      };
-
-      bootHandler.load(payload);
-
-      expect(registerSlotMock).toHaveBeenCalledWith(5, textNode);
-    });
-
     it('should initialize list slots', () => {
-      const registerListMock = vi.spyOn(dom, 'registerList');
-
-      const listA = document.createElement('ul');
-      const listB = document.createElement('ul');
-      document.body.appendChild(listA);
-      document.body.appendChild(listB);
-
-      const anchorA = computeAnchorDescriptor(listA);
-      const anchorB = computeAnchorDescriptor(listB);
+      const initListsMock = vi.spyOn(dom, 'initLists');
 
       const payload: BootPayload = {
         t: 'boot',
@@ -285,22 +226,18 @@ describe('BootHandler', () => {
         s: [],
         d: [
           { kind: 'text' },
-          { kind: 'list', list: [] },
+          { kind: 'list' },
           { kind: 'attrs' },
-          { kind: 'list', list: [] },
+          { kind: 'list' },
         ],
-        slots: [
-          { anchorId: 1, parentPath: anchorA.parentPath, childIndex: anchorA.childIndex },
-          { anchorId: 3, parentPath: anchorB.parentPath, childIndex: anchorB.childIndex },
-        ],
+        slots: [],
         handlers: {},
         location: { path: '/', q: '', hash: '' },
       };
 
       bootHandler.load(payload);
 
-      expect(registerListMock).toHaveBeenCalledWith(1, listA, expect.any(Map));
-      expect(registerListMock).toHaveBeenCalledWith(3, listB, expect.any(Map));
+      expect(initListsMock).toHaveBeenCalledWith([1, 3]);
     });
   });
 

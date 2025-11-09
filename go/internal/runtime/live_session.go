@@ -1049,10 +1049,6 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 			if update.staticsRange.end <= len(s.snapshot.Statics) && update.staticsRange.start >= 0 && update.staticsRange.end-update.staticsRange.start == len(update.statics) {
 				copy(s.snapshot.Statics[update.staticsRange.start:update.staticsRange.end], update.statics)
 			}
-			slotMetaMap := make(map[int]protocol.SlotMeta, len(update.slotMeta))
-			for _, meta := range update.slotMeta {
-				slotMetaMap[meta.AnchorID] = meta
-			}
 			for idx, slot := range update.slots {
 				if slot < 0 {
 					continue
@@ -1069,9 +1065,6 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 						extended[i] = protocol.SlotMeta{AnchorID: i}
 					}
 					s.snapshot.Slots = extended
-				}
-				if meta, ok := slotMetaMap[slot]; ok {
-					s.snapshot.Slots[slot] = meta
 				}
 				if idx < len(update.dynamics) {
 					s.snapshot.Dynamics[slot] = update.dynamics[idx]
@@ -1132,12 +1125,6 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 				"componentId": update.id,
 				"html":        update.html,
 				"slots":       update.slots,
-			}
-			if len(update.slotMeta) > 0 {
-				effect["slotMeta"] = update.slotMeta
-			}
-			if len(update.dynamics) > 0 {
-				effect["dynamics"] = update.dynamics
 			}
 			if len(update.listSlots) > 0 {
 				effect["listSlots"] = update.listSlots
@@ -1433,7 +1420,10 @@ type snapshot struct {
 func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLocation, meta *Meta) snapshot {
 	statics := globalTemplateIntern.InternStatics(structured.S)
 	dynamics := encodeDynamics(structured.D)
-	slots := encodeSlotAnchors(structured.Anchors, len(dynamics))
+	slots := make([]protocol.SlotMeta, len(dynamics))
+	for i := range slots {
+		slots[i] = protocol.SlotMeta{AnchorID: i}
+	}
 	handlers := extractHandlerMeta(structured)
 	var refs map[string]protocol.RefMeta
 	if ids := extractRefIDs(structured); len(ids) > 0 {
@@ -1500,27 +1490,6 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 					if len(row.Slots) > 0 {
 						rows[j].Slots = append([]int(nil), row.Slots...)
 					}
-					if len(row.Anchors) > 0 && len(row.Slots) > 0 {
-						metas := make([]protocol.SlotMeta, 0, len(row.Slots))
-						for _, slot := range row.Slots {
-							anchor, ok := row.Anchors[slot]
-							if !ok {
-								continue
-							}
-							meta := protocol.SlotMeta{AnchorID: slot}
-							if len(anchor.ParentPath) > 0 {
-								meta.ParentPath = append([]int(nil), anchor.ParentPath...)
-							}
-							if anchor.HasIndex {
-								idx := anchor.ChildIndex
-								meta.ChildIndex = &idx
-							}
-							metas = append(metas, meta)
-						}
-						if len(metas) > 0 {
-							rows[j].SlotMeta = metas
-						}
-					}
 					if bindings := encodeRowBindingTable(row.Bindings); len(bindings) > 0 {
 						rows[j].Bindings = bindings
 					}
@@ -1536,27 +1505,6 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 		out[i] = slot
 	}
 	return out
-}
-
-func encodeSlotAnchors(anchors map[int]render.NodeAnchor, count int) []protocol.SlotMeta {
-	if count == 0 {
-		return nil
-	}
-	slots := make([]protocol.SlotMeta, count)
-	for i := 0; i < count; i++ {
-		meta := protocol.SlotMeta{AnchorID: i}
-		if anchor, ok := anchors[i]; ok {
-			if len(anchor.ParentPath) > 0 {
-				meta.ParentPath = append([]int(nil), anchor.ParentPath...)
-			}
-			if anchor.HasIndex {
-				idx := anchor.ChildIndex
-				meta.ChildIndex = &idx
-			}
-		}
-		slots[i] = meta
-	}
-	return slots
 }
 
 func encodeBindingTable(bindings []render.HandlerBinding) protocol.BindingTable {
@@ -1592,12 +1540,7 @@ func encodeComponentMarkers(components map[string]render.ComponentSpan) map[stri
 	}
 	out := make(map[string]protocol.ComponentMarker, len(components))
 	for id, span := range components {
-		boundary := span.Boundary
-		out[id] = protocol.ComponentMarker{
-			ParentPath: append([]int(nil), boundary.ParentPath...),
-			Start:      boundary.StartIndex,
-			End:        boundary.EndIndex,
-		}
+		out[id] = protocol.ComponentMarker{Start: span.MarkerStart, End: span.MarkerEnd}
 	}
 	return out
 }
@@ -1656,17 +1599,13 @@ func encodeRowBindingTable(bindings []render.HandlerBinding) protocol.BindingTab
 	return table
 }
 
-func encodeRowMarkers(markers map[string]render.ComponentBoundary) map[string]protocol.ComponentMarker {
+func encodeRowMarkers(markers map[string]render.ComponentMarker) map[string]protocol.ComponentMarker {
 	if len(markers) == 0 {
 		return nil
 	}
 	out := make(map[string]protocol.ComponentMarker, len(markers))
 	for id, marker := range markers {
-		out[id] = protocol.ComponentMarker{
-			ParentPath: append([]int(nil), marker.ParentPath...),
-			Start:      marker.StartIndex,
-			End:        marker.EndIndex,
-		}
+		out[id] = protocol.ComponentMarker{Start: marker.Start, End: marker.End}
 	}
 	return out
 }
@@ -1944,21 +1883,6 @@ func cloneDynamics(dynamics []protocol.DynamicSlot) []protocol.DynamicSlot {
 				if len(row.Slots) > 0 {
 					rows[j].Slots = append([]int(nil), row.Slots...)
 				}
-				if len(row.SlotMeta) > 0 {
-					meta := make([]protocol.SlotMeta, len(row.SlotMeta))
-					for idx, entry := range row.SlotMeta {
-						copy := entry
-						if len(entry.ParentPath) > 0 {
-							copy.ParentPath = append([]int(nil), entry.ParentPath...)
-						}
-						if entry.ChildIndex != nil {
-							idxVal := *entry.ChildIndex
-							copy.ChildIndex = &idxVal
-						}
-						meta[idx] = copy
-					}
-					rows[j].SlotMeta = meta
-				}
 				if len(row.Bindings) > 0 {
 					copied := make(protocol.BindingTable, len(row.Bindings))
 					for slot, bindings := range row.Bindings {
@@ -1990,17 +1914,7 @@ func cloneSlots(slots []protocol.SlotMeta) []protocol.SlotMeta {
 		return nil
 	}
 	out := make([]protocol.SlotMeta, len(slots))
-	for i, slot := range slots {
-		clone := slot
-		if len(slot.ParentPath) > 0 {
-			clone.ParentPath = append([]int(nil), slot.ParentPath...)
-		}
-		if slot.ChildIndex != nil {
-			value := *slot.ChildIndex
-			clone.ChildIndex = &value
-		}
-		out[i] = clone
-	}
+	copy(out, slots)
 	return out
 }
 

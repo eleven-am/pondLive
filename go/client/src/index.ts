@@ -80,10 +80,8 @@ import type {
   MetadataLinkPayload,
   MetadataScriptPayload,
   CookieEffect,
-  DynamicSlot,
   UploadClientMessage,
   UploadControlMessage,
-  SlotMeta,
 } from "./types";
 
 interface RuntimeDiagnosticEntry {
@@ -1372,7 +1370,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     if (typeof document === "undefined") return;
     if (!effect || !effect.componentId) return;
 
-    const { componentId, html, slots, listSlots, slotMeta, dynamics, bindings } = effect;
+    const { componentId, html, slots, listSlots, bindings } = effect;
     const bounds = this.findComponentBounds(componentId);
     if (!bounds) {
       if (this.options.debug) {
@@ -1433,9 +1431,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     this.registerComponentAnchors(
       refreshed,
       Array.isArray(slots) ? slots : [],
-      Array.isArray(slotMeta) ? slotMeta : undefined,
       Array.isArray(listSlots) ? listSlots : [],
-      Array.isArray(dynamics) ? dynamics : undefined,
     );
   }
 
@@ -1447,61 +1443,61 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
   private registerComponentAnchors(
     bounds: { start: Comment; end: Comment },
     slots: number[],
-    slotMeta: SlotMeta[] | undefined,
     listSlots: number[],
-    dynamics?: DynamicSlot[],
   ): void {
-    const parent = bounds.start.parentNode as ParentNode | null;
-    if (!parent) {
-      return;
+    const slotSet = new Set<number>(slots ?? []);
+    const listSet = new Set<number>(listSlots ?? []);
+    const queue: Node[] = [];
+
+    for (let node = bounds.start.nextSibling; node && node !== bounds.end; node = node.nextSibling) {
+      queue.push(node);
     }
 
-    const anchorMap = this.bootHandler.resolveSlotAnchors(slotMeta, parent);
-    anchorMap.forEach((node, slotId) => {
-      dom.registerSlot(slotId, node);
-    });
-
-    if (!Array.isArray(listSlots) || listSlots.length === 0) {
-      return;
-    }
-
-    const slotOrder = Array.isArray(slots) ? slots : [];
-    const dynamicsBySlot = new Map<number, DynamicSlot>();
-    if (Array.isArray(dynamics)) {
-      for (let i = 0; i < dynamics.length && i < slotOrder.length; i++) {
-        dynamicsBySlot.set(slotOrder[i], dynamics[i]);
-      }
-    }
-
-    for (const slotId of listSlots) {
-      const container = anchorMap.get(slotId);
-      if (!(container instanceof Element)) {
-        continue;
-      }
-
-      const rows = new Map<string, Element>();
-      const dyn = dynamicsBySlot.get(slotId);
-      const listRows = dyn && Array.isArray(dyn.list) ? dyn.list : [];
-      let position = 0;
-      for (const row of listRows) {
-        if (!row || typeof row.key !== 'string') {
-          continue;
-        }
-        const child = getRenderableChild(container, position);
-        position += 1;
-        if (!(child instanceof Element)) {
-          continue;
-        }
-        rows.set(row.key, child);
-        if (Array.isArray(row.slotMeta) && row.slotMeta.length > 0) {
-          const rowAnchors = this.bootHandler.resolveSlotAnchors(row.slotMeta, child);
-          rowAnchors.forEach((node, idx) => {
-            dom.registerSlot(idx, node);
-          });
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) continue;
+      if (current instanceof Element) {
+        this.registerElementSlots(current, slotSet);
+        this.registerListContainer(current, listSet);
+        for (let child = current.firstChild; child; child = child.nextSibling) {
+          queue.push(child);
         }
       }
-      dom.registerList(slotId, container, rows);
     }
+  }
+
+  private registerElementSlots(element: Element, slots: Set<number>): void {
+    const raw = element.getAttribute("data-slot-index");
+    if (!raw) return;
+    const tokens = raw.split(/\s+/);
+    for (const token of tokens) {
+      const trimmed = token.trim();
+      if (trimmed.length === 0) continue;
+      const [slotPart, childPart] = trimmed.split("@", 2);
+      const slotId = Number(slotPart);
+      if (Number.isNaN(slotId)) continue;
+      if (slots.size > 0 && !slots.has(slotId)) continue;
+      let target: Node = element;
+      if (childPart !== undefined) {
+        const childIndex = Number(childPart);
+        if (!Number.isNaN(childIndex)) {
+          const childNode = element.childNodes.item(childIndex);
+          if (childNode) {
+            target = childNode;
+          }
+        }
+      }
+      dom.registerSlot(slotId, target);
+    }
+  }
+
+  private registerListContainer(element: Element, listSlots: Set<number>): void {
+    const attr = element.getAttribute("data-list-slot");
+    if (!attr) return;
+    const slotId = Number(attr);
+    if (Number.isNaN(slotId)) return;
+    if (listSlots.size > 0 && !listSlots.has(slotId)) return;
+    dom.registerList(slotId, element);
   }
 
   private dispatchCustomEvent(eventName: string, detail?: unknown): void {

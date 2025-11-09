@@ -93,7 +93,7 @@ func TestFinalizeWithHandlersAppliesEventMetadata(t *testing.T) {
 func TestFinalizeAnnotatesRowKeys(t *testing.T) {
 	node := h.Li(h.Key("item-1"), h.Text("row"))
 	Finalize(node)
-	if _, exists := node.Attrs["data-row-key"]; exists {
-		t.Fatalf("expected data-row-key to be omitted, got %+v", node.Attrs)
+	if node.Attrs["data-row-key"] != "item-1" {
+		t.Fatalf("expected data-row-key to be set, got %q", node.Attrs["data-row-key"])
 	}
 }
