@@ -116,14 +116,20 @@ func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
 }
 
 // UseRef returns a pointer holding mutable state that persists across renders.
-// It’s ideal for tracking DOM handles or other imperative data.
+// It's ideal for tracking DOM handles or other imperative data.
 func UseRef[T any](ctx Ctx, zero T) *Ref[T] {
 	return runtime.UseRef(ctx, zero)
 }
 
-// UseElement returns a typed ref handle for the rendered DOM node.
-func UseElement[T h.ElementDescriptor](ctx Ctx) *ElementRef[T] {
-	return runtime.UseElement[T](ctx)
+type hookable[R any] interface {
+	HookBuild(any) R
+}
+
+// UseElement returns a fully-wrapped HTML ref (e.g., *html.DivRef) so callers
+// can attach handlers without extra boilerplate.
+func UseElement[R hookable[R]](ctx Ctx) R {
+	var zero R
+	return zero.HookBuild(ctx)
 }
 
 // DOMCall enqueues a client-side invocation of the provided DOM method on the ref.

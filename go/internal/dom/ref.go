@@ -323,21 +323,3 @@ func AcquireElementRef(ctx any, descriptor ElementDescriptor) any {
 	}
 	return fn(ctx, descriptor)
 }
-
-// ValidateElementRef ensures the provided ref matches the descriptor type.
-type elementRefProvider[T ElementDescriptor] interface {
-	DOMElementRef() *ElementRef[T]
-}
-
-func ValidateElementRef[T ElementDescriptor](ref any, descriptor T) *ElementRef[T] {
-	if ref == nil {
-		return nil
-	}
-	if typed, ok := ref.(*ElementRef[T]); ok {
-		return typed
-	}
-	if provider, ok := ref.(elementRefProvider[T]); ok {
-		return provider.DOMElementRef()
-	}
-	panic(fmt.Sprintf("dom: element ref factory returned %T for %T", ref, descriptor))
-}

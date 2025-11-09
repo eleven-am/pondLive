@@ -15,8 +15,6 @@ import (
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 	liveserver "github.com/eleven-am/pondlive/go/pkg/live/server"
-
-	"github.com/sanity-io/litter"
 )
 
 //go:embed public/*
@@ -59,18 +57,15 @@ func counter(ctx ui.Ctx) h.Node {
 		Scripts: nil,
 	})
 
-	buttonRef := h.UseButton(ctx)
+	buttonRef := ui.UseElement[*h.ButtonRef](ctx)
 	buttonRef.OnClick(func(evt h.ClickEvent) h.Updates {
-		litter.Dump("Div clicked!", evt)
+		fmt.Println("click event:", evt)
+		setCount(count() - 1)
 		return nil
 	})
 
 	increment := func(h.Event) h.Updates {
 		setCount(count() + 1)
-		return nil
-	}
-	decrement := func(h.Event) h.Updates {
-		setCount(count() - 1)
 		return nil
 	}
 
@@ -92,10 +87,9 @@ func counter(ctx ui.Ctx) h.Node {
 			h.Div(
 				h.Class("flex", "items-center", "justify-center", "space-x-4"),
 				h.Button(
-					h.Attach(buttonRef),
 					h.Class("bg-slate-700", "hover:bg-slate-600", "text-lg", "font-medium", "px-4", "py-2", "rounded-xl", "transition"),
 					h.Attr("type", "button"),
-					h.On("click", decrement),
+					h.Attach(buttonRef),
 					h.Text("-"),
 				),
 				h.Div(
