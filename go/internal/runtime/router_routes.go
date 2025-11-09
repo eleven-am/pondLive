@@ -289,9 +289,20 @@ func ensureRouteKey(node h.Node, key string) h.Node {
 		clone := *v
 		clone.Children = updated
 		return &clone
+	case *h.ComponentNode:
+		if v.Child == nil {
+			return node
+		}
+		child := ensureRouteKey(v.Child, key)
+		if child == v.Child {
+			return node
+		}
+		clone := *v
+		clone.Child = child
+		return &clone
 	case nil:
-		return h.Span(h.Key(key))
+		return h.Fragment()
 	default:
-		return h.Span(h.Key(key), node)
+		return node
 	}
 }

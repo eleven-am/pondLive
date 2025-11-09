@@ -25,14 +25,12 @@ func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	}
 	var textSlots int
 	var attrSlots int
-	var attrSlotValue string
 	for _, dyn := range structured.D {
 		switch dyn.Kind {
 		case DynText:
 			textSlots++
 		case DynAttrs:
 			attrSlots++
-			attrSlotValue = dyn.Attrs["data-slot-index"]
 		}
 	}
 	if textSlots == 0 {
@@ -41,16 +39,15 @@ func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	if attrSlots == 0 {
 		t.Fatal("expected dynamic attr slot for handler bindings")
 	}
-
-	if attrSlotValue == "" {
-		t.Fatal("expected attr slot to include data-slot-index value")
-	}
 	combined := strings.Join(structured.S, "")
 	if strings.Contains(combined, "data-slot-index=") {
 		t.Fatalf("expected slot annotations to move to dynamic attrs, got %q", combined)
 	}
 	if strings.Contains(combined, "data-onclick=") {
 		t.Fatalf("expected static markup to omit data-onclick attribute, got %q", combined)
+	}
+	if len(structured.Anchors) == 0 {
+		t.Fatal("expected slot anchors to be recorded")
 	}
 	if len(structured.Bindings) == 0 {
 		t.Fatal("expected handler bindings to be recorded")
@@ -98,27 +95,45 @@ func TestToStructuredKeyedList(t *testing.T) {
 	if listSlots != 1 {
 		t.Fatalf("expected a single list slot, got %d", listSlots)
 	}
-	combined := strings.Join(structured.S, "")
-	if !strings.Contains(combined, "data-list-slot=") {
-		t.Fatalf("expected static markup to include data-list-slot attribute, got %q", combined)
-	}
 	if listSlotIndex < 0 {
 		t.Fatalf("expected list slot index to be non-negative, got %d", listSlotIndex)
 	}
+	anchor, ok := structured.Anchors[listSlotIndex]
+	if !ok {
+		t.Fatalf("expected anchor metadata for list slot %d", listSlotIndex)
+	}
+	if !anchor.HasIndex {
+		t.Fatalf("expected list slot anchor to include child index, got %+v", anchor)
+	}
+	for _, row := range structured.D[listSlotIndex].List {
+		if len(row.Slots) > 0 && len(row.Anchors) == 0 {
+			t.Fatalf("expected row anchors for slots %+v", row.Slots)
+		}
+	}
 }
 
-func TestDataSlotIndexesEncodeChildOffsets(t *testing.T) {
+func TestSlotAnchorsEncodeChildOffsets(t *testing.T) {
 	tree := h.Div(
 		h.Span(h.Textf("%s", "first")),
 		h.Textf("%s", " tail"),
 	)
 	structured := ToStructured(tree)
-	combined := strings.Join(structured.S, "")
-	if !strings.Contains(combined, `data-slot-index="1@1"`) {
-		t.Fatalf("expected div markup to include slot annotation, got %q", combined)
+	if len(structured.Anchors) < 2 {
+		t.Fatalf("expected at least two slot anchors, got %+v", structured.Anchors)
 	}
-	if !strings.Contains(combined, `data-slot-index="0@0"`) {
-		t.Fatalf("expected span markup to include slot annotation, got %q", combined)
+	first, ok := structured.Anchors[0]
+	if !ok || !first.HasIndex || first.ChildIndex != 0 {
+		t.Fatalf("expected first slot anchor to point to child 0, got %+v", first)
+	}
+	if len(first.ParentPath) != 2 || first.ParentPath[0] != 0 || first.ParentPath[1] != 0 {
+		t.Fatalf("expected first slot parent path [0 0], got %+v", first.ParentPath)
+	}
+	second, ok := structured.Anchors[1]
+	if !ok || !second.HasIndex || second.ChildIndex != 1 {
+		t.Fatalf("expected second slot anchor to point to child 1, got %+v", second)
+	}
+	if len(second.ParentPath) != 1 || second.ParentPath[0] != 0 {
+		t.Fatalf("expected second slot parent path [0], got %+v", second.ParentPath)
 	}
 }
 

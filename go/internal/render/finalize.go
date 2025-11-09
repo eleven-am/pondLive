@@ -53,14 +53,6 @@ func finalizeElement(e *dom.Element, reg handlers.Registry) {
 
 	attachHandlers(e, reg)
 
-	if e.Key != "" {
-		if e.Attrs == nil {
-			e.Attrs = map[string]string{}
-		}
-		if _, exists := e.Attrs["data-row-key"]; !exists {
-			e.Attrs["data-row-key"] = e.Key
-		}
-	}
 }
 
 func attachHandlers(e *dom.Element, reg handlers.Registry) {

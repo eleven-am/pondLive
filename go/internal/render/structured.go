@@ -3,7 +3,6 @@ package render
 import (
 	"html"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
@@ -29,13 +28,24 @@ type Dyn struct {
 	List  []Row
 }
 
+// NodeAnchor describes how to locate a rendered node relative to the render root.
+// ParentPath identifies the parent node by walking the render tree using
+// renderable child indexes, while ChildIndex points at the target child within
+// that parent. If HasIndex is false the anchor could not be determined.
+type NodeAnchor struct {
+	ParentPath []int
+	ChildIndex int
+	HasIndex   bool
+}
+
 // Row represents a keyed row inside a dynamic list slot.
 type Row struct {
 	Key      string
 	HTML     string
 	Slots    []int
 	Bindings []HandlerBinding
-	Markers  map[string]ComponentMarker
+	Markers  map[string]ComponentBoundary
+	Anchors  map[int]NodeAnchor
 }
 
 // Structured represents the structured render output of a node tree.
@@ -44,6 +54,7 @@ type Structured struct {
 	D          []Dyn
 	Components map[string]ComponentSpan
 	Bindings   []HandlerBinding
+	Anchors    map[int]NodeAnchor
 }
 
 // PromotionTracker allows callers to control when static nodes should become dynamic.
@@ -64,14 +75,18 @@ type ComponentSpan struct {
 	StaticsEnd    int
 	DynamicsStart int
 	DynamicsEnd   int
-	MarkerStart   int
-	MarkerEnd     int
+	Boundary      ComponentBoundary
 }
 
-// ComponentMarker captures the start and end comment offsets for a component within a fragment.
-type ComponentMarker struct {
-	Start int
-	End   int
+// ComponentBoundary describes where a component's rendered DOM should be
+// anchored within its parent. The ParentPath identifies the parent node by its
+// child indices starting from the render root, while StartIndex and EndIndex
+// indicate the range of child nodes that belong to the component (EndIndex is
+// exclusive).
+type ComponentBoundary struct {
+	ParentPath []int
+	StartIndex int
+	EndIndex   int
 }
 
 // ToStructured lowers a node tree into structured statics and dynamics.
@@ -92,9 +107,16 @@ func ToStructuredWithOptions(n h.Node, opts StructuredOptions) Structured {
 	}
 	FinalizeWithHandlers(n, opts.Handlers)
 	b := &structuredBuilder{tracker: opts.Promotions}
+	b.ensureDomRoot()
 	b.visit(n)
 	b.flush()
-	return Structured{S: b.statics, D: b.dynamics, Components: b.components, Bindings: append([]HandlerBinding(nil), b.handlerBindings...)}
+	return Structured{
+		S:          b.statics,
+		D:          b.dynamics,
+		Components: b.components,
+		Bindings:   append([]HandlerBinding(nil), b.handlerBindings...),
+		Anchors:    b.anchors(),
+	}
 }
 
 type structuredBuilder struct {
@@ -108,27 +130,37 @@ type structuredBuilder struct {
 	tracker        PromotionTracker
 	componentStack []componentFrame
 	componentPath  []int
-	markerCounter  int
 	componentOrder []string
+
+	domStack     []domFrame
+	elementPaths map[*h.Element][]int
+	slotAnchors  map[int]NodeAnchor
 }
 
 type elementFrame struct {
 	attrSlot    int
 	element     *h.Element
-	bindings    []slotBinding
 	startStatic int
 	void        bool
 	staticAttrs bool
 }
 
 type componentFrame struct {
-	id       string
-	prevPath []int
+	id              string
+	prevPath        []int
+	parentPath      []int
+	anchorIndex     int
+	startChildCount int
 }
 
-type slotBinding struct {
-	slot       int
-	childIndex int
+type domFrame struct {
+	path       []int
+	childCount int
+}
+
+type domFrame struct {
+	path       []int
+	childCount int
 }
 
 // HandlerBinding captures the association between a dynamic slot anchor and a handler ID.
@@ -150,6 +182,37 @@ func (b *structuredBuilder) writeStatic(s string) {
 func (b *structuredBuilder) flush() {
 	b.statics = append(b.statics, b.current.String())
 	b.current.Reset()
+}
+
+func (b *structuredBuilder) ensureDomRoot() {
+	if len(b.domStack) == 0 {
+		b.domStack = append(b.domStack, domFrame{path: nil})
+	}
+}
+
+func (b *structuredBuilder) currentDomFrame() *domFrame {
+	b.ensureDomRoot()
+	return &b.domStack[len(b.domStack)-1]
+}
+
+func (b *structuredBuilder) appendDomNode() ([]int, int) {
+	frame := b.currentDomFrame()
+	index := frame.childCount
+	frame.childCount++
+	path := append([]int(nil), frame.path...)
+	path = append(path, index)
+	return path, index
+}
+
+func (b *structuredBuilder) pushDomFrame(path []int) {
+	b.domStack = append(b.domStack, domFrame{path: append([]int(nil), path...)})
+}
+
+func (b *structuredBuilder) popDomFrame() {
+	if len(b.domStack) <= 1 {
+		return
+	}
+	b.domStack = b.domStack[:len(b.domStack)-1]
 }
 
 func (b *structuredBuilder) addDyn(d Dyn) int {
@@ -179,6 +242,7 @@ func (b *structuredBuilder) visitText(t *h.TextNode) {
 	if t == nil {
 		return
 	}
+	path, _ := b.appendDomNode()
 	dynamic := t.Mutable
 	if !dynamic {
 		if tracker := b.tracker; tracker != nil {
@@ -189,7 +253,7 @@ func (b *structuredBuilder) visitText(t *h.TextNode) {
 	}
 	if dynamic {
 		idx := b.addDyn(Dyn{Kind: DynText, Text: t.Value})
-		b.appendSlotToCurrent(idx, t)
+		b.registerSlotAnchor(idx, path)
 		return
 	}
 	b.writeStatic(html.EscapeString(t.Value))
@@ -205,23 +269,39 @@ func (b *structuredBuilder) visitComponentNode(v *h.ComponentNode) {
 	b.flush()
 	staticsStart := len(b.statics)
 	dynamicsStart := len(b.dynamics)
-	startMarker := b.nextComponentMarker()
-	b.writeStatic("<!---->")
-	b.pushComponent(v.ID)
+	parentFrame := b.currentDomFrame()
+	parentPath := []int(nil)
+	anchorIndex := 0
+	startChildCount := 0
+	if parentFrame != nil {
+		parentPath = append([]int(nil), parentFrame.path...)
+		anchorIndex = parentFrame.childCount
+		startChildCount = parentFrame.childCount
+	}
+	b.pushComponent(v.ID, parentPath, anchorIndex, startChildCount)
 	if v.Child != nil {
 		b.visit(v.Child)
 	}
-	b.popComponent()
-	endMarker := b.nextComponentMarker()
-	b.writeStatic("<!---->")
+	frame := b.popComponent()
+	parentFrame = b.currentDomFrame()
+	endChildCount := anchorIndex
+	if parentFrame != nil {
+		endChildCount = parentFrame.childCount
+	}
+	if endChildCount < frame.startChildCount {
+		endChildCount = frame.startChildCount
+	}
 	b.flush()
 	span := ComponentSpan{
 		StaticsStart:  staticsStart,
 		StaticsEnd:    len(b.statics),
 		DynamicsStart: dynamicsStart,
 		DynamicsEnd:   len(b.dynamics),
-		MarkerStart:   startMarker,
-		MarkerEnd:     endMarker,
+		Boundary: ComponentBoundary{
+			ParentPath: append([]int(nil), frame.parentPath...),
+			StartIndex: frame.anchorIndex,
+			EndIndex:   frame.anchorIndex + (endChildCount - frame.startChildCount),
+		},
 	}
 	if b.components == nil {
 		b.components = make(map[string]ComponentSpan)
@@ -232,16 +312,17 @@ func (b *structuredBuilder) visitComponentNode(v *h.ComponentNode) {
 	b.components[v.ID] = span
 }
 
-func (b *structuredBuilder) nextComponentMarker() int {
-	index := b.markerCounter
-	b.markerCounter++
-	return index
-}
-
 func (b *structuredBuilder) visitElement(v *h.Element) {
 	if v == nil {
 		return
 	}
+	path, _ := b.appendDomNode()
+	if b.elementPaths == nil {
+		b.elementPaths = make(map[*h.Element][]int)
+	}
+	b.elementPaths[v] = path
+	b.pushDomFrame(path)
+	defer b.popDomFrame()
 	void := dom.IsVoidElement(v.Tag)
 	dynamicAttrs := b.shouldUseDynamicAttrs(v)
 	attrSlot := -1
@@ -254,6 +335,7 @@ func (b *structuredBuilder) visitElement(v *h.Element) {
 			attrs = map[string]string{}
 		}
 		attrSlot = b.addDyn(Dyn{Kind: DynAttrs, Attrs: attrs})
+		b.registerSlotAnchor(attrSlot, path)
 		startStatic = len(b.statics) - 1
 	} else {
 		start := renderStartTag(v, void)
@@ -324,22 +406,21 @@ func (b *structuredBuilder) visitFragment(f *h.FragmentNode) {
 
 func (b *structuredBuilder) pushFrame(el *h.Element, attrSlot, startStatic int, void, staticAttrs bool) {
 	frame := elementFrame{attrSlot: attrSlot, element: el, startStatic: startStatic, void: void, staticAttrs: staticAttrs}
-	if attrSlot >= 0 {
-		frame.bindings = append(frame.bindings, slotBinding{slot: attrSlot, childIndex: -1})
-	}
 	b.stack = append(b.stack, frame)
 }
 
-func (b *structuredBuilder) appendSlotToCurrent(slot int, node h.Node) {
-	if len(b.stack) == 0 {
+func (b *structuredBuilder) registerSlotAnchor(slot int, path []int) {
+	if slot < 0 || len(path) == 0 {
 		return
 	}
-	frame := &b.stack[len(b.stack)-1]
-	binding := slotBinding{slot: slot, childIndex: -1}
-	if txt, ok := node.(*h.TextNode); ok {
-		binding.childIndex = childIndexOf(frame.element, txt)
+	anchor := NodeAnchor{ChildIndex: path[len(path)-1], HasIndex: true}
+	if len(path) > 1 {
+		anchor.ParentPath = append([]int(nil), path[:len(path)-1]...)
 	}
-	frame.bindings = append(frame.bindings, binding)
+	if b.slotAnchors == nil {
+		b.slotAnchors = make(map[int]NodeAnchor)
+	}
+	b.slotAnchors[slot] = anchor
 }
 
 func (b *structuredBuilder) pushChildIndex(idx int) {
@@ -358,20 +439,27 @@ func (b *structuredBuilder) popChildIndex() {
 	}
 }
 
-func (b *structuredBuilder) pushComponent(id string) {
-	frame := componentFrame{id: id, prevPath: append([]int(nil), b.componentPath...)}
+func (b *structuredBuilder) pushComponent(id string, parentPath []int, anchorIndex, startChildCount int) {
+	frame := componentFrame{
+		id:              id,
+		prevPath:        append([]int(nil), b.componentPath...),
+		parentPath:      append([]int(nil), parentPath...),
+		anchorIndex:     anchorIndex,
+		startChildCount: startChildCount,
+	}
 	b.componentStack = append(b.componentStack, frame)
 	b.componentPath = b.componentPath[:0]
 }
 
-func (b *structuredBuilder) popComponent() {
+func (b *structuredBuilder) popComponent() componentFrame {
 	if len(b.componentStack) == 0 {
-		return
+		return componentFrame{}
 	}
 	lastIdx := len(b.componentStack) - 1
 	frame := b.componentStack[lastIdx]
 	b.componentStack = b.componentStack[:lastIdx]
 	b.componentPath = append([]int(nil), frame.prevPath...)
+	return frame
 }
 
 func (b *structuredBuilder) currentComponentID() string {
@@ -399,23 +487,6 @@ func (b *structuredBuilder) popFrame() {
 }
 
 func (b *structuredBuilder) assignSlotIndices(frame elementFrame) {
-	value := joinSlotBindings(frame.bindings)
-	if value != "" {
-		attrs := frame.element.Attrs
-		if attrs == nil {
-			attrs = map[string]string{}
-		}
-		attrs["data-slot-index"] = value
-		frame.element.Attrs = attrs
-		if frame.attrSlot >= 0 && frame.attrSlot < len(b.dynamics) {
-			dynAttrs := b.dynamics[frame.attrSlot].Attrs
-			if dynAttrs == nil {
-				dynAttrs = map[string]string{}
-			}
-			dynAttrs["data-slot-index"] = value
-			b.dynamics[frame.attrSlot].Attrs = dynAttrs
-		}
-	}
 	if frame.staticAttrs && frame.startStatic >= 0 && frame.startStatic < len(b.statics) {
 		b.statics[frame.startStatic] = renderStartTag(frame.element, frame.void)
 	}
@@ -434,40 +505,8 @@ func (b *structuredBuilder) assignSlotIndices(frame elementFrame) {
 	}
 }
 
-func joinSlotBindings(bindings []slotBinding) string {
-	if len(bindings) == 0 {
-		return ""
-	}
-	parts := make([]string, 0, len(bindings))
-	seen := make(map[int]struct{}, len(bindings))
-	for _, binding := range bindings {
-		if _, ok := seen[binding.slot]; ok {
-			continue
-		}
-		seen[binding.slot] = struct{}{}
-		token := strconv.Itoa(binding.slot)
-		if binding.childIndex >= 0 {
-			token = token + "@" + strconv.Itoa(binding.childIndex)
-		}
-		parts = append(parts, token)
-	}
-	return strings.Join(parts, " ")
-}
-
 func escapeComment(value string) string {
 	return strings.ReplaceAll(value, "--", "- -")
-}
-
-func childIndexOf(parent *h.Element, target h.Node) int {
-	if parent == nil || target == nil {
-		return -1
-	}
-	for idx, child := range parent.Children {
-		if child == target {
-			return idx
-		}
-	}
-	return -1
 }
 
 func copyAttrs(src map[string]string) map[string]string {
@@ -484,6 +523,46 @@ func copyAttrs(src map[string]string) map[string]string {
 		m[k] = src[k]
 	}
 	return m
+}
+
+func (b *structuredBuilder) anchors() map[int]NodeAnchor {
+	if len(b.slotAnchors) == 0 {
+		return nil
+	}
+	out := make(map[int]NodeAnchor, len(b.slotAnchors))
+	for slot, anchor := range b.slotAnchors {
+		cloned := NodeAnchor{ChildIndex: anchor.ChildIndex, HasIndex: anchor.HasIndex}
+		if len(anchor.ParentPath) > 0 {
+			cloned.ParentPath = append([]int(nil), anchor.ParentPath...)
+		}
+		out[slot] = cloned
+	}
+	return out
+}
+
+// RelativeNodeAnchor computes a node anchor relative to a base parent path. If the
+// provided anchor does not share the same prefix, the returned boolean will be false.
+func RelativeNodeAnchor(anchor NodeAnchor, basePath []int) (NodeAnchor, bool) {
+	if len(basePath) == 0 {
+		cloned := NodeAnchor{ChildIndex: anchor.ChildIndex, HasIndex: anchor.HasIndex}
+		if len(anchor.ParentPath) > 0 {
+			cloned.ParentPath = append([]int(nil), anchor.ParentPath...)
+		}
+		return cloned, true
+	}
+	if len(anchor.ParentPath) < len(basePath) {
+		return NodeAnchor{}, false
+	}
+	for i := range basePath {
+		if anchor.ParentPath[i] != basePath[i] {
+			return NodeAnchor{}, false
+		}
+	}
+	rel := NodeAnchor{ChildIndex: anchor.ChildIndex, HasIndex: anchor.HasIndex}
+	if len(anchor.ParentPath) > len(basePath) {
+		rel.ParentPath = append([]int(nil), anchor.ParentPath[len(basePath):]...)
+	}
+	return rel, true
 }
 
 func shouldForceDynamicAttrs(mutable map[string]bool, attrs map[string]string) bool {
