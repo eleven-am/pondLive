@@ -430,554 +430,554 @@ type (
 	WbrRef            = internalhtml.WbrRef
 )
 
-func UseA(ctx elementHookCtx) *ARef {
+func UseA(ctx any) *ARef {
 	return internalhtml.UseA(ctx)
 }
 
-func UseAbbr(ctx elementHookCtx) *AbbrRef {
+func UseAbbr(ctx any) *AbbrRef {
 	return internalhtml.UseAbbr(ctx)
 }
 
-func UseAddress(ctx elementHookCtx) *AddressRef {
+func UseAddress(ctx any) *AddressRef {
 	return internalhtml.UseAddress(ctx)
 }
 
-func UseArea(ctx elementHookCtx) *AreaRef {
+func UseArea(ctx any) *AreaRef {
 	return internalhtml.UseArea(ctx)
 }
 
-func UseArticle(ctx elementHookCtx) *ArticleRef {
+func UseArticle(ctx any) *ArticleRef {
 	return internalhtml.UseArticle(ctx)
 }
 
-func UseAside(ctx elementHookCtx) *AsideRef {
+func UseAside(ctx any) *AsideRef {
 	return internalhtml.UseAside(ctx)
 }
 
-func UseAudio(ctx elementHookCtx) *AudioRef {
+func UseAudio(ctx any) *AudioRef {
 	return internalhtml.UseAudio(ctx)
 }
 
-func UseB(ctx elementHookCtx) *BRef {
+func UseB(ctx any) *BRef {
 	return internalhtml.UseB(ctx)
 }
 
-func UseBase(ctx elementHookCtx) *BaseRef {
+func UseBase(ctx any) *BaseRef {
 	return internalhtml.UseBase(ctx)
 }
 
-func UseBdi(ctx elementHookCtx) *BdiRef {
+func UseBdi(ctx any) *BdiRef {
 	return internalhtml.UseBdi(ctx)
 }
 
-func UseBdo(ctx elementHookCtx) *BdoRef {
+func UseBdo(ctx any) *BdoRef {
 	return internalhtml.UseBdo(ctx)
 }
 
-func UseBlockquote(ctx elementHookCtx) *BlockquoteRef {
+func UseBlockquote(ctx any) *BlockquoteRef {
 	return internalhtml.UseBlockquote(ctx)
 }
 
-func UseBody(ctx elementHookCtx) *BodyRef {
+func UseBody(ctx any) *BodyRef {
 	return internalhtml.UseBody(ctx)
 }
 
-func UseBr(ctx elementHookCtx) *BrRef {
+func UseBr(ctx any) *BrRef {
 	return internalhtml.UseBr(ctx)
 }
 
-func UseButton(ctx elementHookCtx) *ButtonRef {
+func UseButton(ctx any) *ButtonRef {
 	return internalhtml.UseButton(ctx)
 }
 
-func UseCanvas(ctx elementHookCtx) *CanvasRef {
+func UseCanvas(ctx any) *CanvasRef {
 	return internalhtml.UseCanvas(ctx)
 }
 
-func UseCaption(ctx elementHookCtx) *CaptionRef {
+func UseCaption(ctx any) *CaptionRef {
 	return internalhtml.UseCaption(ctx)
 }
 
-func UseCircle(ctx elementHookCtx) *CircleRef {
+func UseCircle(ctx any) *CircleRef {
 	return internalhtml.UseCircle(ctx)
 }
 
-func UseCite(ctx elementHookCtx) *CiteRef {
+func UseCite(ctx any) *CiteRef {
 	return internalhtml.UseCite(ctx)
 }
 
-func UseClipPath(ctx elementHookCtx) *ClipPathRef {
+func UseClipPath(ctx any) *ClipPathRef {
 	return internalhtml.UseClipPath(ctx)
 }
 
-func UseCode(ctx elementHookCtx) *CodeRef {
+func UseCode(ctx any) *CodeRef {
 	return internalhtml.UseCode(ctx)
 }
 
-func UseCol(ctx elementHookCtx) *ColRef {
+func UseCol(ctx any) *ColRef {
 	return internalhtml.UseCol(ctx)
 }
 
-func UseColgroup(ctx elementHookCtx) *ColgroupRef {
+func UseColgroup(ctx any) *ColgroupRef {
 	return internalhtml.UseColgroup(ctx)
 }
 
-func UseDataEl(ctx elementHookCtx) *DataElRef {
+func UseDataEl(ctx any) *DataElRef {
 	return internalhtml.UseDataEl(ctx)
 }
 
-func UseDatalist(ctx elementHookCtx) *DatalistRef {
+func UseDatalist(ctx any) *DatalistRef {
 	return internalhtml.UseDatalist(ctx)
 }
 
-func UseDd(ctx elementHookCtx) *DdRef {
+func UseDd(ctx any) *DdRef {
 	return internalhtml.UseDd(ctx)
 }
 
-func UseDefs(ctx elementHookCtx) *DefsRef {
+func UseDefs(ctx any) *DefsRef {
 	return internalhtml.UseDefs(ctx)
 }
 
-func UseDelEl(ctx elementHookCtx) *DelElRef {
+func UseDelEl(ctx any) *DelElRef {
 	return internalhtml.UseDelEl(ctx)
 }
 
-func UseDetails(ctx elementHookCtx) *DetailsRef {
+func UseDetails(ctx any) *DetailsRef {
 	return internalhtml.UseDetails(ctx)
 }
 
-func UseDfn(ctx elementHookCtx) *DfnRef {
+func UseDfn(ctx any) *DfnRef {
 	return internalhtml.UseDfn(ctx)
 }
 
-func UseDialog(ctx elementHookCtx) *DialogRef {
+func UseDialog(ctx any) *DialogRef {
 	return internalhtml.UseDialog(ctx)
 }
 
-func UseDiv(ctx elementHookCtx) *DivRef {
+func UseDiv(ctx any) *DivRef {
 	return internalhtml.UseDiv(ctx)
 }
 
-func UseDl(ctx elementHookCtx) *DlRef {
+func UseDl(ctx any) *DlRef {
 	return internalhtml.UseDl(ctx)
 }
 
-func UseDt(ctx elementHookCtx) *DtRef {
+func UseDt(ctx any) *DtRef {
 	return internalhtml.UseDt(ctx)
 }
 
-func UseEllipse(ctx elementHookCtx) *EllipseRef {
+func UseEllipse(ctx any) *EllipseRef {
 	return internalhtml.UseEllipse(ctx)
 }
 
-func UseEm(ctx elementHookCtx) *EmRef {
+func UseEm(ctx any) *EmRef {
 	return internalhtml.UseEm(ctx)
 }
 
-func UseEmbed(ctx elementHookCtx) *EmbedRef {
+func UseEmbed(ctx any) *EmbedRef {
 	return internalhtml.UseEmbed(ctx)
 }
 
-func UseFieldset(ctx elementHookCtx) *FieldsetRef {
+func UseFieldset(ctx any) *FieldsetRef {
 	return internalhtml.UseFieldset(ctx)
 }
 
-func UseFigcaption(ctx elementHookCtx) *FigcaptionRef {
+func UseFigcaption(ctx any) *FigcaptionRef {
 	return internalhtml.UseFigcaption(ctx)
 }
 
-func UseFigure(ctx elementHookCtx) *FigureRef {
+func UseFigure(ctx any) *FigureRef {
 	return internalhtml.UseFigure(ctx)
 }
 
-func UseFooter(ctx elementHookCtx) *FooterRef {
+func UseFooter(ctx any) *FooterRef {
 	return internalhtml.UseFooter(ctx)
 }
 
-func UseForeignObject(ctx elementHookCtx) *ForeignObjectRef {
+func UseForeignObject(ctx any) *ForeignObjectRef {
 	return internalhtml.UseForeignObject(ctx)
 }
 
-func UseForm(ctx elementHookCtx) *FormRef {
+func UseForm(ctx any) *FormRef {
 	return internalhtml.UseForm(ctx)
 }
 
-func UseG(ctx elementHookCtx) *GRef {
+func UseG(ctx any) *GRef {
 	return internalhtml.UseG(ctx)
 }
 
-func UseH1(ctx elementHookCtx) *H1Ref {
+func UseH1(ctx any) *H1Ref {
 	return internalhtml.UseH1(ctx)
 }
 
-func UseH2(ctx elementHookCtx) *H2Ref {
+func UseH2(ctx any) *H2Ref {
 	return internalhtml.UseH2(ctx)
 }
 
-func UseH3(ctx elementHookCtx) *H3Ref {
+func UseH3(ctx any) *H3Ref {
 	return internalhtml.UseH3(ctx)
 }
 
-func UseH4(ctx elementHookCtx) *H4Ref {
+func UseH4(ctx any) *H4Ref {
 	return internalhtml.UseH4(ctx)
 }
 
-func UseH5(ctx elementHookCtx) *H5Ref {
+func UseH5(ctx any) *H5Ref {
 	return internalhtml.UseH5(ctx)
 }
 
-func UseH6(ctx elementHookCtx) *H6Ref {
+func UseH6(ctx any) *H6Ref {
 	return internalhtml.UseH6(ctx)
 }
 
-func UseHead(ctx elementHookCtx) *HeadRef {
+func UseHead(ctx any) *HeadRef {
 	return internalhtml.UseHead(ctx)
 }
 
-func UseHeader(ctx elementHookCtx) *HeaderRef {
+func UseHeader(ctx any) *HeaderRef {
 	return internalhtml.UseHeader(ctx)
 }
 
-func UseHgroup(ctx elementHookCtx) *HgroupRef {
+func UseHgroup(ctx any) *HgroupRef {
 	return internalhtml.UseHgroup(ctx)
 }
 
-func UseHr(ctx elementHookCtx) *HrRef {
+func UseHr(ctx any) *HrRef {
 	return internalhtml.UseHr(ctx)
 }
 
-func UseHtml(ctx elementHookCtx) *HtmlRef {
+func UseHtml(ctx any) *HtmlRef {
 	return internalhtml.UseHtml(ctx)
 }
 
-func UseI(ctx elementHookCtx) *IRef {
+func UseI(ctx any) *IRef {
 	return internalhtml.UseI(ctx)
 }
 
-func UseIframe(ctx elementHookCtx) *IframeRef {
+func UseIframe(ctx any) *IframeRef {
 	return internalhtml.UseIframe(ctx)
 }
 
-func UseImage(ctx elementHookCtx) *ImageRef {
+func UseImage(ctx any) *ImageRef {
 	return internalhtml.UseImage(ctx)
 }
 
-func UseImg(ctx elementHookCtx) *ImgRef {
+func UseImg(ctx any) *ImgRef {
 	return internalhtml.UseImg(ctx)
 }
 
-func UseInput(ctx elementHookCtx) *InputRef {
+func UseInput(ctx any) *InputRef {
 	return internalhtml.UseInput(ctx)
 }
 
-func UseInsEl(ctx elementHookCtx) *InsElRef {
+func UseInsEl(ctx any) *InsElRef {
 	return internalhtml.UseInsEl(ctx)
 }
 
-func UseKbd(ctx elementHookCtx) *KbdRef {
+func UseKbd(ctx any) *KbdRef {
 	return internalhtml.UseKbd(ctx)
 }
 
-func UseLabel(ctx elementHookCtx) *LabelRef {
+func UseLabel(ctx any) *LabelRef {
 	return internalhtml.UseLabel(ctx)
 }
 
-func UseLegend(ctx elementHookCtx) *LegendRef {
+func UseLegend(ctx any) *LegendRef {
 	return internalhtml.UseLegend(ctx)
 }
 
-func UseLi(ctx elementHookCtx) *LiRef {
+func UseLi(ctx any) *LiRef {
 	return internalhtml.UseLi(ctx)
 }
 
-func UseLine(ctx elementHookCtx) *LineRef {
+func UseLine(ctx any) *LineRef {
 	return internalhtml.UseLine(ctx)
 }
 
-func UseLinearGradient(ctx elementHookCtx) *LinearGradientRef {
+func UseLinearGradient(ctx any) *LinearGradientRef {
 	return internalhtml.UseLinearGradient(ctx)
 }
 
-func UseLink(ctx elementHookCtx) *LinkRef {
+func UseLink(ctx any) *LinkRef {
 	return internalhtml.UseLink(ctx)
 }
 
-func UseMain(ctx elementHookCtx) *MainRef {
+func UseMain(ctx any) *MainRef {
 	return internalhtml.UseMain(ctx)
 }
 
-func UseMapEl(ctx elementHookCtx) *MapElRef {
+func UseMapEl(ctx any) *MapElRef {
 	return internalhtml.UseMapEl(ctx)
 }
 
-func UseMark(ctx elementHookCtx) *MarkRef {
+func UseMark(ctx any) *MarkRef {
 	return internalhtml.UseMark(ctx)
 }
 
-func UseMarker(ctx elementHookCtx) *MarkerRef {
+func UseMarker(ctx any) *MarkerRef {
 	return internalhtml.UseMarker(ctx)
 }
 
-func UseMask(ctx elementHookCtx) *MaskRef {
+func UseMask(ctx any) *MaskRef {
 	return internalhtml.UseMask(ctx)
 }
 
-func UseMenu(ctx elementHookCtx) *MenuRef {
+func UseMenu(ctx any) *MenuRef {
 	return internalhtml.UseMenu(ctx)
 }
 
-func UseMenuItem(ctx elementHookCtx) *MenuItemRef {
+func UseMenuItem(ctx any) *MenuItemRef {
 	return internalhtml.UseMenuItem(ctx)
 }
 
-func UseMeta(ctx elementHookCtx) *MetaRef {
+func UseMeta(ctx any) *MetaRef {
 	return internalhtml.UseMeta(ctx)
 }
 
-func UseMeter(ctx elementHookCtx) *MeterRef {
+func UseMeter(ctx any) *MeterRef {
 	return internalhtml.UseMeter(ctx)
 }
 
-func UseNav(ctx elementHookCtx) *NavRef {
+func UseNav(ctx any) *NavRef {
 	return internalhtml.UseNav(ctx)
 }
 
-func UseNoscript(ctx elementHookCtx) *NoscriptRef {
+func UseNoscript(ctx any) *NoscriptRef {
 	return internalhtml.UseNoscript(ctx)
 }
 
-func UseObject(ctx elementHookCtx) *ObjectRef {
+func UseObject(ctx any) *ObjectRef {
 	return internalhtml.UseObject(ctx)
 }
 
-func UseOl(ctx elementHookCtx) *OlRef {
+func UseOl(ctx any) *OlRef {
 	return internalhtml.UseOl(ctx)
 }
 
-func UseOptgroup(ctx elementHookCtx) *OptgroupRef {
+func UseOptgroup(ctx any) *OptgroupRef {
 	return internalhtml.UseOptgroup(ctx)
 }
 
-func UseOption(ctx elementHookCtx) *OptionRef {
+func UseOption(ctx any) *OptionRef {
 	return internalhtml.UseOption(ctx)
 }
 
-func UseOutput(ctx elementHookCtx) *OutputRef {
+func UseOutput(ctx any) *OutputRef {
 	return internalhtml.UseOutput(ctx)
 }
 
-func UseP(ctx elementHookCtx) *PRef {
+func UseP(ctx any) *PRef {
 	return internalhtml.UseP(ctx)
 }
 
-func UseParam(ctx elementHookCtx) *ParamRef {
+func UseParam(ctx any) *ParamRef {
 	return internalhtml.UseParam(ctx)
 }
 
-func UsePath(ctx elementHookCtx) *PathRef {
+func UsePath(ctx any) *PathRef {
 	return internalhtml.UsePath(ctx)
 }
 
-func UsePattern(ctx elementHookCtx) *PatternRef {
+func UsePattern(ctx any) *PatternRef {
 	return internalhtml.UsePattern(ctx)
 }
 
-func UsePicture(ctx elementHookCtx) *PictureRef {
+func UsePicture(ctx any) *PictureRef {
 	return internalhtml.UsePicture(ctx)
 }
 
-func UsePolygon(ctx elementHookCtx) *PolygonRef {
+func UsePolygon(ctx any) *PolygonRef {
 	return internalhtml.UsePolygon(ctx)
 }
 
-func UsePolyline(ctx elementHookCtx) *PolylineRef {
+func UsePolyline(ctx any) *PolylineRef {
 	return internalhtml.UsePolyline(ctx)
 }
 
-func UsePortal(ctx elementHookCtx) *PortalRef {
+func UsePortal(ctx any) *PortalRef {
 	return internalhtml.UsePortal(ctx)
 }
 
-func UsePre(ctx elementHookCtx) *PreRef {
+func UsePre(ctx any) *PreRef {
 	return internalhtml.UsePre(ctx)
 }
 
-func UseProgress(ctx elementHookCtx) *ProgressRef {
+func UseProgress(ctx any) *ProgressRef {
 	return internalhtml.UseProgress(ctx)
 }
 
-func UseQ(ctx elementHookCtx) *QRef {
+func UseQ(ctx any) *QRef {
 	return internalhtml.UseQ(ctx)
 }
 
-func UseRadialGradient(ctx elementHookCtx) *RadialGradientRef {
+func UseRadialGradient(ctx any) *RadialGradientRef {
 	return internalhtml.UseRadialGradient(ctx)
 }
 
-func UseRb(ctx elementHookCtx) *RbRef {
+func UseRb(ctx any) *RbRef {
 	return internalhtml.UseRb(ctx)
 }
 
-func UseRect(ctx elementHookCtx) *RectRef {
+func UseRect(ctx any) *RectRef {
 	return internalhtml.UseRect(ctx)
 }
 
-func UseRp(ctx elementHookCtx) *RpRef {
+func UseRp(ctx any) *RpRef {
 	return internalhtml.UseRp(ctx)
 }
 
-func UseRt(ctx elementHookCtx) *RtRef {
+func UseRt(ctx any) *RtRef {
 	return internalhtml.UseRt(ctx)
 }
 
-func UseRtc(ctx elementHookCtx) *RtcRef {
+func UseRtc(ctx any) *RtcRef {
 	return internalhtml.UseRtc(ctx)
 }
 
-func UseRuby(ctx elementHookCtx) *RubyRef {
+func UseRuby(ctx any) *RubyRef {
 	return internalhtml.UseRuby(ctx)
 }
 
-func UseS(ctx elementHookCtx) *SRef {
+func UseS(ctx any) *SRef {
 	return internalhtml.UseS(ctx)
 }
 
-func UseSamp(ctx elementHookCtx) *SampRef {
+func UseSamp(ctx any) *SampRef {
 	return internalhtml.UseSamp(ctx)
 }
 
-func UseScript(ctx elementHookCtx) *ScriptRef {
+func UseScript(ctx any) *ScriptRef {
 	return internalhtml.UseScript(ctx)
 }
 
-func UseSection(ctx elementHookCtx) *SectionRef {
+func UseSection(ctx any) *SectionRef {
 	return internalhtml.UseSection(ctx)
 }
 
-func UseSelect(ctx elementHookCtx) *SelectRef {
+func UseSelect(ctx any) *SelectRef {
 	return internalhtml.UseSelect(ctx)
 }
 
-func UseSlot(ctx elementHookCtx) *SlotRef {
+func UseSlot(ctx any) *SlotRef {
 	return internalhtml.UseSlot(ctx)
 }
 
-func UseSmall(ctx elementHookCtx) *SmallRef {
+func UseSmall(ctx any) *SmallRef {
 	return internalhtml.UseSmall(ctx)
 }
 
-func UseSource(ctx elementHookCtx) *SourceRef {
+func UseSource(ctx any) *SourceRef {
 	return internalhtml.UseSource(ctx)
 }
 
-func UseSpan(ctx elementHookCtx) *SpanRef {
+func UseSpan(ctx any) *SpanRef {
 	return internalhtml.UseSpan(ctx)
 }
 
-func UseStop(ctx elementHookCtx) *StopRef {
+func UseStop(ctx any) *StopRef {
 	return internalhtml.UseStop(ctx)
 }
 
-func UseStrong(ctx elementHookCtx) *StrongRef {
+func UseStrong(ctx any) *StrongRef {
 	return internalhtml.UseStrong(ctx)
 }
 
-func UseStyleEl(ctx elementHookCtx) *StyleElRef {
+func UseStyleEl(ctx any) *StyleElRef {
 	return internalhtml.UseStyleEl(ctx)
 }
 
-func UseSub(ctx elementHookCtx) *SubRef {
+func UseSub(ctx any) *SubRef {
 	return internalhtml.UseSub(ctx)
 }
 
-func UseSummary(ctx elementHookCtx) *SummaryRef {
+func UseSummary(ctx any) *SummaryRef {
 	return internalhtml.UseSummary(ctx)
 }
 
-func UseSup(ctx elementHookCtx) *SupRef {
+func UseSup(ctx any) *SupRef {
 	return internalhtml.UseSup(ctx)
 }
 
-func UseSvg(ctx elementHookCtx) *SvgRef {
+func UseSvg(ctx any) *SvgRef {
 	return internalhtml.UseSvg(ctx)
 }
 
-func UseSvgText(ctx elementHookCtx) *SvgTextRef {
+func UseSvgText(ctx any) *SvgTextRef {
 	return internalhtml.UseSvgText(ctx)
 }
 
-func UseTSpan(ctx elementHookCtx) *TSpanRef {
+func UseTSpan(ctx any) *TSpanRef {
 	return internalhtml.UseTSpan(ctx)
 }
 
-func UseTable(ctx elementHookCtx) *TableRef {
+func UseTable(ctx any) *TableRef {
 	return internalhtml.UseTable(ctx)
 }
 
-func UseTbody(ctx elementHookCtx) *TbodyRef {
+func UseTbody(ctx any) *TbodyRef {
 	return internalhtml.UseTbody(ctx)
 }
 
-func UseTd(ctx elementHookCtx) *TdRef {
+func UseTd(ctx any) *TdRef {
 	return internalhtml.UseTd(ctx)
 }
 
-func UseTemplate(ctx elementHookCtx) *TemplateRef {
+func UseTemplate(ctx any) *TemplateRef {
 	return internalhtml.UseTemplate(ctx)
 }
 
-func UseTextarea(ctx elementHookCtx) *TextareaRef {
+func UseTextarea(ctx any) *TextareaRef {
 	return internalhtml.UseTextarea(ctx)
 }
 
-func UseTfoot(ctx elementHookCtx) *TfootRef {
+func UseTfoot(ctx any) *TfootRef {
 	return internalhtml.UseTfoot(ctx)
 }
 
-func UseTh(ctx elementHookCtx) *ThRef {
+func UseTh(ctx any) *ThRef {
 	return internalhtml.UseTh(ctx)
 }
 
-func UseThead(ctx elementHookCtx) *TheadRef {
+func UseThead(ctx any) *TheadRef {
 	return internalhtml.UseThead(ctx)
 }
 
-func UseTime(ctx elementHookCtx) *TimeRef {
+func UseTime(ctx any) *TimeRef {
 	return internalhtml.UseTime(ctx)
 }
 
-func UseTitleEl(ctx elementHookCtx) *TitleElRef {
+func UseTitleEl(ctx any) *TitleElRef {
 	return internalhtml.UseTitleEl(ctx)
 }
 
-func UseTr(ctx elementHookCtx) *TrRef {
+func UseTr(ctx any) *TrRef {
 	return internalhtml.UseTr(ctx)
 }
 
-func UseTrack(ctx elementHookCtx) *TrackRef {
+func UseTrack(ctx any) *TrackRef {
 	return internalhtml.UseTrack(ctx)
 }
 
-func UseU(ctx elementHookCtx) *URef {
+func UseU(ctx any) *URef {
 	return internalhtml.UseU(ctx)
 }
 
-func UseUl(ctx elementHookCtx) *UlRef {
+func UseUl(ctx any) *UlRef {
 	return internalhtml.UseUl(ctx)
 }
 
-func UseUse(ctx elementHookCtx) *UseRef {
+func UseUse(ctx any) *UseRef {
 	return internalhtml.UseUse(ctx)
 }
 
-func UseVar(ctx elementHookCtx) *VarRef {
+func UseVar(ctx any) *VarRef {
 	return internalhtml.UseVar(ctx)
 }
 
-func UseVideo(ctx elementHookCtx) *VideoRef {
+func UseVideo(ctx any) *VideoRef {
 	return internalhtml.UseVideo(ctx)
 }
 
-func UseWbr(ctx elementHookCtx) *WbrRef {
+func UseWbr(ctx any) *WbrRef {
 	return internalhtml.UseWbr(ctx)
 }

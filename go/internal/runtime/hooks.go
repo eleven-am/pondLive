@@ -3,7 +3,8 @@ package runtime
 import (
 	"reflect"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	internalhtml "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 type StateOpt[T any] interface{ applyStateOpt(*stateCell[T]) }
@@ -101,8 +102,8 @@ func UseRef[T any](ctx Ctx, zero T) *Ref[T] {
 	return ref
 }
 
-type elementRefCell[T h.ElementDescriptor] struct {
-	ref   *h.ElementRef[T]
+type elementRefCell[T dom.ElementDescriptor] struct {
+	ref   *internalhtml.ElementRef[T]
 	state any
 }
 
@@ -116,7 +117,7 @@ func (c *elementRefCell[T]) resetAttachment() {
 // UseElement returns a typed ElementRef that can be attached to a generated
 // element. The ref caches state via a UseState cell and carries a stable ref ID
 // for serialization.
-func UseElement[T h.ElementDescriptor](ctx Ctx) *h.ElementRef[T] {
+func UseElement[T dom.ElementDescriptor](ctx Ctx) *internalhtml.ElementRef[T] {
 	if ctx.frame == nil {
 		panic("runtime: UseElement called outside render")
 	}
@@ -128,7 +129,7 @@ func UseElement[T h.ElementDescriptor](ctx Ctx) *h.ElementRef[T] {
 		}
 		var descriptor T
 		id := ctx.sess.allocateElementRefID()
-		ref := h.NewElementRef[T](id, descriptor)
+		ref := internalhtml.NewElementRef[T](id, descriptor)
 		cell := &elementRefCell[T]{ref: ref}
 		ref.InstallState(
 			func() any {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
 	h "github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
@@ -197,7 +198,7 @@ func (s *ComponentSession) allocateElementRefID() string {
 type trackedElementRef interface {
 	ID() string
 	DescriptorTag() string
-	BindingSnapshot() map[string]h.EventBinding
+	BindingSnapshot() map[string]dom.EventBinding
 }
 
 func (s *ComponentSession) registerElementRef(ref trackedElementRef) {
@@ -1125,7 +1126,7 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 }
 
 // RenderNode re-renders the root component and returns its HTML node tree.
-func (s *ComponentSession) RenderNode() h.Node {
+func (s *ComponentSession) RenderNode() dom.Node {
 	if s == nil || s.root == nil {
 		return nil
 	}
@@ -1543,11 +1544,11 @@ func componentEqualStrings(a, b []string) bool {
 }
 
 func normalizeComponentStatic(s string) string {
-	if !strings.Contains(s, h.ComponentCommentPrefix()) {
+	if !strings.Contains(s, dom.ComponentCommentPrefix()) {
 		return s
 	}
-	normalized := normalizeComponentMarker(s, "<!--"+h.ComponentCommentPrefix()+":start:")
-	normalized = normalizeComponentMarker(normalized, "<!--"+h.ComponentCommentPrefix()+":end:")
+	normalized := normalizeComponentMarker(s, "<!--"+dom.ComponentCommentPrefix()+":start:")
+	normalized = normalizeComponentMarker(normalized, "<!--"+dom.ComponentCommentPrefix()+":end:")
 	return normalized
 }
 

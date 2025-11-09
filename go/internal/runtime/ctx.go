@@ -3,7 +3,7 @@ package runtime
 import (
 	"fmt"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // Ctx represents the runtime context passed to every component render call.
@@ -12,10 +12,6 @@ type Ctx struct {
 	comp  *component
 	frame *hookFrame
 }
-
-// elementHookContext ensures runtime contexts satisfy html.ElementHookContext so
-// html-level hooks can request typed refs without creating package cycles.
-func (Ctx) elementHookContext() {}
 
 // Session returns the backing runtime session.
 func (c Ctx) Session() *ComponentSession { return c.sess }
@@ -37,7 +33,7 @@ func (c Ctx) RequestComponentBoot() {
 }
 
 // Render renders a child component with optional key.
-func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) h.Node {
+func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) dom.Node {
 	if ctx.sess == nil || ctx.comp == nil {
 		panic("runtime: render called outside component context")
 	}

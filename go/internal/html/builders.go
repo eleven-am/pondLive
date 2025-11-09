@@ -1,6 +1,10 @@
 package html
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/eleven-am/pondlive/go/internal/dom"
+)
 
 // Text creates an escaped text node.
 func Text(s string) *TextNode { return &TextNode{Value: s} }
@@ -17,9 +21,7 @@ func Fragment(children ...Node) *FragmentNode { return &FragmentNode{Children: c
 func Comment(value string) *CommentNode { return &CommentNode{Value: value} }
 
 // WrapComponent wraps a component subtree so render passes can attach metadata.
-func WrapComponent(id string, child Node) *ComponentNode {
-	return &ComponentNode{ID: id, Child: child}
-}
+func WrapComponent(id string, child Node) *ComponentNode { return dom.WrapComponent(id, child) }
 
 // If includes the node when cond is true; otherwise it contributes nothing.
 func If(cond bool, node Node) Node {
@@ -64,7 +66,7 @@ func TernaryFn(cond bool, whenTrue, whenFalse func() Node) Node {
 
 type noopNode struct{}
 
-func (noopNode) applyTo(*Element) {}
+func (noopNode) ApplyTo(*Element) {}
 func (noopNode) isNode()          {}
 func (noopNode) privateNodeTag()  {}
 

@@ -8,15 +8,15 @@ import (
 	"sync"
 	"sync/atomic"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // Component defines a function component with props of type P that returns an HTML node.
-type Component[P any] func(Ctx, P) h.Node
+type Component[P any] func(Ctx, P) dom.Node
 
 // componentCallable adapts a generic component function for runtime dispatch.
 type componentCallable interface {
-	call(Ctx, any) h.Node
+	call(Ctx, any) dom.Node
 	pointer() uintptr
 	name() string
 }
@@ -28,7 +28,7 @@ type componentAdapter[P any] struct {
 }
 
 type componentMetaResult interface {
-	BodyNode() h.Node
+	BodyNode() dom.Node
 	Metadata() *Meta
 }
 
@@ -43,7 +43,7 @@ func newComponentAdapter[P any](fn Component[P]) componentCallable {
 	return &componentAdapter[P]{fn: fn, pc: pc, nameStr: name}
 }
 
-func (a *componentAdapter[P]) call(ctx Ctx, props any) h.Node {
+func (a *componentAdapter[P]) call(ctx Ctx, props any) dom.Node {
 	if ctx.sess == nil {
 		panic("runtime: component context missing session")
 	}
@@ -70,7 +70,7 @@ type component struct {
 	parent   *component
 	callable componentCallable
 	props    any
-	node     h.Node
+	node     dom.Node
 	frame    *hookFrame
 
 	children map[string]*component
@@ -221,7 +221,7 @@ func (c *component) ensureChild(callable componentCallable, key string, props an
 	return child
 }
 
-func (c *component) render() h.Node {
+func (c *component) render() dom.Node {
 	if c.sess != nil {
 		c.sess.pushComponent(c)
 		defer c.sess.popComponent()
@@ -396,15 +396,15 @@ func (c *component) unmount() {
 	}
 }
 
-func ensureComponentWrapper(id string, node h.Node) h.Node {
-	if existing, ok := node.(*h.ComponentNode); ok {
+func ensureComponentWrapper(id string, node dom.Node) dom.Node {
+	if existing, ok := node.(*dom.ComponentNode); ok {
 		if existing.ID == id {
 			return existing
 		}
 
 		node = existing.Child
 	}
-	return h.WrapComponent(id, node)
+	return dom.WrapComponent(id, node)
 }
 
 // hookFrame tracks per-component hook state.

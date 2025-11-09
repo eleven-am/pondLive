@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/handlers"
 	h "github.com/eleven-am/pondlive/go/internal/html"
 )
@@ -74,7 +75,7 @@ func renderElement(b *strings.Builder, e *h.Element) {
 			b.WriteString("\"")
 		}
 	}
-	if _, ok := voidElements[strings.ToLower(e.Tag)]; ok {
+	if dom.IsVoidElement(e.Tag) {
 		b.WriteByte('>')
 		return
 	}

@@ -1,4 +1,9 @@
-package html
+package dom
+
+// Item is either a Node or a Prop applied to an Element.
+type Item interface {
+	ApplyTo(*Element)
+}
 
 // Node is anything that renders into markup.
 //
@@ -8,8 +13,6 @@ package html
 // Item part of the Node contract exposes that behaviour on the interface.
 type Node interface {
 	Item
-	isNode()
-	privateNodeTag()
 }
 
 // Element represents an HTML element node.
@@ -66,3 +69,17 @@ type ComponentNode struct {
 
 func (*ComponentNode) isNode()         {}
 func (*ComponentNode) privateNodeTag() {}
+
+// Apply methods to treat nodes as items.
+func (n *Element) ApplyTo(e *Element)      { e.Children = append(e.Children, n) }
+func (t *TextNode) ApplyTo(e *Element)     { e.Children = append(e.Children, t) }
+func (f *FragmentNode) ApplyTo(e *Element) { e.Children = append(e.Children, f) }
+func (c *CommentNode) ApplyTo(e *Element)  { e.Children = append(e.Children, c) }
+func (c *ComponentNode) ApplyTo(e *Element) {
+	e.Children = append(e.Children, c)
+}
+
+// WrapComponent wraps a component subtree so render passes can attach metadata.
+func WrapComponent(id string, child Node) *ComponentNode {
+	return &ComponentNode{ID: id, Child: child}
+}

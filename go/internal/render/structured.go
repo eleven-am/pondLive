@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/handlers"
 	h "github.com/eleven-am/pondlive/go/internal/html"
 )
@@ -209,10 +210,7 @@ func (b *structuredBuilder) visitElement(v *h.Element) {
 	if v == nil {
 		return
 	}
-	void := false
-	if _, ok := voidElements[strings.ToLower(v.Tag)]; ok {
-		void = true
-	}
+	void := dom.IsVoidElement(v.Tag)
 	dynamicAttrs := b.shouldUseDynamicAttrs(v)
 	attrSlot := -1
 	startStatic := -1

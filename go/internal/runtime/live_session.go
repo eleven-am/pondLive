@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/handlers"
-	h "github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/render"
 )
@@ -680,7 +680,7 @@ func (s *LiveSession) Version() int { return s.version }
 func (s *LiveSession) SetVersion(v int) { s.version = v }
 
 // RenderRoot renders the root component tree.
-func (s *LiveSession) RenderRoot() h.Node {
+func (s *LiveSession) RenderRoot() dom.Node {
 	if s.component == nil {
 		return nil
 	}

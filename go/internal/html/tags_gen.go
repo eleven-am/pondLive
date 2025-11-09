@@ -472,6 +472,10 @@ func generateElementRefs(specs []tagSpec) {
 		}
 		b.WriteString("}\n\n")
 
+		fmt.Fprintf(&b, "func (r *%s) Ref() *ElementRef[%s] {\n", refName, descriptor)
+		b.WriteString("\tif r == nil {\n\t\treturn nil\n\t}\n")
+		b.WriteString("\treturn r.ElementRef\n}\n\n")
+
 		constructor := "New" + refName
 		fmt.Fprintf(&b, "func %s(ref *ElementRef[%s]) *%s {\n", constructor, descriptor, refName)
 		b.WriteString("\tif ref == nil {\n\t\treturn nil\n\t}\n")
@@ -507,10 +511,11 @@ func generateHookProvider(specs []tagSpec) {
 	b.WriteString("package live\n\n")
 	b.WriteString("import (\n")
 	b.WriteString("\t\"fmt\"\n")
+	b.WriteString("\t\"github.com/eleven-am/pondlive/go/internal/dom\"\n")
 	b.WriteString("\tinternalhtml \"github.com/eleven-am/pondlive/go/internal/html\"\n")
 	b.WriteString(")\n\n")
 	b.WriteString("func init() {\n")
-	b.WriteString("\tinternalhtml.RegisterElementHookProvider(func(ctx internalhtml.ElementHookContext, descriptor any) any {\n")
+	b.WriteString("\tdom.InstallElementRefFactory(func(ctx any, descriptor dom.ElementDescriptor) any {\n")
 	b.WriteString("\t\tliveCtx, ok := ctx.(Ctx)\n")
 	b.WriteString("\t\tif !ok {\n")
 	b.WriteString("\t\t\tpanic(\"live: invalid element hook context\")\n")
@@ -563,7 +568,7 @@ func generatePublicFacade(specs []tagSpec) {
 
 	for _, spec := range specs {
 		useName := "Use" + spec.Name
-		fmt.Fprintf(&b, "func %s(ctx elementHookCtx) *%sRef {\n", useName, spec.Name)
+		fmt.Fprintf(&b, "func %s(ctx any) *%sRef {\n", useName, spec.Name)
 		fmt.Fprintf(&b, "\treturn internalhtml.%s(ctx)\n", useName)
 		b.WriteString("}\n\n")
 	}

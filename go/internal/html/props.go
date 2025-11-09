@@ -6,7 +6,7 @@ type attrProp struct{ k, v string }
 
 func (p attrProp) isProp() {}
 
-func (p attrProp) applyTo(e *Element) {
+func (p attrProp) ApplyTo(e *Element) {
 	if e.Attrs == nil {
 		e.Attrs = map[string]string{}
 	}
@@ -15,8 +15,8 @@ func (p attrProp) applyTo(e *Element) {
 
 type mutableAttrProp struct{ attrProp }
 
-func (p mutableAttrProp) applyTo(e *Element) {
-	p.attrProp.applyTo(e)
+func (p mutableAttrProp) ApplyTo(e *Element) {
+	p.attrProp.ApplyTo(e)
 	if e.MutableAttrs == nil {
 		e.MutableAttrs = map[string]bool{}
 	}
@@ -69,7 +69,7 @@ type classProp struct{ vals []string }
 
 func (p classProp) isProp() {}
 
-func (p classProp) applyTo(e *Element) {
+func (p classProp) ApplyTo(e *Element) {
 	if len(p.vals) == 0 {
 		return
 	}
@@ -93,7 +93,7 @@ type styleProp struct{ k, v string }
 
 func (p styleProp) isProp() {}
 
-func (p styleProp) applyTo(e *Element) {
+func (p styleProp) ApplyTo(e *Element) {
 	if e.Style == nil {
 		e.Style = map[string]string{}
 	}
@@ -107,7 +107,7 @@ type keyProp struct{ key string }
 
 func (p keyProp) isProp() {}
 
-func (p keyProp) applyTo(e *Element) { e.Key = p.key }
+func (p keyProp) ApplyTo(e *Element) { e.Key = p.key }
 
 // Key assigns a stable identity for keyed lists.
 func Key(k string) Prop { return keyProp{key: k} }
@@ -116,7 +116,7 @@ type rawHTMLProp struct{ html string }
 
 func (p rawHTMLProp) isProp() {}
 
-func (p rawHTMLProp) applyTo(e *Element) { e.Unsafe = &p.html }
+func (p rawHTMLProp) ApplyTo(e *Element) { e.Unsafe = &p.html }
 
 // UnsafeHTML sets pre-escaped inner HTML for the element.
 func UnsafeHTML(html string) Prop { return rawHTMLProp{html: html} }
@@ -128,7 +128,7 @@ type onProp struct {
 
 func (p onProp) isProp() {}
 
-func (p onProp) applyTo(e *Element) {
+func (p onProp) ApplyTo(e *Element) {
 	if e.Events == nil {
 		e.Events = map[string]EventBinding{}
 	}
@@ -142,7 +142,7 @@ func (p onProp) applyTo(e *Element) {
 // On attaches an event handler for the named DOM event.
 func On(event string, handler EventHandler) Prop {
 	binding := EventBinding{Handler: handler}
-	binding = binding.withOptions(defaultEventOptions(event), event)
+	binding = binding.WithOptions(defaultEventOptions(event), event)
 	return onProp{event: event, binding: binding}
 }
 
@@ -151,6 +151,6 @@ func On(event string, handler EventHandler) Prop {
 // be captured when the event fires.
 func OnWith(event string, opts EventOptions, handler EventHandler) Prop {
 	combined := mergeEventOptions(defaultEventOptions(event), opts)
-	binding := EventBinding{Handler: handler}.withOptions(combined, event)
+	binding := EventBinding{Handler: handler}.WithOptions(combined, event)
 	return onProp{event: event, binding: binding}
 }

@@ -3,11 +3,13 @@ package live
 
 import (
 	"fmt"
+
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	internalhtml "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 func init() {
-	internalhtml.RegisterElementHookProvider(func(ctx internalhtml.ElementHookContext, descriptor any) any {
+	dom.InstallElementRefFactory(func(ctx any, descriptor dom.ElementDescriptor) any {
 		liveCtx, ok := ctx.(Ctx)
 		if !ok {
 			panic("live: invalid element hook context")

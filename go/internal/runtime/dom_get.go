@@ -4,11 +4,12 @@ import (
 	"errors"
 	"strings"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	internalhtml "github.com/eleven-am/pondlive/go/internal/html"
 )
 
 // DOMGet requests DOM properties for the provided element ref by delegating to the session.
-func DOMGet[T h.ElementDescriptor](ctx Ctx, ref *h.ElementRef[T], selectors ...string) (map[string]any, error) {
+func DOMGet[T dom.ElementDescriptor](ctx Ctx, ref *internalhtml.ElementRef[T], selectors ...string) (map[string]any, error) {
 	if ctx.sess == nil || ctx.sess.owner == nil {
 		return nil, errors.New("runtime: domget requires live session context")
 	}

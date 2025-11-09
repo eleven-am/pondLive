@@ -32,6 +32,13 @@ type ARef struct {
 	*WheelHandler
 }
 
+func (r *ARef) Ref() *ElementRef[HTMLAElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewARef(ref *ElementRef[HTMLAElement]) *ARef {
 	if ref == nil {
 		return nil
@@ -97,6 +104,13 @@ type AbbrRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *AbbrRef) Ref() *ElementRef[HTMLAbbrElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewAbbrRef(ref *ElementRef[HTMLAbbrElement]) *AbbrRef {
@@ -166,6 +180,13 @@ type AddressRef struct {
 	*WheelHandler
 }
 
+func (r *AddressRef) Ref() *ElementRef[HTMLAddressElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewAddressRef(ref *ElementRef[HTMLAddressElement]) *AddressRef {
 	if ref == nil {
 		return nil
@@ -231,6 +252,13 @@ type AreaRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *AreaRef) Ref() *ElementRef[HTMLAreaElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewAreaRef(ref *ElementRef[HTMLAreaElement]) *AreaRef {
@@ -300,6 +328,13 @@ type ArticleRef struct {
 	*WheelHandler
 }
 
+func (r *ArticleRef) Ref() *ElementRef[HTMLArticleElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewArticleRef(ref *ElementRef[HTMLArticleElement]) *ArticleRef {
 	if ref == nil {
 		return nil
@@ -365,6 +400,13 @@ type AsideRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *AsideRef) Ref() *ElementRef[HTMLAsideElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewAsideRef(ref *ElementRef[HTMLAsideElement]) *AsideRef {
@@ -434,6 +476,13 @@ type AudioRef struct {
 	*WheelHandler
 }
 
+func (r *AudioRef) Ref() *ElementRef[HTMLAudioElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewAudioRef(ref *ElementRef[HTMLAudioElement]) *AudioRef {
 	if ref == nil {
 		return nil
@@ -499,6 +548,13 @@ type BRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *BRef) Ref() *ElementRef[HTMLBElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewBRef(ref *ElementRef[HTMLBElement]) *BRef {
@@ -568,6 +624,13 @@ type BaseRef struct {
 	*WheelHandler
 }
 
+func (r *BaseRef) Ref() *ElementRef[HTMLBaseElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewBaseRef(ref *ElementRef[HTMLBaseElement]) *BaseRef {
 	if ref == nil {
 		return nil
@@ -633,6 +696,13 @@ type BdiRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *BdiRef) Ref() *ElementRef[HTMLBdiElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewBdiRef(ref *ElementRef[HTMLBdiElement]) *BdiRef {
@@ -702,6 +772,13 @@ type BdoRef struct {
 	*WheelHandler
 }
 
+func (r *BdoRef) Ref() *ElementRef[HTMLBdoElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewBdoRef(ref *ElementRef[HTMLBdoElement]) *BdoRef {
 	if ref == nil {
 		return nil
@@ -767,6 +844,13 @@ type BlockquoteRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *BlockquoteRef) Ref() *ElementRef[HTMLBlockquoteElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewBlockquoteRef(ref *ElementRef[HTMLBlockquoteElement]) *BlockquoteRef {
@@ -836,6 +920,13 @@ type BodyRef struct {
 	*WheelHandler
 }
 
+func (r *BodyRef) Ref() *ElementRef[HTMLBodyElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewBodyRef(ref *ElementRef[HTMLBodyElement]) *BodyRef {
 	if ref == nil {
 		return nil
@@ -901,6 +992,13 @@ type BrRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *BrRef) Ref() *ElementRef[HTMLBrElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewBrRef(ref *ElementRef[HTMLBrElement]) *BrRef {
@@ -970,6 +1068,13 @@ type ButtonRef struct {
 	*WheelHandler
 }
 
+func (r *ButtonRef) Ref() *ElementRef[HTMLButtonElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewButtonRef(ref *ElementRef[HTMLButtonElement]) *ButtonRef {
 	if ref == nil {
 		return nil
@@ -1035,6 +1140,13 @@ type CanvasRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *CanvasRef) Ref() *ElementRef[HTMLCanvasElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewCanvasRef(ref *ElementRef[HTMLCanvasElement]) *CanvasRef {
@@ -1104,6 +1216,13 @@ type CaptionRef struct {
 	*WheelHandler
 }
 
+func (r *CaptionRef) Ref() *ElementRef[HTMLCaptionElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewCaptionRef(ref *ElementRef[HTMLCaptionElement]) *CaptionRef {
 	if ref == nil {
 		return nil
@@ -1169,6 +1288,13 @@ type CircleRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *CircleRef) Ref() *ElementRef[SVGCircleElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewCircleRef(ref *ElementRef[SVGCircleElement]) *CircleRef {
@@ -1238,6 +1364,13 @@ type CiteRef struct {
 	*WheelHandler
 }
 
+func (r *CiteRef) Ref() *ElementRef[HTMLCiteElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewCiteRef(ref *ElementRef[HTMLCiteElement]) *CiteRef {
 	if ref == nil {
 		return nil
@@ -1303,6 +1436,13 @@ type ClipPathRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *ClipPathRef) Ref() *ElementRef[SVGClipPathElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewClipPathRef(ref *ElementRef[SVGClipPathElement]) *ClipPathRef {
@@ -1372,6 +1512,13 @@ type CodeRef struct {
 	*WheelHandler
 }
 
+func (r *CodeRef) Ref() *ElementRef[HTMLCodeElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewCodeRef(ref *ElementRef[HTMLCodeElement]) *CodeRef {
 	if ref == nil {
 		return nil
@@ -1437,6 +1584,13 @@ type ColRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *ColRef) Ref() *ElementRef[HTMLColElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewColRef(ref *ElementRef[HTMLColElement]) *ColRef {
@@ -1506,6 +1660,13 @@ type ColgroupRef struct {
 	*WheelHandler
 }
 
+func (r *ColgroupRef) Ref() *ElementRef[HTMLColgroupElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewColgroupRef(ref *ElementRef[HTMLColgroupElement]) *ColgroupRef {
 	if ref == nil {
 		return nil
@@ -1571,6 +1732,13 @@ type DataElRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *DataElRef) Ref() *ElementRef[HTMLDataElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewDataElRef(ref *ElementRef[HTMLDataElement]) *DataElRef {
@@ -1640,6 +1808,13 @@ type DatalistRef struct {
 	*WheelHandler
 }
 
+func (r *DatalistRef) Ref() *ElementRef[HTMLDatalistElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewDatalistRef(ref *ElementRef[HTMLDatalistElement]) *DatalistRef {
 	if ref == nil {
 		return nil
@@ -1705,6 +1880,13 @@ type DdRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *DdRef) Ref() *ElementRef[HTMLDdElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewDdRef(ref *ElementRef[HTMLDdElement]) *DdRef {
@@ -1774,6 +1956,13 @@ type DefsRef struct {
 	*WheelHandler
 }
 
+func (r *DefsRef) Ref() *ElementRef[SVGDefsElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewDefsRef(ref *ElementRef[SVGDefsElement]) *DefsRef {
 	if ref == nil {
 		return nil
@@ -1839,6 +2028,13 @@ type DelElRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *DelElRef) Ref() *ElementRef[HTMLDelElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewDelElRef(ref *ElementRef[HTMLDelElement]) *DelElRef {
@@ -1908,6 +2104,13 @@ type DetailsRef struct {
 	*WheelHandler
 }
 
+func (r *DetailsRef) Ref() *ElementRef[HTMLDetailsElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewDetailsRef(ref *ElementRef[HTMLDetailsElement]) *DetailsRef {
 	if ref == nil {
 		return nil
@@ -1973,6 +2176,13 @@ type DfnRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *DfnRef) Ref() *ElementRef[HTMLDfnElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewDfnRef(ref *ElementRef[HTMLDfnElement]) *DfnRef {
@@ -2042,6 +2252,13 @@ type DialogRef struct {
 	*WheelHandler
 }
 
+func (r *DialogRef) Ref() *ElementRef[HTMLDialogElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewDialogRef(ref *ElementRef[HTMLDialogElement]) *DialogRef {
 	if ref == nil {
 		return nil
@@ -2107,6 +2324,13 @@ type DivRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *DivRef) Ref() *ElementRef[HTMLDivElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewDivRef(ref *ElementRef[HTMLDivElement]) *DivRef {
@@ -2176,6 +2400,13 @@ type DlRef struct {
 	*WheelHandler
 }
 
+func (r *DlRef) Ref() *ElementRef[HTMLDlElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewDlRef(ref *ElementRef[HTMLDlElement]) *DlRef {
 	if ref == nil {
 		return nil
@@ -2241,6 +2472,13 @@ type DtRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *DtRef) Ref() *ElementRef[HTMLDtElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewDtRef(ref *ElementRef[HTMLDtElement]) *DtRef {
@@ -2310,6 +2548,13 @@ type EllipseRef struct {
 	*WheelHandler
 }
 
+func (r *EllipseRef) Ref() *ElementRef[SVGEllipseElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewEllipseRef(ref *ElementRef[SVGEllipseElement]) *EllipseRef {
 	if ref == nil {
 		return nil
@@ -2375,6 +2620,13 @@ type EmRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *EmRef) Ref() *ElementRef[HTMLEmElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewEmRef(ref *ElementRef[HTMLEmElement]) *EmRef {
@@ -2444,6 +2696,13 @@ type EmbedRef struct {
 	*WheelHandler
 }
 
+func (r *EmbedRef) Ref() *ElementRef[HTMLEmbedElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewEmbedRef(ref *ElementRef[HTMLEmbedElement]) *EmbedRef {
 	if ref == nil {
 		return nil
@@ -2509,6 +2768,13 @@ type FieldsetRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *FieldsetRef) Ref() *ElementRef[HTMLFieldsetElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewFieldsetRef(ref *ElementRef[HTMLFieldsetElement]) *FieldsetRef {
@@ -2578,6 +2844,13 @@ type FigcaptionRef struct {
 	*WheelHandler
 }
 
+func (r *FigcaptionRef) Ref() *ElementRef[HTMLFigcaptionElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewFigcaptionRef(ref *ElementRef[HTMLFigcaptionElement]) *FigcaptionRef {
 	if ref == nil {
 		return nil
@@ -2643,6 +2916,13 @@ type FigureRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *FigureRef) Ref() *ElementRef[HTMLFigureElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewFigureRef(ref *ElementRef[HTMLFigureElement]) *FigureRef {
@@ -2712,6 +2992,13 @@ type FooterRef struct {
 	*WheelHandler
 }
 
+func (r *FooterRef) Ref() *ElementRef[HTMLFooterElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewFooterRef(ref *ElementRef[HTMLFooterElement]) *FooterRef {
 	if ref == nil {
 		return nil
@@ -2777,6 +3064,13 @@ type ForeignObjectRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *ForeignObjectRef) Ref() *ElementRef[SVGForeignObjectElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewForeignObjectRef(ref *ElementRef[SVGForeignObjectElement]) *ForeignObjectRef {
@@ -2846,6 +3140,13 @@ type FormRef struct {
 	*WheelHandler
 }
 
+func (r *FormRef) Ref() *ElementRef[HTMLFormElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewFormRef(ref *ElementRef[HTMLFormElement]) *FormRef {
 	if ref == nil {
 		return nil
@@ -2911,6 +3212,13 @@ type GRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *GRef) Ref() *ElementRef[SVGGElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewGRef(ref *ElementRef[SVGGElement]) *GRef {
@@ -2980,6 +3288,13 @@ type H1Ref struct {
 	*WheelHandler
 }
 
+func (r *H1Ref) Ref() *ElementRef[HTMLH1Element] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewH1Ref(ref *ElementRef[HTMLH1Element]) *H1Ref {
 	if ref == nil {
 		return nil
@@ -3045,6 +3360,13 @@ type H2Ref struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *H2Ref) Ref() *ElementRef[HTMLH2Element] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewH2Ref(ref *ElementRef[HTMLH2Element]) *H2Ref {
@@ -3114,6 +3436,13 @@ type H3Ref struct {
 	*WheelHandler
 }
 
+func (r *H3Ref) Ref() *ElementRef[HTMLH3Element] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewH3Ref(ref *ElementRef[HTMLH3Element]) *H3Ref {
 	if ref == nil {
 		return nil
@@ -3179,6 +3508,13 @@ type H4Ref struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *H4Ref) Ref() *ElementRef[HTMLH4Element] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewH4Ref(ref *ElementRef[HTMLH4Element]) *H4Ref {
@@ -3248,6 +3584,13 @@ type H5Ref struct {
 	*WheelHandler
 }
 
+func (r *H5Ref) Ref() *ElementRef[HTMLH5Element] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewH5Ref(ref *ElementRef[HTMLH5Element]) *H5Ref {
 	if ref == nil {
 		return nil
@@ -3313,6 +3656,13 @@ type H6Ref struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *H6Ref) Ref() *ElementRef[HTMLH6Element] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewH6Ref(ref *ElementRef[HTMLH6Element]) *H6Ref {
@@ -3382,6 +3732,13 @@ type HeadRef struct {
 	*WheelHandler
 }
 
+func (r *HeadRef) Ref() *ElementRef[HTMLHeadElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewHeadRef(ref *ElementRef[HTMLHeadElement]) *HeadRef {
 	if ref == nil {
 		return nil
@@ -3447,6 +3804,13 @@ type HeaderRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *HeaderRef) Ref() *ElementRef[HTMLHeaderElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewHeaderRef(ref *ElementRef[HTMLHeaderElement]) *HeaderRef {
@@ -3516,6 +3880,13 @@ type HgroupRef struct {
 	*WheelHandler
 }
 
+func (r *HgroupRef) Ref() *ElementRef[HTMLHgroupElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewHgroupRef(ref *ElementRef[HTMLHgroupElement]) *HgroupRef {
 	if ref == nil {
 		return nil
@@ -3581,6 +3952,13 @@ type HrRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *HrRef) Ref() *ElementRef[HTMLHrElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewHrRef(ref *ElementRef[HTMLHrElement]) *HrRef {
@@ -3650,6 +4028,13 @@ type HtmlRef struct {
 	*WheelHandler
 }
 
+func (r *HtmlRef) Ref() *ElementRef[HTMLHtmlElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewHtmlRef(ref *ElementRef[HTMLHtmlElement]) *HtmlRef {
 	if ref == nil {
 		return nil
@@ -3715,6 +4100,13 @@ type IRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *IRef) Ref() *ElementRef[HTMLIElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewIRef(ref *ElementRef[HTMLIElement]) *IRef {
@@ -3784,6 +4176,13 @@ type IframeRef struct {
 	*WheelHandler
 }
 
+func (r *IframeRef) Ref() *ElementRef[HTMLIframeElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewIframeRef(ref *ElementRef[HTMLIframeElement]) *IframeRef {
 	if ref == nil {
 		return nil
@@ -3849,6 +4248,13 @@ type ImageRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *ImageRef) Ref() *ElementRef[SVGImageElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewImageRef(ref *ElementRef[SVGImageElement]) *ImageRef {
@@ -3918,6 +4324,13 @@ type ImgRef struct {
 	*WheelHandler
 }
 
+func (r *ImgRef) Ref() *ElementRef[HTMLImgElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewImgRef(ref *ElementRef[HTMLImgElement]) *ImgRef {
 	if ref == nil {
 		return nil
@@ -3983,6 +4396,13 @@ type InputRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *InputRef) Ref() *ElementRef[HTMLInputElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewInputRef(ref *ElementRef[HTMLInputElement]) *InputRef {
@@ -4052,6 +4472,13 @@ type InsElRef struct {
 	*WheelHandler
 }
 
+func (r *InsElRef) Ref() *ElementRef[HTMLInsElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewInsElRef(ref *ElementRef[HTMLInsElement]) *InsElRef {
 	if ref == nil {
 		return nil
@@ -4117,6 +4544,13 @@ type KbdRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *KbdRef) Ref() *ElementRef[HTMLKbdElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewKbdRef(ref *ElementRef[HTMLKbdElement]) *KbdRef {
@@ -4186,6 +4620,13 @@ type LabelRef struct {
 	*WheelHandler
 }
 
+func (r *LabelRef) Ref() *ElementRef[HTMLLabelElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewLabelRef(ref *ElementRef[HTMLLabelElement]) *LabelRef {
 	if ref == nil {
 		return nil
@@ -4251,6 +4692,13 @@ type LegendRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *LegendRef) Ref() *ElementRef[HTMLLegendElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewLegendRef(ref *ElementRef[HTMLLegendElement]) *LegendRef {
@@ -4320,6 +4768,13 @@ type LiRef struct {
 	*WheelHandler
 }
 
+func (r *LiRef) Ref() *ElementRef[HTMLLiElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewLiRef(ref *ElementRef[HTMLLiElement]) *LiRef {
 	if ref == nil {
 		return nil
@@ -4385,6 +4840,13 @@ type LineRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *LineRef) Ref() *ElementRef[SVGLineElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewLineRef(ref *ElementRef[SVGLineElement]) *LineRef {
@@ -4454,6 +4916,13 @@ type LinearGradientRef struct {
 	*WheelHandler
 }
 
+func (r *LinearGradientRef) Ref() *ElementRef[SVGLinearGradientElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewLinearGradientRef(ref *ElementRef[SVGLinearGradientElement]) *LinearGradientRef {
 	if ref == nil {
 		return nil
@@ -4519,6 +4988,13 @@ type LinkRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *LinkRef) Ref() *ElementRef[HTMLLinkElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewLinkRef(ref *ElementRef[HTMLLinkElement]) *LinkRef {
@@ -4588,6 +5064,13 @@ type MainRef struct {
 	*WheelHandler
 }
 
+func (r *MainRef) Ref() *ElementRef[HTMLMainElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewMainRef(ref *ElementRef[HTMLMainElement]) *MainRef {
 	if ref == nil {
 		return nil
@@ -4653,6 +5136,13 @@ type MapElRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *MapElRef) Ref() *ElementRef[HTMLMapElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewMapElRef(ref *ElementRef[HTMLMapElement]) *MapElRef {
@@ -4722,6 +5212,13 @@ type MarkRef struct {
 	*WheelHandler
 }
 
+func (r *MarkRef) Ref() *ElementRef[HTMLMarkElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewMarkRef(ref *ElementRef[HTMLMarkElement]) *MarkRef {
 	if ref == nil {
 		return nil
@@ -4787,6 +5284,13 @@ type MarkerRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *MarkerRef) Ref() *ElementRef[SVGMarkerElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewMarkerRef(ref *ElementRef[SVGMarkerElement]) *MarkerRef {
@@ -4856,6 +5360,13 @@ type MaskRef struct {
 	*WheelHandler
 }
 
+func (r *MaskRef) Ref() *ElementRef[SVGMaskElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewMaskRef(ref *ElementRef[SVGMaskElement]) *MaskRef {
 	if ref == nil {
 		return nil
@@ -4921,6 +5432,13 @@ type MenuRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *MenuRef) Ref() *ElementRef[HTMLMenuElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewMenuRef(ref *ElementRef[HTMLMenuElement]) *MenuRef {
@@ -4990,6 +5508,13 @@ type MenuItemRef struct {
 	*WheelHandler
 }
 
+func (r *MenuItemRef) Ref() *ElementRef[HTMLMenuItemElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewMenuItemRef(ref *ElementRef[HTMLMenuItemElement]) *MenuItemRef {
 	if ref == nil {
 		return nil
@@ -5055,6 +5580,13 @@ type MetaRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *MetaRef) Ref() *ElementRef[HTMLMetaElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewMetaRef(ref *ElementRef[HTMLMetaElement]) *MetaRef {
@@ -5124,6 +5656,13 @@ type MeterRef struct {
 	*WheelHandler
 }
 
+func (r *MeterRef) Ref() *ElementRef[HTMLMeterElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewMeterRef(ref *ElementRef[HTMLMeterElement]) *MeterRef {
 	if ref == nil {
 		return nil
@@ -5189,6 +5728,13 @@ type NavRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *NavRef) Ref() *ElementRef[HTMLNavElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewNavRef(ref *ElementRef[HTMLNavElement]) *NavRef {
@@ -5258,6 +5804,13 @@ type NoscriptRef struct {
 	*WheelHandler
 }
 
+func (r *NoscriptRef) Ref() *ElementRef[HTMLNoscriptElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewNoscriptRef(ref *ElementRef[HTMLNoscriptElement]) *NoscriptRef {
 	if ref == nil {
 		return nil
@@ -5323,6 +5876,13 @@ type ObjectRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *ObjectRef) Ref() *ElementRef[HTMLObjectElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewObjectRef(ref *ElementRef[HTMLObjectElement]) *ObjectRef {
@@ -5392,6 +5952,13 @@ type OlRef struct {
 	*WheelHandler
 }
 
+func (r *OlRef) Ref() *ElementRef[HTMLOlElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewOlRef(ref *ElementRef[HTMLOlElement]) *OlRef {
 	if ref == nil {
 		return nil
@@ -5457,6 +6024,13 @@ type OptgroupRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *OptgroupRef) Ref() *ElementRef[HTMLOptgroupElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewOptgroupRef(ref *ElementRef[HTMLOptgroupElement]) *OptgroupRef {
@@ -5526,6 +6100,13 @@ type OptionRef struct {
 	*WheelHandler
 }
 
+func (r *OptionRef) Ref() *ElementRef[HTMLOptionElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewOptionRef(ref *ElementRef[HTMLOptionElement]) *OptionRef {
 	if ref == nil {
 		return nil
@@ -5591,6 +6172,13 @@ type OutputRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *OutputRef) Ref() *ElementRef[HTMLOutputElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewOutputRef(ref *ElementRef[HTMLOutputElement]) *OutputRef {
@@ -5660,6 +6248,13 @@ type PRef struct {
 	*WheelHandler
 }
 
+func (r *PRef) Ref() *ElementRef[HTMLPElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewPRef(ref *ElementRef[HTMLPElement]) *PRef {
 	if ref == nil {
 		return nil
@@ -5725,6 +6320,13 @@ type ParamRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *ParamRef) Ref() *ElementRef[HTMLParamElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewParamRef(ref *ElementRef[HTMLParamElement]) *ParamRef {
@@ -5794,6 +6396,13 @@ type PathRef struct {
 	*WheelHandler
 }
 
+func (r *PathRef) Ref() *ElementRef[SVGPathElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewPathRef(ref *ElementRef[SVGPathElement]) *PathRef {
 	if ref == nil {
 		return nil
@@ -5859,6 +6468,13 @@ type PatternRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *PatternRef) Ref() *ElementRef[SVGPatternElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewPatternRef(ref *ElementRef[SVGPatternElement]) *PatternRef {
@@ -5928,6 +6544,13 @@ type PictureRef struct {
 	*WheelHandler
 }
 
+func (r *PictureRef) Ref() *ElementRef[HTMLPictureElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewPictureRef(ref *ElementRef[HTMLPictureElement]) *PictureRef {
 	if ref == nil {
 		return nil
@@ -5993,6 +6616,13 @@ type PolygonRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *PolygonRef) Ref() *ElementRef[SVGPolygonElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewPolygonRef(ref *ElementRef[SVGPolygonElement]) *PolygonRef {
@@ -6062,6 +6692,13 @@ type PolylineRef struct {
 	*WheelHandler
 }
 
+func (r *PolylineRef) Ref() *ElementRef[SVGPolylineElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewPolylineRef(ref *ElementRef[SVGPolylineElement]) *PolylineRef {
 	if ref == nil {
 		return nil
@@ -6127,6 +6764,13 @@ type PortalRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *PortalRef) Ref() *ElementRef[HTMLPortalElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewPortalRef(ref *ElementRef[HTMLPortalElement]) *PortalRef {
@@ -6196,6 +6840,13 @@ type PreRef struct {
 	*WheelHandler
 }
 
+func (r *PreRef) Ref() *ElementRef[HTMLPreElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewPreRef(ref *ElementRef[HTMLPreElement]) *PreRef {
 	if ref == nil {
 		return nil
@@ -6261,6 +6912,13 @@ type ProgressRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *ProgressRef) Ref() *ElementRef[HTMLProgressElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewProgressRef(ref *ElementRef[HTMLProgressElement]) *ProgressRef {
@@ -6330,6 +6988,13 @@ type QRef struct {
 	*WheelHandler
 }
 
+func (r *QRef) Ref() *ElementRef[HTMLQElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewQRef(ref *ElementRef[HTMLQElement]) *QRef {
 	if ref == nil {
 		return nil
@@ -6395,6 +7060,13 @@ type RadialGradientRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *RadialGradientRef) Ref() *ElementRef[SVGRadialGradientElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewRadialGradientRef(ref *ElementRef[SVGRadialGradientElement]) *RadialGradientRef {
@@ -6464,6 +7136,13 @@ type RbRef struct {
 	*WheelHandler
 }
 
+func (r *RbRef) Ref() *ElementRef[HTMLRbElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewRbRef(ref *ElementRef[HTMLRbElement]) *RbRef {
 	if ref == nil {
 		return nil
@@ -6529,6 +7208,13 @@ type RectRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *RectRef) Ref() *ElementRef[SVGRectElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewRectRef(ref *ElementRef[SVGRectElement]) *RectRef {
@@ -6598,6 +7284,13 @@ type RpRef struct {
 	*WheelHandler
 }
 
+func (r *RpRef) Ref() *ElementRef[HTMLRpElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewRpRef(ref *ElementRef[HTMLRpElement]) *RpRef {
 	if ref == nil {
 		return nil
@@ -6663,6 +7356,13 @@ type RtRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *RtRef) Ref() *ElementRef[HTMLRtElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewRtRef(ref *ElementRef[HTMLRtElement]) *RtRef {
@@ -6732,6 +7432,13 @@ type RtcRef struct {
 	*WheelHandler
 }
 
+func (r *RtcRef) Ref() *ElementRef[HTMLRtcElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewRtcRef(ref *ElementRef[HTMLRtcElement]) *RtcRef {
 	if ref == nil {
 		return nil
@@ -6797,6 +7504,13 @@ type RubyRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *RubyRef) Ref() *ElementRef[HTMLRubyElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewRubyRef(ref *ElementRef[HTMLRubyElement]) *RubyRef {
@@ -6866,6 +7580,13 @@ type SRef struct {
 	*WheelHandler
 }
 
+func (r *SRef) Ref() *ElementRef[HTMLSElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewSRef(ref *ElementRef[HTMLSElement]) *SRef {
 	if ref == nil {
 		return nil
@@ -6931,6 +7652,13 @@ type SampRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *SampRef) Ref() *ElementRef[HTMLSampElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewSampRef(ref *ElementRef[HTMLSampElement]) *SampRef {
@@ -7000,6 +7728,13 @@ type ScriptRef struct {
 	*WheelHandler
 }
 
+func (r *ScriptRef) Ref() *ElementRef[HTMLScriptElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewScriptRef(ref *ElementRef[HTMLScriptElement]) *ScriptRef {
 	if ref == nil {
 		return nil
@@ -7065,6 +7800,13 @@ type SectionRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *SectionRef) Ref() *ElementRef[HTMLSectionElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewSectionRef(ref *ElementRef[HTMLSectionElement]) *SectionRef {
@@ -7134,6 +7876,13 @@ type SelectRef struct {
 	*WheelHandler
 }
 
+func (r *SelectRef) Ref() *ElementRef[HTMLSelectElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewSelectRef(ref *ElementRef[HTMLSelectElement]) *SelectRef {
 	if ref == nil {
 		return nil
@@ -7199,6 +7948,13 @@ type SlotRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *SlotRef) Ref() *ElementRef[HTMLSlotElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewSlotRef(ref *ElementRef[HTMLSlotElement]) *SlotRef {
@@ -7268,6 +8024,13 @@ type SmallRef struct {
 	*WheelHandler
 }
 
+func (r *SmallRef) Ref() *ElementRef[HTMLSmallElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewSmallRef(ref *ElementRef[HTMLSmallElement]) *SmallRef {
 	if ref == nil {
 		return nil
@@ -7333,6 +8096,13 @@ type SourceRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *SourceRef) Ref() *ElementRef[HTMLSourceElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewSourceRef(ref *ElementRef[HTMLSourceElement]) *SourceRef {
@@ -7402,6 +8172,13 @@ type SpanRef struct {
 	*WheelHandler
 }
 
+func (r *SpanRef) Ref() *ElementRef[HTMLSpanElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewSpanRef(ref *ElementRef[HTMLSpanElement]) *SpanRef {
 	if ref == nil {
 		return nil
@@ -7467,6 +8244,13 @@ type StopRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *StopRef) Ref() *ElementRef[SVGStopElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewStopRef(ref *ElementRef[SVGStopElement]) *StopRef {
@@ -7536,6 +8320,13 @@ type StrongRef struct {
 	*WheelHandler
 }
 
+func (r *StrongRef) Ref() *ElementRef[HTMLStrongElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewStrongRef(ref *ElementRef[HTMLStrongElement]) *StrongRef {
 	if ref == nil {
 		return nil
@@ -7601,6 +8392,13 @@ type StyleElRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *StyleElRef) Ref() *ElementRef[HTMLStyleElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewStyleElRef(ref *ElementRef[HTMLStyleElement]) *StyleElRef {
@@ -7670,6 +8468,13 @@ type SubRef struct {
 	*WheelHandler
 }
 
+func (r *SubRef) Ref() *ElementRef[HTMLSubElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewSubRef(ref *ElementRef[HTMLSubElement]) *SubRef {
 	if ref == nil {
 		return nil
@@ -7735,6 +8540,13 @@ type SummaryRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *SummaryRef) Ref() *ElementRef[HTMLSummaryElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewSummaryRef(ref *ElementRef[HTMLSummaryElement]) *SummaryRef {
@@ -7804,6 +8616,13 @@ type SupRef struct {
 	*WheelHandler
 }
 
+func (r *SupRef) Ref() *ElementRef[HTMLSupElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewSupRef(ref *ElementRef[HTMLSupElement]) *SupRef {
 	if ref == nil {
 		return nil
@@ -7869,6 +8688,13 @@ type SvgRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *SvgRef) Ref() *ElementRef[SVGSvgElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewSvgRef(ref *ElementRef[SVGSvgElement]) *SvgRef {
@@ -7938,6 +8764,13 @@ type SvgTextRef struct {
 	*WheelHandler
 }
 
+func (r *SvgTextRef) Ref() *ElementRef[SVGSvgTextElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewSvgTextRef(ref *ElementRef[SVGSvgTextElement]) *SvgTextRef {
 	if ref == nil {
 		return nil
@@ -8003,6 +8836,13 @@ type TSpanRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *TSpanRef) Ref() *ElementRef[SVGTSpanElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewTSpanRef(ref *ElementRef[SVGTSpanElement]) *TSpanRef {
@@ -8072,6 +8912,13 @@ type TableRef struct {
 	*WheelHandler
 }
 
+func (r *TableRef) Ref() *ElementRef[HTMLTableElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewTableRef(ref *ElementRef[HTMLTableElement]) *TableRef {
 	if ref == nil {
 		return nil
@@ -8137,6 +8984,13 @@ type TbodyRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *TbodyRef) Ref() *ElementRef[HTMLTbodyElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewTbodyRef(ref *ElementRef[HTMLTbodyElement]) *TbodyRef {
@@ -8206,6 +9060,13 @@ type TdRef struct {
 	*WheelHandler
 }
 
+func (r *TdRef) Ref() *ElementRef[HTMLTdElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewTdRef(ref *ElementRef[HTMLTdElement]) *TdRef {
 	if ref == nil {
 		return nil
@@ -8271,6 +9132,13 @@ type TemplateRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *TemplateRef) Ref() *ElementRef[HTMLTemplateElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewTemplateRef(ref *ElementRef[HTMLTemplateElement]) *TemplateRef {
@@ -8340,6 +9208,13 @@ type TextareaRef struct {
 	*WheelHandler
 }
 
+func (r *TextareaRef) Ref() *ElementRef[HTMLTextareaElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewTextareaRef(ref *ElementRef[HTMLTextareaElement]) *TextareaRef {
 	if ref == nil {
 		return nil
@@ -8405,6 +9280,13 @@ type TfootRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *TfootRef) Ref() *ElementRef[HTMLTfootElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewTfootRef(ref *ElementRef[HTMLTfootElement]) *TfootRef {
@@ -8474,6 +9356,13 @@ type ThRef struct {
 	*WheelHandler
 }
 
+func (r *ThRef) Ref() *ElementRef[HTMLThElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewThRef(ref *ElementRef[HTMLThElement]) *ThRef {
 	if ref == nil {
 		return nil
@@ -8539,6 +9428,13 @@ type TheadRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *TheadRef) Ref() *ElementRef[HTMLTheadElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewTheadRef(ref *ElementRef[HTMLTheadElement]) *TheadRef {
@@ -8608,6 +9504,13 @@ type TimeRef struct {
 	*WheelHandler
 }
 
+func (r *TimeRef) Ref() *ElementRef[HTMLTimeElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewTimeRef(ref *ElementRef[HTMLTimeElement]) *TimeRef {
 	if ref == nil {
 		return nil
@@ -8673,6 +9576,13 @@ type TitleElRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *TitleElRef) Ref() *ElementRef[HTMLTitleElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewTitleElRef(ref *ElementRef[HTMLTitleElement]) *TitleElRef {
@@ -8742,6 +9652,13 @@ type TrRef struct {
 	*WheelHandler
 }
 
+func (r *TrRef) Ref() *ElementRef[HTMLTrElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewTrRef(ref *ElementRef[HTMLTrElement]) *TrRef {
 	if ref == nil {
 		return nil
@@ -8807,6 +9724,13 @@ type TrackRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *TrackRef) Ref() *ElementRef[HTMLTrackElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewTrackRef(ref *ElementRef[HTMLTrackElement]) *TrackRef {
@@ -8876,6 +9800,13 @@ type URef struct {
 	*WheelHandler
 }
 
+func (r *URef) Ref() *ElementRef[HTMLUElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewURef(ref *ElementRef[HTMLUElement]) *URef {
 	if ref == nil {
 		return nil
@@ -8941,6 +9872,13 @@ type UlRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *UlRef) Ref() *ElementRef[HTMLUlElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewUlRef(ref *ElementRef[HTMLUlElement]) *UlRef {
@@ -9010,6 +9948,13 @@ type UseRef struct {
 	*WheelHandler
 }
 
+func (r *UseRef) Ref() *ElementRef[SVGUseElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewUseRef(ref *ElementRef[SVGUseElement]) *UseRef {
 	if ref == nil {
 		return nil
@@ -9075,6 +10020,13 @@ type VarRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *VarRef) Ref() *ElementRef[HTMLVarElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewVarRef(ref *ElementRef[HTMLVarElement]) *VarRef {
@@ -9144,6 +10096,13 @@ type VideoRef struct {
 	*WheelHandler
 }
 
+func (r *VideoRef) Ref() *ElementRef[HTMLVideoElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
+}
+
 func NewVideoRef(ref *ElementRef[HTMLVideoElement]) *VideoRef {
 	if ref == nil {
 		return nil
@@ -9209,6 +10168,13 @@ type WbrRef struct {
 	*TransitionHandler
 	*VisibilityHandler
 	*WheelHandler
+}
+
+func (r *WbrRef) Ref() *ElementRef[HTMLWbrElement] {
+	if r == nil {
+		return nil
+	}
+	return r.ElementRef
 }
 
 func NewWbrRef(ref *ElementRef[HTMLWbrElement]) *WbrRef {

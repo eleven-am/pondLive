@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	render "github.com/eleven-am/pondlive/go/internal/render"
 )
@@ -13,7 +13,7 @@ type Session interface {
 	Version() int
 	SetVersion(v int)
 
-	RenderRoot() h.Node
+	RenderRoot() dom.Node
 
 	Prev() render.Structured
 	SetPrev(render.Structured)

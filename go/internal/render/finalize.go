@@ -4,94 +4,52 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/handlers"
-	h "github.com/eleven-am/pondlive/go/internal/html"
 )
 
-var voidElements = map[string]struct{}{
-	"area": {}, "base": {}, "br": {}, "col": {}, "embed": {}, "hr": {}, "img": {}, "input": {},
-	"link": {}, "meta": {}, "param": {}, "source": {}, "track": {}, "wbr": {},
-}
-
 // Finalize normalizes a node tree by folding metadata into attributes.
-func Finalize(n h.Node) h.Node {
+func Finalize(n dom.Node) dom.Node {
 	finalizeNode(n, nil)
 	return n
 }
 
 // FinalizeWithHandlers normalizes the tree and attaches handler IDs using the
 // provided registry.
-func FinalizeWithHandlers(n h.Node, reg handlers.Registry) h.Node {
+func FinalizeWithHandlers(n dom.Node, reg handlers.Registry) dom.Node {
 	finalizeNode(n, reg)
 	return n
 }
 
-func finalizeNode(n h.Node, reg handlers.Registry) {
+func finalizeNode(n dom.Node, reg handlers.Registry) {
 	switch v := n.(type) {
-	case *h.Element:
+	case *dom.Element:
 		finalizeElement(v, reg)
-		if v.Unsafe != nil {
-			return
-		}
 		for _, child := range v.Children {
 			if child == nil {
 				continue
 			}
 			finalizeNode(child, reg)
 		}
-	case *h.FragmentNode:
+	case *dom.FragmentNode:
 		for _, child := range v.Children {
 			if child == nil {
 				continue
 			}
 			finalizeNode(child, reg)
 		}
-	case *h.ComponentNode:
+	case *dom.ComponentNode:
 		if v.Child != nil {
 			finalizeNode(v.Child, reg)
 		}
 	}
 }
 
-func finalizeElement(e *h.Element, reg handlers.Registry) {
+func finalizeElement(e *dom.Element, reg handlers.Registry) {
 	if e == nil {
 		return
 	}
-	if _, ok := voidElements[strings.ToLower(e.Tag)]; ok {
-		e.Children = nil
-		e.Unsafe = nil
-	}
-	if len(e.Class) > 0 {
-		existing := ""
-		if e.Attrs != nil {
-			existing = e.Attrs["class"]
-		}
-		joined := joinClasses(existing, e.Class)
-		if joined != "" {
-			if e.Attrs == nil {
-				e.Attrs = map[string]string{}
-			}
-			e.Attrs["class"] = joined
-		}
-		e.Class = nil
-	}
-	if len(e.Style) > 0 {
-		existing := ""
-		if e.Attrs != nil {
-			existing = e.Attrs["style"]
-		}
-		joined := joinStyles(e.Style, existing)
-		if joined != "" {
-			if e.Attrs == nil {
-				e.Attrs = map[string]string{}
-			}
-			e.Attrs["style"] = joined
-		}
-		e.Style = nil
-	}
-	if e.Unsafe != nil {
-		e.Children = nil
-	}
+	dom.FinalizeElement(e)
 
 	attachHandlers(e, reg)
 
@@ -105,7 +63,7 @@ func finalizeElement(e *h.Element, reg handlers.Registry) {
 	}
 }
 
-func attachHandlers(e *h.Element, reg handlers.Registry) {
+func attachHandlers(e *dom.Element, reg handlers.Registry) {
 	if e == nil || len(e.Events) == 0 || reg == nil {
 		return
 	}
@@ -132,81 +90,4 @@ func attachHandlers(e *h.Element, reg handlers.Registry) {
 			e.Attrs[attrName+"-props"] = strings.Join(props, " ")
 		}
 	}
-}
-
-func joinClasses(existing string, classes []string) string {
-	seen := map[string]struct{}{}
-	ordered := make([]string, 0, len(classes))
-	for _, token := range strings.Fields(existing) {
-		token = strings.TrimSpace(token)
-		if token == "" {
-			continue
-		}
-		if _, ok := seen[token]; ok {
-			continue
-		}
-		seen[token] = struct{}{}
-		ordered = append(ordered, token)
-	}
-	for _, c := range classes {
-		for _, token := range strings.Fields(c) {
-			token = strings.TrimSpace(token)
-			if token == "" {
-				continue
-			}
-			if _, ok := seen[token]; ok {
-				continue
-			}
-			seen[token] = struct{}{}
-			ordered = append(ordered, token)
-		}
-	}
-	return strings.Join(ordered, " ")
-}
-
-func joinStyles(styleMap map[string]string, existing string) string {
-	if len(styleMap) == 0 && strings.TrimSpace(existing) == "" {
-		return ""
-	}
-	merged := map[string]string{}
-	if existing != "" {
-		for _, decl := range strings.Split(existing, ";") {
-			decl = strings.TrimSpace(decl)
-			if decl == "" {
-				continue
-			}
-			parts := strings.SplitN(decl, ":", 2)
-			key := strings.TrimSpace(parts[0])
-			if key == "" {
-				continue
-			}
-			val := ""
-			if len(parts) > 1 {
-				val = strings.TrimSpace(parts[1])
-			}
-			merged[key] = val
-		}
-	}
-	for k, v := range styleMap {
-		if strings.TrimSpace(k) == "" {
-			continue
-		}
-		merged[k] = v
-	}
-	if len(merged) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(merged))
-	for k := range merged {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var b strings.Builder
-	for _, k := range keys {
-		b.WriteString(k)
-		b.WriteString(":")
-		b.WriteString(merged[k])
-		b.WriteString(";")
-	}
-	return b.String()
 }
