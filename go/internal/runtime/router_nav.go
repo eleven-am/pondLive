@@ -33,24 +33,23 @@ func updateSearchWithNavigation(ctx Ctx, patch func(url.Values) url.Values, repl
 	performLocationUpdate(ctx, next, replace, true)
 }
 
-// InternalHandleNav applies a navigation message to the session. Internal use only.
-func InternalHandleNav(sess *ComponentSession, msg NavMsg) {
+func handleLocationMessage(sess *ComponentSession, path, rawQuery, hash string) {
 	target := Location{
-		Path:  msg.Path,
-		Query: parseQuery(msg.Q),
-		Hash:  msg.Hash,
+		Path:  path,
+		Query: parseQuery(rawQuery),
+		Hash:  hash,
 	}
 	setSessionLocation(sess, target)
 }
 
+// InternalHandleNav applies a navigation message to the session. Internal use only.
+func InternalHandleNav(sess *ComponentSession, msg NavMsg) {
+	handleLocationMessage(sess, msg.Path, msg.Q, msg.Hash)
+}
+
 // InternalHandlePop applies a popstate message to the session. Internal use only.
 func InternalHandlePop(sess *ComponentSession, msg PopMsg) {
-	target := Location{
-		Path:  msg.Path,
-		Query: parseQuery(msg.Q),
-		Hash:  msg.Hash,
-	}
-	setSessionLocation(sess, target)
+	handleLocationMessage(sess, msg.Path, msg.Q, msg.Hash)
 }
 
 func currentLocation(sess *ComponentSession) Location {

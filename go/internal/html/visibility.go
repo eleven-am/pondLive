@@ -38,6 +38,6 @@ func buildVisibilityEvent(evt Event) VisibilityEvent {
 	return VisibilityEvent{
 		Event:           evt,
 		Hidden:          payloadBool(evt.Payload, "document.hidden", false),
-		VisibilityState: payloadString(evt.Payload, "document.visibilityState", ""),
+		VisibilityState: PayloadString(evt.Payload, "document.visibilityState", ""),
 	}
 }

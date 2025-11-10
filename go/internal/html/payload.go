@@ -106,12 +106,12 @@ func payloadInt(payload map[string]any, key string, fallback int) int {
 	return fallback
 }
 
-func payloadString(payload map[string]any, key, fallback string) string {
+func PayloadString(payload map[string]any, key, fallback string) string {
 	if payload == nil {
 		return fallback
 	}
 	raw, ok := payload[key]
-	if !ok {
+	if !ok || raw == nil {
 		return fallback
 	}
 	switch v := raw.(type) {
@@ -123,6 +123,7 @@ func payloadString(payload map[string]any, key, fallback string) string {
 		if str, ok := v.(fmt.Stringer); ok {
 			return str.String()
 		}
+		return fmt.Sprint(v)
 	}
 	return fallback
 }

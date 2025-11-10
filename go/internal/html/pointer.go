@@ -134,7 +134,7 @@ func (h *PointerHandler) OnPointerCancel(handler func(PointerEvent) Updates) {
 func buildPointerEvent(evt Event) PointerEvent {
 	return PointerEvent{
 		Event:       evt,
-		PointerType: payloadString(evt.Payload, "event.pointerType", ""),
+		PointerType: PayloadString(evt.Payload, "event.pointerType", ""),
 		PointerID:   payloadInt(evt.Payload, "event.pointerId", 0),
 		Button:      payloadInt(evt.Payload, "event.button", 0),
 		Buttons:     payloadInt(evt.Payload, "event.buttons", 0),
