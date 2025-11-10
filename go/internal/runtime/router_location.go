@@ -9,10 +9,14 @@ import (
 )
 
 func canonicalizeLocation(loc Location) Location {
+	parts := pathutil.NormalizeParts(loc.Path)
 	canon := Location{
-		Path:  normalizePath(loc.Path),
+		Path:  parts.Path,
 		Query: canonicalizeValues(loc.Query),
 		Hash:  normalizeHash(loc.Hash),
+	}
+	if canon.Hash == "" && parts.Hash != "" {
+		canon.Hash = pathutil.NormalizeHash(parts.Hash)
 	}
 	return canon
 }
@@ -24,14 +28,11 @@ func cloneLocation(loc Location) Location {
 }
 
 func normalizePath(path string) string {
-	return pathutil.Normalize(path)
+	return pathutil.NormalizeParts(path).Path
 }
 
 func normalizeHash(hash string) string {
-	if hash == "" {
-		return ""
-	}
-	return strings.TrimPrefix(hash, "#")
+	return pathutil.NormalizeHash(hash)
 }
 
 func cloneValues(q url.Values) url.Values {

@@ -66,7 +66,6 @@ type EventOptions struct {
 // describe how the browser should subscribe to and capture the event payload.
 type EventBinding struct {
 	Handler EventHandler
-	Key     string
 	Listen  []string
 	Props   []string
 }

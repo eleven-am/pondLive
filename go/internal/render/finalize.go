@@ -80,7 +80,7 @@ func attachHandlers(e *dom.Element, reg handlers.Registry) {
 	sort.Strings(keys)
 	for _, name := range keys {
 		binding := e.Events[name]
-		id := reg.Ensure(binding.Handler, binding.Key)
+		id := reg.Ensure(binding.Handler)
 		if id == "" {
 			continue
 		}

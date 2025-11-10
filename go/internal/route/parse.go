@@ -31,7 +31,12 @@ func NormalizePattern(pattern string) string {
 // ":id?" parameters as well as "*rest" wildcards.
 func Parse(pattern string, path string, rawQuery string) (Match, error) {
 	normalizedPattern := normalizePattern(pattern)
-	m := matchPath(path, normalizedPattern)
+	parts := pathutil.NormalizeParts(path)
+	normalizedPath := parts.Path
+	if rawQuery == "" {
+		rawQuery = parts.RawQuery
+	}
+	m := matchPath(normalizedPath, normalizedPattern)
 	if !m.ok {
 		return Match{}, fmt.Errorf("route: path %q does not match pattern %q", path, pattern)
 	}
@@ -45,7 +50,7 @@ func Parse(pattern string, path string, rawQuery string) (Match, error) {
 	}
 	return Match{
 		Pattern:  normalizedPattern,
-		Path:     normalizePath(path),
+		Path:     normalizedPath,
 		Params:   params,
 		Query:    values,
 		RawQuery: rawQuery,
@@ -55,10 +60,8 @@ func Parse(pattern string, path string, rawQuery string) (Match, error) {
 }
 
 func matchPath(path, pattern string) matchResult {
-	nPath := normalizePath(path)
-	nPattern := normalizePattern(pattern)
-	pathSegs := splitSegments(nPath)
-	patSegs := splitSegments(nPattern)
+	pathSegs := splitSegments(path)
+	patSegs := splitSegments(pattern)
 
 	res := matchResult{params: map[string]string{}}
 	pi, ti := 0, 0

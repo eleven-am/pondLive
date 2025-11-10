@@ -68,7 +68,7 @@ func renderElement(b *strings.Builder, e *h.Element) {
 			if v == "" {
 				continue
 			}
-			if strings.HasPrefix(k, "data-on") {
+			if strings.HasPrefix(k, "data-on") || strings.HasPrefix(k, "data-router-") {
 				continue
 			}
 			b.WriteByte(' ')

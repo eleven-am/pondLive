@@ -1674,6 +1674,34 @@ func extractRefIDs(structured render.Structured) []string {
 
 func extractHandlerMeta(structured render.Structured) map[string]protocol.HandlerMeta {
 	handlers := map[string]protocol.HandlerMeta{}
+
+	if len(structured.Bindings) > 0 {
+		for _, binding := range structured.Bindings {
+			if binding.Handler == "" {
+				continue
+			}
+			meta := handlers[binding.Handler]
+			if event := binding.Event; event != "" {
+				if meta.Event == "" {
+					meta.Event = event
+				} else if meta.Event != event {
+					meta.Listen = appendIfMissing(meta.Listen, event)
+				}
+			}
+			for _, evt := range binding.Listen {
+				meta.Listen = appendIfMissing(meta.Listen, evt)
+			}
+			for _, prop := range binding.Props {
+				meta.Props = appendIfMissing(meta.Props, prop)
+			}
+			handlers[binding.Handler] = meta
+		}
+		if len(handlers) > 0 {
+			return handlers
+		}
+	}
+
+	handlers = map[string]protocol.HandlerMeta{}
 	for _, dyn := range structured.D {
 		if dyn.Kind != render.DynAttrs {
 			continue
