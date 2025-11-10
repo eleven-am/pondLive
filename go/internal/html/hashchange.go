@@ -37,7 +37,7 @@ func (h *HashChangeHandler) OnHashChange(handler func(HashChangeEvent) Updates) 
 func buildHashChangeEvent(evt Event) HashChangeEvent {
 	return HashChangeEvent{
 		Event:  evt,
-		OldURL: PayloadString(evt.Payload, "event.oldURL", ""),
-		NewURL: PayloadString(evt.Payload, "event.newURL", ""),
+		OldURL: payloadString(evt.Payload, "event.oldURL", ""),
+		NewURL: payloadString(evt.Payload, "event.newURL", ""),
 	}
 }

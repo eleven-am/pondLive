@@ -69,8 +69,8 @@ func (h *KeyboardHandler) OnKeyPress(handler func(KeyboardEvent) Updates) {
 func buildKeyboardEvent(evt Event) KeyboardEvent {
 	return KeyboardEvent{
 		Event:       evt,
-		Key:         PayloadString(evt.Payload, "event.key", ""),
-		Code:        PayloadString(evt.Payload, "event.code", ""),
+		Key:         payloadString(evt.Payload, "event.key", ""),
+		Code:        payloadString(evt.Payload, "event.code", ""),
 		Location:    payloadInt(evt.Payload, "event.location", 0),
 		Repeat:      payloadBool(evt.Payload, "event.repeat", false),
 		AltKey:      payloadBool(evt.Payload, "event.altKey", false),

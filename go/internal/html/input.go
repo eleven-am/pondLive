@@ -59,7 +59,7 @@ func (h *InputHandler) OnSelect(handler func(InputEvent) Updates) {
 func buildInputEvent(evt Event) InputEvent {
 	return InputEvent{
 		Event:          evt,
-		Value:          PayloadString(evt.Payload, "target.value", ""),
+		Value:          payloadString(evt.Payload, "target.value", ""),
 		Checked:        payloadBool(evt.Payload, "target.checked", false),
 		SelectionStart: payloadInt(evt.Payload, "target.selectionStart", 0),
 		SelectionEnd:   payloadInt(evt.Payload, "target.selectionEnd", 0),

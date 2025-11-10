@@ -4,8 +4,6 @@ import (
 	"net/url"
 	"sort"
 	"strings"
-
-	"github.com/eleven-am/pondlive/go/internal/pathutil"
 )
 
 func canonicalizeLocation(loc Location) Location {
@@ -24,7 +22,31 @@ func cloneLocation(loc Location) Location {
 }
 
 func normalizePath(path string) string {
-	return pathutil.Normalize(path)
+	if path == "" {
+		return "/"
+	}
+	trimmed := path
+	if idx := strings.Index(trimmed, "?"); idx >= 0 {
+		trimmed = trimmed[:idx]
+	}
+	if idx := strings.Index(trimmed, "#"); idx >= 0 {
+		trimmed = trimmed[:idx]
+	}
+	if !strings.HasPrefix(trimmed, "/") {
+		trimmed = "/" + trimmed
+	}
+	parts := strings.Split(trimmed, "/")
+	segs := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		segs = append(segs, part)
+	}
+	if len(segs) == 0 {
+		return "/"
+	}
+	return "/" + strings.Join(segs, "/")
 }
 
 func normalizeHash(hash string) string {

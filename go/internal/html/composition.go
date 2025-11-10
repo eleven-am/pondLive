@@ -53,6 +53,6 @@ func (h *CompositionHandler) OnCompositionEnd(handler func(CompositionEvent) Upd
 func buildCompositionEvent(evt Event) CompositionEvent {
 	return CompositionEvent{
 		Event: evt,
-		Data:  PayloadString(evt.Payload, "event.data", ""),
+		Data:  payloadString(evt.Payload, "event.data", ""),
 	}
 }
