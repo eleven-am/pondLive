@@ -56,7 +56,6 @@ func TestDefaultEventOptionsCaseInsensitiveClone(t *testing.T) {
 		t.Fatalf("expected input props, got %#v", opts.Props)
 	}
 
-	// Mutating the returned slices should not affect subsequent calls.
 	opts.Listen[0] = "mutated"
 	opts.Props[0] = "modified"
 
