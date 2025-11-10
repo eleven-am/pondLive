@@ -68,6 +68,7 @@ type EventBinding struct {
 	Handler EventHandler
 	Listen  []string
 	Props   []string
+	Key     string
 }
 
 // EventAssignment captures the runtime metadata associated with a handler ID.
