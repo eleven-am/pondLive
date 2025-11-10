@@ -87,3 +87,102 @@ func TestAddListenerReplacesHandlersPerEvent(t *testing.T) {
 		t.Fatalf("expected a single handler in bucket, got %d", len(bucket.handlers))
 	}
 }
+
+func TestRefEventBindingKeyGeneration(t *testing.T) {
+	tests := []struct {
+		name     string
+		id       string
+		event    string
+		expected string
+	}{
+		{
+			name:     "basic click event",
+			id:       "ref:0",
+			event:    "click",
+			expected: "ref:ref:0/click",
+		},
+		{
+			name:     "input event",
+			id:       "ref:1",
+			event:    "input",
+			expected: "ref:ref:1/input",
+		},
+		{
+			name:     "uppercase event is lowercased",
+			id:       "ref:2",
+			event:    "MouseDown",
+			expected: "ref:ref:2/mousedown",
+		},
+		{
+			name:     "empty id returns empty",
+			id:       "",
+			event:    "click",
+			expected: "",
+		},
+		{
+			name:     "empty event returns empty",
+			id:       "ref:0",
+			event:    "",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := refEventBindingKey(tt.id, tt.event)
+			if got != tt.expected {
+				t.Errorf("refEventBindingKey(%q, %q) = %q, want %q", tt.id, tt.event, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestAddListenerSetsBindingKey(t *testing.T) {
+	ref := NewElementRef("ref:5", testDescriptor{})
+
+	handler := func(Event) Updates { return nil }
+	ref.AddListener("click", handler, nil)
+
+	snapshot := ref.BindingSnapshot()
+	binding, ok := snapshot["click"]
+	if !ok {
+		t.Fatal("expected binding for click event")
+	}
+
+	expectedKey := "ref:ref:5/click"
+	if binding.Key != expectedKey {
+		t.Errorf("binding.Key = %q, want %q", binding.Key, expectedKey)
+	}
+}
+
+func TestAddListenerMultipleEventsHaveUniqueKeys(t *testing.T) {
+	ref := NewElementRef("ref:6", testDescriptor{})
+
+	clickHandler := func(Event) Updates { return nil }
+	inputHandler := func(Event) Updates { return nil }
+
+	ref.AddListener("click", clickHandler, nil)
+	ref.AddListener("input", inputHandler, nil)
+
+	snapshot := ref.BindingSnapshot()
+
+	clickBinding, ok := snapshot["click"]
+	if !ok {
+		t.Fatal("expected binding for click event")
+	}
+	if clickBinding.Key != "ref:ref:6/click" {
+		t.Errorf("click binding.Key = %q, want %q", clickBinding.Key, "ref:ref:6/click")
+	}
+
+	inputBinding, ok := snapshot["input"]
+	if !ok {
+		t.Fatal("expected binding for input event")
+	}
+	if inputBinding.Key != "ref:ref:6/input" {
+		t.Errorf("input binding.Key = %q, want %q", inputBinding.Key, "ref:ref:6/input")
+	}
+
+	if clickBinding.Key == inputBinding.Key {
+		t.Error("click and input bindings should have different keys")
+	}
+}

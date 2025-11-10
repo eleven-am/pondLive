@@ -2,6 +2,7 @@ package dom
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -162,6 +163,9 @@ func (r *ElementRef[T]) AddListener(event string, handler any, props []string) {
 			},
 		}
 	}
+	if binding.Key == "" {
+		binding.Key = refEventBindingKey(r.id, event)
+	}
 	binding.Props = mergeSelectorLists(binding.Props, props)
 	r.bindings[event] = binding
 	r.bindingsMu.Unlock()
@@ -251,6 +255,15 @@ func AttachElementRef[T ElementDescriptor](ref *ElementRef[T], e *Element) {
 		e.Attrs["data-live-ref"] = ref.id
 	}
 	e.RefID = ref.id
+}
+
+func refEventBindingKey(id, event string) string {
+	id = strings.TrimSpace(id)
+	event = strings.TrimSpace(event)
+	if id == "" || event == "" {
+		return ""
+	}
+	return fmt.Sprintf("ref:%s/%s", id, strings.ToLower(event))
 }
 
 func cloneEventBinding(binding EventBinding) EventBinding {

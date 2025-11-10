@@ -24,7 +24,7 @@ const slotElements = new Map<number, Element>();
 const routerBindings = new WeakMap<Element, RouterMeta>();
 
 const DATA_EVENT_ATTR_PREFIX = "data-on";
-const DATA_ROUTER_ATTR_PREFIX = "data-router-";
+export const DATA_ROUTER_ATTR_PREFIX = "data-router-";
 
 const ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
 
@@ -652,6 +652,28 @@ function handleEvent(
       });
       return;
     }
+  }
+
+  // No h.On handler found, but check for ref handlers
+  const refContext = resolveRefEventContext(target, eventType);
+  if (refContext) {
+    // Extract payload for ref-only events
+    const payload = extractEventPayload(
+      e,
+      target,
+      refContext.props,
+      refContext.element,
+      refContext.element,
+    );
+
+    refContext.notify(payload);
+
+    // Send ref-only event to server
+    sendEvent({
+      hid: refContext.id, // Use ref ID as handler ID for ref-only events
+      payload: payload,
+    });
+    return;
   }
 
   // No LiveUI handler found, try navigation interception for click events

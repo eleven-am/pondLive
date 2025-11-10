@@ -1585,7 +1585,7 @@ var LiveUIModule = (() => {
   var slotElements = /* @__PURE__ */ new Map();
   var routerBindings = /* @__PURE__ */ new WeakMap();
   var DATA_EVENT_ATTR_PREFIX = "data-on";
-  var DATA_ROUTER_ATTR_PREFIX2 = "data-router-";
+  var DATA_ROUTER_ATTR_PREFIX = "data-router-";
   var ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
   function setRouterMetaValue(element, field, value) {
     let meta = routerBindings.get(element);
@@ -1836,8 +1836,8 @@ var LiveUIModule = (() => {
     let sawEventAttr = false;
     for (const name of attributeNames) {
       if (!name.startsWith(DATA_EVENT_ATTR_PREFIX)) {
-        if (name.startsWith(DATA_ROUTER_ATTR_PREFIX2)) {
-          const key = name.slice(DATA_ROUTER_ATTR_PREFIX2.length);
+        if (name.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
+          const key = name.slice(DATA_ROUTER_ATTR_PREFIX.length);
           const value2 = element.getAttribute(name);
           element.removeAttribute(name);
           applyRouterAttribute(element, key, value2 ?? "");
@@ -1959,14 +1959,14 @@ var LiveUIModule = (() => {
     if (handlerInfo) {
       const handler = handlers.get(handlerInfo.id);
       if (handler && handlerSupportsEvent(handler, eventType)) {
-        const refContext = resolveRefEventContext(handlerInfo.element, eventType);
-        const combinedProps = mergeSelectorLists(handler.props, refContext?.props);
+        const refContext2 = resolveRefEventContext(handlerInfo.element, eventType);
+        const combinedProps = mergeSelectorLists(handler.props, refContext2?.props);
         const payload = extractEventPayload(
           e,
           target,
           combinedProps,
           handlerInfo.element,
-          refContext?.element ?? null
+          refContext2?.element ?? null
         );
         const routerMeta = routerBindings.get(handlerInfo.element);
         if (routerMeta) {
@@ -1983,8 +1983,8 @@ var LiveUIModule = (() => {
             payload["currentTarget.dataset.routerReplace"] = routerMeta.replace;
           }
         }
-        if (refContext) {
-          refContext.notify(payload);
+        if (refContext2) {
+          refContext2.notify(payload);
         }
         if (eventType === "submit") {
           e.preventDefault();
@@ -2001,6 +2001,23 @@ var LiveUIModule = (() => {
         });
         return;
       }
+    }
+    const refContext = resolveRefEventContext(target, eventType);
+    if (refContext) {
+      const payload = extractEventPayload(
+        e,
+        target,
+        refContext.props,
+        refContext.element,
+        refContext.element
+      );
+      refContext.notify(payload);
+      sendEvent({
+        hid: refContext.id,
+        // Use ref ID as handler ID for ref-only events
+        payload
+      });
+      return;
     }
     if (eventType === "click" && navigationHandler && e instanceof MouseEvent) {
       const anchor = findAnchorElement(target);

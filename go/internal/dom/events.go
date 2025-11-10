@@ -57,6 +57,7 @@ type EventHandler func(Event) Updates
 
 // EventOptions configures additional metadata for a DOM event handler.
 type EventOptions struct {
+	Key    string
 	Listen []string
 	Props  []string
 }
@@ -65,6 +66,7 @@ type EventOptions struct {
 // describe how the browser should subscribe to and capture the event payload.
 type EventBinding struct {
 	Handler EventHandler
+	Key     string
 	Listen  []string
 	Props   []string
 }
@@ -77,6 +79,7 @@ type EventAssignment struct {
 }
 
 func (b EventBinding) WithOptions(opts EventOptions, primary string) EventBinding {
+	b.Key = opts.Key
 	b.Listen = sanitizeEventList(primary, opts.Listen)
 	b.Props = sanitizeSelectorList(opts.Props)
 	return b
@@ -84,6 +87,11 @@ func (b EventBinding) WithOptions(opts EventOptions, primary string) EventBindin
 
 func MergeEventOptions(base, extra EventOptions) EventOptions {
 	merged := EventOptions{}
+	if extra.Key != "" {
+		merged.Key = extra.Key
+	} else {
+		merged.Key = base.Key
+	}
 	if len(base.Listen) > 0 {
 		merged.Listen = append(merged.Listen, base.Listen...)
 	}
@@ -142,6 +150,9 @@ func MergeEventBinding(existing, addition EventBinding) EventBinding {
 	}
 	merged.Listen = mergeStringSet(existing.Listen, addition.Listen, true)
 	merged.Props = mergeStringSet(existing.Props, addition.Props, false)
+	if merged.Key == "" {
+		merged.Key = addition.Key
+	}
 	return merged
 }
 

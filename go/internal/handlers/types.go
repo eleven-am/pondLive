@@ -14,7 +14,7 @@ type Handler = h.EventHandler
 
 // Registry tracks event handlers and assigns stable IDs.
 type Registry interface {
-	Ensure(fn Handler) ID
+	Ensure(fn Handler, key string) ID
 	Get(id ID) (Handler, bool)
 	Remove(id ID)
 }

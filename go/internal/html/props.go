@@ -140,6 +140,13 @@ func (p onProp) ApplyTo(e *Element) {
 }
 
 // On attaches an event handler for the named DOM event.
+//
+// Handlers registered this way are deduplicated by their function identity so
+// that reusing the same function value across renders keeps a stable handler
+// ID. When capturing values in closures, keep in mind that Go may reuse the
+// same function pointer for identical closure bodies; if you need per-instance
+// isolation, you can either attach a ref and register listeners through it, or
+// use OnWith with a custom Key to override deduplication.
 func On(event string, handler EventHandler) Prop {
 	binding := EventBinding{Handler: handler}
 	binding = binding.WithOptions(defaultEventOptions(event), event)
@@ -148,7 +155,10 @@ func On(event string, handler EventHandler) Prop {
 
 // OnWith attaches an event handler together with additional options that
 // describe which DOM events should be listened to and which properties should
-// be captured when the event fires.
+// be captured when the event fires. Handler deduplication obeys the same
+// function-identity semantics described in On. To override pointer-based
+// deduplication for closures with identical code but different captured values,
+// provide a custom Key in the EventOptions.
 func OnWith(event string, opts EventOptions, handler EventHandler) Prop {
 	combined := mergeEventOptions(defaultEventOptions(event), opts)
 	binding := EventBinding{Handler: handler}.WithOptions(combined, event)

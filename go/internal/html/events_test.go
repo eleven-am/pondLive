@@ -58,3 +58,89 @@ func contains(list []string, target string) bool {
 	}
 	return false
 }
+
+func TestOnWithSetsCustomKey(t *testing.T) {
+	callback := func(Event) Updates { return nil }
+	el := El(HTMLDivElement{}, "div", OnWith("click", EventOptions{
+		Key: "my-custom-key",
+	}, callback))
+
+	binding, ok := el.Events["click"]
+	if !ok {
+		t.Fatal("expected binding for click event")
+	}
+
+	if binding.Key != "my-custom-key" {
+		t.Errorf("binding.Key = %q, want %q", binding.Key, "my-custom-key")
+	}
+}
+
+func TestOnWithoutKeyLeavesKeyEmpty(t *testing.T) {
+	callback := func(Event) Updates { return nil }
+	el := El(HTMLDivElement{}, "div", OnWith("click", EventOptions{
+		Props: []string{"target.value"},
+	}, callback))
+
+	binding, ok := el.Events["click"]
+	if !ok {
+		t.Fatal("expected binding for click event")
+	}
+
+	if binding.Key != "" {
+		t.Errorf("binding.Key should be empty when not provided, got %q", binding.Key)
+	}
+}
+
+func TestOnWithKeyAndOtherOptions(t *testing.T) {
+	callback := func(Event) Updates { return nil }
+	el := El(HTMLInputElement{}, "input", OnWith("input", EventOptions{
+		Key:   "input-handler-1",
+		Props: []string{"target.value"},
+	}, callback))
+
+	binding, ok := el.Events["input"]
+	if !ok {
+		t.Fatal("expected binding for input event")
+	}
+
+	if binding.Key != "input-handler-1" {
+		t.Errorf("binding.Key = %q, want %q", binding.Key, "input-handler-1")
+	}
+
+	if !contains(binding.Props, "target.value") {
+		t.Errorf("expected custom prop selector to be set, got %+v", binding.Props)
+	}
+}
+
+func TestMergeEventOptionsPreservesKey(t *testing.T) {
+	base := EventOptions{
+		Key:   "base-key",
+		Props: []string{"prop1"},
+	}
+	extra := EventOptions{
+		Props: []string{"prop2"},
+	}
+
+	merged := mergeEventOptions(base, extra)
+
+	if merged.Key != "base-key" {
+		t.Errorf("merged.Key = %q, want %q (should preserve base when extra is empty)", merged.Key, "base-key")
+	}
+}
+
+func TestMergeEventOptionsPreferExtraKey(t *testing.T) {
+	base := EventOptions{
+		Key:   "base-key",
+		Props: []string{"prop1"},
+	}
+	extra := EventOptions{
+		Key:   "extra-key",
+		Props: []string{"prop2"},
+	}
+
+	merged := mergeEventOptions(base, extra)
+
+	if merged.Key != "extra-key" {
+		t.Errorf("merged.Key = %q, want %q (should prefer extra when both provided)", merged.Key, "extra-key")
+	}
+}

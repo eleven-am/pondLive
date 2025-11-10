@@ -15,6 +15,7 @@
 import * as dom from "./dom-index";
 import {
   applyRouterAttribute,
+  DATA_ROUTER_ATTR_PREFIX,
   getRegisteredSlotBindings,
   primeHandlerBindings,
   refreshHandlerBindings,
