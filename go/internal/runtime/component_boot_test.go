@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -58,11 +59,11 @@ func TestComponentBootEffect(t *testing.T) {
 	if htmlValue == "" || !strings.Contains(htmlValue, "bravo") {
 		t.Fatalf("expected html payload to contain updated text, got %q", htmlValue)
 	}
-	slotsValue, ok := bootEffect["slots"].([]int)
+	slotsValue, ok := bootEffect["slots"].([]protocol.SlotMeta)
 	if !ok || len(slotsValue) == 0 {
-		t.Fatalf("expected slot list in effect, got %#v", bootEffect["slots"])
+		t.Fatalf("expected slot metadata in effect, got %#v", bootEffect["slots"])
 	}
-	slotIndex := slotsValue[len(slotsValue)-1]
+	slotIndex := slotsValue[len(slotsValue)-1].AnchorID
 	if slotIndex < 0 || slotIndex >= len(sess.snapshot.Dynamics) {
 		t.Fatalf("expected slot to map into snapshot, got %d", slotIndex)
 	}

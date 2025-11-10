@@ -23,7 +23,8 @@ import {
 } from "./events";
 import { registerComponentMarkers } from "./componentMarkers";
 import { bindRefsInTree, unbindRefsInTree, updateRefBinding } from "./refs";
-import type { DiffOp, ListChildOp, SlotBinding } from "./types";
+import type { DiffOp, ListChildOp, SlotBinding, SlotMeta } from "./types";
+import { resolveSlotTarget } from "./slot-resolver";
 
 // ============================================================================
 // Configuration
@@ -478,57 +479,21 @@ export function morphElement(fromEl: Element, toEl: Element): void {
 // Slot Registration (optimized)
 // ============================================================================
 
-function registerRowSlots(slotIndexes: number[], fragment: DocumentFragment | Element): void {
-    if (!Array.isArray(slotIndexes) || slotIndexes.length === 0) {
+function registerRowSlots(slotMetas: SlotMeta[] | undefined, _fragment: DocumentFragment | Element): void {
+    if (!Array.isArray(slotMetas) || slotMetas.length === 0) {
         return;
     }
 
-    const pending = new Set(slotIndexes);
-    const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_ELEMENT);
-    let current = walker.nextNode() as Element | null;
-
-    // Track if we found any elements at all to avoid spurious warnings
-    const foundAnyElements = current !== null;
-
-    while (current && pending.size > 0) {
-        const element = current;
-        const attr = element.getAttribute('data-slot-index');
-        if (attr !== null) {
-            attr
-                .split(/\s+/)
-                .map(token => token.trim())
-                .filter(token => token.length > 0)
-                .forEach((token) => {
-                    const [slotPart, childPart] = token.split('@');
-                    const slotId = Number(slotPart);
-                    if (Number.isNaN(slotId) || !pending.has(slotId)) {
-                        return;
-                    }
-
-                    let target: Node = element;
-                    if (childPart !== undefined) {
-                        const childIndex = Number(childPart);
-                        if (!Number.isNaN(childIndex)) {
-                            const child = element.childNodes.item(childIndex);
-                            if (child) {
-                                target = child;
-                            }
-                        }
-                    }
-
-                    dom.registerSlot(slotId, target);
-                    pending.delete(slotId);
-                });
+    for (const slot of slotMetas) {
+        if (!slot || typeof slot.anchorId !== "number") {
+            continue;
         }
-        current = walker.nextNode() as Element | null;
-    }
-
-    // Only warn if we found elements but some slots weren't resolved
-    // Skip warnings if fragment had no element nodes at all
-    if (pending.size > 0 && foundAnyElements) {
-        pending.forEach((idx) => {
-            console.warn(`liveui: slot ${idx} not resolved in inserted row`);
-        });
+        const target = resolveSlotTarget(slot);
+        if (target) {
+            dom.registerSlot(slot.anchorId, target);
+        } else {
+            console.warn(`liveui: slot ${slot.anchorId} not resolved in inserted row`);
+        }
     }
 }
 

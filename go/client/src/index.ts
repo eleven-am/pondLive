@@ -46,6 +46,8 @@ import {
   initializeComponentMarkers,
   registerComponentMarkers,
 } from "./componentMarkers";
+import type { ComponentMarkerBounds } from "./componentMarkers";
+import { resolveListContainer, resolveSlotTarget } from "./slot-resolver";
 import type {
   AlertEffect,
   ComponentBootEffect,
@@ -82,6 +84,7 @@ import type {
   CookieEffect,
   UploadClientMessage,
   UploadControlMessage,
+  SlotMeta,
 } from "./types";
 
 interface RuntimeDiagnosticEntry {
@@ -1379,10 +1382,19 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       return;
     }
 
-    if (Array.isArray(slots)) {
-      for (const slot of slots) {
-        dom.unregisterSlot(slot);
-      }
+    const normalizedSlots: SlotMeta[] = Array.isArray(slots)
+      ? slots
+          .map((entry) => {
+            if (typeof entry === "number") {
+              return { anchorId: entry } as SlotMeta;
+            }
+            return entry && typeof entry.anchorId === "number" ? entry : null;
+          })
+          .filter((entry): entry is SlotMeta => !!entry)
+      : [];
+
+    for (const slot of normalizedSlots) {
+      dom.unregisterSlot(slot.anchorId);
     }
     if (Array.isArray(listSlots)) {
       for (const slot of listSlots) {
@@ -1404,8 +1416,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     }
 
     const range = document.createRange();
-    range.setStartBefore(bounds.start);
-    range.setEndAfter(bounds.end);
+    setRangeFromBounds(range, bounds);
     range.deleteContents();
     range.insertNode(fragment);
     range.detach();
@@ -1428,76 +1439,28 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       }
     }
 
-    this.registerComponentAnchors(
-      refreshed,
-      Array.isArray(slots) ? slots : [],
-      Array.isArray(listSlots) ? listSlots : [],
-    );
+    this.registerComponentAnchors(normalizedSlots);
   }
 
-  private findComponentBounds(id: string): { start: Comment; end: Comment } | null {
+  private findComponentBounds(id: string): ComponentMarkerBounds | null {
     if (typeof document === "undefined" || !id) return null;
     return getComponentBounds(id);
   }
 
-  private registerComponentAnchors(
-    bounds: { start: Comment; end: Comment },
-    slots: number[],
-    listSlots: number[],
-  ): void {
-    const slotSet = new Set<number>(slots ?? []);
-    const listSet = new Set<number>(listSlots ?? []);
-    const queue: Node[] = [];
+  private registerComponentAnchors(slots: SlotMeta[]): void {
+    for (const slot of slots) {
+      const target = resolveSlotTarget(slot);
+      if (target) {
+        dom.registerSlot(slot.anchorId, target);
+      } else if (this.options.debug) {
+        console.warn(`liveui: slot ${slot.anchorId} not registered during componentBoot`);
+      }
 
-    for (let node = bounds.start.nextSibling; node && node !== bounds.end; node = node.nextSibling) {
-      queue.push(node);
-    }
-
-    while (queue.length > 0) {
-      const current = queue.shift();
-      if (!current) continue;
-      if (current instanceof Element) {
-        this.registerElementSlots(current, slotSet);
-        this.registerListContainer(current, listSet);
-        for (let child = current.firstChild; child; child = child.nextSibling) {
-          queue.push(child);
-        }
+      const listContainer = resolveListContainer(slot);
+      if (listContainer) {
+        dom.registerList(slot.anchorId, listContainer);
       }
     }
-  }
-
-  private registerElementSlots(element: Element, slots: Set<number>): void {
-    const raw = element.getAttribute("data-slot-index");
-    if (!raw) return;
-    const tokens = raw.split(/\s+/);
-    for (const token of tokens) {
-      const trimmed = token.trim();
-      if (trimmed.length === 0) continue;
-      const [slotPart, childPart] = trimmed.split("@", 2);
-      const slotId = Number(slotPart);
-      if (Number.isNaN(slotId)) continue;
-      if (slots.size > 0 && !slots.has(slotId)) continue;
-      let target: Node = element;
-      if (childPart !== undefined) {
-        const childIndex = Number(childPart);
-        if (!Number.isNaN(childIndex)) {
-          const childNode = element.childNodes.item(childIndex);
-          if (childNode) {
-            target = childNode;
-          }
-        }
-      }
-      dom.registerSlot(slotId, target);
-    }
-  }
-
-  private registerListContainer(element: Element, listSlots: Set<number>): void {
-    const attr = element.getAttribute("data-list-slot");
-    if (!attr) return;
-    const slotId = Number(attr);
-    if (Number.isNaN(slotId)) return;
-    if (listSlots.size > 0 && !listSlots.has(slotId)) return;
-    dom.registerList(slotId, element);
   }
 
   private dispatchCustomEvent(eventName: string, detail?: unknown): void {
@@ -2280,6 +2243,73 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
 }
 
 export default LiveUI;
+function setRangeFromBounds(range: Range, bounds: ComponentMarkerBounds): void {
+  const { container, start, end } = bounds;
+  const startNode = getRenderableChildAt(container, start);
+  if (startNode) {
+    range.setStartBefore(startNode);
+  } else {
+    const offset = getRenderableChildOffset(container, start);
+    range.setStart(container, offset);
+  }
+
+  if (end > start) {
+    const endNode = getRenderableChildAt(container, end - 1);
+    if (endNode) {
+      range.setEndAfter(endNode);
+      return;
+    }
+    const offset = getRenderableChildOffset(container, end);
+    range.setEnd(container, offset);
+    return;
+  }
+
+  const offset = getRenderableChildOffset(container, start);
+  range.setEnd(container, offset);
+}
+
+function getRenderableChildAt(parent: ParentNode, index: number): Node | null {
+  if (index < 0) {
+    return null;
+  }
+  let seen = 0;
+  for (let child = parent.firstChild; child; child = child.nextSibling) {
+    if (!isRenderableNode(child)) {
+      continue;
+    }
+    if (seen === index) {
+      return child;
+    }
+    seen += 1;
+  }
+  return null;
+}
+
+function getRenderableChildOffset(parent: ParentNode, index: number): number {
+  if (index <= 0) {
+    return 0;
+  }
+  let offset = 0;
+  let seen = 0;
+  for (let child = parent.firstChild; child; child = child.nextSibling) {
+    if (seen >= index) {
+      break;
+    }
+    offset += 1;
+    if (isRenderableNode(child)) {
+      seen += 1;
+    }
+  }
+  if (seen < index) {
+    return parent.childNodes.length;
+  }
+  return offset;
+}
+
+function isRenderableNode(node: Node | null): boolean {
+  return !!node && node.nodeType !== Node.COMMENT_NODE;
+}
+
 export {
   configurePatcher,
   getPatcherConfig,

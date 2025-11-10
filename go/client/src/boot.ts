@@ -8,7 +8,8 @@ import * as dom from './dom-index';
 import { clearHandlers, primeSlotBindings, registerHandlers, syncEventListeners } from './events';
 import { initializeComponentMarkers } from './componentMarkers';
 import { bindRefsInTree, clearRefs, registerRefs } from './refs';
-import type { BootPayload, DynamicSlot, Location } from './types';
+import type { BootPayload, Location } from './types';
+import { resolveListContainer, resolveSlotTarget } from './slot-resolver';
 
 export class BootHandler {
   private boot: BootPayload | null = null;
@@ -106,82 +107,26 @@ export class BootHandler {
     }
 
     dom.reset();
-    const anchors = this.collectSlotAnchors();
+    if (!Array.isArray(boot.slots)) {
+      return;
+    }
 
-    // Register individual slots
-    if (Array.isArray(boot.slots)) {
-      for (const slot of boot.slots) {
-        if (!slot || typeof slot.anchorId !== 'number') continue;
-        const node = anchors.get(slot.anchorId);
-        if (node) {
-          dom.registerSlot(slot.anchorId, node);
-        } else if (this.debug) {
-          console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
-        }
+    for (const slot of boot.slots) {
+      if (!slot || typeof slot.anchorId !== 'number') continue;
+      const target = resolveSlotTarget(slot);
+      if (target) {
+        dom.registerSlot(slot.anchorId, target);
+      } else if (this.debug) {
+        console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
+      }
+
+      const listContainer = resolveListContainer(slot);
+      if (listContainer) {
+        dom.registerList(slot.anchorId, listContainer);
+      } else if (slot.list && this.debug) {
+        console.warn(`liveui: list slot ${slot.anchorId} container not found during boot`);
       }
     }
-
-    // Initialize list slots
-    const listSlots = this.collectListSlotIndexes(boot.d);
-    if (listSlots.length > 0) {
-      dom.initLists(listSlots);
-    }
-  }
-
-  /**
-   * Collect list slot indexes from dynamic slots
-   */
-  private collectListSlotIndexes(dynamics?: DynamicSlot[]): number[] {
-    if (!Array.isArray(dynamics)) {
-      return [];
-    }
-    const result: number[] = [];
-    dynamics.forEach((dyn, index) => {
-      if (dyn && dyn.kind === 'list') {
-        result.push(index);
-      }
-    });
-    return result;
-  }
-
-  private collectSlotAnchors(): Map<number, Node> {
-    const anchors = new Map<number, Node>();
-    if (typeof document === 'undefined') {
-      return anchors;
-    }
-
-    const elements = document.querySelectorAll('[data-slot-index]');
-    elements.forEach((element) => {
-      const raw = element.getAttribute('data-slot-index');
-      if (!raw) return;
-
-      raw
-        .split(/\s+/)
-        .map(token => token.trim())
-        .filter(token => token.length > 0)
-        .forEach((token) => {
-          const [slotPart, childPart] = token.split('@');
-          const slotId = Number(slotPart);
-          if (Number.isNaN(slotId) || anchors.has(slotId)) {
-            return;
-          }
-
-          let node: Node = element;
-          if (childPart !== undefined) {
-            const childIndex = Number(childPart);
-            if (!Number.isNaN(childIndex)) {
-              const child = element.childNodes.item(childIndex);
-              if (child) {
-                node = child;
-              }
-            }
-          }
-
-          anchors.set(slotId, node);
-        });
-    });
-
-    return anchors;
   }
 
   /**

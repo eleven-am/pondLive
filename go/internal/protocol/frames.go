@@ -51,13 +51,22 @@ type DynamicSlot struct {
 
 type ListRow struct {
 	Key      string                     `json:"key"`
-	Slots    []int                      `json:"slots,omitempty"`
+	Slots    []SlotMeta                 `json:"slots,omitempty"`
 	Bindings BindingTable               `json:"bindings,omitempty"`
 	Markers  map[string]ComponentMarker `json:"markers,omitempty"`
 }
 
 type SlotMeta struct {
-	AnchorID int `json:"anchorId"`
+	AnchorID  int         `json:"anchorId"`
+	Component string      `json:"component,omitempty"`
+	Path      []int       `json:"path,omitempty"`
+	TextIndex *int        `json:"text,omitempty"`
+	List      *ListAnchor `json:"list,omitempty"`
+}
+
+type ListAnchor struct {
+	Component string `json:"component,omitempty"`
+	Path      []int  `json:"path,omitempty"`
 }
 
 type HandlerMeta struct {
@@ -76,8 +85,9 @@ type SlotBinding struct {
 type BindingTable map[int][]SlotBinding
 
 type ComponentMarker struct {
-	Start int `json:"start"`
-	End   int `json:"end"`
+	Container []int `json:"container,omitempty"`
+	Start     int   `json:"start"`
+	End       int   `json:"end"`
 }
 
 type Join struct {

@@ -6,7 +6,7 @@ describe('LiveUI resume handling', () => {
   let boot: BootPayload;
 
   beforeEach(() => {
-    document.body.innerHTML = '<div data-slot-index="0"></div>';
+    document.body.innerHTML = '<div id="slot"></div>';
     boot = {
       t: 'boot',
       sid: 'test-sid',
@@ -15,7 +15,7 @@ describe('LiveUI resume handling', () => {
       html: '<div></div>',
       s: [],
       d: [],
-      slots: [{ anchorId: 0 }],
+      slots: [{ anchorId: 0, path: [0] }],
       handlers: {},
       location: { path: '/', q: '', hash: '' },
     };

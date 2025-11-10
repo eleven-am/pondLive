@@ -37,11 +37,9 @@ func renderNode(b *strings.Builder, n h.Node) {
 	case *h.CommentNode:
 		renderComment(b, v.Value)
 	case *h.ComponentNode:
-		b.WriteString("<!---->")
 		if v.Child != nil {
 			renderNode(b, v.Child)
 		}
-		b.WriteString("<!---->")
 	}
 }
 

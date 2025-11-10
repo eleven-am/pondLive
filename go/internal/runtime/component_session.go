@@ -109,7 +109,7 @@ type componentTemplateUpdate struct {
 	statics       []string
 	dynamicsRange spanRange
 	dynamics      []protocol.DynamicSlot
-	slots         []int
+	slots         []protocol.SlotMeta
 	listSlots     []int
 	handlersAdd   map[string]protocol.HandlerMeta
 	handlersDel   []string
@@ -1395,12 +1395,15 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		return nil, next, render.Structured{}, true
 	}
 	sanitized := render.Structured{
-		S:          append([]string(nil), next.S...),
-		D:          append([]render.Dyn(nil), next.D...),
-		Components: next.Components,
+		S:           append([]string(nil), next.S...),
+		D:           append([]render.Dyn(nil), next.D...),
+		Components:  next.Components,
+		Anchors:     append([]render.SlotAnchor(nil), next.Anchors...),
+		ListAnchors: append([]render.ListAnchor(nil), next.ListAnchors...),
 	}
 	globalBindings := encodeBindingTable(next.Bindings)
 	updates := make([]componentTemplateUpdate, 0, len(requests))
+	slotManifest := encodeSlotMeta(next)
 	spanPairs := make([]componentSpanPair, 0, len(requests))
 	for id, req := range requests {
 		span, ok := next.Components[id]
@@ -1419,7 +1422,10 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		dynamicsSlice := append([]render.Dyn(nil), next.D[span.DynamicsStart:span.DynamicsEnd]...)
 		update.dynamics = encodeDynamics(dynamicsSlice)
 		for slot := span.DynamicsStart; slot < span.DynamicsEnd; slot++ {
-			update.slots = append(update.slots, slot)
+			if slot >= 0 && slot < len(slotManifest) {
+				meta := slotManifest[slot]
+				update.slots = append(update.slots, meta)
+			}
 		}
 		for idx, dyn := range dynamicsSlice {
 			if dyn.Kind == render.DynList {
@@ -1428,7 +1434,8 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		}
 		if len(update.slots) > 0 {
 			componentBindings := make(protocol.BindingTable, len(update.slots))
-			for _, slot := range update.slots {
+			for _, slotMeta := range update.slots {
+				slot := slotMeta.AnchorID
 				entries := globalBindings[slot]
 				if len(entries) == 0 {
 					componentBindings[slot] = []protocol.SlotBinding{}
@@ -1449,7 +1456,7 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 			}
 			update.bindings = componentBindings
 		}
-		if markers := encodeComponentMarkersForSpan(next.Components, span); len(markers) > 0 {
+		if markers := encodeComponentMarkersForSpan(next.Components, id); len(markers) > 0 {
 			update.markers = markers
 		}
 		if req != nil && req.component != nil {
@@ -1637,24 +1644,85 @@ func componentEqualDyns(a, b []render.Dyn) bool {
 	return true
 }
 
-func encodeComponentMarkersForSpan(components map[string]render.ComponentSpan, span render.ComponentSpan) map[string]protocol.ComponentMarker {
-	if len(components) == 0 {
+func encodeComponentMarkersForSpan(components map[string]render.ComponentSpan, componentID string) map[string]protocol.ComponentMarker {
+	if len(components) == 0 || componentID == "" {
+		return nil
+	}
+	parent, ok := components[componentID]
+	if !ok {
 		return nil
 	}
 	out := make(map[string]protocol.ComponentMarker)
 	for id, child := range components {
-		if child.MarkerStart < span.MarkerStart || child.MarkerEnd > span.MarkerEnd {
+		if id == componentID {
 			continue
 		}
-		out[id] = protocol.ComponentMarker{
-			Start: child.MarkerStart - span.MarkerStart,
-			End:   child.MarkerEnd - span.MarkerStart,
+		if !componentHasAncestor(components, id, componentID) {
+			continue
 		}
+		container, start, end, ok := componentRelativeToAncestor(child, parent)
+		if !ok {
+			continue
+		}
+		marker := protocol.ComponentMarker{Start: start, End: end}
+		if len(container) > 0 {
+			marker.Container = container
+		}
+		out[id] = marker
 	}
 	if len(out) == 0 {
 		return nil
 	}
 	return out
+}
+
+func componentHasAncestor(components map[string]render.ComponentSpan, childID, ancestorID string) bool {
+	if childID == ancestorID {
+		return false
+	}
+	currentID := childID
+	for {
+		span, ok := components[currentID]
+		if !ok {
+			return false
+		}
+		if span.ParentID == ancestorID {
+			return true
+		}
+		if span.ParentID == "" {
+			return false
+		}
+		currentID = span.ParentID
+	}
+}
+
+func componentRelativeToAncestor(child, ancestor render.ComponentSpan) ([]int, int, int, bool) {
+	if len(child.ContainerPath) < len(ancestor.ContainerPath) {
+		return nil, 0, 0, false
+	}
+	for i := range ancestor.ContainerPath {
+		if child.ContainerPath[i] != ancestor.ContainerPath[i] {
+			return nil, 0, 0, false
+		}
+	}
+	suffix := append([]int(nil), child.ContainerPath[len(ancestor.ContainerPath):]...)
+	width := ancestor.EndIndex - ancestor.StartIndex
+	if width < 0 {
+		width = 0
+	}
+	if len(suffix) == 0 {
+		start := child.StartIndex - ancestor.StartIndex
+		end := child.EndIndex - ancestor.StartIndex
+		if start < 0 || end < start || (width > 0 && end > width) {
+			return nil, 0, 0, false
+		}
+		return suffix, start, end, true
+	}
+	suffix[0] = suffix[0] - ancestor.StartIndex
+	if suffix[0] < 0 || (width > 0 && suffix[0] >= width) {
+		return nil, 0, 0, false
+	}
+	return suffix, child.StartIndex, child.EndIndex, true
 }
 
 func componentEqualRows(a, b []render.Row) bool {

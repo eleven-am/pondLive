@@ -1,38 +1,57 @@
 import type { ComponentMarkerDescriptor } from "./types";
 
-interface ComponentMarkerBounds {
-  start: Comment | null;
-  end: Comment | null;
+export interface ComponentMarkerBounds {
+  container: ParentNode;
+  start: number;
+  end: number;
 }
 
 const componentMarkerIndex = new Map<string, ComponentMarkerBounds>();
-
-function ensureDocument(root: ParentNode | null | undefined): Document | null {
-  if (!root) {
-    return typeof document !== "undefined" ? document : null;
-  }
-  if (root instanceof Document) {
-    return root;
-  }
-  const node = root as unknown as Node;
-  if (node && node.ownerDocument) {
-    return node.ownerDocument;
-  }
-  return typeof document !== "undefined" ? document : null;
-}
+const hasDocumentConstructor = typeof Document !== "undefined";
 
 function cloneDescriptors(
   descriptors: Record<string, ComponentMarkerDescriptor>,
 ): Record<string, ComponentMarkerDescriptor> {
   const out: Record<string, ComponentMarkerDescriptor> = {};
   for (const [id, descriptor] of Object.entries(descriptors)) {
-    if (!descriptor) continue;
+    if (!id || !descriptor) continue;
     const start = Number(descriptor.start);
     const end = Number(descriptor.end);
     if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
-    out[id] = { start, end };
+    const clone: ComponentMarkerDescriptor = {
+      start,
+      end,
+    };
+    if ("container" in descriptor) {
+      const normalized = normalizePath(descriptor.container);
+      if (normalized === null) {
+        continue;
+      }
+      if (normalized.length > 0) {
+        clone.container = normalized;
+      }
+    }
+    out[id] = clone;
   }
   return out;
+}
+
+function normalizePath(path: unknown): number[] | null {
+  if (path == null) {
+    return [];
+  }
+  if (!Array.isArray(path)) {
+    return null;
+  }
+  const result: number[] = [];
+  for (const segment of path) {
+    const value = Number(segment);
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    result.push(Math.trunc(value));
+  }
+  return result;
 }
 
 function assignMarkers(
@@ -41,11 +60,7 @@ function assignMarkers(
   resetExisting: boolean,
 ): void {
   const target = root ?? (typeof document !== "undefined" ? document : null);
-  if (!target) {
-    return;
-  }
-  const doc = ensureDocument(target);
-  if (!doc) {
+  if (!target || !isParentNode(target)) {
     return;
   }
 
@@ -53,41 +68,67 @@ function assignMarkers(
     componentMarkerIndex.clear();
   }
 
-  const startLookup = new Map<number, string>();
-  const endLookup = new Map<number, string>();
   for (const [id, descriptor] of Object.entries(descriptors)) {
-    if (!descriptor) continue;
+    if (!id || !descriptor) continue;
     const start = Number(descriptor.start);
     const end = Number(descriptor.end);
     if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
-    startLookup.set(start, id);
-    endLookup.set(end, id);
+    if (end < start) continue;
+    const normalizedStart = Math.max(0, Math.trunc(start));
+    const normalizedEnd = Math.max(normalizedStart, Math.trunc(end));
+    const path = Array.isArray(descriptor.container)
+      ? descriptor.container
+      : [];
+    const container = resolveContainer(target, path);
+    if (!container) continue;
+    registerComponentMarker(id, container, normalizedStart, normalizedEnd);
   }
+}
 
-  if (startLookup.size === 0 && endLookup.size === 0) {
-    return;
+function resolveContainer(root: ParentNode, path: number[]): ParentNode | null {
+  if (path.length === 0) {
+    return root;
   }
+  let current: Node | null = root;
+  for (const index of path) {
+    current = getRenderableChild(current, index);
+    if (!current) {
+      return null;
+    }
+  }
+  return isParentNode(current) ? current : null;
+}
 
-  const walker = doc.createTreeWalker(
-    target instanceof Document ? target : (target as unknown as Node),
-    NodeFilter.SHOW_COMMENT,
-  );
-
+function getRenderableChild(parent: Node | null, targetIndex: number): Node | null {
+  if (!isParentNode(parent) || targetIndex < 0) {
+    return null;
+  }
   let index = 0;
-  let current = walker.nextNode() as Comment | null;
-  while (current) {
-    const startId = startLookup.get(index);
-    if (startId) {
-      registerComponentMarker(startId, current, componentMarkerIndex.get(startId)?.end ?? null);
+  for (let child = parent.firstChild; child; child = child.nextSibling) {
+    if (!isRenderableNode(child)) {
+      continue;
     }
-    const endId = endLookup.get(index);
-    if (endId) {
-      registerComponentMarker(endId, componentMarkerIndex.get(endId)?.start ?? null, current);
+    if (index === targetIndex) {
+      return child;
     }
-    current.data = "";
-    index++;
-    current = walker.nextNode() as Comment | null;
+    index += 1;
   }
+  return null;
+}
+
+function isRenderableNode(node: Node | null): boolean {
+  return !!node && node.nodeType !== Node.COMMENT_NODE;
+}
+
+function isParentNode(node: Node | null | undefined): node is ParentNode {
+  if (!node) return false;
+  if (node instanceof Element || node instanceof DocumentFragment) {
+    return true;
+  }
+  if (hasDocumentConstructor && node instanceof Document) {
+    return true;
+  }
+  return false;
 }
 
 export function resetComponentMarkers(): void {
@@ -117,32 +158,29 @@ export function registerComponentMarkers(
 
 export function registerComponentMarker(
   id: string,
-  start: Comment | null,
-  end: Comment | null,
+  container: ParentNode | null | undefined,
+  start: number,
+  end: number,
 ): void {
-  if (!id) return;
-  const entry = componentMarkerIndex.get(id) ?? { start: null, end: null };
-  if (start) {
-    entry.start = start;
-    start.data = "";
-  }
-  if (end) {
-    entry.end = end;
-    end.data = "";
-  }
-  componentMarkerIndex.set(id, entry);
+  if (!id || !container) return;
+  const normalizedStart = Math.max(0, Math.trunc(Number(start)));
+  const normalizedEnd = Math.max(normalizedStart, Math.trunc(Number(end)));
+  componentMarkerIndex.set(id, {
+    container,
+    start: normalizedStart,
+    end: normalizedEnd,
+  });
 }
 
-export function getComponentBounds(
-  id: string,
-): { start: Comment; end: Comment } | null {
+export function getComponentBounds(id: string): ComponentMarkerBounds | null {
   if (!id) return null;
   const entry = componentMarkerIndex.get(id);
-  if (entry && entry.start?.isConnected && entry.end?.isConnected) {
-    return { start: entry.start, end: entry.end };
+  if (!entry || !isParentNode(entry.container)) {
+    return null;
   }
-  if (entry?.start && entry?.end) {
-    return { start: entry.start, end: entry.end };
-  }
-  return null;
+  return {
+    container: entry.container,
+    start: entry.start,
+    end: entry.end,
+  };
 }

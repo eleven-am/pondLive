@@ -53,38 +53,11 @@ export function reset(): void {
   listMap.clear();
 }
 
-/**
- * Initialize all list containers upfront to avoid querySelector on first access
- * Call this during initialization with all known list slot indexes
- */
-export function initLists(slotIndexes: number[]): void {
-  if (!Array.isArray(slotIndexes)) return;
-  if (typeof document === "undefined") return;
-
-  for (const slotIndex of slotIndexes) {
-    if (!listMap.has(slotIndex)) {
-      const container = document.querySelector(
-        `[data-list-slot="${slotIndex}"]`,
-      );
-      if (container) {
-        listMap.set(slotIndex, { container, rows: collectRows(container) });
-      }
-    }
-  }
-}
-
 export function ensureList(slotIndex: number): ListRecord {
   if (listMap.has(slotIndex)) {
     return listMap.get(slotIndex)!;
   }
-
-  const container = document.querySelector(`[data-list-slot="${slotIndex}"]`);
-  if (!container) {
-    throw new Error(`liveui: list slot ${slotIndex} not registered`);
-  }
-  const record = { container, rows: collectRows(container) };
-  listMap.set(slotIndex, record);
-  return record;
+  throw new Error(`liveui: list slot ${slotIndex} not registered`);
 }
 
 export function registerList(

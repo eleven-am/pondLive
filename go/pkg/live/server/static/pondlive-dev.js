@@ -1180,7 +1180,6 @@ var LiveUIModule = (() => {
     ensureList: () => ensureList,
     getRow: () => getRow,
     getSlot: () => getSlot,
-    initLists: () => initLists,
     registerList: () => registerList,
     registerSlot: () => registerSlot,
     reset: () => reset,
@@ -2240,31 +2239,11 @@ var LiveUIModule = (() => {
     slotMap.clear();
     listMap.clear();
   }
-  function initLists(slotIndexes) {
-    if (!Array.isArray(slotIndexes)) return;
-    if (typeof document === "undefined") return;
-    for (const slotIndex of slotIndexes) {
-      if (!listMap.has(slotIndex)) {
-        const container = document.querySelector(
-          `[data-list-slot="${slotIndex}"]`
-        );
-        if (container) {
-          listMap.set(slotIndex, { container, rows: collectRows(container) });
-        }
-      }
-    }
-  }
   function ensureList(slotIndex) {
     if (listMap.has(slotIndex)) {
       return listMap.get(slotIndex);
     }
-    const container = document.querySelector(`[data-list-slot="${slotIndex}"]`);
-    if (!container) {
-      throw new Error(`liveui: list slot ${slotIndex} not registered`);
-    }
-    const record = { container, rows: collectRows(container) };
-    listMap.set(slotIndex, record);
-    return record;
+    throw new Error(`liveui: list slot ${slotIndex} not registered`);
   }
   function registerList(slotIndex, container, rows) {
     if (!container) return;
@@ -2285,74 +2264,111 @@ var LiveUIModule = (() => {
 
   // src/componentMarkers.ts
   var componentMarkerIndex = /* @__PURE__ */ new Map();
-  function ensureDocument(root) {
-    if (!root) {
-      return typeof document !== "undefined" ? document : null;
-    }
-    if (root instanceof Document) {
-      return root;
-    }
-    const node = root;
-    if (node && node.ownerDocument) {
-      return node.ownerDocument;
-    }
-    return typeof document !== "undefined" ? document : null;
-  }
+  var hasDocumentConstructor = typeof Document !== "undefined";
   function cloneDescriptors(descriptors) {
     const out = {};
     for (const [id, descriptor] of Object.entries(descriptors)) {
-      if (!descriptor) continue;
+      if (!id || !descriptor) continue;
       const start = Number(descriptor.start);
       const end = Number(descriptor.end);
       if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
-      out[id] = { start, end };
+      const clone = {
+        start,
+        end
+      };
+      if ("container" in descriptor) {
+        const normalized = normalizePath(descriptor.container);
+        if (normalized === null) {
+          continue;
+        }
+        if (normalized.length > 0) {
+          clone.container = normalized;
+        }
+      }
+      out[id] = clone;
     }
     return out;
   }
+  function normalizePath(path) {
+    if (path == null) {
+      return [];
+    }
+    if (!Array.isArray(path)) {
+      return null;
+    }
+    const result = [];
+    for (const segment of path) {
+      const value = Number(segment);
+      if (!Number.isFinite(value)) {
+        return null;
+      }
+      result.push(Math.trunc(value));
+    }
+    return result;
+  }
   function assignMarkers(descriptors, root, resetExisting) {
     const target = root ?? (typeof document !== "undefined" ? document : null);
-    if (!target) {
-      return;
-    }
-    const doc = ensureDocument(target);
-    if (!doc) {
+    if (!target || !isParentNode(target)) {
       return;
     }
     if (resetExisting) {
       componentMarkerIndex.clear();
     }
-    const startLookup = /* @__PURE__ */ new Map();
-    const endLookup = /* @__PURE__ */ new Map();
     for (const [id, descriptor] of Object.entries(descriptors)) {
-      if (!descriptor) continue;
+      if (!id || !descriptor) continue;
       const start = Number(descriptor.start);
       const end = Number(descriptor.end);
       if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
-      startLookup.set(start, id);
-      endLookup.set(end, id);
+      if (end < start) continue;
+      const normalizedStart = Math.max(0, Math.trunc(start));
+      const normalizedEnd = Math.max(normalizedStart, Math.trunc(end));
+      const path = Array.isArray(descriptor.container) ? descriptor.container : [];
+      const container = resolveContainer(target, path);
+      if (!container) continue;
+      registerComponentMarker(id, container, normalizedStart, normalizedEnd);
     }
-    if (startLookup.size === 0 && endLookup.size === 0) {
-      return;
+  }
+  function resolveContainer(root, path) {
+    if (path.length === 0) {
+      return root;
     }
-    const walker = doc.createTreeWalker(
-      target instanceof Document ? target : target,
-      NodeFilter.SHOW_COMMENT
-    );
+    let current = root;
+    for (const index of path) {
+      current = getRenderableChild(current, index);
+      if (!current) {
+        return null;
+      }
+    }
+    return isParentNode(current) ? current : null;
+  }
+  function getRenderableChild(parent, targetIndex) {
+    if (!isParentNode(parent) || targetIndex < 0) {
+      return null;
+    }
     let index = 0;
-    let current = walker.nextNode();
-    while (current) {
-      const startId = startLookup.get(index);
-      if (startId) {
-        registerComponentMarker(startId, current, componentMarkerIndex.get(startId)?.end ?? null);
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (!isRenderableNode(child)) {
+        continue;
       }
-      const endId = endLookup.get(index);
-      if (endId) {
-        registerComponentMarker(endId, componentMarkerIndex.get(endId)?.start ?? null, current);
+      if (index === targetIndex) {
+        return child;
       }
-      current.data = "";
-      index++;
-      current = walker.nextNode();
+      index += 1;
     }
+    return null;
+  }
+  function isRenderableNode(node) {
+    return !!node && node.nodeType !== Node.COMMENT_NODE;
+  }
+  function isParentNode(node) {
+    if (!node) return false;
+    if (node instanceof Element || node instanceof DocumentFragment) {
+      return true;
+    }
+    if (hasDocumentConstructor && node instanceof Document) {
+      return true;
+    }
+    return false;
   }
   function resetComponentMarkers() {
     componentMarkerIndex.clear();
@@ -2370,29 +2386,135 @@ var LiveUIModule = (() => {
     }
     assignMarkers(cloneDescriptors(descriptors), root, false);
   }
-  function registerComponentMarker(id, start, end) {
-    if (!id) return;
-    const entry = componentMarkerIndex.get(id) ?? { start: null, end: null };
-    if (start) {
-      entry.start = start;
-      start.data = "";
-    }
-    if (end) {
-      entry.end = end;
-      end.data = "";
-    }
-    componentMarkerIndex.set(id, entry);
+  function registerComponentMarker(id, container, start, end) {
+    if (!id || !container) return;
+    const normalizedStart = Math.max(0, Math.trunc(Number(start)));
+    const normalizedEnd = Math.max(normalizedStart, Math.trunc(Number(end)));
+    componentMarkerIndex.set(id, {
+      container,
+      start: normalizedStart,
+      end: normalizedEnd
+    });
   }
   function getComponentBounds(id) {
     if (!id) return null;
     const entry = componentMarkerIndex.get(id);
-    if (entry && entry.start?.isConnected && entry.end?.isConnected) {
-      return { start: entry.start, end: entry.end };
+    if (!entry || !isParentNode(entry.container)) {
+      return null;
     }
-    if (entry?.start && entry?.end) {
-      return { start: entry.start, end: entry.end };
+    return {
+      container: entry.container,
+      start: entry.start,
+      end: entry.end
+    };
+  }
+
+  // src/slot-resolver.ts
+  function resolveSlotTarget(slot) {
+    if (!slot || typeof slot.anchorId !== "number") {
+      return null;
+    }
+    const anchor = resolveSlotPath(slot.component, slot.path);
+    if (!anchor) {
+      return null;
+    }
+    if (typeof slot.text !== "number") {
+      return anchor;
+    }
+    if (!isParentNode2(anchor)) {
+      return null;
+    }
+    return getRenderableChild2(anchor, slot.text);
+  }
+  function resolveListContainer(slot) {
+    if (!slot || !slot.list) {
+      return null;
+    }
+    const component = slot.list.component ?? slot.component;
+    const path = slot.list.path ?? slot.path;
+    const target = resolveSlotPath(component, path);
+    return target instanceof Element ? target : null;
+  }
+  function resolveSlotPath(componentId, path) {
+    const segments = Array.isArray(path) ? path : [];
+    if (typeof componentId === "string" && componentId.length > 0) {
+      const bounds = getComponentBounds(componentId);
+      if (!bounds) {
+        return null;
+      }
+      return resolveWithinComponent(bounds, segments);
+    }
+    return resolveFromDocument(segments);
+  }
+  function resolveWithinComponent(bounds, path) {
+    const { container, start, end } = bounds;
+    if (!isParentNode2(container) || start < 0 || end < start) {
+      return null;
+    }
+    if (path.length === 0) {
+      if (end <= start) {
+        return null;
+      }
+      return getRenderableChild2(container, start);
+    }
+    const headIndex = start + path[0];
+    if (headIndex < start || headIndex >= end) {
+      return null;
+    }
+    let current = getRenderableChild2(container, headIndex);
+    if (!current) {
+      return null;
+    }
+    for (let i = 1; i < path.length; i += 1) {
+      current = getRenderableChildFromNode(current, path[i]);
+      if (!current) {
+        return null;
+      }
+    }
+    return current;
+  }
+  function resolveFromDocument(path) {
+    if (typeof document === "undefined") {
+      return null;
+    }
+    let current = document.body ?? document;
+    if (path.length === 0) {
+      const first = getRenderableChildFromNode(current, 0);
+      return first ?? null;
+    }
+    for (const index of path) {
+      const next = getRenderableChildFromNode(current, index);
+      if (!next) {
+        return null;
+      }
+      current = next;
+    }
+    return current;
+  }
+  function getRenderableChildFromNode(node, targetIndex) {
+    if (!isParentNode2(node) || targetIndex < 0) {
+      return null;
+    }
+    return getRenderableChild2(node, targetIndex);
+  }
+  function getRenderableChild2(parent, targetIndex) {
+    let index = 0;
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (!isRenderableNode2(child)) {
+        continue;
+      }
+      if (index === targetIndex) {
+        return child;
+      }
+      index += 1;
     }
     return null;
+  }
+  function isRenderableNode2(node) {
+    return !!node && node.nodeType !== Node.COMMENT_NODE;
+  }
+  function isParentNode2(node) {
+    return node instanceof Element || node instanceof Document || node instanceof DocumentFragment;
   }
 
   // src/patcher.ts
@@ -2693,44 +2815,20 @@ var LiveUIModule = (() => {
       }
     }
   }
-  function registerRowSlots(slotIndexes, fragment) {
-    if (!Array.isArray(slotIndexes) || slotIndexes.length === 0) {
+  function registerRowSlots(slotMetas, _fragment) {
+    if (!Array.isArray(slotMetas) || slotMetas.length === 0) {
       return;
     }
-    const pending = new Set(slotIndexes);
-    const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_ELEMENT);
-    let current = walker.nextNode();
-    const foundAnyElements = current !== null;
-    while (current && pending.size > 0) {
-      const element = current;
-      const attr = element.getAttribute("data-slot-index");
-      if (attr !== null) {
-        attr.split(/\s+/).map((token) => token.trim()).filter((token) => token.length > 0).forEach((token) => {
-          const [slotPart, childPart] = token.split("@");
-          const slotId = Number(slotPart);
-          if (Number.isNaN(slotId) || !pending.has(slotId)) {
-            return;
-          }
-          let target = element;
-          if (childPart !== void 0) {
-            const childIndex = Number(childPart);
-            if (!Number.isNaN(childIndex)) {
-              const child = element.childNodes.item(childIndex);
-              if (child) {
-                target = child;
-              }
-            }
-          }
-          registerSlot(slotId, target);
-          pending.delete(slotId);
-        });
+    for (const slot of slotMetas) {
+      if (!slot || typeof slot.anchorId !== "number") {
+        continue;
       }
-      current = walker.nextNode();
-    }
-    if (pending.size > 0 && foundAnyElements) {
-      pending.forEach((idx) => {
-        console.warn(`liveui: slot ${idx} not resolved in inserted row`);
-      });
+      const target = resolveSlotTarget(slot);
+      if (target) {
+        registerSlot(slot.anchorId, target);
+      } else {
+        console.warn(`liveui: slot ${slot.anchorId} not resolved in inserted row`);
+      }
     }
   }
   function applyList(slotIndex, childOps) {
@@ -3413,67 +3511,24 @@ var LiveUIModule = (() => {
         return;
       }
       reset();
-      const anchors = this.collectSlotAnchors();
-      if (Array.isArray(boot.slots)) {
-        for (const slot of boot.slots) {
-          if (!slot || typeof slot.anchorId !== "number") continue;
-          const node = anchors.get(slot.anchorId);
-          if (node) {
-            registerSlot(slot.anchorId, node);
-          } else if (this.debug) {
-            console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
-          }
+      if (!Array.isArray(boot.slots)) {
+        return;
+      }
+      for (const slot of boot.slots) {
+        if (!slot || typeof slot.anchorId !== "number") continue;
+        const target = resolveSlotTarget(slot);
+        if (target) {
+          registerSlot(slot.anchorId, target);
+        } else if (this.debug) {
+          console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
+        }
+        const listContainer = resolveListContainer(slot);
+        if (listContainer) {
+          registerList(slot.anchorId, listContainer);
+        } else if (slot.list && this.debug) {
+          console.warn(`liveui: list slot ${slot.anchorId} container not found during boot`);
         }
       }
-      const listSlots = this.collectListSlotIndexes(boot.d);
-      if (listSlots.length > 0) {
-        initLists(listSlots);
-      }
-    }
-    /**
-     * Collect list slot indexes from dynamic slots
-     */
-    collectListSlotIndexes(dynamics) {
-      if (!Array.isArray(dynamics)) {
-        return [];
-      }
-      const result = [];
-      dynamics.forEach((dyn, index) => {
-        if (dyn && dyn.kind === "list") {
-          result.push(index);
-        }
-      });
-      return result;
-    }
-    collectSlotAnchors() {
-      const anchors = /* @__PURE__ */ new Map();
-      if (typeof document === "undefined") {
-        return anchors;
-      }
-      const elements = document.querySelectorAll("[data-slot-index]");
-      elements.forEach((element) => {
-        const raw = element.getAttribute("data-slot-index");
-        if (!raw) return;
-        raw.split(/\s+/).map((token) => token.trim()).filter((token) => token.length > 0).forEach((token) => {
-          const [slotPart, childPart] = token.split("@");
-          const slotId = Number(slotPart);
-          if (Number.isNaN(slotId) || anchors.has(slotId)) {
-            return;
-          }
-          let node = element;
-          if (childPart !== void 0) {
-            const childIndex = Number(childPart);
-            if (!Number.isNaN(childIndex)) {
-              const child = element.childNodes.item(childIndex);
-              if (child) {
-                node = child;
-              }
-            }
-          }
-          anchors.set(slotId, node);
-        });
-      });
-      return anchors;
     }
     /**
      * Get current boot payload
@@ -4594,10 +4649,14 @@ var LiveUIModule = (() => {
         }
         return;
       }
-      if (Array.isArray(slots)) {
-        for (const slot of slots) {
-          unregisterSlot(slot);
+      const normalizedSlots = Array.isArray(slots) ? slots.map((entry) => {
+        if (typeof entry === "number") {
+          return { anchorId: entry };
         }
+        return entry && typeof entry.anchorId === "number" ? entry : null;
+      }).filter((entry) => !!entry) : [];
+      for (const slot of normalizedSlots) {
+        unregisterSlot(slot.anchorId);
       }
       if (Array.isArray(listSlots)) {
         for (const slot of listSlots) {
@@ -4613,8 +4672,7 @@ var LiveUIModule = (() => {
         registerComponentMarkers(effect.markers, fragment);
       }
       const range = document.createRange();
-      range.setStartBefore(bounds.start);
-      range.setEndAfter(bounds.end);
+      setRangeFromBounds(range, bounds);
       range.deleteContents();
       range.insertNode(fragment);
       range.detach();
@@ -4634,66 +4692,25 @@ var LiveUIModule = (() => {
           registerBindingsForSlot(slotId, Array.isArray(specs) ? specs : []);
         }
       }
-      this.registerComponentAnchors(
-        refreshed,
-        Array.isArray(slots) ? slots : [],
-        Array.isArray(listSlots) ? listSlots : []
-      );
+      this.registerComponentAnchors(normalizedSlots);
     }
     findComponentBounds(id) {
       if (typeof document === "undefined" || !id) return null;
       return getComponentBounds(id);
     }
-    registerComponentAnchors(bounds, slots, listSlots) {
-      const slotSet = new Set(slots ?? []);
-      const listSet = new Set(listSlots ?? []);
-      const queue = [];
-      for (let node = bounds.start.nextSibling; node && node !== bounds.end; node = node.nextSibling) {
-        queue.push(node);
-      }
-      while (queue.length > 0) {
-        const current = queue.shift();
-        if (!current) continue;
-        if (current instanceof Element) {
-          this.registerElementSlots(current, slotSet);
-          this.registerListContainer(current, listSet);
-          for (let child = current.firstChild; child; child = child.nextSibling) {
-            queue.push(child);
-          }
+    registerComponentAnchors(slots) {
+      for (const slot of slots) {
+        const target = resolveSlotTarget(slot);
+        if (target) {
+          registerSlot(slot.anchorId, target);
+        } else if (this.options.debug) {
+          console.warn(`liveui: slot ${slot.anchorId} not registered during componentBoot`);
+        }
+        const listContainer = resolveListContainer(slot);
+        if (listContainer) {
+          registerList(slot.anchorId, listContainer);
         }
       }
-    }
-    registerElementSlots(element, slots) {
-      const raw = element.getAttribute("data-slot-index");
-      if (!raw) return;
-      const tokens = raw.split(/\s+/);
-      for (const token of tokens) {
-        const trimmed = token.trim();
-        if (trimmed.length === 0) continue;
-        const [slotPart, childPart] = trimmed.split("@", 2);
-        const slotId = Number(slotPart);
-        if (Number.isNaN(slotId)) continue;
-        if (slots.size > 0 && !slots.has(slotId)) continue;
-        let target = element;
-        if (childPart !== void 0) {
-          const childIndex = Number(childPart);
-          if (!Number.isNaN(childIndex)) {
-            const childNode = element.childNodes.item(childIndex);
-            if (childNode) {
-              target = childNode;
-            }
-          }
-        }
-        registerSlot(slotId, target);
-      }
-    }
-    registerListContainer(element, listSlots) {
-      const attr = element.getAttribute("data-list-slot");
-      if (!attr) return;
-      const slotId = Number(attr);
-      if (Number.isNaN(slotId)) return;
-      if (listSlots.size > 0 && !listSlots.has(slotId)) return;
-      registerList(slotId, element);
     }
     dispatchCustomEvent(eventName, detail) {
       const event = new CustomEvent(eventName, {
@@ -5320,6 +5337,67 @@ var LiveUIModule = (() => {
     }
   };
   var index_default = LiveUI;
+  function setRangeFromBounds(range, bounds) {
+    const { container, start, end } = bounds;
+    const startNode = getRenderableChildAt(container, start);
+    if (startNode) {
+      range.setStartBefore(startNode);
+    } else {
+      const offset2 = getRenderableChildOffset(container, start);
+      range.setStart(container, offset2);
+    }
+    if (end > start) {
+      const endNode = getRenderableChildAt(container, end - 1);
+      if (endNode) {
+        range.setEndAfter(endNode);
+        return;
+      }
+      const offset2 = getRenderableChildOffset(container, end);
+      range.setEnd(container, offset2);
+      return;
+    }
+    const offset = getRenderableChildOffset(container, start);
+    range.setEnd(container, offset);
+  }
+  function getRenderableChildAt(parent, index) {
+    if (index < 0) {
+      return null;
+    }
+    let seen = 0;
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (!isRenderableNode3(child)) {
+        continue;
+      }
+      if (seen === index) {
+        return child;
+      }
+      seen += 1;
+    }
+    return null;
+  }
+  function getRenderableChildOffset(parent, index) {
+    if (index <= 0) {
+      return 0;
+    }
+    let offset = 0;
+    let seen = 0;
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (seen >= index) {
+        break;
+      }
+      offset += 1;
+      if (isRenderableNode3(child)) {
+        seen += 1;
+      }
+    }
+    if (seen < index) {
+      return parent.childNodes.length;
+    }
+    return offset;
+  }
+  function isRenderableNode3(node) {
+    return !!node && node.nodeType !== Node.COMMENT_NODE;
+  }
 
   // src/entry.ts
   var bootPromise = null;

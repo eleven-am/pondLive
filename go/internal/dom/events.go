@@ -65,10 +65,10 @@ type EventOptions struct {
 // EventBinding stores a handler together with its metadata so the runtime can
 // describe how the browser should subscribe to and capture the event payload.
 type EventBinding struct {
+	Key     string
 	Handler EventHandler
 	Listen  []string
 	Props   []string
-	Key     string
 }
 
 // EventAssignment captures the runtime metadata associated with a handler ID.
