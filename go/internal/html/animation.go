@@ -66,8 +66,8 @@ func (h *AnimationHandler) OnAnimationCancel(handler func(AnimationEvent) Update
 func buildAnimationEvent(evt Event) AnimationEvent {
 	return AnimationEvent{
 		Event:         evt,
-		AnimationName: payloadString(evt.Payload, "event.animationName", ""),
+		AnimationName: PayloadString(evt.Payload, "event.animationName", ""),
 		ElapsedTime:   payloadFloat(evt.Payload, "event.elapsedTime", 0),
-		PseudoElement: payloadString(evt.Payload, "event.pseudoElement", ""),
+		PseudoElement: PayloadString(evt.Payload, "event.pseudoElement", ""),
 	}
 }

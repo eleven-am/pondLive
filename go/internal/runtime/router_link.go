@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -61,7 +60,7 @@ func renderLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
 		if next.Path == "" {
 			return nil
 		}
-		replace := strings.EqualFold(payloadString(ev.Payload, "target.dataset.routerReplace"), "true")
+		replace := strings.EqualFold(h.PayloadString(ev.Payload, "target.dataset.routerReplace", ""), "true")
 
 		if LocEqual(current, next) {
 			return nil
@@ -110,9 +109,9 @@ func fallbackLinkHref(sess *ComponentSession, p LinkProps) string {
 }
 
 func extractTargetFromEvent(ev h.Event, base Location) Location {
-	datasetPath := payloadString(ev.Payload, "currentTarget.dataset.routerPath")
-	datasetQuery := payloadString(ev.Payload, "currentTarget.dataset.routerQuery")
-	datasetHash := payloadString(ev.Payload, "currentTarget.dataset.routerHash")
+	datasetPath := h.PayloadString(ev.Payload, "currentTarget.dataset.routerPath", "")
+	datasetQuery := h.PayloadString(ev.Payload, "currentTarget.dataset.routerQuery", "")
+	datasetHash := h.PayloadString(ev.Payload, "currentTarget.dataset.routerHash", "")
 
 	if datasetPath != "" {
 		target := Location{
@@ -123,27 +122,9 @@ func extractTargetFromEvent(ev h.Event, base Location) Location {
 		return canonicalizeLocation(target)
 	}
 
-	href := payloadString(ev.Payload, "currentTarget.href")
+	href := h.PayloadString(ev.Payload, "currentTarget.href", "")
 	if href == "" {
 		return Location{}
 	}
 	return resolveHref(base, href)
-}
-
-func payloadString(payload map[string]any, key string) string {
-	if len(payload) == 0 {
-		return ""
-	}
-	raw, ok := payload[key]
-	if !ok || raw == nil {
-		return ""
-	}
-	switch v := raw.(type) {
-	case string:
-		return v
-	case fmt.Stringer:
-		return v.String()
-	default:
-		return fmt.Sprint(v)
-	}
 }

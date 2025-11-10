@@ -40,6 +40,7 @@ var (
 	MetaTags               = internalhtml.MetaTags
 	LinkTags               = internalhtml.LinkTags
 	ScriptTags             = internalhtml.ScriptTags
+	PayloadString          = internalhtml.PayloadString
 )
 
 func Map[T any](xs []T, render func(T) Node) Item {
