@@ -23,7 +23,12 @@ import {
   getPatcherStats,
   morphElement,
 } from "./patcher";
-import { UploadManager } from "./uploads";
+import {
+  UploadManager,
+  applyUploadBindings,
+  primeUploadBindings,
+  replaceUploadBindingsForComponent,
+} from "./uploads";
 import {
   clearHandlers,
   primeHandlerBindings,
@@ -89,6 +94,7 @@ import type {
   CookieEffect,
   UploadClientMessage,
   UploadControlMessage,
+  UploadBindingDescriptor,
   TemplatePayload,
   TemplateScope,
 } from "./types";
@@ -149,6 +155,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
   private batchScheduled: boolean = false;
   private rafHandle: number | ReturnType<typeof setTimeout> | null = null;
   private rafUsesTimeoutFallback = false;
+  private pendingUploadBindings: UploadBindingDescriptor[][] = [];
 
   private cookieRequests = new Set<string>();
 
@@ -396,6 +403,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     // Cancel any pending batches
     this.cancelScheduledBatch();
     this.patchQueue = [];
+    this.pendingUploadBindings = [];
 
     for (const entry of this.pubsubChannels.values()) {
       try {
@@ -711,11 +719,14 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     if (msg.refs?.add) {
       registerRefMetadata(msg.refs.add);
     }
+    let initOverrides: Map<string, import("./componentRanges").ComponentRange> | undefined;
     if (typeof document !== "undefined") {
       bindRefsInTree(document);
       primeHandlerBindings(document);
-      applyComponentRanges(msg.componentPaths, { root: document });
+      initOverrides = applyComponentRanges(msg.componentPaths, { root: document });
     }
+
+    primeUploadBindings(msg.bindings?.uploads ?? null, initOverrides);
 
     // Acknowledge if needed
     if (msg.seq !== undefined) {
@@ -831,6 +842,14 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
         } else {
           registerBindingsForSlot(slotId, []);
         }
+      }
+    }
+
+    if (Array.isArray(msg.bindings?.uploads)) {
+      if (this.batchScheduled || this.patchQueue.length > 0) {
+        this.pendingUploadBindings.push(msg.bindings.uploads);
+      } else {
+        applyUploadBindings(msg.bindings.uploads);
       }
     }
 
@@ -1043,6 +1062,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     };
     const overrides = applyComponentRanges(payload.componentPaths, { root: document });
     this.registerTemplateAnchors(range, payload, overrides);
+    primeUploadBindings(payload.bindings?.uploads ?? null, overrides);
   }
 
   private applyComponentTemplatePayload(
@@ -1126,6 +1146,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     });
 
     this.registerTemplateAnchors(refreshed, payload, overrides);
+    replaceUploadBindingsForComponent(scope.componentId, payload.bindings?.uploads ?? null, overrides);
 
     if (payload.handlers && Object.keys(payload.handlers).length > 0) {
       registerHandlers(payload.handlers);
@@ -1857,6 +1878,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       rangeOverrides,
     );
 
+    const uploadBindings = (bindings as any)?.uploads ?? bindings?.uploads ?? null;
+    replaceUploadBindingsForComponent(componentId, uploadBindings, rangeOverrides);
+
     if (Array.isArray(slotPaths) && slotPaths.length > 0) {
       const anchors = resolveSlotAnchors(slotPaths, rangeOverrides);
       anchors.forEach((node, slotId) => dom.registerSlot(slotId, node));
@@ -2077,6 +2101,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       this.batchScheduled = false;
       this.rafHandle = null;
       this.rafUsesTimeoutFallback = false;
+      if (this.pendingUploadBindings.length > 0) {
+        this.flushPendingUploadBindings();
+      }
       return;
     }
 
@@ -2090,6 +2117,8 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     this.rafUsesTimeoutFallback = false;
 
     applyOps(patches);
+
+    this.flushPendingUploadBindings();
 
     const duration = performance.now() - startTime;
 
@@ -2126,6 +2155,27 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     this.rafHandle = null;
     this.batchScheduled = false;
     this.rafUsesTimeoutFallback = false;
+  }
+
+  private flushPendingUploadBindings(): void {
+    if (this.pendingUploadBindings.length === 0) {
+      return;
+    }
+
+    const pending = this.pendingUploadBindings;
+    this.pendingUploadBindings = [];
+
+    const descriptors: UploadBindingDescriptor[] = [];
+    for (const group of pending) {
+      if (!Array.isArray(group) || group.length === 0) {
+        continue;
+      }
+      descriptors.push(...group);
+    }
+
+    if (descriptors.length > 0) {
+      applyUploadBindings(descriptors);
+    }
   }
 
   private hasStateChanged(
@@ -2770,6 +2820,29 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     this.log("Sending popstate navigation:", msg);
     this.channel.sendMessage("pop", msg);
   };
+
+  public requestRouterReset(componentId: string): void {
+    const sid = this.sessionId.get();
+    if (!sid || !this.channel) {
+      this.log("Cannot request router reset without active session/channel");
+      return;
+    }
+
+    const trimmed = typeof componentId === "string" ? componentId.trim() : "";
+    if (!trimmed) {
+      this.log("Cannot request router reset without component id");
+      return;
+    }
+
+    const payload = {
+      t: "routerReset" as const,
+      sid,
+      componentId: trimmed,
+    };
+
+    this.log("Requesting router reset:", payload);
+    this.channel.sendMessage("routerReset", payload);
+  }
 
   /**
    * Send acknowledgement to the server

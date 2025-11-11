@@ -24,8 +24,11 @@ func (r *ElementRef[T]) DOMElementRef() *dom.ElementRef[T] {
 	return r.ElementRef
 }
 
-type AttachTarget[T ElementDescriptor] interface {
-	Ref() *ElementRef[T]
+func (r *ElementRef[T]) AttachTo(e *Element) {
+	if r == nil {
+		return
+	}
+	dom.AttachElementRef[T](r.ElementRef, e)
 }
 
 func NewElementRef[T ElementDescriptor](id string, descriptor T) *ElementRef[T] {
@@ -36,20 +39,28 @@ func NewElementRef[T ElementDescriptor](id string, descriptor T) *ElementRef[T] 
 	return &ElementRef[T]{ElementRef: raw}
 }
 
-func Attach[T ElementDescriptor](target AttachTarget[T]) Prop {
-	ref := target.Ref()
-	if ref == nil {
+type Attachment interface {
+	AttachTo(*Element)
+}
+
+func Attach(target Attachment) Prop {
+	if target == nil {
 		return nil
 	}
-	return elementAttachProp[T]{ref: ref}
+	return attachmentProp{target: target}
 }
 
-type elementAttachProp[T ElementDescriptor] struct {
-	ref *ElementRef[T]
+type attachmentProp struct {
+	target Attachment
 }
 
-func (elementAttachProp[T]) isProp() {}
+func (attachmentProp) isProp() {}
 
-func (p elementAttachProp[T]) ApplyTo(e *Element) {
-	dom.AttachElementRef[T](p.ref.ElementRef, e)
+func (p attachmentProp) ApplyTo(e *Element) {
+	if e == nil || p.target == nil {
+		return
+	}
+	p.target.AttachTo(e)
 }
+
+// no builder registry needed; ref construction handled in generated façade

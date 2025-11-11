@@ -70,9 +70,20 @@ type Structured struct {
 	Components map[string]ComponentSpan
 	Bindings   []HandlerBinding
 
+	UploadBindings []UploadBinding
+
 	SlotPaths      []SlotPath
 	ListPaths      []ListPath
 	ComponentPaths []ComponentPath
+}
+
+type UploadBinding struct {
+	ComponentID string
+	Path        []int
+	UploadID    string
+	Accept      []string
+	Multiple    bool
+	MaxSize     int64
 }
 
 // PromotionTracker allows callers to control when static nodes should become dynamic.
@@ -120,6 +131,7 @@ func ToStructuredWithOptions(n h.Node, opts StructuredOptions) Structured {
 		D:              b.dynamics,
 		Components:     b.components,
 		Bindings:       append([]HandlerBinding(nil), b.handlerBindings...),
+		UploadBindings: append([]UploadBinding(nil), b.uploadBindings...),
 		SlotPaths:      append([]SlotPath(nil), b.slotPaths...),
 		ListPaths:      append([]ListPath(nil), b.listPaths...),
 		ComponentPaths: append([]ComponentPath(nil), b.componentPaths...),
@@ -133,6 +145,7 @@ type structuredBuilder struct {
 	stack           []elementFrame
 	components      map[string]ComponentSpan
 	handlerBindings []HandlerBinding
+	uploadBindings  []UploadBinding
 
 	tracker        PromotionTracker
 	componentStack []componentFrame
@@ -491,6 +504,25 @@ func (b *structuredBuilder) assignSlotIndices(frame elementFrame) {
 				anchor.TextChildIndex = binding.childIndex
 			}
 			b.slotPaths = append(b.slotPaths, anchor)
+		}
+	}
+	if frame.componentID != "" && len(frame.element.UploadBindings) > 0 {
+		path := append([]int(nil), frame.componentPath...)
+		for _, upload := range frame.element.UploadBindings {
+			if upload.UploadID == "" {
+				continue
+			}
+			binding := UploadBinding{
+				ComponentID: frame.componentID,
+				Path:        append([]int(nil), path...),
+				UploadID:    upload.UploadID,
+				Multiple:    upload.Multiple,
+				MaxSize:     upload.MaxSize,
+			}
+			if len(upload.Accept) > 0 {
+				binding.Accept = append([]string(nil), upload.Accept...)
+			}
+			b.uploadBindings = append(b.uploadBindings, binding)
 		}
 	}
 }

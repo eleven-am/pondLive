@@ -335,3 +335,18 @@ export function applyComponentRanges(
   registerComponentRanges(ranges);
   return ranges;
 }
+
+export function resolveNodeInComponent(
+  componentId: string,
+  path: number[] | undefined,
+  overrides?: Map<string, ComponentRange>,
+): Node | null {
+  if (typeof componentId !== "string" || componentId.length === 0) {
+    return null;
+  }
+  const range = overrides?.get(componentId) ?? getComponentRange(componentId);
+  if (!range) {
+    return null;
+  }
+  return resolveNodeInRange(range, path);
+}

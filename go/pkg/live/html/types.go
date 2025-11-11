@@ -58,4 +58,5 @@ type (
 	MetaTag                                      = internalhtml.MetaTag
 	LinkTag                                      = internalhtml.LinkTag
 	ScriptTag                                    = internalhtml.ScriptTag
+	UploadBinding                                = internalhtml.UploadBinding
 )

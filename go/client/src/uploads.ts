@@ -1,5 +1,8 @@
 import { registerUploadDelegate } from "./events";
+import { resolveNodeInComponent } from "./manifest";
+import type { ComponentRange } from "./componentRanges";
 import type {
+  UploadBindingDescriptor,
   UploadClientMessage,
   UploadControlMessage,
   UploadMeta,
@@ -16,6 +19,171 @@ type ActiveUpload = {
   xhr: XMLHttpRequest;
   input: HTMLInputElement | null;
 };
+
+type UploadBindingMeta = {
+  id: string;
+  accept?: string[];
+  multiple: boolean;
+  maxSize?: number;
+};
+
+const elementBindings = new WeakMap<Element, UploadBindingMeta>();
+const idToElement = new Map<string, Element>();
+const componentUploadIds = new Map<string, Set<string>>();
+
+function removeUploadIdFromComponents(uploadId: string): void {
+  for (const [componentId, ids] of componentUploadIds.entries()) {
+    if (ids.delete(uploadId) && ids.size === 0) {
+      componentUploadIds.delete(componentId);
+    }
+  }
+}
+
+function detachUploadBinding(uploadId: string): void {
+  if (typeof uploadId !== "string" || uploadId.length === 0) {
+    return;
+  }
+  const element = idToElement.get(uploadId);
+  if (element) {
+    elementBindings.delete(element);
+    idToElement.delete(uploadId);
+  }
+  removeUploadIdFromComponents(uploadId);
+}
+
+function setInputAttributes(
+  input: HTMLInputElement,
+  descriptor: UploadBindingDescriptor,
+): void {
+  if (Array.isArray(descriptor.accept) && descriptor.accept.length > 0) {
+    input.setAttribute("accept", descriptor.accept.join(","));
+  } else {
+    input.removeAttribute("accept");
+  }
+  if (descriptor.multiple) {
+    input.setAttribute("multiple", "multiple");
+  } else {
+    input.removeAttribute("multiple");
+  }
+}
+
+function attachUploadDescriptor(
+  descriptor: UploadBindingDescriptor,
+  overrides?: Map<string, ComponentRange>,
+): boolean {
+  if (!descriptor || typeof descriptor.uploadId !== "string") {
+    return false;
+  }
+  const node = resolveNodeInComponent(
+    descriptor.componentId,
+    descriptor.path,
+    overrides,
+  );
+  if (!(node instanceof HTMLInputElement)) {
+    return false;
+  }
+  if (node.type && node.type.toLowerCase() !== "file") {
+    node.type = "file";
+  }
+  detachUploadBinding(descriptor.uploadId);
+  setInputAttributes(node, descriptor);
+  const meta: UploadBindingMeta = {
+    id: descriptor.uploadId,
+    multiple: !!descriptor.multiple,
+  };
+  if (Array.isArray(descriptor.accept) && descriptor.accept.length > 0) {
+    meta.accept = [...descriptor.accept];
+  }
+  if (typeof descriptor.maxSize === "number" && !Number.isNaN(descriptor.maxSize)) {
+    meta.maxSize = descriptor.maxSize;
+  }
+  elementBindings.set(node, meta);
+  idToElement.set(descriptor.uploadId, node);
+  return true;
+}
+
+export function getUploadBinding(
+  element: Element | null | undefined,
+): UploadBindingMeta | undefined {
+  if (!element) {
+    return undefined;
+  }
+  return elementBindings.get(element) ?? undefined;
+}
+
+export function replaceUploadBindingsForComponent(
+  componentId: string,
+  descriptors: UploadBindingDescriptor[] | null | undefined,
+  overrides?: Map<string, ComponentRange>,
+): void {
+  if (typeof componentId !== "string" || componentId.length === 0) {
+    return;
+  }
+  const existing = componentUploadIds.get(componentId);
+  if (existing) {
+    existing.forEach((id) => detachUploadBinding(id));
+    componentUploadIds.delete(componentId);
+  }
+  if (!Array.isArray(descriptors) || descriptors.length === 0) {
+    return;
+  }
+  const next = new Set<string>();
+  for (const descriptor of descriptors) {
+    if (!descriptor || typeof descriptor.uploadId !== "string") {
+      continue;
+    }
+    const normalized: UploadBindingDescriptor = {
+      ...descriptor,
+      componentId,
+    };
+    if (attachUploadDescriptor(normalized, overrides)) {
+      next.add(descriptor.uploadId);
+    }
+  }
+  if (next.size > 0) {
+    componentUploadIds.set(componentId, next);
+  }
+}
+
+export function applyUploadBindings(
+  descriptors: UploadBindingDescriptor[] | null | undefined,
+  overrides?: Map<string, ComponentRange>,
+): void {
+  if (!Array.isArray(descriptors) || descriptors.length === 0) {
+    return;
+  }
+  const grouped = new Map<string, UploadBindingDescriptor[]>();
+  for (const descriptor of descriptors) {
+    if (!descriptor || typeof descriptor.componentId !== "string") {
+      continue;
+    }
+    const list = grouped.get(descriptor.componentId) ?? [];
+    list.push(descriptor);
+    grouped.set(descriptor.componentId, list);
+  }
+  for (const [componentId, list] of grouped.entries()) {
+    replaceUploadBindingsForComponent(componentId, list, overrides);
+  }
+}
+
+export function primeUploadBindings(
+  descriptors: UploadBindingDescriptor[] | null | undefined,
+  overrides?: Map<string, ComponentRange>,
+): void {
+  componentUploadIds.forEach((ids) => {
+    ids.forEach((id) => detachUploadBinding(id));
+  });
+  componentUploadIds.clear();
+  idToElement.clear();
+  if (!Array.isArray(descriptors) || descriptors.length === 0) {
+    return;
+  }
+  applyUploadBindings(descriptors, overrides);
+}
+
+export function clearUploadBindings(): void {
+  primeUploadBindings(null);
+}
 
 const enum UploadOps {
   Change = "change",
@@ -64,7 +232,8 @@ export class UploadManager {
     if (!input) {
       return;
     }
-    const uploadId = input.dataset?.pondUpload;
+    const binding = getUploadBinding(input);
+    const uploadId = binding?.id;
     if (!uploadId) {
       return;
     }

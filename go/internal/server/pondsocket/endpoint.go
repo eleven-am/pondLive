@@ -61,6 +61,7 @@ func (e *Endpoint) configure() {
 	lobby.OnMessage("ack", e.onAck)
 	lobby.OnMessage("nav", e.onNavigate)
 	lobby.OnMessage("pop", e.onPopState)
+	lobby.OnMessage("routerReset", e.onRouterReset)
 	lobby.OnMessage("recover", e.onRecover)
 	lobby.OnMessage("upload", e.onUpload)
 	lobby.OnMessage("domres", e.onDOMResponse)
@@ -323,6 +324,35 @@ func (e *Endpoint) onPopState(ctx *pond.EventContext) error {
 	if err := session.Flush(); err != nil {
 		if transport != nil {
 			return transport.SendServerError(serverError(session.ID(), "flush_failed", err))
+		}
+		return err
+	}
+	return nil
+}
+
+func (e *Endpoint) onRouterReset(ctx *pond.EventContext) error {
+	user := ctx.GetUser()
+	if user == nil {
+		return nil
+	}
+
+	session, transport, ok := e.registry.LookupByConnection(user.UserID)
+	if !ok || session == nil {
+		return nil
+	}
+
+	var payload protocol.RouterReset
+	if err := ctx.ParsePayload(&payload); err != nil {
+		diagErr := badPayloadDiagnostic("transport:parse", "failed to decode router reset payload", err, nil)
+		if transport != nil {
+			_ = transport.SendServerError(serverError(session.ID(), "bad_payload", diagErr))
+		}
+		return nil
+	}
+
+	if err := session.HandleRouterReset(payload.ComponentID); err != nil {
+		if transport != nil {
+			_ = transport.SendServerError(serverError(session.ID(), "router_reset_failed", err))
 		}
 		return err
 	}

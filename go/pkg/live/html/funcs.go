@@ -55,6 +55,8 @@ func NewElementRef[T ElementDescriptor](id string, descriptor T) *ElementRef[T] 
 	return internalhtml.NewElementRef(id, descriptor)
 }
 
-func Attach[T ElementDescriptor, Target internalhtml.AttachTarget[T]](target Target) Prop {
-	return internalhtml.Attach[T](target)
+type Attachment = internalhtml.Attachment
+
+func Attach(target Attachment) Prop {
+	return internalhtml.Attach(target)
 }

@@ -28,6 +28,16 @@ export interface Location {
 // Boot payload produced during SSR
 export interface BindingsPayload {
   slots?: BindingTable;
+  uploads?: UploadBindingDescriptor[];
+}
+
+export interface UploadBindingDescriptor {
+  componentId: string;
+  path?: number[];
+  uploadId: string;
+  accept?: string[];
+  multiple?: boolean;
+  maxSize?: number;
 }
 
 export interface TemplatePayload {

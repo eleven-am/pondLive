@@ -8,7 +8,9 @@ import * as dom from './dom-index';
 import { clearHandlers, primeSlotBindings, registerHandlers, syncEventListeners } from './events';
 import { applyComponentRanges, resolveListContainers, resolveSlotAnchors } from './manifest';
 import { resetComponentRanges } from './componentRanges';
+import type { ComponentRange } from './componentRanges';
 import { bindRefsInTree, clearRefs, registerRefs } from './refs';
+import { primeUploadBindings } from './uploads';
 import type { BootPayload, Location } from './types';
 
 export class BootHandler {
@@ -78,14 +80,17 @@ export class BootHandler {
     // Register element refs and index current DOM
     clearRefs();
     registerRefs(boot.refs?.add ?? null);
+    let rangeOverrides: Map<string, ComponentRange> | undefined;
     if (typeof document !== 'undefined') {
       bindRefsInTree(document);
       resetComponentRanges();
-      applyComponentRanges(boot.componentPaths, { root: document });
+      rangeOverrides = applyComponentRanges(boot.componentPaths, { root: document });
     }
 
     // Register DOM slots
     this.registerInitialDom(boot);
+
+    primeUploadBindings(boot.bindings?.uploads ?? null, rangeOverrides);
 
     // Sync browser location with boot location
     if (typeof window !== 'undefined' && boot.location) {

@@ -883,3 +883,109 @@ func TestLiveSessionDOMGetTimeout(t *testing.T) {
 		t.Fatalf("DOMGet returned before timeout elapsed")
 	}
 }
+
+func TestLiveSessionHandleRouterReset(t *testing.T) {
+	var outletID string
+
+	routeComponent := func(ctx Ctx, _ Match) h.Node {
+		return h.Div(h.Text("route"))
+	}
+
+	outletComponent := func(ctx Ctx, _ struct{}) h.Node {
+		outletID = ctx.ComponentID()
+		return Routes(ctx,
+			Route(ctx, RouteProps{Path: "/", Component: routeComponent}),
+		)
+	}
+
+	app := func(ctx Ctx, _ struct{}) h.Node {
+		return Router(ctx,
+			Render(ctx, outletComponent, struct{}{}),
+		)
+	}
+
+	transport := &stubTransport{}
+	dev := true
+	sess := NewLiveSession(SessionID("router-reset"), 1, app, struct{}{}, &LiveSessionConfig{Transport: transport, DevMode: &dev})
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("initial flush failed: %v", err)
+	}
+	if outletID == "" {
+		t.Fatal("expected router outlet id to be captured")
+	}
+	t.Logf("captured outlet id: %s", outletID)
+	if len(transport.templates) > 0 {
+		tpl := transport.templates[len(transport.templates)-1]
+		if tpl.Scope != nil {
+			t.Logf("initial template scope: component=%s parent=%s", tpl.Scope.ComponentID, tpl.Scope.ParentID)
+		} else {
+			t.Log("initial template has no scope")
+		}
+	}
+	for _, path := range sess.snapshot.ComponentPaths {
+		t.Logf("snapshot component path: id=%s parent=%s", path.ComponentID, path.ParentID)
+	}
+
+	comp := sess.ComponentSession()
+	if comp == nil {
+		t.Fatal("expected component session")
+	}
+	comp.componentsMu.RLock()
+	comp.componentsMu.RUnlock()
+	if comp.componentByID(outletID) == nil {
+		t.Fatalf("expected outlet component %s to be located", outletID)
+	}
+
+	transport.templates = nil
+	transport.frames = nil
+
+	if err := sess.HandleRouterReset(outletID); err != nil {
+		t.Fatalf("router reset failed: %v", err)
+	}
+	if len(transport.templates) == 0 {
+		t.Fatal("expected router reset to emit template frame")
+	}
+	tpl := transport.templates[len(transport.templates)-1]
+	if tpl.Scope == nil || tpl.Scope.ComponentID != outletID {
+		t.Fatalf("unexpected template scope: %+v", tpl.Scope)
+	}
+	if tpl.TemplatePayload.HTML == "" && len(tpl.TemplatePayload.S) == 0 {
+		t.Fatalf("expected template payload to contain content, got %+v", tpl.TemplatePayload)
+	}
+	if len(transport.frames) == 0 {
+		t.Fatal("expected diff frame alongside template")
+	}
+	if len(transport.frames[len(transport.frames)-1].Patch) != 0 {
+		t.Fatalf("expected router reset frame without diff operations, got %d", len(transport.frames[len(transport.frames)-1].Patch))
+	}
+
+	transport.templates = nil
+	transport.frames = nil
+	transport.diagnostics = nil
+
+	err := sess.HandleRouterReset("missing-component")
+	if err == nil {
+		t.Fatal("expected router reset to fail for unknown component")
+	}
+	if _, ok := AsDiagnosticError(err); !ok {
+		t.Fatalf("expected diagnostic error, got %v", err)
+	}
+	if len(transport.diagnostics) == 0 {
+		t.Fatal("expected diagnostic message for failed router reset")
+	}
+	diag := transport.diagnostics[len(transport.diagnostics)-1]
+	if diag.Code != "router_reset_failed" {
+		t.Fatalf("expected router_reset_failed diagnostic, got %q", diag.Code)
+	}
+	if len(transport.errors) == 0 {
+		t.Fatal("expected server error payload to accompany diagnostic")
+	}
+	errMsg := transport.errors[len(transport.errors)-1]
+	if errMsg.Details == nil {
+		t.Fatal("expected error details for router reset diagnostic")
+	}
+	if id, ok := errMsg.Details.Metadata["componentId"].(string); !ok || id != "missing-component" {
+		t.Fatalf("expected diagnostic metadata to include requested component id, got %+v", errMsg.Details.Metadata)
+	}
+}

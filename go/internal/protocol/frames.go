@@ -58,7 +58,8 @@ type TemplatePayload struct {
 }
 
 type TemplateBindings struct {
-	Slots BindingTable `json:"slots,omitempty"`
+	Slots   BindingTable    `json:"slots,omitempty"`
+	Uploads []UploadBinding `json:"uploads,omitempty"`
 }
 
 type DynamicSlot struct {
@@ -115,6 +116,15 @@ type SlotBinding struct {
 	Props   []string `json:"props,omitempty"`
 }
 
+type UploadBinding struct {
+	ComponentID string   `json:"componentId"`
+	Path        []int    `json:"path,omitempty"`
+	UploadID    string   `json:"uploadId"`
+	Accept      []string `json:"accept,omitempty"`
+	Multiple    bool     `json:"multiple,omitempty"`
+	MaxSize     int64    `json:"maxSize,omitempty"`
+}
+
 type BindingTable map[int][]SlotBinding
 type Join struct {
 	T   string   `json:"t"`
@@ -136,6 +146,12 @@ type ClientAck struct {
 	T   string `json:"t"`
 	SID string `json:"sid"`
 	Seq int    `json:"seq"`
+}
+
+type RouterReset struct {
+	T           string `json:"t"`
+	SID         string `json:"sid"`
+	ComponentID string `json:"componentId"`
 }
 
 type ClientEvent struct {

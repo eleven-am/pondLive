@@ -32,6 +32,8 @@ type Element struct {
 	MutableAttrs map[string]bool
 
 	HandlerAssignments map[string]EventAssignment
+
+	UploadBindings []UploadBinding
 }
 
 func (*Element) isNode()         {}
@@ -84,4 +86,11 @@ func (c *ComponentNode) ApplyTo(e *Element) {
 // WrapComponent wraps a component subtree so render passes can attach metadata.
 func WrapComponent(id string, child Node) *ComponentNode {
 	return &ComponentNode{ID: id, Child: child}
+}
+
+type UploadBinding struct {
+	UploadID string
+	Accept   []string
+	Multiple bool
+	MaxSize  int64
 }

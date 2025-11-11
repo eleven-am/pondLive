@@ -3,6 +3,7 @@ package runtime
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
@@ -57,17 +58,21 @@ func TestUseUploadLifecycle(t *testing.T) {
 		t.Fatal("expected component session")
 	}
 
-	uploadID := findUploadID(comp.prev)
-	if uploadID == "" {
-		t.Fatal("expected upload id in rendered attributes")
+	binding, ok := findUploadBinding(comp.prev)
+	if !ok {
+		t.Fatal("expected upload binding in structured output")
+	}
+	uploadID := binding.UploadID
+	if binding.ComponentID == "" {
+		t.Fatal("expected upload binding to include component id")
 	}
 
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("initial flush: %v", err)
 	}
 
-	if refreshedID := findUploadID(comp.prev); refreshedID != "" {
-		uploadID = refreshedID
+	if refreshed, ok := findUploadBinding(comp.prev); ok {
+		uploadID = refreshed.UploadID
 	}
 
 	change := protocol.UploadClient{SID: "sid", ID: uploadID, Op: "change", Meta: &protocol.UploadMeta{Name: "avatar.png", Size: 128, Type: "image/png"}}
@@ -129,21 +134,114 @@ func TestUseUploadLifecycle(t *testing.T) {
 	}
 }
 
+func TestUseUploadAttachPropRegistersMetadata(t *testing.T) {
+	component := func(ctx Ctx, _ struct{}) h.Node {
+		upload := UseUpload(ctx)
+		upload.Accept("image/png")
+		upload.AllowMultiple(true)
+		upload.MaxSize(2048)
+		return h.Div(
+			h.Input(
+				h.Type("file"),
+				h.Attach(upload),
+			),
+		)
+	}
+
+	sess := NewSession(component, struct{}{})
+	structured := sess.InitialStructured()
+	if len(structured.UploadBindings) != 1 {
+		t.Fatalf("expected one upload binding, got %d", len(structured.UploadBindings))
+	}
+	binding := structured.UploadBindings[0]
+	if binding.ComponentID == "" {
+		t.Fatal("expected binding to include component id")
+	}
+	if len(binding.Path) == 0 {
+		t.Fatal("expected binding path metadata to be recorded")
+	}
+	if binding.UploadID == "" {
+		t.Fatal("expected upload id to be populated")
+	}
+	if !binding.Multiple {
+		t.Fatal("expected multiple selection flag to propagate")
+	}
+	if binding.MaxSize != 2048 {
+		t.Fatalf("expected max size 2048, got %d", binding.MaxSize)
+	}
+	if len(binding.Accept) != 1 || binding.Accept[0] != "image/png" {
+		t.Fatalf("expected accept metadata [image/png], got %v", binding.Accept)
+	}
+
+	statics := strings.Join(structured.S, "")
+	if !strings.Contains(statics, "accept=\"image/png\"") {
+		t.Fatalf("expected accept attribute in statics, got %q", statics)
+	}
+	if !strings.Contains(statics, "multiple=\"multiple\"") {
+		t.Fatalf("expected multiple attribute in statics, got %q", statics)
+	}
+}
+
+func TestAttachAllowsRefAndUploadOnSameElement(t *testing.T) {
+	component := func(ctx Ctx, _ struct{}) h.Node {
+		ref := UseElement[h.HTMLInputElement](ctx)
+		upload := UseUpload(ctx)
+		upload.AllowMultiple(true)
+		return h.Div(
+			h.Input(
+				h.Type("file"),
+				h.Attach(ref),
+				h.Attach(upload),
+			),
+		)
+	}
+
+	sess := NewSession(component, struct{}{})
+	structured := sess.InitialStructured()
+	if len(structured.UploadBindings) != 1 {
+		t.Fatalf("expected one upload binding, got %d", len(structured.UploadBindings))
+	}
+	binding := structured.UploadBindings[0]
+	if binding.UploadID == "" {
+		t.Fatal("expected upload id to be populated")
+	}
+	if !binding.Multiple {
+		t.Fatal("expected upload binding to honour AllowMultiple")
+	}
+
+	sess.mu.Lock()
+	refs := cloneRefMetaMap(sess.lastRefs)
+	sess.mu.Unlock()
+	if len(refs) == 0 {
+		t.Fatal("expected ref metadata to be recorded")
+	}
+	foundInput := false
+	for _, meta := range refs {
+		if meta.Tag == "input" {
+			foundInput = true
+			break
+		}
+	}
+	if !foundInput {
+		t.Fatalf("expected input ref metadata, got %v", refs)
+	}
+}
+
 func findUploadID(structured render.Structured) string {
-	for _, dyn := range structured.D {
-		if dyn.Kind != render.DynAttrs {
-			continue
-		}
-		if id := dyn.Attrs["data-pond-upload"]; id != "" {
-			return id
+	binding, ok := findUploadBinding(structured)
+	if !ok {
+		return ""
+	}
+	return binding.UploadID
+}
+
+func findUploadBinding(structured render.Structured) (render.UploadBinding, bool) {
+	for _, binding := range structured.UploadBindings {
+		if binding.UploadID != "" {
+			return binding, true
 		}
 	}
-	for _, attrs := range staticAttrMaps(structured.S) {
-		if id := attrs["data-pond-upload"]; id != "" {
-			return id
-		}
-	}
-	return ""
+	return render.UploadBinding{}, false
 }
 
 func findProgressText(structured render.Structured) string {

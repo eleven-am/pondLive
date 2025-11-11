@@ -10,4 +10,5 @@ type (
 	FragmentNode  = dom.FragmentNode
 	CommentNode   = dom.CommentNode
 	ComponentNode = dom.ComponentNode
+	UploadBinding = dom.UploadBinding
 )

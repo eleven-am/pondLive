@@ -830,6 +830,115 @@ func (s *LiveSession) HandleUploadMessage(msg protocol.UploadClient) error {
 	return s.Flush()
 }
 
+// HandleRouterReset refreshes the template for a router component when requested by the client.
+func (s *LiveSession) HandleRouterReset(componentID string) error {
+	if s == nil {
+		return errors.New("runtime: session is nil")
+	}
+	trimmed := strings.TrimSpace(componentID)
+	if trimmed == "" {
+		return errors.New("runtime: router reset requires component identifier")
+	}
+	comp := s.ComponentSession()
+	if comp == nil {
+		return errors.New("runtime: session has no component")
+	}
+
+	requestedID := trimmed
+	target := comp.componentByID(requestedID)
+	if target == nil {
+		metadata := map[string]any{"componentId": requestedID}
+		if scope := s.snapshotComponentPath(requestedID); scope != nil {
+			if scope.ParentID != "" {
+				metadata["parentId"] = scope.ParentID
+			}
+			if len(scope.ParentPath) > 0 {
+				metadata["parentPath"] = append([]int(nil), scope.ParentPath...)
+			}
+			if len(scope.FirstChild) > 0 {
+				metadata["firstChild"] = append([]int(nil), scope.FirstChild...)
+			}
+			if len(scope.LastChild) > 0 {
+				metadata["lastChild"] = append([]int(nil), scope.LastChild...)
+			}
+		}
+
+		diag := Diagnostic{
+			Code:       "router_reset_failed",
+			Phase:      "router:reset",
+			Message:    fmt.Sprintf("router: component %s not found", requestedID),
+			Suggestion: "Reload the page to recover.",
+			Metadata:   metadata,
+			CapturedAt: time.Now(),
+		}
+
+		s.ReportDiagnostic(diag)
+		return diag.AsError()
+	}
+
+	release := comp.suspendFlushScheduling()
+	defer release()
+
+	boot := comp.requestComponentBootInternal(requestedID)
+	if boot == nil {
+		metadata := map[string]any{"componentId": requestedID}
+		diag := Diagnostic{
+			Code:       "router_reset_failed",
+			Phase:      "router:reset",
+			Message:    fmt.Sprintf("router: component %s unavailable", requestedID),
+			Suggestion: "Reload the page to recover.",
+			Metadata:   metadata,
+			CapturedAt: time.Now(),
+		}
+		s.ReportDiagnostic(diag)
+		return diag.AsError()
+	}
+	if comp.currentComponent() == nil {
+		comp.markDirty(boot)
+	}
+	if !comp.Dirty() {
+		return nil
+	}
+	return s.Flush()
+}
+
+func componentParentID(paths []protocol.ComponentPath, id string) string {
+	if id == "" {
+		return ""
+	}
+	for _, path := range paths {
+		if path.ComponentID == id {
+			return path.ParentID
+		}
+	}
+	return ""
+}
+
+func (s *LiveSession) snapshotComponentPath(id string) *protocol.ComponentPath {
+	if s == nil || id == "" {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, path := range s.snapshot.ComponentPaths {
+		if path.ComponentID != id {
+			continue
+		}
+		copy := path
+		if len(copy.ParentPath) > 0 {
+			copy.ParentPath = append([]int(nil), copy.ParentPath...)
+		}
+		if len(copy.FirstChild) > 0 {
+			copy.FirstChild = append([]int(nil), copy.FirstChild...)
+		}
+		if len(copy.LastChild) > 0 {
+			copy.LastChild = append([]int(nil), copy.LastChild...)
+		}
+		return &copy
+	}
+	return nil
+}
+
 // CancelUpload requests the client abort an in-flight upload and updates local state.
 func (s *LiveSession) CancelUpload(id string) error {
 	if s == nil {
@@ -1524,7 +1633,7 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 		ListPaths:      listPaths,
 		ComponentPaths: componentPaths,
 		Handlers:       handlers,
-		Bindings:       encodeTemplateBindings(structured.Bindings),
+		Bindings:       encodeTemplateBindings(structured.Bindings, structured.UploadBindings),
 		Refs:           refs,
 		Location:       protoLoc,
 		Metadata:       CloneMeta(meta),
@@ -1654,12 +1763,13 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 	return out
 }
 
-func encodeTemplateBindings(bindings []render.HandlerBinding) protocol.TemplateBindings {
-	table := encodeBindingTable(bindings)
-	if len(table) == 0 {
+func encodeTemplateBindings(handlerBindings []render.HandlerBinding, uploadBindings []render.UploadBinding) protocol.TemplateBindings {
+	table := encodeBindingTable(handlerBindings)
+	uploads := encodeUploadBindings(uploadBindings)
+	if len(table) == 0 && len(uploads) == 0 {
 		return protocol.TemplateBindings{}
 	}
-	return protocol.TemplateBindings{Slots: table}
+	return protocol.TemplateBindings{Slots: table, Uploads: uploads}
 }
 
 func encodeBindingTable(bindings []render.HandlerBinding) protocol.BindingTable {
@@ -1687,6 +1797,35 @@ func encodeBindingTable(bindings []render.HandlerBinding) protocol.BindingTable 
 		return nil
 	}
 	return table
+}
+
+func encodeUploadBindings(bindings []render.UploadBinding) []protocol.UploadBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.UploadBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.UploadID == "" || binding.ComponentID == "" {
+			continue
+		}
+		encoded := protocol.UploadBinding{
+			ComponentID: binding.ComponentID,
+			UploadID:    binding.UploadID,
+			Multiple:    binding.Multiple,
+			MaxSize:     binding.MaxSize,
+		}
+		if len(binding.Path) > 0 {
+			encoded.Path = append([]int(nil), binding.Path...)
+		}
+		if len(binding.Accept) > 0 {
+			encoded.Accept = append([]string(nil), binding.Accept...)
+		}
+		out = append(out, encoded)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func encodeSlotPaths(paths []render.SlotPath) []protocol.SlotPath {
@@ -2354,10 +2493,13 @@ func cloneTemplateScope(scope *protocol.TemplateScope) *protocol.TemplateScope {
 }
 
 func cloneTemplateBindings(bindings protocol.TemplateBindings) protocol.TemplateBindings {
-	if len(bindings.Slots) == 0 {
+	if len(bindings.Slots) == 0 && len(bindings.Uploads) == 0 {
 		return protocol.TemplateBindings{}
 	}
-	return protocol.TemplateBindings{Slots: cloneBindingTable(bindings.Slots)}
+	return protocol.TemplateBindings{
+		Slots:   cloneBindingTable(bindings.Slots),
+		Uploads: cloneUploadBindings(bindings.Uploads),
+	}
 }
 
 func cloneBindingTable(bindings protocol.BindingTable) protocol.BindingTable {
@@ -2370,6 +2512,29 @@ func cloneBindingTable(bindings protocol.BindingTable) protocol.BindingTable {
 	}
 	if len(out) == 0 {
 		return nil
+	}
+	return out
+}
+
+func cloneUploadBindings(bindings []protocol.UploadBinding) []protocol.UploadBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.UploadBinding, len(bindings))
+	for i, binding := range bindings {
+		clone := protocol.UploadBinding{
+			ComponentID: binding.ComponentID,
+			UploadID:    binding.UploadID,
+			Multiple:    binding.Multiple,
+			MaxSize:     binding.MaxSize,
+		}
+		if len(binding.Path) > 0 {
+			clone.Path = append([]int(nil), binding.Path...)
+		}
+		if len(binding.Accept) > 0 {
+			clone.Accept = append([]string(nil), binding.Accept...)
+		}
+		out[i] = clone
 	}
 	return out
 }

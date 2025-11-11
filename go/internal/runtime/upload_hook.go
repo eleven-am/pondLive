@@ -65,15 +65,17 @@ func (handle UploadHandle) BindInput(props ...h.Prop) []h.Prop {
 		copy(out, props)
 		return out
 	}
-	attrs := []h.Prop{h.Attr("data-pond-upload", handle.slot.id)}
-	if len(handle.slot.accept) > 0 {
-		attrs = append(attrs, h.Attr("accept", joinStrings(handle.slot.accept, ",")))
+	out := make([]h.Prop, 0, len(props)+1)
+	out = append(out, h.Attach(handle))
+	out = append(out, props...)
+	return out
+}
+
+func (handle UploadHandle) AttachTo(el *h.Element) {
+	if handle.slot == nil || el == nil {
+		return
 	}
-	if handle.slot.multiple {
-		attrs = append(attrs, h.Attr("multiple", "multiple"))
-	}
-	attrs = append(attrs, props...)
-	return attrs
+	handle.slot.registerBinding(el)
 }
 
 // OnChange registers a callback invoked when the client picks a file.
@@ -189,6 +191,37 @@ type uploadSlot struct {
 	progressMu sync.RWMutex
 
 	cancelled bool
+}
+
+func (slot *uploadSlot) registerBinding(el *h.Element) {
+	if slot == nil || el == nil || slot.id == "" {
+		return
+	}
+	binding := h.UploadBinding{
+		UploadID: slot.id,
+		Multiple: slot.multiple,
+		MaxSize:  slot.maxSize,
+	}
+	if len(slot.accept) > 0 {
+		binding.Accept = append([]string(nil), slot.accept...)
+	}
+	el.UploadBindings = append(el.UploadBindings, binding)
+	if len(binding.Accept) > 0 {
+		if el.Attrs == nil {
+			el.Attrs = map[string]string{}
+		}
+		el.Attrs["accept"] = joinStrings(binding.Accept, ",")
+	} else if el.Attrs != nil {
+		delete(el.Attrs, "accept")
+	}
+	if slot.multiple {
+		if el.Attrs == nil {
+			el.Attrs = map[string]string{}
+		}
+		el.Attrs["multiple"] = "multiple"
+	} else if el.Attrs != nil {
+		delete(el.Attrs, "multiple")
+	}
 }
 
 func (s *ComponentSession) registerUploadSlot(comp *component, index int) *uploadSlot {

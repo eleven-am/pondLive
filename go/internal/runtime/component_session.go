@@ -672,8 +672,53 @@ func (s *ComponentSession) componentByID(id string) *component {
 		return nil
 	}
 	s.componentsMu.RLock()
-	defer s.componentsMu.RUnlock()
-	return s.components[id]
+	comp := s.components[id]
+	s.componentsMu.RUnlock()
+	if comp != nil {
+		return comp
+	}
+	return s.componentByIDSlow(id)
+}
+
+func (s *ComponentSession) componentByIDSlow(id string) *component {
+	if s == nil || id == "" {
+		return nil
+	}
+	root := s.root
+	if root == nil {
+		return nil
+	}
+	if found := findComponentByID(root, id); found != nil {
+		s.componentsMu.Lock()
+		if s.components == nil {
+			s.components = make(map[string]*component)
+		}
+		s.components[id] = found
+		s.componentsMu.Unlock()
+		return found
+	}
+	return nil
+}
+
+func findComponentByID(root *component, id string) *component {
+	if root == nil {
+		return nil
+	}
+	if root.id == id {
+		return root
+	}
+	root.mu.Lock()
+	children := make([]*component, 0, len(root.children))
+	for _, child := range root.children {
+		children = append(children, child)
+	}
+	root.mu.Unlock()
+	for _, child := range children {
+		if found := findComponentByID(child, id); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 // RequestComponentBoot schedules a template refresh for the component identified by id.
@@ -1407,9 +1452,10 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		return nil, next, render.Structured{}, true
 	}
 	sanitized := render.Structured{
-		S:          append([]string(nil), next.S...),
-		D:          append([]render.Dyn(nil), next.D...),
-		Components: next.Components,
+		S:              append([]string(nil), next.S...),
+		D:              append([]render.Dyn(nil), next.D...),
+		Components:     next.Components,
+		UploadBindings: append([]render.UploadBinding(nil), next.UploadBindings...),
 	}
 	globalBindings := encodeBindingTable(next.Bindings)
 	updates := make([]componentTemplateUpdate, 0, len(requests))
@@ -1459,6 +1505,10 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		if len(componentPaths) > 0 {
 			update.componentPaths = encodeComponentPaths(componentPaths)
 		}
+		var uploadBindings []protocol.UploadBinding
+		if filtered := filterUploadBindingsForComponent(next.UploadBindings, id); len(filtered) > 0 {
+			uploadBindings = filtered
+		}
 		if len(update.slots) > 0 {
 			componentBindings := make(protocol.BindingTable, len(update.slots))
 			for _, slot := range update.slots {
@@ -1480,9 +1530,13 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 				}
 				componentBindings[slot] = cloned
 			}
-			if len(componentBindings) > 0 {
-				update.bindings = protocol.TemplateBindings{Slots: componentBindings}
+			if len(componentBindings) > 0 || len(uploadBindings) > 0 {
+				update.bindings = protocol.TemplateBindings{Slots: componentBindings, Uploads: uploadBindings}
+			} else if len(uploadBindings) > 0 {
+				update.bindings = protocol.TemplateBindings{Uploads: uploadBindings}
 			}
+		} else if len(uploadBindings) > 0 {
+			update.bindings = protocol.TemplateBindings{Uploads: uploadBindings}
 		}
 		if req != nil && req.component != nil {
 			node := req.component.render()
@@ -1700,6 +1754,35 @@ func collectComponentPathsFromDynamics(dynamics []render.Dyn) []render.Component
 			}
 			out = append(out, row.ComponentPaths...)
 		}
+	}
+	return out
+}
+
+func filterUploadBindingsForComponent(bindings []render.UploadBinding, componentID string) []protocol.UploadBinding {
+	if componentID == "" || len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.UploadBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.ComponentID != componentID || binding.UploadID == "" {
+			continue
+		}
+		encoded := protocol.UploadBinding{
+			ComponentID: binding.ComponentID,
+			UploadID:    binding.UploadID,
+			Multiple:    binding.Multiple,
+			MaxSize:     binding.MaxSize,
+		}
+		if len(binding.Path) > 0 {
+			encoded.Path = append([]int(nil), binding.Path...)
+		}
+		if len(binding.Accept) > 0 {
+			encoded.Accept = append([]string(nil), binding.Accept...)
+		}
+		out = append(out, encoded)
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
