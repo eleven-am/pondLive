@@ -5,6 +5,8 @@ import "github.com/eleven-am/pondlive/go/internal/dom"
 
 type ARef struct {
 	*ElementRef[HTMLAElement]
+	*ElementActions[HTMLAElement]
+	*FocusActions[HTMLAElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -30,6 +32,8 @@ func NewARef(ref *ElementRef[HTMLAElement]) *ARef {
 	}
 	return &ARef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLAElement](ref.DOMElementRef()),
+		FocusActions:       NewFocusActions[HTMLAElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -52,6 +56,7 @@ func NewARef(ref *ElementRef[HTMLAElement]) *ARef {
 
 type AbbrRef struct {
 	*ElementRef[HTMLAbbrElement]
+	*ElementActions[HTMLAbbrElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -77,6 +82,7 @@ func NewAbbrRef(ref *ElementRef[HTMLAbbrElement]) *AbbrRef {
 	}
 	return &AbbrRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLAbbrElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -99,6 +105,7 @@ func NewAbbrRef(ref *ElementRef[HTMLAbbrElement]) *AbbrRef {
 
 type AddressRef struct {
 	*ElementRef[HTMLAddressElement]
+	*ElementActions[HTMLAddressElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -124,6 +131,7 @@ func NewAddressRef(ref *ElementRef[HTMLAddressElement]) *AddressRef {
 	}
 	return &AddressRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLAddressElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -146,6 +154,7 @@ func NewAddressRef(ref *ElementRef[HTMLAddressElement]) *AddressRef {
 
 type AreaRef struct {
 	*ElementRef[HTMLAreaElement]
+	*ElementActions[HTMLAreaElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -171,6 +180,7 @@ func NewAreaRef(ref *ElementRef[HTMLAreaElement]) *AreaRef {
 	}
 	return &AreaRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLAreaElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -193,6 +203,7 @@ func NewAreaRef(ref *ElementRef[HTMLAreaElement]) *AreaRef {
 
 type ArticleRef struct {
 	*ElementRef[HTMLArticleElement]
+	*ElementActions[HTMLArticleElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -218,6 +229,7 @@ func NewArticleRef(ref *ElementRef[HTMLArticleElement]) *ArticleRef {
 	}
 	return &ArticleRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLArticleElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -240,6 +252,7 @@ func NewArticleRef(ref *ElementRef[HTMLArticleElement]) *ArticleRef {
 
 type AsideRef struct {
 	*ElementRef[HTMLAsideElement]
+	*ElementActions[HTMLAsideElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -265,6 +278,7 @@ func NewAsideRef(ref *ElementRef[HTMLAsideElement]) *AsideRef {
 	}
 	return &AsideRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLAsideElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -287,6 +301,9 @@ func NewAsideRef(ref *ElementRef[HTMLAsideElement]) *AsideRef {
 
 type AudioRef struct {
 	*ElementRef[HTMLAudioElement]
+	*ElementActions[HTMLAudioElement]
+	*FocusActions[HTMLAudioElement]
+	*MediaActions[HTMLAudioElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -313,6 +330,9 @@ func NewAudioRef(ref *ElementRef[HTMLAudioElement]) *AudioRef {
 	}
 	return &AudioRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLAudioElement](ref.DOMElementRef()),
+		FocusActions:       NewFocusActions[HTMLAudioElement](ref.DOMElementRef()),
+		MediaActions:       NewMediaActions[HTMLAudioElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -336,6 +356,7 @@ func NewAudioRef(ref *ElementRef[HTMLAudioElement]) *AudioRef {
 
 type BRef struct {
 	*ElementRef[HTMLBElement]
+	*ElementActions[HTMLBElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -361,6 +382,7 @@ func NewBRef(ref *ElementRef[HTMLBElement]) *BRef {
 	}
 	return &BRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLBElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -383,6 +405,7 @@ func NewBRef(ref *ElementRef[HTMLBElement]) *BRef {
 
 type BaseRef struct {
 	*ElementRef[HTMLBaseElement]
+	*ElementActions[HTMLBaseElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -408,6 +431,7 @@ func NewBaseRef(ref *ElementRef[HTMLBaseElement]) *BaseRef {
 	}
 	return &BaseRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLBaseElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -430,6 +454,7 @@ func NewBaseRef(ref *ElementRef[HTMLBaseElement]) *BaseRef {
 
 type BdiRef struct {
 	*ElementRef[HTMLBdiElement]
+	*ElementActions[HTMLBdiElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -455,6 +480,7 @@ func NewBdiRef(ref *ElementRef[HTMLBdiElement]) *BdiRef {
 	}
 	return &BdiRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLBdiElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -477,6 +503,7 @@ func NewBdiRef(ref *ElementRef[HTMLBdiElement]) *BdiRef {
 
 type BdoRef struct {
 	*ElementRef[HTMLBdoElement]
+	*ElementActions[HTMLBdoElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -502,6 +529,7 @@ func NewBdoRef(ref *ElementRef[HTMLBdoElement]) *BdoRef {
 	}
 	return &BdoRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLBdoElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -524,6 +552,7 @@ func NewBdoRef(ref *ElementRef[HTMLBdoElement]) *BdoRef {
 
 type BlockquoteRef struct {
 	*ElementRef[HTMLBlockquoteElement]
+	*ElementActions[HTMLBlockquoteElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -549,6 +578,7 @@ func NewBlockquoteRef(ref *ElementRef[HTMLBlockquoteElement]) *BlockquoteRef {
 	}
 	return &BlockquoteRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLBlockquoteElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -571,6 +601,7 @@ func NewBlockquoteRef(ref *ElementRef[HTMLBlockquoteElement]) *BlockquoteRef {
 
 type BodyRef struct {
 	*ElementRef[HTMLBodyElement]
+	*ElementActions[HTMLBodyElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -596,6 +627,7 @@ func NewBodyRef(ref *ElementRef[HTMLBodyElement]) *BodyRef {
 	}
 	return &BodyRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLBodyElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -618,6 +650,7 @@ func NewBodyRef(ref *ElementRef[HTMLBodyElement]) *BodyRef {
 
 type BrRef struct {
 	*ElementRef[HTMLBrElement]
+	*ElementActions[HTMLBrElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -643,6 +676,7 @@ func NewBrRef(ref *ElementRef[HTMLBrElement]) *BrRef {
 	}
 	return &BrRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLBrElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -665,6 +699,8 @@ func NewBrRef(ref *ElementRef[HTMLBrElement]) *BrRef {
 
 type ButtonRef struct {
 	*ElementRef[HTMLButtonElement]
+	*ElementActions[HTMLButtonElement]
+	*FocusActions[HTMLButtonElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -690,6 +726,8 @@ func NewButtonRef(ref *ElementRef[HTMLButtonElement]) *ButtonRef {
 	}
 	return &ButtonRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLButtonElement](ref.DOMElementRef()),
+		FocusActions:       NewFocusActions[HTMLButtonElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -712,6 +750,7 @@ func NewButtonRef(ref *ElementRef[HTMLButtonElement]) *ButtonRef {
 
 type CanvasRef struct {
 	*ElementRef[HTMLCanvasElement]
+	*ElementActions[HTMLCanvasElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -737,6 +776,7 @@ func NewCanvasRef(ref *ElementRef[HTMLCanvasElement]) *CanvasRef {
 	}
 	return &CanvasRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLCanvasElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -759,6 +799,7 @@ func NewCanvasRef(ref *ElementRef[HTMLCanvasElement]) *CanvasRef {
 
 type CaptionRef struct {
 	*ElementRef[HTMLCaptionElement]
+	*ElementActions[HTMLCaptionElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -784,6 +825,7 @@ func NewCaptionRef(ref *ElementRef[HTMLCaptionElement]) *CaptionRef {
 	}
 	return &CaptionRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLCaptionElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -806,6 +848,7 @@ func NewCaptionRef(ref *ElementRef[HTMLCaptionElement]) *CaptionRef {
 
 type CircleRef struct {
 	*ElementRef[SVGCircleElement]
+	*ElementActions[SVGCircleElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -831,6 +874,7 @@ func NewCircleRef(ref *ElementRef[SVGCircleElement]) *CircleRef {
 	}
 	return &CircleRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGCircleElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -853,6 +897,7 @@ func NewCircleRef(ref *ElementRef[SVGCircleElement]) *CircleRef {
 
 type CiteRef struct {
 	*ElementRef[HTMLCiteElement]
+	*ElementActions[HTMLCiteElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -878,6 +923,7 @@ func NewCiteRef(ref *ElementRef[HTMLCiteElement]) *CiteRef {
 	}
 	return &CiteRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLCiteElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -900,6 +946,7 @@ func NewCiteRef(ref *ElementRef[HTMLCiteElement]) *CiteRef {
 
 type ClipPathRef struct {
 	*ElementRef[SVGClipPathElement]
+	*ElementActions[SVGClipPathElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -925,6 +972,7 @@ func NewClipPathRef(ref *ElementRef[SVGClipPathElement]) *ClipPathRef {
 	}
 	return &ClipPathRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGClipPathElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -947,6 +995,7 @@ func NewClipPathRef(ref *ElementRef[SVGClipPathElement]) *ClipPathRef {
 
 type CodeRef struct {
 	*ElementRef[HTMLCodeElement]
+	*ElementActions[HTMLCodeElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -972,6 +1021,7 @@ func NewCodeRef(ref *ElementRef[HTMLCodeElement]) *CodeRef {
 	}
 	return &CodeRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLCodeElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -994,6 +1044,7 @@ func NewCodeRef(ref *ElementRef[HTMLCodeElement]) *CodeRef {
 
 type ColRef struct {
 	*ElementRef[HTMLColElement]
+	*ElementActions[HTMLColElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1019,6 +1070,7 @@ func NewColRef(ref *ElementRef[HTMLColElement]) *ColRef {
 	}
 	return &ColRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLColElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1041,6 +1093,7 @@ func NewColRef(ref *ElementRef[HTMLColElement]) *ColRef {
 
 type ColgroupRef struct {
 	*ElementRef[HTMLColgroupElement]
+	*ElementActions[HTMLColgroupElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1066,6 +1119,7 @@ func NewColgroupRef(ref *ElementRef[HTMLColgroupElement]) *ColgroupRef {
 	}
 	return &ColgroupRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLColgroupElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1088,6 +1142,7 @@ func NewColgroupRef(ref *ElementRef[HTMLColgroupElement]) *ColgroupRef {
 
 type DataElRef struct {
 	*ElementRef[HTMLDataElement]
+	*ElementActions[HTMLDataElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1113,6 +1168,7 @@ func NewDataElRef(ref *ElementRef[HTMLDataElement]) *DataElRef {
 	}
 	return &DataElRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDataElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1135,6 +1191,7 @@ func NewDataElRef(ref *ElementRef[HTMLDataElement]) *DataElRef {
 
 type DatalistRef struct {
 	*ElementRef[HTMLDatalistElement]
+	*ElementActions[HTMLDatalistElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1160,6 +1217,7 @@ func NewDatalistRef(ref *ElementRef[HTMLDatalistElement]) *DatalistRef {
 	}
 	return &DatalistRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDatalistElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1182,6 +1240,7 @@ func NewDatalistRef(ref *ElementRef[HTMLDatalistElement]) *DatalistRef {
 
 type DdRef struct {
 	*ElementRef[HTMLDdElement]
+	*ElementActions[HTMLDdElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1207,6 +1266,7 @@ func NewDdRef(ref *ElementRef[HTMLDdElement]) *DdRef {
 	}
 	return &DdRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDdElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1229,6 +1289,7 @@ func NewDdRef(ref *ElementRef[HTMLDdElement]) *DdRef {
 
 type DefsRef struct {
 	*ElementRef[SVGDefsElement]
+	*ElementActions[SVGDefsElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1254,6 +1315,7 @@ func NewDefsRef(ref *ElementRef[SVGDefsElement]) *DefsRef {
 	}
 	return &DefsRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGDefsElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1276,6 +1338,7 @@ func NewDefsRef(ref *ElementRef[SVGDefsElement]) *DefsRef {
 
 type DelElRef struct {
 	*ElementRef[HTMLDelElement]
+	*ElementActions[HTMLDelElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1301,6 +1364,7 @@ func NewDelElRef(ref *ElementRef[HTMLDelElement]) *DelElRef {
 	}
 	return &DelElRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDelElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1323,6 +1387,8 @@ func NewDelElRef(ref *ElementRef[HTMLDelElement]) *DelElRef {
 
 type DetailsRef struct {
 	*ElementRef[HTMLDetailsElement]
+	*ElementActions[HTMLDetailsElement]
+	*FocusActions[HTMLDetailsElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1349,6 +1415,8 @@ func NewDetailsRef(ref *ElementRef[HTMLDetailsElement]) *DetailsRef {
 	}
 	return &DetailsRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDetailsElement](ref.DOMElementRef()),
+		FocusActions:       NewFocusActions[HTMLDetailsElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1372,6 +1440,7 @@ func NewDetailsRef(ref *ElementRef[HTMLDetailsElement]) *DetailsRef {
 
 type DfnRef struct {
 	*ElementRef[HTMLDfnElement]
+	*ElementActions[HTMLDfnElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1397,6 +1466,7 @@ func NewDfnRef(ref *ElementRef[HTMLDfnElement]) *DfnRef {
 	}
 	return &DfnRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDfnElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1419,6 +1489,8 @@ func NewDfnRef(ref *ElementRef[HTMLDfnElement]) *DfnRef {
 
 type DialogRef struct {
 	*ElementRef[HTMLDialogElement]
+	*ElementActions[HTMLDialogElement]
+	*DialogActions[HTMLDialogElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1445,6 +1517,8 @@ func NewDialogRef(ref *ElementRef[HTMLDialogElement]) *DialogRef {
 	}
 	return &DialogRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDialogElement](ref.DOMElementRef()),
+		DialogActions:      NewDialogActions[HTMLDialogElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1468,6 +1542,7 @@ func NewDialogRef(ref *ElementRef[HTMLDialogElement]) *DialogRef {
 
 type DivRef struct {
 	*ElementRef[HTMLDivElement]
+	*ElementActions[HTMLDivElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1493,6 +1568,7 @@ func NewDivRef(ref *ElementRef[HTMLDivElement]) *DivRef {
 	}
 	return &DivRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDivElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1515,6 +1591,7 @@ func NewDivRef(ref *ElementRef[HTMLDivElement]) *DivRef {
 
 type DlRef struct {
 	*ElementRef[HTMLDlElement]
+	*ElementActions[HTMLDlElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1540,6 +1617,7 @@ func NewDlRef(ref *ElementRef[HTMLDlElement]) *DlRef {
 	}
 	return &DlRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDlElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1562,6 +1640,7 @@ func NewDlRef(ref *ElementRef[HTMLDlElement]) *DlRef {
 
 type DtRef struct {
 	*ElementRef[HTMLDtElement]
+	*ElementActions[HTMLDtElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1587,6 +1666,7 @@ func NewDtRef(ref *ElementRef[HTMLDtElement]) *DtRef {
 	}
 	return &DtRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLDtElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1609,6 +1689,7 @@ func NewDtRef(ref *ElementRef[HTMLDtElement]) *DtRef {
 
 type EllipseRef struct {
 	*ElementRef[SVGEllipseElement]
+	*ElementActions[SVGEllipseElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1634,6 +1715,7 @@ func NewEllipseRef(ref *ElementRef[SVGEllipseElement]) *EllipseRef {
 	}
 	return &EllipseRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGEllipseElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1656,6 +1738,7 @@ func NewEllipseRef(ref *ElementRef[SVGEllipseElement]) *EllipseRef {
 
 type EmRef struct {
 	*ElementRef[HTMLEmElement]
+	*ElementActions[HTMLEmElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1681,6 +1764,7 @@ func NewEmRef(ref *ElementRef[HTMLEmElement]) *EmRef {
 	}
 	return &EmRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLEmElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1703,6 +1787,7 @@ func NewEmRef(ref *ElementRef[HTMLEmElement]) *EmRef {
 
 type EmbedRef struct {
 	*ElementRef[HTMLEmbedElement]
+	*ElementActions[HTMLEmbedElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1728,6 +1813,7 @@ func NewEmbedRef(ref *ElementRef[HTMLEmbedElement]) *EmbedRef {
 	}
 	return &EmbedRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLEmbedElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1750,6 +1836,7 @@ func NewEmbedRef(ref *ElementRef[HTMLEmbedElement]) *EmbedRef {
 
 type FieldsetRef struct {
 	*ElementRef[HTMLFieldsetElement]
+	*ElementActions[HTMLFieldsetElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1775,6 +1862,7 @@ func NewFieldsetRef(ref *ElementRef[HTMLFieldsetElement]) *FieldsetRef {
 	}
 	return &FieldsetRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLFieldsetElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1797,6 +1885,7 @@ func NewFieldsetRef(ref *ElementRef[HTMLFieldsetElement]) *FieldsetRef {
 
 type FigcaptionRef struct {
 	*ElementRef[HTMLFigcaptionElement]
+	*ElementActions[HTMLFigcaptionElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1822,6 +1911,7 @@ func NewFigcaptionRef(ref *ElementRef[HTMLFigcaptionElement]) *FigcaptionRef {
 	}
 	return &FigcaptionRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLFigcaptionElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1844,6 +1934,7 @@ func NewFigcaptionRef(ref *ElementRef[HTMLFigcaptionElement]) *FigcaptionRef {
 
 type FigureRef struct {
 	*ElementRef[HTMLFigureElement]
+	*ElementActions[HTMLFigureElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1869,6 +1960,7 @@ func NewFigureRef(ref *ElementRef[HTMLFigureElement]) *FigureRef {
 	}
 	return &FigureRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLFigureElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1891,6 +1983,7 @@ func NewFigureRef(ref *ElementRef[HTMLFigureElement]) *FigureRef {
 
 type FooterRef struct {
 	*ElementRef[HTMLFooterElement]
+	*ElementActions[HTMLFooterElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1916,6 +2009,7 @@ func NewFooterRef(ref *ElementRef[HTMLFooterElement]) *FooterRef {
 	}
 	return &FooterRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLFooterElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1938,6 +2032,7 @@ func NewFooterRef(ref *ElementRef[HTMLFooterElement]) *FooterRef {
 
 type ForeignObjectRef struct {
 	*ElementRef[SVGForeignObjectElement]
+	*ElementActions[SVGForeignObjectElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -1963,6 +2058,7 @@ func NewForeignObjectRef(ref *ElementRef[SVGForeignObjectElement]) *ForeignObjec
 	}
 	return &ForeignObjectRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGForeignObjectElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1985,6 +2081,8 @@ func NewForeignObjectRef(ref *ElementRef[SVGForeignObjectElement]) *ForeignObjec
 
 type FormRef struct {
 	*ElementRef[HTMLFormElement]
+	*ElementActions[HTMLFormElement]
+	*FormActions[HTMLFormElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2011,6 +2109,8 @@ func NewFormRef(ref *ElementRef[HTMLFormElement]) *FormRef {
 	}
 	return &FormRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLFormElement](ref.DOMElementRef()),
+		FormActions:        NewFormActions[HTMLFormElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2034,6 +2134,7 @@ func NewFormRef(ref *ElementRef[HTMLFormElement]) *FormRef {
 
 type GRef struct {
 	*ElementRef[SVGGElement]
+	*ElementActions[SVGGElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2059,6 +2160,7 @@ func NewGRef(ref *ElementRef[SVGGElement]) *GRef {
 	}
 	return &GRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGGElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2081,6 +2183,7 @@ func NewGRef(ref *ElementRef[SVGGElement]) *GRef {
 
 type H1Ref struct {
 	*ElementRef[HTMLH1Element]
+	*ElementActions[HTMLH1Element]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2106,6 +2209,7 @@ func NewH1Ref(ref *ElementRef[HTMLH1Element]) *H1Ref {
 	}
 	return &H1Ref{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLH1Element](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2128,6 +2232,7 @@ func NewH1Ref(ref *ElementRef[HTMLH1Element]) *H1Ref {
 
 type H2Ref struct {
 	*ElementRef[HTMLH2Element]
+	*ElementActions[HTMLH2Element]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2153,6 +2258,7 @@ func NewH2Ref(ref *ElementRef[HTMLH2Element]) *H2Ref {
 	}
 	return &H2Ref{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLH2Element](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2175,6 +2281,7 @@ func NewH2Ref(ref *ElementRef[HTMLH2Element]) *H2Ref {
 
 type H3Ref struct {
 	*ElementRef[HTMLH3Element]
+	*ElementActions[HTMLH3Element]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2200,6 +2307,7 @@ func NewH3Ref(ref *ElementRef[HTMLH3Element]) *H3Ref {
 	}
 	return &H3Ref{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLH3Element](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2222,6 +2330,7 @@ func NewH3Ref(ref *ElementRef[HTMLH3Element]) *H3Ref {
 
 type H4Ref struct {
 	*ElementRef[HTMLH4Element]
+	*ElementActions[HTMLH4Element]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2247,6 +2356,7 @@ func NewH4Ref(ref *ElementRef[HTMLH4Element]) *H4Ref {
 	}
 	return &H4Ref{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLH4Element](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2269,6 +2379,7 @@ func NewH4Ref(ref *ElementRef[HTMLH4Element]) *H4Ref {
 
 type H5Ref struct {
 	*ElementRef[HTMLH5Element]
+	*ElementActions[HTMLH5Element]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2294,6 +2405,7 @@ func NewH5Ref(ref *ElementRef[HTMLH5Element]) *H5Ref {
 	}
 	return &H5Ref{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLH5Element](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2316,6 +2428,7 @@ func NewH5Ref(ref *ElementRef[HTMLH5Element]) *H5Ref {
 
 type H6Ref struct {
 	*ElementRef[HTMLH6Element]
+	*ElementActions[HTMLH6Element]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2341,6 +2454,7 @@ func NewH6Ref(ref *ElementRef[HTMLH6Element]) *H6Ref {
 	}
 	return &H6Ref{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLH6Element](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2363,6 +2477,7 @@ func NewH6Ref(ref *ElementRef[HTMLH6Element]) *H6Ref {
 
 type HeadRef struct {
 	*ElementRef[HTMLHeadElement]
+	*ElementActions[HTMLHeadElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2388,6 +2503,7 @@ func NewHeadRef(ref *ElementRef[HTMLHeadElement]) *HeadRef {
 	}
 	return &HeadRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLHeadElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2410,6 +2526,7 @@ func NewHeadRef(ref *ElementRef[HTMLHeadElement]) *HeadRef {
 
 type HeaderRef struct {
 	*ElementRef[HTMLHeaderElement]
+	*ElementActions[HTMLHeaderElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2435,6 +2552,7 @@ func NewHeaderRef(ref *ElementRef[HTMLHeaderElement]) *HeaderRef {
 	}
 	return &HeaderRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLHeaderElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2457,6 +2575,7 @@ func NewHeaderRef(ref *ElementRef[HTMLHeaderElement]) *HeaderRef {
 
 type HgroupRef struct {
 	*ElementRef[HTMLHgroupElement]
+	*ElementActions[HTMLHgroupElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2482,6 +2601,7 @@ func NewHgroupRef(ref *ElementRef[HTMLHgroupElement]) *HgroupRef {
 	}
 	return &HgroupRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLHgroupElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2504,6 +2624,7 @@ func NewHgroupRef(ref *ElementRef[HTMLHgroupElement]) *HgroupRef {
 
 type HrRef struct {
 	*ElementRef[HTMLHrElement]
+	*ElementActions[HTMLHrElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2529,6 +2650,7 @@ func NewHrRef(ref *ElementRef[HTMLHrElement]) *HrRef {
 	}
 	return &HrRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLHrElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2551,6 +2673,7 @@ func NewHrRef(ref *ElementRef[HTMLHrElement]) *HrRef {
 
 type HtmlRef struct {
 	*ElementRef[HTMLHtmlElement]
+	*ElementActions[HTMLHtmlElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2576,6 +2699,7 @@ func NewHtmlRef(ref *ElementRef[HTMLHtmlElement]) *HtmlRef {
 	}
 	return &HtmlRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLHtmlElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2598,6 +2722,7 @@ func NewHtmlRef(ref *ElementRef[HTMLHtmlElement]) *HtmlRef {
 
 type IRef struct {
 	*ElementRef[HTMLIElement]
+	*ElementActions[HTMLIElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2623,6 +2748,7 @@ func NewIRef(ref *ElementRef[HTMLIElement]) *IRef {
 	}
 	return &IRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLIElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2645,6 +2771,7 @@ func NewIRef(ref *ElementRef[HTMLIElement]) *IRef {
 
 type IframeRef struct {
 	*ElementRef[HTMLIframeElement]
+	*ElementActions[HTMLIframeElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2670,6 +2797,7 @@ func NewIframeRef(ref *ElementRef[HTMLIframeElement]) *IframeRef {
 	}
 	return &IframeRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLIframeElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2692,6 +2820,7 @@ func NewIframeRef(ref *ElementRef[HTMLIframeElement]) *IframeRef {
 
 type ImageRef struct {
 	*ElementRef[SVGImageElement]
+	*ElementActions[SVGImageElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2717,6 +2846,7 @@ func NewImageRef(ref *ElementRef[SVGImageElement]) *ImageRef {
 	}
 	return &ImageRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGImageElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2739,6 +2869,7 @@ func NewImageRef(ref *ElementRef[SVGImageElement]) *ImageRef {
 
 type ImgRef struct {
 	*ElementRef[HTMLImgElement]
+	*ElementActions[HTMLImgElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2764,6 +2895,7 @@ func NewImgRef(ref *ElementRef[HTMLImgElement]) *ImgRef {
 	}
 	return &ImgRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLImgElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2786,6 +2918,10 @@ func NewImgRef(ref *ElementRef[HTMLImgElement]) *ImgRef {
 
 type InputRef struct {
 	*ElementRef[HTMLInputElement]
+	*ElementActions[HTMLInputElement]
+	*FocusActions[HTMLInputElement]
+	*SelectionActions[HTMLInputElement]
+	*ValueActions[HTMLInputElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2813,6 +2949,10 @@ func NewInputRef(ref *ElementRef[HTMLInputElement]) *InputRef {
 	}
 	return &InputRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLInputElement](ref.DOMElementRef()),
+		FocusActions:       NewFocusActions[HTMLInputElement](ref.DOMElementRef()),
+		SelectionActions:   NewSelectionActions[HTMLInputElement](ref.DOMElementRef()),
+		ValueActions:       NewValueActions[HTMLInputElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2837,6 +2977,7 @@ func NewInputRef(ref *ElementRef[HTMLInputElement]) *InputRef {
 
 type InsElRef struct {
 	*ElementRef[HTMLInsElement]
+	*ElementActions[HTMLInsElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2862,6 +3003,7 @@ func NewInsElRef(ref *ElementRef[HTMLInsElement]) *InsElRef {
 	}
 	return &InsElRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLInsElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2884,6 +3026,7 @@ func NewInsElRef(ref *ElementRef[HTMLInsElement]) *InsElRef {
 
 type KbdRef struct {
 	*ElementRef[HTMLKbdElement]
+	*ElementActions[HTMLKbdElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2909,6 +3052,7 @@ func NewKbdRef(ref *ElementRef[HTMLKbdElement]) *KbdRef {
 	}
 	return &KbdRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLKbdElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2931,6 +3075,7 @@ func NewKbdRef(ref *ElementRef[HTMLKbdElement]) *KbdRef {
 
 type LabelRef struct {
 	*ElementRef[HTMLLabelElement]
+	*ElementActions[HTMLLabelElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -2956,6 +3101,7 @@ func NewLabelRef(ref *ElementRef[HTMLLabelElement]) *LabelRef {
 	}
 	return &LabelRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLLabelElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2978,6 +3124,7 @@ func NewLabelRef(ref *ElementRef[HTMLLabelElement]) *LabelRef {
 
 type LegendRef struct {
 	*ElementRef[HTMLLegendElement]
+	*ElementActions[HTMLLegendElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3003,6 +3150,7 @@ func NewLegendRef(ref *ElementRef[HTMLLegendElement]) *LegendRef {
 	}
 	return &LegendRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLLegendElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3025,6 +3173,7 @@ func NewLegendRef(ref *ElementRef[HTMLLegendElement]) *LegendRef {
 
 type LiRef struct {
 	*ElementRef[HTMLLiElement]
+	*ElementActions[HTMLLiElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3050,6 +3199,7 @@ func NewLiRef(ref *ElementRef[HTMLLiElement]) *LiRef {
 	}
 	return &LiRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLLiElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3072,6 +3222,7 @@ func NewLiRef(ref *ElementRef[HTMLLiElement]) *LiRef {
 
 type LineRef struct {
 	*ElementRef[SVGLineElement]
+	*ElementActions[SVGLineElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3097,6 +3248,7 @@ func NewLineRef(ref *ElementRef[SVGLineElement]) *LineRef {
 	}
 	return &LineRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGLineElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3119,6 +3271,7 @@ func NewLineRef(ref *ElementRef[SVGLineElement]) *LineRef {
 
 type LinearGradientRef struct {
 	*ElementRef[SVGLinearGradientElement]
+	*ElementActions[SVGLinearGradientElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3144,6 +3297,7 @@ func NewLinearGradientRef(ref *ElementRef[SVGLinearGradientElement]) *LinearGrad
 	}
 	return &LinearGradientRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGLinearGradientElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3166,6 +3320,7 @@ func NewLinearGradientRef(ref *ElementRef[SVGLinearGradientElement]) *LinearGrad
 
 type LinkRef struct {
 	*ElementRef[HTMLLinkElement]
+	*ElementActions[HTMLLinkElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3191,6 +3346,7 @@ func NewLinkRef(ref *ElementRef[HTMLLinkElement]) *LinkRef {
 	}
 	return &LinkRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLLinkElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3213,6 +3369,7 @@ func NewLinkRef(ref *ElementRef[HTMLLinkElement]) *LinkRef {
 
 type MainRef struct {
 	*ElementRef[HTMLMainElement]
+	*ElementActions[HTMLMainElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3238,6 +3395,7 @@ func NewMainRef(ref *ElementRef[HTMLMainElement]) *MainRef {
 	}
 	return &MainRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLMainElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3260,6 +3418,7 @@ func NewMainRef(ref *ElementRef[HTMLMainElement]) *MainRef {
 
 type MapElRef struct {
 	*ElementRef[HTMLMapElement]
+	*ElementActions[HTMLMapElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3285,6 +3444,7 @@ func NewMapElRef(ref *ElementRef[HTMLMapElement]) *MapElRef {
 	}
 	return &MapElRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLMapElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3307,6 +3467,7 @@ func NewMapElRef(ref *ElementRef[HTMLMapElement]) *MapElRef {
 
 type MarkRef struct {
 	*ElementRef[HTMLMarkElement]
+	*ElementActions[HTMLMarkElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3332,6 +3493,7 @@ func NewMarkRef(ref *ElementRef[HTMLMarkElement]) *MarkRef {
 	}
 	return &MarkRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLMarkElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3354,6 +3516,7 @@ func NewMarkRef(ref *ElementRef[HTMLMarkElement]) *MarkRef {
 
 type MarkerRef struct {
 	*ElementRef[SVGMarkerElement]
+	*ElementActions[SVGMarkerElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3379,6 +3542,7 @@ func NewMarkerRef(ref *ElementRef[SVGMarkerElement]) *MarkerRef {
 	}
 	return &MarkerRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGMarkerElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3401,6 +3565,7 @@ func NewMarkerRef(ref *ElementRef[SVGMarkerElement]) *MarkerRef {
 
 type MaskRef struct {
 	*ElementRef[SVGMaskElement]
+	*ElementActions[SVGMaskElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3426,6 +3591,7 @@ func NewMaskRef(ref *ElementRef[SVGMaskElement]) *MaskRef {
 	}
 	return &MaskRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGMaskElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3448,6 +3614,7 @@ func NewMaskRef(ref *ElementRef[SVGMaskElement]) *MaskRef {
 
 type MenuRef struct {
 	*ElementRef[HTMLMenuElement]
+	*ElementActions[HTMLMenuElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3473,6 +3640,7 @@ func NewMenuRef(ref *ElementRef[HTMLMenuElement]) *MenuRef {
 	}
 	return &MenuRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLMenuElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3495,6 +3663,7 @@ func NewMenuRef(ref *ElementRef[HTMLMenuElement]) *MenuRef {
 
 type MenuItemRef struct {
 	*ElementRef[HTMLMenuItemElement]
+	*ElementActions[HTMLMenuItemElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3520,6 +3689,7 @@ func NewMenuItemRef(ref *ElementRef[HTMLMenuItemElement]) *MenuItemRef {
 	}
 	return &MenuItemRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLMenuItemElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3542,6 +3712,7 @@ func NewMenuItemRef(ref *ElementRef[HTMLMenuItemElement]) *MenuItemRef {
 
 type MetaRef struct {
 	*ElementRef[HTMLMetaElement]
+	*ElementActions[HTMLMetaElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3567,6 +3738,7 @@ func NewMetaRef(ref *ElementRef[HTMLMetaElement]) *MetaRef {
 	}
 	return &MetaRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLMetaElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3589,6 +3761,8 @@ func NewMetaRef(ref *ElementRef[HTMLMetaElement]) *MetaRef {
 
 type MeterRef struct {
 	*ElementRef[HTMLMeterElement]
+	*ElementActions[HTMLMeterElement]
+	*ValueActions[HTMLMeterElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3616,6 +3790,8 @@ func NewMeterRef(ref *ElementRef[HTMLMeterElement]) *MeterRef {
 	}
 	return &MeterRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLMeterElement](ref.DOMElementRef()),
+		ValueActions:       NewValueActions[HTMLMeterElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3640,6 +3816,7 @@ func NewMeterRef(ref *ElementRef[HTMLMeterElement]) *MeterRef {
 
 type NavRef struct {
 	*ElementRef[HTMLNavElement]
+	*ElementActions[HTMLNavElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3665,6 +3842,7 @@ func NewNavRef(ref *ElementRef[HTMLNavElement]) *NavRef {
 	}
 	return &NavRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLNavElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3687,6 +3865,7 @@ func NewNavRef(ref *ElementRef[HTMLNavElement]) *NavRef {
 
 type NoscriptRef struct {
 	*ElementRef[HTMLNoscriptElement]
+	*ElementActions[HTMLNoscriptElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3712,6 +3891,7 @@ func NewNoscriptRef(ref *ElementRef[HTMLNoscriptElement]) *NoscriptRef {
 	}
 	return &NoscriptRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLNoscriptElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3734,6 +3914,7 @@ func NewNoscriptRef(ref *ElementRef[HTMLNoscriptElement]) *NoscriptRef {
 
 type ObjectRef struct {
 	*ElementRef[HTMLObjectElement]
+	*ElementActions[HTMLObjectElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3759,6 +3940,7 @@ func NewObjectRef(ref *ElementRef[HTMLObjectElement]) *ObjectRef {
 	}
 	return &ObjectRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLObjectElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3781,6 +3963,7 @@ func NewObjectRef(ref *ElementRef[HTMLObjectElement]) *ObjectRef {
 
 type OlRef struct {
 	*ElementRef[HTMLOlElement]
+	*ElementActions[HTMLOlElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3806,6 +3989,7 @@ func NewOlRef(ref *ElementRef[HTMLOlElement]) *OlRef {
 	}
 	return &OlRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLOlElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3828,6 +4012,7 @@ func NewOlRef(ref *ElementRef[HTMLOlElement]) *OlRef {
 
 type OptgroupRef struct {
 	*ElementRef[HTMLOptgroupElement]
+	*ElementActions[HTMLOptgroupElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3853,6 +4038,7 @@ func NewOptgroupRef(ref *ElementRef[HTMLOptgroupElement]) *OptgroupRef {
 	}
 	return &OptgroupRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLOptgroupElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3875,6 +4061,7 @@ func NewOptgroupRef(ref *ElementRef[HTMLOptgroupElement]) *OptgroupRef {
 
 type OptionRef struct {
 	*ElementRef[HTMLOptionElement]
+	*ElementActions[HTMLOptionElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3900,6 +4087,7 @@ func NewOptionRef(ref *ElementRef[HTMLOptionElement]) *OptionRef {
 	}
 	return &OptionRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLOptionElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3922,6 +4110,7 @@ func NewOptionRef(ref *ElementRef[HTMLOptionElement]) *OptionRef {
 
 type OutputRef struct {
 	*ElementRef[HTMLOutputElement]
+	*ElementActions[HTMLOutputElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3947,6 +4136,7 @@ func NewOutputRef(ref *ElementRef[HTMLOutputElement]) *OutputRef {
 	}
 	return &OutputRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLOutputElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3969,6 +4159,7 @@ func NewOutputRef(ref *ElementRef[HTMLOutputElement]) *OutputRef {
 
 type PRef struct {
 	*ElementRef[HTMLPElement]
+	*ElementActions[HTMLPElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -3994,6 +4185,7 @@ func NewPRef(ref *ElementRef[HTMLPElement]) *PRef {
 	}
 	return &PRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLPElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4016,6 +4208,7 @@ func NewPRef(ref *ElementRef[HTMLPElement]) *PRef {
 
 type ParamRef struct {
 	*ElementRef[HTMLParamElement]
+	*ElementActions[HTMLParamElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4041,6 +4234,7 @@ func NewParamRef(ref *ElementRef[HTMLParamElement]) *ParamRef {
 	}
 	return &ParamRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLParamElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4063,6 +4257,7 @@ func NewParamRef(ref *ElementRef[HTMLParamElement]) *ParamRef {
 
 type PathRef struct {
 	*ElementRef[SVGPathElement]
+	*ElementActions[SVGPathElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4088,6 +4283,7 @@ func NewPathRef(ref *ElementRef[SVGPathElement]) *PathRef {
 	}
 	return &PathRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGPathElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4110,6 +4306,7 @@ func NewPathRef(ref *ElementRef[SVGPathElement]) *PathRef {
 
 type PatternRef struct {
 	*ElementRef[SVGPatternElement]
+	*ElementActions[SVGPatternElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4135,6 +4332,7 @@ func NewPatternRef(ref *ElementRef[SVGPatternElement]) *PatternRef {
 	}
 	return &PatternRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGPatternElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4157,6 +4355,7 @@ func NewPatternRef(ref *ElementRef[SVGPatternElement]) *PatternRef {
 
 type PictureRef struct {
 	*ElementRef[HTMLPictureElement]
+	*ElementActions[HTMLPictureElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4182,6 +4381,7 @@ func NewPictureRef(ref *ElementRef[HTMLPictureElement]) *PictureRef {
 	}
 	return &PictureRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLPictureElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4204,6 +4404,7 @@ func NewPictureRef(ref *ElementRef[HTMLPictureElement]) *PictureRef {
 
 type PolygonRef struct {
 	*ElementRef[SVGPolygonElement]
+	*ElementActions[SVGPolygonElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4229,6 +4430,7 @@ func NewPolygonRef(ref *ElementRef[SVGPolygonElement]) *PolygonRef {
 	}
 	return &PolygonRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGPolygonElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4251,6 +4453,7 @@ func NewPolygonRef(ref *ElementRef[SVGPolygonElement]) *PolygonRef {
 
 type PolylineRef struct {
 	*ElementRef[SVGPolylineElement]
+	*ElementActions[SVGPolylineElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4276,6 +4479,7 @@ func NewPolylineRef(ref *ElementRef[SVGPolylineElement]) *PolylineRef {
 	}
 	return &PolylineRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGPolylineElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4298,6 +4502,7 @@ func NewPolylineRef(ref *ElementRef[SVGPolylineElement]) *PolylineRef {
 
 type PortalRef struct {
 	*ElementRef[HTMLPortalElement]
+	*ElementActions[HTMLPortalElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4323,6 +4528,7 @@ func NewPortalRef(ref *ElementRef[HTMLPortalElement]) *PortalRef {
 	}
 	return &PortalRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLPortalElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4345,6 +4551,7 @@ func NewPortalRef(ref *ElementRef[HTMLPortalElement]) *PortalRef {
 
 type PreRef struct {
 	*ElementRef[HTMLPreElement]
+	*ElementActions[HTMLPreElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4370,6 +4577,7 @@ func NewPreRef(ref *ElementRef[HTMLPreElement]) *PreRef {
 	}
 	return &PreRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLPreElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4392,6 +4600,8 @@ func NewPreRef(ref *ElementRef[HTMLPreElement]) *PreRef {
 
 type ProgressRef struct {
 	*ElementRef[HTMLProgressElement]
+	*ElementActions[HTMLProgressElement]
+	*ValueActions[HTMLProgressElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4419,6 +4629,8 @@ func NewProgressRef(ref *ElementRef[HTMLProgressElement]) *ProgressRef {
 	}
 	return &ProgressRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLProgressElement](ref.DOMElementRef()),
+		ValueActions:       NewValueActions[HTMLProgressElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4443,6 +4655,7 @@ func NewProgressRef(ref *ElementRef[HTMLProgressElement]) *ProgressRef {
 
 type QRef struct {
 	*ElementRef[HTMLQElement]
+	*ElementActions[HTMLQElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4468,6 +4681,7 @@ func NewQRef(ref *ElementRef[HTMLQElement]) *QRef {
 	}
 	return &QRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLQElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4490,6 +4704,7 @@ func NewQRef(ref *ElementRef[HTMLQElement]) *QRef {
 
 type RadialGradientRef struct {
 	*ElementRef[SVGRadialGradientElement]
+	*ElementActions[SVGRadialGradientElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4515,6 +4730,7 @@ func NewRadialGradientRef(ref *ElementRef[SVGRadialGradientElement]) *RadialGrad
 	}
 	return &RadialGradientRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGRadialGradientElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4537,6 +4753,7 @@ func NewRadialGradientRef(ref *ElementRef[SVGRadialGradientElement]) *RadialGrad
 
 type RbRef struct {
 	*ElementRef[HTMLRbElement]
+	*ElementActions[HTMLRbElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4562,6 +4779,7 @@ func NewRbRef(ref *ElementRef[HTMLRbElement]) *RbRef {
 	}
 	return &RbRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLRbElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4584,6 +4802,7 @@ func NewRbRef(ref *ElementRef[HTMLRbElement]) *RbRef {
 
 type RectRef struct {
 	*ElementRef[SVGRectElement]
+	*ElementActions[SVGRectElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4609,6 +4828,7 @@ func NewRectRef(ref *ElementRef[SVGRectElement]) *RectRef {
 	}
 	return &RectRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGRectElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4631,6 +4851,7 @@ func NewRectRef(ref *ElementRef[SVGRectElement]) *RectRef {
 
 type RpRef struct {
 	*ElementRef[HTMLRpElement]
+	*ElementActions[HTMLRpElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4656,6 +4877,7 @@ func NewRpRef(ref *ElementRef[HTMLRpElement]) *RpRef {
 	}
 	return &RpRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLRpElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4678,6 +4900,7 @@ func NewRpRef(ref *ElementRef[HTMLRpElement]) *RpRef {
 
 type RtRef struct {
 	*ElementRef[HTMLRtElement]
+	*ElementActions[HTMLRtElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4703,6 +4926,7 @@ func NewRtRef(ref *ElementRef[HTMLRtElement]) *RtRef {
 	}
 	return &RtRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLRtElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4725,6 +4949,7 @@ func NewRtRef(ref *ElementRef[HTMLRtElement]) *RtRef {
 
 type RtcRef struct {
 	*ElementRef[HTMLRtcElement]
+	*ElementActions[HTMLRtcElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4750,6 +4975,7 @@ func NewRtcRef(ref *ElementRef[HTMLRtcElement]) *RtcRef {
 	}
 	return &RtcRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLRtcElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4772,6 +4998,7 @@ func NewRtcRef(ref *ElementRef[HTMLRtcElement]) *RtcRef {
 
 type RubyRef struct {
 	*ElementRef[HTMLRubyElement]
+	*ElementActions[HTMLRubyElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4797,6 +5024,7 @@ func NewRubyRef(ref *ElementRef[HTMLRubyElement]) *RubyRef {
 	}
 	return &RubyRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLRubyElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4819,6 +5047,7 @@ func NewRubyRef(ref *ElementRef[HTMLRubyElement]) *RubyRef {
 
 type SRef struct {
 	*ElementRef[HTMLSElement]
+	*ElementActions[HTMLSElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4844,6 +5073,7 @@ func NewSRef(ref *ElementRef[HTMLSElement]) *SRef {
 	}
 	return &SRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4866,6 +5096,7 @@ func NewSRef(ref *ElementRef[HTMLSElement]) *SRef {
 
 type SampRef struct {
 	*ElementRef[HTMLSampElement]
+	*ElementActions[HTMLSampElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4891,6 +5122,7 @@ func NewSampRef(ref *ElementRef[HTMLSampElement]) *SampRef {
 	}
 	return &SampRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSampElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4913,6 +5145,7 @@ func NewSampRef(ref *ElementRef[HTMLSampElement]) *SampRef {
 
 type ScriptRef struct {
 	*ElementRef[HTMLScriptElement]
+	*ElementActions[HTMLScriptElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4938,6 +5171,7 @@ func NewScriptRef(ref *ElementRef[HTMLScriptElement]) *ScriptRef {
 	}
 	return &ScriptRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLScriptElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4960,6 +5194,7 @@ func NewScriptRef(ref *ElementRef[HTMLScriptElement]) *ScriptRef {
 
 type SectionRef struct {
 	*ElementRef[HTMLSectionElement]
+	*ElementActions[HTMLSectionElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -4985,6 +5220,7 @@ func NewSectionRef(ref *ElementRef[HTMLSectionElement]) *SectionRef {
 	}
 	return &SectionRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSectionElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5007,6 +5243,9 @@ func NewSectionRef(ref *ElementRef[HTMLSectionElement]) *SectionRef {
 
 type SelectRef struct {
 	*ElementRef[HTMLSelectElement]
+	*ElementActions[HTMLSelectElement]
+	*FocusActions[HTMLSelectElement]
+	*ValueActions[HTMLSelectElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5034,6 +5273,9 @@ func NewSelectRef(ref *ElementRef[HTMLSelectElement]) *SelectRef {
 	}
 	return &SelectRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSelectElement](ref.DOMElementRef()),
+		FocusActions:       NewFocusActions[HTMLSelectElement](ref.DOMElementRef()),
+		ValueActions:       NewValueActions[HTMLSelectElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5058,6 +5300,7 @@ func NewSelectRef(ref *ElementRef[HTMLSelectElement]) *SelectRef {
 
 type SlotRef struct {
 	*ElementRef[HTMLSlotElement]
+	*ElementActions[HTMLSlotElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5083,6 +5326,7 @@ func NewSlotRef(ref *ElementRef[HTMLSlotElement]) *SlotRef {
 	}
 	return &SlotRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSlotElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5105,6 +5349,7 @@ func NewSlotRef(ref *ElementRef[HTMLSlotElement]) *SlotRef {
 
 type SmallRef struct {
 	*ElementRef[HTMLSmallElement]
+	*ElementActions[HTMLSmallElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5130,6 +5375,7 @@ func NewSmallRef(ref *ElementRef[HTMLSmallElement]) *SmallRef {
 	}
 	return &SmallRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSmallElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5152,6 +5398,7 @@ func NewSmallRef(ref *ElementRef[HTMLSmallElement]) *SmallRef {
 
 type SourceRef struct {
 	*ElementRef[HTMLSourceElement]
+	*ElementActions[HTMLSourceElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5177,6 +5424,7 @@ func NewSourceRef(ref *ElementRef[HTMLSourceElement]) *SourceRef {
 	}
 	return &SourceRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSourceElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5199,6 +5447,7 @@ func NewSourceRef(ref *ElementRef[HTMLSourceElement]) *SourceRef {
 
 type SpanRef struct {
 	*ElementRef[HTMLSpanElement]
+	*ElementActions[HTMLSpanElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5224,6 +5473,7 @@ func NewSpanRef(ref *ElementRef[HTMLSpanElement]) *SpanRef {
 	}
 	return &SpanRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSpanElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5246,6 +5496,7 @@ func NewSpanRef(ref *ElementRef[HTMLSpanElement]) *SpanRef {
 
 type StopRef struct {
 	*ElementRef[SVGStopElement]
+	*ElementActions[SVGStopElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5271,6 +5522,7 @@ func NewStopRef(ref *ElementRef[SVGStopElement]) *StopRef {
 	}
 	return &StopRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGStopElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5293,6 +5545,7 @@ func NewStopRef(ref *ElementRef[SVGStopElement]) *StopRef {
 
 type StrongRef struct {
 	*ElementRef[HTMLStrongElement]
+	*ElementActions[HTMLStrongElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5318,6 +5571,7 @@ func NewStrongRef(ref *ElementRef[HTMLStrongElement]) *StrongRef {
 	}
 	return &StrongRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLStrongElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5340,6 +5594,7 @@ func NewStrongRef(ref *ElementRef[HTMLStrongElement]) *StrongRef {
 
 type StyleElRef struct {
 	*ElementRef[HTMLStyleElement]
+	*ElementActions[HTMLStyleElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5365,6 +5620,7 @@ func NewStyleElRef(ref *ElementRef[HTMLStyleElement]) *StyleElRef {
 	}
 	return &StyleElRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLStyleElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5387,6 +5643,7 @@ func NewStyleElRef(ref *ElementRef[HTMLStyleElement]) *StyleElRef {
 
 type SubRef struct {
 	*ElementRef[HTMLSubElement]
+	*ElementActions[HTMLSubElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5412,6 +5669,7 @@ func NewSubRef(ref *ElementRef[HTMLSubElement]) *SubRef {
 	}
 	return &SubRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSubElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5434,6 +5692,8 @@ func NewSubRef(ref *ElementRef[HTMLSubElement]) *SubRef {
 
 type SummaryRef struct {
 	*ElementRef[HTMLSummaryElement]
+	*ElementActions[HTMLSummaryElement]
+	*FocusActions[HTMLSummaryElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5459,6 +5719,8 @@ func NewSummaryRef(ref *ElementRef[HTMLSummaryElement]) *SummaryRef {
 	}
 	return &SummaryRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSummaryElement](ref.DOMElementRef()),
+		FocusActions:       NewFocusActions[HTMLSummaryElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5481,6 +5743,7 @@ func NewSummaryRef(ref *ElementRef[HTMLSummaryElement]) *SummaryRef {
 
 type SupRef struct {
 	*ElementRef[HTMLSupElement]
+	*ElementActions[HTMLSupElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5506,6 +5769,7 @@ func NewSupRef(ref *ElementRef[HTMLSupElement]) *SupRef {
 	}
 	return &SupRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLSupElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5528,6 +5792,7 @@ func NewSupRef(ref *ElementRef[HTMLSupElement]) *SupRef {
 
 type SvgRef struct {
 	*ElementRef[SVGSvgElement]
+	*ElementActions[SVGSvgElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5553,6 +5818,7 @@ func NewSvgRef(ref *ElementRef[SVGSvgElement]) *SvgRef {
 	}
 	return &SvgRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGSvgElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5575,6 +5841,7 @@ func NewSvgRef(ref *ElementRef[SVGSvgElement]) *SvgRef {
 
 type SvgTextRef struct {
 	*ElementRef[SVGSvgTextElement]
+	*ElementActions[SVGSvgTextElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5600,6 +5867,7 @@ func NewSvgTextRef(ref *ElementRef[SVGSvgTextElement]) *SvgTextRef {
 	}
 	return &SvgTextRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGSvgTextElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5622,6 +5890,7 @@ func NewSvgTextRef(ref *ElementRef[SVGSvgTextElement]) *SvgTextRef {
 
 type TSpanRef struct {
 	*ElementRef[SVGTSpanElement]
+	*ElementActions[SVGTSpanElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5647,6 +5916,7 @@ func NewTSpanRef(ref *ElementRef[SVGTSpanElement]) *TSpanRef {
 	}
 	return &TSpanRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGTSpanElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5669,6 +5939,7 @@ func NewTSpanRef(ref *ElementRef[SVGTSpanElement]) *TSpanRef {
 
 type TableRef struct {
 	*ElementRef[HTMLTableElement]
+	*ElementActions[HTMLTableElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5694,6 +5965,7 @@ func NewTableRef(ref *ElementRef[HTMLTableElement]) *TableRef {
 	}
 	return &TableRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTableElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5716,6 +5988,7 @@ func NewTableRef(ref *ElementRef[HTMLTableElement]) *TableRef {
 
 type TbodyRef struct {
 	*ElementRef[HTMLTbodyElement]
+	*ElementActions[HTMLTbodyElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5741,6 +6014,7 @@ func NewTbodyRef(ref *ElementRef[HTMLTbodyElement]) *TbodyRef {
 	}
 	return &TbodyRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTbodyElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5763,6 +6037,7 @@ func NewTbodyRef(ref *ElementRef[HTMLTbodyElement]) *TbodyRef {
 
 type TdRef struct {
 	*ElementRef[HTMLTdElement]
+	*ElementActions[HTMLTdElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5788,6 +6063,7 @@ func NewTdRef(ref *ElementRef[HTMLTdElement]) *TdRef {
 	}
 	return &TdRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTdElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5810,6 +6086,7 @@ func NewTdRef(ref *ElementRef[HTMLTdElement]) *TdRef {
 
 type TemplateRef struct {
 	*ElementRef[HTMLTemplateElement]
+	*ElementActions[HTMLTemplateElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5835,6 +6112,7 @@ func NewTemplateRef(ref *ElementRef[HTMLTemplateElement]) *TemplateRef {
 	}
 	return &TemplateRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTemplateElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5857,6 +6135,10 @@ func NewTemplateRef(ref *ElementRef[HTMLTemplateElement]) *TemplateRef {
 
 type TextareaRef struct {
 	*ElementRef[HTMLTextareaElement]
+	*ElementActions[HTMLTextareaElement]
+	*FocusActions[HTMLTextareaElement]
+	*SelectionActions[HTMLTextareaElement]
+	*ValueActions[HTMLTextareaElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5884,6 +6166,10 @@ func NewTextareaRef(ref *ElementRef[HTMLTextareaElement]) *TextareaRef {
 	}
 	return &TextareaRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTextareaElement](ref.DOMElementRef()),
+		FocusActions:       NewFocusActions[HTMLTextareaElement](ref.DOMElementRef()),
+		SelectionActions:   NewSelectionActions[HTMLTextareaElement](ref.DOMElementRef()),
+		ValueActions:       NewValueActions[HTMLTextareaElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5908,6 +6194,7 @@ func NewTextareaRef(ref *ElementRef[HTMLTextareaElement]) *TextareaRef {
 
 type TfootRef struct {
 	*ElementRef[HTMLTfootElement]
+	*ElementActions[HTMLTfootElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5933,6 +6220,7 @@ func NewTfootRef(ref *ElementRef[HTMLTfootElement]) *TfootRef {
 	}
 	return &TfootRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTfootElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5955,6 +6243,7 @@ func NewTfootRef(ref *ElementRef[HTMLTfootElement]) *TfootRef {
 
 type ThRef struct {
 	*ElementRef[HTMLThElement]
+	*ElementActions[HTMLThElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -5980,6 +6269,7 @@ func NewThRef(ref *ElementRef[HTMLThElement]) *ThRef {
 	}
 	return &ThRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLThElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6002,6 +6292,7 @@ func NewThRef(ref *ElementRef[HTMLThElement]) *ThRef {
 
 type TheadRef struct {
 	*ElementRef[HTMLTheadElement]
+	*ElementActions[HTMLTheadElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6027,6 +6318,7 @@ func NewTheadRef(ref *ElementRef[HTMLTheadElement]) *TheadRef {
 	}
 	return &TheadRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTheadElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6049,6 +6341,7 @@ func NewTheadRef(ref *ElementRef[HTMLTheadElement]) *TheadRef {
 
 type TimeRef struct {
 	*ElementRef[HTMLTimeElement]
+	*ElementActions[HTMLTimeElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6074,6 +6367,7 @@ func NewTimeRef(ref *ElementRef[HTMLTimeElement]) *TimeRef {
 	}
 	return &TimeRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTimeElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6096,6 +6390,7 @@ func NewTimeRef(ref *ElementRef[HTMLTimeElement]) *TimeRef {
 
 type TitleElRef struct {
 	*ElementRef[HTMLTitleElement]
+	*ElementActions[HTMLTitleElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6121,6 +6416,7 @@ func NewTitleElRef(ref *ElementRef[HTMLTitleElement]) *TitleElRef {
 	}
 	return &TitleElRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTitleElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6143,6 +6439,7 @@ func NewTitleElRef(ref *ElementRef[HTMLTitleElement]) *TitleElRef {
 
 type TrRef struct {
 	*ElementRef[HTMLTrElement]
+	*ElementActions[HTMLTrElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6168,6 +6465,7 @@ func NewTrRef(ref *ElementRef[HTMLTrElement]) *TrRef {
 	}
 	return &TrRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTrElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6190,6 +6488,7 @@ func NewTrRef(ref *ElementRef[HTMLTrElement]) *TrRef {
 
 type TrackRef struct {
 	*ElementRef[HTMLTrackElement]
+	*ElementActions[HTMLTrackElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6215,6 +6514,7 @@ func NewTrackRef(ref *ElementRef[HTMLTrackElement]) *TrackRef {
 	}
 	return &TrackRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLTrackElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6237,6 +6537,7 @@ func NewTrackRef(ref *ElementRef[HTMLTrackElement]) *TrackRef {
 
 type URef struct {
 	*ElementRef[HTMLUElement]
+	*ElementActions[HTMLUElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6262,6 +6563,7 @@ func NewURef(ref *ElementRef[HTMLUElement]) *URef {
 	}
 	return &URef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLUElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6284,6 +6586,7 @@ func NewURef(ref *ElementRef[HTMLUElement]) *URef {
 
 type UlRef struct {
 	*ElementRef[HTMLUlElement]
+	*ElementActions[HTMLUlElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6309,6 +6612,7 @@ func NewUlRef(ref *ElementRef[HTMLUlElement]) *UlRef {
 	}
 	return &UlRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLUlElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6331,6 +6635,7 @@ func NewUlRef(ref *ElementRef[HTMLUlElement]) *UlRef {
 
 type UseRef struct {
 	*ElementRef[SVGUseElement]
+	*ElementActions[SVGUseElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6356,6 +6661,7 @@ func NewUseRef(ref *ElementRef[SVGUseElement]) *UseRef {
 	}
 	return &UseRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[SVGUseElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6378,6 +6684,7 @@ func NewUseRef(ref *ElementRef[SVGUseElement]) *UseRef {
 
 type VarRef struct {
 	*ElementRef[HTMLVarElement]
+	*ElementActions[HTMLVarElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6403,6 +6710,7 @@ func NewVarRef(ref *ElementRef[HTMLVarElement]) *VarRef {
 	}
 	return &VarRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLVarElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6425,6 +6733,9 @@ func NewVarRef(ref *ElementRef[HTMLVarElement]) *VarRef {
 
 type VideoRef struct {
 	*ElementRef[HTMLVideoElement]
+	*ElementActions[HTMLVideoElement]
+	*FocusActions[HTMLVideoElement]
+	*MediaActions[HTMLVideoElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6451,6 +6762,9 @@ func NewVideoRef(ref *ElementRef[HTMLVideoElement]) *VideoRef {
 	}
 	return &VideoRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLVideoElement](ref.DOMElementRef()),
+		FocusActions:       NewFocusActions[HTMLVideoElement](ref.DOMElementRef()),
+		MediaActions:       NewMediaActions[HTMLVideoElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6474,6 +6788,7 @@ func NewVideoRef(ref *ElementRef[HTMLVideoElement]) *VideoRef {
 
 type WbrRef struct {
 	*ElementRef[HTMLWbrElement]
+	*ElementActions[HTMLWbrElement]
 	*AnimationHandler
 	*ClickHandler
 	*ClipboardHandler
@@ -6499,6 +6814,7 @@ func NewWbrRef(ref *ElementRef[HTMLWbrElement]) *WbrRef {
 	}
 	return &WbrRef{
 		ElementRef:         ref,
+		ElementActions:     NewElementActions[HTMLWbrElement](ref.DOMElementRef()),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),

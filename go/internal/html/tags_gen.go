@@ -50,6 +50,31 @@ type handlerSpec struct {
 	FieldName   string
 }
 
+type actionSpec struct {
+	Type        string
+	Constructor string
+	FieldName   string
+}
+
+var actionSpecs = []actionSpec{
+	{"ElementActions", "NewElementActions", "ElementActions"},
+	{"FocusActions", "NewFocusActions", "FocusActions"},
+	{"SelectionActions", "NewSelectionActions", "SelectionActions"},
+	{"ValueActions", "NewValueActions", "ValueActions"},
+	{"MediaActions", "NewMediaActions", "MediaActions"},
+	{"FormActions", "NewFormActions", "FormActions"},
+	{"DialogActions", "NewDialogActions", "DialogActions"},
+	{"DetailsActions", "NewDetailsActions", "DetailsActions"},
+}
+
+var actionSpecByType = func() map[string]actionSpec {
+	m := make(map[string]actionSpec, len(actionSpecs))
+	for _, spec := range actionSpecs {
+		m[spec.Type] = spec
+	}
+	return m
+}()
+
 var handlerSpecs = []handlerSpec{
 	{"AnimationHandler", "NewAnimationHandler", "AnimationHandler"},
 	{"ClickHandler", "NewClickHandler", "ClickHandler"},
@@ -115,6 +140,17 @@ var handlerMixins = map[string][]string{
 	"toggle":      {"ToggleHandler"},
 }
 
+var actionMixins = map[string][]string{
+	"base":        {"ElementActions"},
+	"focusable":   {"FocusActions"},
+	"textInput":   {"SelectionActions"},
+	"formControl": {"ValueActions"},
+	"media":       {"MediaActions"},
+	"formElement": {"FormActions"},
+	"dialog":      {"DialogActions"},
+	"details":     {"DetailsActions"},
+}
+
 func handlersForTag(spec tagSpec) []handlerSpec {
 	desired := append([]string{}, handlerMixins["base"]...)
 	if spec.Ref != nil {
@@ -136,6 +172,51 @@ func handlersForTag(spec tagSpec) []handlerSpec {
 		spec, ok := handlerSpecByType[name]
 		if !ok {
 			panic(fmt.Sprintf("missing handler spec for %q", name))
+		}
+		seen[name] = struct{}{}
+		resolved = append(resolved, spec)
+	}
+	return resolved
+}
+
+func actionsForTag(spec tagSpec) []actionSpec {
+	desired := append([]string{}, actionMixins["base"]...)
+
+	// Determine focusable elements
+	focusableTags := map[string]bool{
+		"a": true, "button": true, "input": true, "select": true,
+		"textarea": true, "details": true, "summary": true,
+		"audio": true, "video": true,
+	}
+	if focusableTags[spec.Tag] {
+		desired = append(desired, actionMixins["focusable"]...)
+	}
+
+	// Determine text input elements
+	textInputTags := map[string]bool{"input": true, "textarea": true}
+	if textInputTags[spec.Tag] {
+		desired = append(desired, actionMixins["textInput"]...)
+	}
+
+	// Use existing Ref.Mixins to determine corresponding action mixins
+	if spec.Ref != nil {
+		for _, mixin := range spec.Ref.Mixins {
+			names, ok := actionMixins[mixin]
+			if ok {
+				desired = append(desired, names...)
+			}
+		}
+	}
+
+	seen := make(map[string]struct{}, len(desired))
+	var resolved []actionSpec
+	for _, name := range desired {
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		spec, ok := actionSpecByType[name]
+		if !ok {
+			panic(fmt.Sprintf("missing action spec for %q", name))
 		}
 		seen[name] = struct{}{}
 		resolved = append(resolved, spec)
@@ -522,8 +603,12 @@ func generateElementRefs(specs []tagSpec) {
 		refName := spec.Name + "Ref"
 		descriptor := descriptorName(spec)
 		handlers := handlersForTag(spec)
+		actions := actionsForTag(spec)
 		fmt.Fprintf(&b, "type %s struct {\n", refName)
 		fmt.Fprintf(&b, "\t*ElementRef[%s]\n", descriptor)
+		for _, action := range actions {
+			fmt.Fprintf(&b, "\t*%s[%s]\n", action.Type, descriptor)
+		}
 		for _, handler := range handlers {
 			fmt.Fprintf(&b, "\t*%s\n", handler.Type)
 		}
@@ -534,6 +619,9 @@ func generateElementRefs(specs []tagSpec) {
 		b.WriteString("\tif ref == nil {\n\t\treturn nil\n\t}\n")
 		fmt.Fprintf(&b, "\treturn &%s{\n", refName)
 		b.WriteString("\t\tElementRef: ref,\n")
+		for _, action := range actions {
+			fmt.Fprintf(&b, "\t\t%s: %s[%s](ref.DOMElementRef()),\n", action.FieldName, action.Constructor, descriptor)
+		}
 		for _, handler := range handlers {
 			fmt.Fprintf(&b, "\t\t%s: %s(ref),\n", handler.FieldName, handler.Constructor)
 		}
