@@ -447,6 +447,7 @@ export type EffectType =
   | "dispatch"
   | "custom"
   | "toast"
+  | "dom"
   | "domcall"
   | "scrollTop"
   | "push"
@@ -457,6 +458,7 @@ export type EffectType =
   | "Toast"
   | "Focus"
   | "ScrollTop"
+  | "DOM"
   | "DOMCall"
   | "Push"
   | "Replace"
@@ -521,6 +523,32 @@ export interface DOMCallEffect {
   Method?: string;
   args?: any[];
   Args?: any[];
+}
+
+export interface DOMActionEffect {
+  type: "dom" | "DOM";
+  kind?: string;
+  Kind?: string;
+  ref?: string;
+  Ref?: string;
+  method?: string;
+  Method?: string;
+  args?: any[];
+  Args?: any[];
+  prop?: string;
+  Prop?: string;
+  value?: any;
+  Value?: any;
+  "class"?: string;
+  Class?: string;
+  on?: boolean;
+  On?: boolean;
+  behavior?: ScrollBehavior;
+  Behavior?: ScrollBehavior;
+  block?: ScrollLogicalPosition;
+  Block?: ScrollLogicalPosition;
+  inline?: ScrollLogicalPosition;
+  Inline?: ScrollLogicalPosition;
 }
 
 export interface MetadataTagPayload {
@@ -617,6 +645,7 @@ export type Effect =
   | ReplaceEffect
   | DispatchEffect
   | CustomEffect
+  | DOMActionEffect
   | DOMCallEffect
   | MetadataEffect
   | CookieEffect

@@ -161,23 +161,29 @@ export interface DOMCallOptions {
   allowMissing?: boolean;
 }
 
+export interface DOMActionResult {
+  ok: boolean;
+  reason?: string;
+  error?: unknown;
+}
+
 export function callElementMethod(
   refId: string,
   method: string,
   args: any[] = [],
   options?: DOMCallOptions,
-): unknown {
+): DOMActionResult {
   const element = refId ? getRefElement(refId) : null;
   if (!element) {
     if (!options?.allowMissing) {
       console.warn("[LiveUI] DOMCall target missing", { refId, method });
     }
-    return undefined;
+    return { ok: false, reason: "missing_element" };
   }
   const fn: any = (element as any)[method];
   if (typeof fn !== "function") {
     console.warn("[LiveUI] DOMCall method missing", { refId, method });
-    return undefined;
+    return { ok: false, reason: "missing_method" };
   }
   try {
     const result = fn.apply(element, Array.isArray(args) ? args : []);
@@ -190,9 +196,103 @@ export function callElementMethod(
         });
       });
     }
-    return result;
+    return { ok: true };
   } catch (error) {
     console.error("[LiveUI] DOMCall failed", { refId, method, error });
-    return undefined;
+    return { ok: false, reason: "invoke_failed", error };
+  }
+}
+
+export function setElementProperty(
+  refId: string,
+  prop: string,
+  value: unknown,
+): DOMActionResult {
+  const element = refId ? getRefElement(refId) : null;
+  if (!element) {
+    console.warn("[LiveUI] DOMSet target missing", { refId, prop });
+    return { ok: false, reason: "missing_element" };
+  }
+  const name = typeof prop === "string" ? prop.trim() : "";
+  if (!name) {
+    return { ok: false, reason: "missing_property" };
+  }
+  try {
+    (element as any)[name] = value;
+    return { ok: true };
+  } catch (error) {
+    console.error("[LiveUI] DOMSet failed", { refId, prop: name, error });
+    return { ok: false, reason: "set_failed", error };
+  }
+}
+
+export function setBooleanProperty(
+  refId: string,
+  prop: string,
+  value: boolean,
+): DOMActionResult {
+  if (typeof value !== "boolean") {
+    return { ok: false, reason: "invalid_value" };
+  }
+  return setElementProperty(refId, prop, value);
+}
+
+export function toggleElementClass(
+  refId: string,
+  className: string,
+  on?: boolean,
+): DOMActionResult {
+  const element = refId ? getRefElement(refId) : null;
+  if (!element) {
+    console.warn("[LiveUI] DOMClass target missing", { refId, className });
+    return { ok: false, reason: "missing_element" };
+  }
+  const token = typeof className === "string" ? className.trim() : "";
+  if (!token) {
+    return { ok: false, reason: "missing_class" };
+  }
+  if (!("classList" in (element as Element))) {
+    return { ok: false, reason: "classlist_missing" };
+  }
+  try {
+    if (on === undefined) {
+      (element as Element).classList.toggle(token);
+    } else {
+      (element as Element).classList.toggle(token, on);
+    }
+    return { ok: true };
+  } catch (error) {
+    console.error("[LiveUI] DOMClass failed", {
+      refId,
+      className: token,
+      error,
+    });
+    return { ok: false, reason: "class_toggle_failed", error };
+  }
+}
+
+export function scrollElementIntoView(
+  refId: string,
+  options?: ScrollIntoViewOptions | null,
+): DOMActionResult {
+  const element = refId ? getRefElement(refId) : null;
+  if (!element) {
+    console.warn("[LiveUI] DOMScroll target missing", { refId });
+    return { ok: false, reason: "missing_element" };
+  }
+  const scrollFn = (element as Element).scrollIntoView;
+  if (typeof scrollFn !== "function") {
+    return { ok: false, reason: "missing_scroll" };
+  }
+  try {
+    if (options && Object.keys(options).length > 0) {
+      scrollFn.call(element, options);
+    } else {
+      scrollFn.call(element);
+    }
+    return { ok: true };
+  } catch (error) {
+    console.error("[LiveUI] DOMScroll failed", { refId, error });
+    return { ok: false, reason: "scroll_failed", error };
   }
 }

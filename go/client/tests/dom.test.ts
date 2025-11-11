@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { callElementMethod, domGetSync } from "../src/dom";
+import {
+  callElementMethod,
+  domGetSync,
+  scrollElementIntoView,
+  setElementProperty,
+  toggleElementClass,
+} from "../src/dom";
 import {
   clearRefs,
   registerRefs,
@@ -44,8 +50,49 @@ describe("dom utilities", () => {
     bindRefsInTree(document.body);
 
     expect(getRefElement("btn")).toBe(button);
-    callElementMethod("btn", "focus");
+    const result = callElementMethod("btn", "focus");
+    expect(result.ok).toBe(true);
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it("sets element properties via setElementProperty", () => {
+    document.body.innerHTML = '<input data-live-ref="field" />';
+    const input = document.querySelector("[data-live-ref]") as HTMLInputElement;
+
+    registerRefs({ field: { tag: "input" } });
+    bindRefsInTree(document.body);
+
+    const result = setElementProperty("field", "value", "hello");
+    expect(result.ok).toBe(true);
+    expect(input.value).toBe("hello");
+  });
+
+  it("toggles classes via toggleElementClass", () => {
+    document.body.innerHTML = '<div data-live-ref="box" class="foo"></div>';
+
+    registerRefs({ box: { tag: "div" } });
+    bindRefsInTree(document.body);
+
+    const initial = toggleElementClass("box", "active", true);
+    expect(initial.ok).toBe(true);
+    expect(document.querySelector("[data-live-ref]")?.classList.contains("active")).toBe(true);
+
+    const second = toggleElementClass("box", "active", false);
+    expect(second.ok).toBe(true);
+    expect(document.querySelector("[data-live-ref]")?.classList.contains("active")).toBe(false);
+  });
+
+  it("scrolls elements into view via scrollElementIntoView", () => {
+    document.body.innerHTML = '<div data-live-ref="panel"></div>';
+    const element = document.querySelector("[data-live-ref]") as HTMLElement;
+    (element as any).scrollIntoView = vi.fn();
+
+    registerRefs({ panel: { tag: "div" } });
+    bindRefsInTree(document.body);
+
+    const result = scrollElementIntoView("panel", { behavior: "smooth" });
+    expect(result.ok).toBe(true);
+    expect((element.scrollIntoView as any)).toHaveBeenCalledWith({ behavior: "smooth" });
   });
 
   it("collects selector values synchronously with domGetSync", () => {

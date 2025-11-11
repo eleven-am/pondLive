@@ -12,11 +12,19 @@ type Replace struct{ URL string }
 
 type ScrollTop struct{}
 
-type DOMCallEffect struct {
-	Type   string `json:"type"`
-	Ref    string `json:"ref"`
-	Method string `json:"method"`
-	Args   []any  `json:"args,omitempty"`
+type DOMActionEffect struct {
+	Type     string `json:"type"`
+	Kind     string `json:"kind"`
+	Ref      string `json:"ref"`
+	Method   string `json:"method,omitempty"`
+	Args     []any  `json:"args,omitempty"`
+	Prop     string `json:"prop,omitempty"`
+	Value    any    `json:"value,omitempty"`
+	Class    string `json:"class,omitempty"`
+	On       *bool  `json:"on,omitempty"`
+	Behavior string `json:"behavior,omitempty"`
+	Block    string `json:"block,omitempty"`
+	Inline   string `json:"inline,omitempty"`
 }
 
 func (Focus) isEffect()     {}
@@ -25,4 +33,4 @@ func (Push) isEffect()      {}
 func (Replace) isEffect()   {}
 func (ScrollTop) isEffect() {}
 
-func (DOMCallEffect) isEffect() {}
+func (DOMActionEffect) isEffect() {}

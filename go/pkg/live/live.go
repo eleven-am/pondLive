@@ -21,6 +21,7 @@ type (
 	Session                           = runtime.ComponentSession
 	Meta                              = runtime.Meta
 	RenderResult                      = runtime.RenderResult
+	ScrollOptions                     = runtime.ScrollOptions
 	PubsubMessage[T any]              = runtime.PubsubMessage[T]
 	PubsubHandle[T any]               = runtime.PubsubHandle[T]
 	PubsubPublisher                   = runtime.PubsubPublisher
@@ -135,6 +136,26 @@ func UseElement[R hookable[R]](ctx Ctx) R {
 // DOMCall enqueues a client-side invocation of the provided DOM method on the ref.
 func DOMCall[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], method string, args ...any) {
 	runtime.DOMCall[T](ctx, ref, method, args...)
+}
+
+// DOMSet assigns a property on the referenced DOM node.
+func DOMSet[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], prop string, value any) {
+	runtime.DOMSet[T](ctx, ref, prop, value)
+}
+
+// DOMToggle sets a boolean property on the referenced DOM node.
+func DOMToggle[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], prop string, on bool) {
+	runtime.DOMToggle[T](ctx, ref, prop, on)
+}
+
+// DOMToggleClass toggles a CSS class on the referenced DOM node.
+func DOMToggleClass[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], class string, on bool) {
+	runtime.DOMToggleClass[T](ctx, ref, class, on)
+}
+
+// DOMScrollIntoView scrolls the referenced element into view using the provided options.
+func DOMScrollIntoView[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], opts ScrollOptions) {
+	runtime.DOMScrollIntoView[T](ctx, ref, opts)
 }
 
 // DOMGet retrieves DOM properties for the referenced element by delegating to the client runtime.

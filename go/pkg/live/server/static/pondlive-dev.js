@@ -1551,12 +1551,12 @@ var LiveUIModule = (() => {
       if (!options?.allowMissing) {
         console.warn("[LiveUI] DOMCall target missing", { refId, method });
       }
-      return void 0;
+      return { ok: false, reason: "missing_element" };
     }
     const fn = element[method];
     if (typeof fn !== "function") {
       console.warn("[LiveUI] DOMCall method missing", { refId, method });
-      return void 0;
+      return { ok: false, reason: "missing_method" };
     }
     try {
       const result = fn.apply(element, Array.isArray(args) ? args : []);
@@ -1569,10 +1569,85 @@ var LiveUIModule = (() => {
           });
         });
       }
-      return result;
+      return { ok: true };
     } catch (error) {
       console.error("[LiveUI] DOMCall failed", { refId, method, error });
-      return void 0;
+      return { ok: false, reason: "invoke_failed", error };
+    }
+  }
+  function setElementProperty(refId, prop, value) {
+    const element = refId ? getRefElement(refId) : null;
+    if (!element) {
+      console.warn("[LiveUI] DOMSet target missing", { refId, prop });
+      return { ok: false, reason: "missing_element" };
+    }
+    const name = typeof prop === "string" ? prop.trim() : "";
+    if (!name) {
+      return { ok: false, reason: "missing_property" };
+    }
+    try {
+      element[name] = value;
+      return { ok: true };
+    } catch (error) {
+      console.error("[LiveUI] DOMSet failed", { refId, prop: name, error });
+      return { ok: false, reason: "set_failed", error };
+    }
+  }
+  function setBooleanProperty(refId, prop, value) {
+    if (typeof value !== "boolean") {
+      return { ok: false, reason: "invalid_value" };
+    }
+    return setElementProperty(refId, prop, value);
+  }
+  function toggleElementClass(refId, className, on) {
+    const element = refId ? getRefElement(refId) : null;
+    if (!element) {
+      console.warn("[LiveUI] DOMClass target missing", { refId, className });
+      return { ok: false, reason: "missing_element" };
+    }
+    const token = typeof className === "string" ? className.trim() : "";
+    if (!token) {
+      return { ok: false, reason: "missing_class" };
+    }
+    if (!("classList" in element)) {
+      return { ok: false, reason: "classlist_missing" };
+    }
+    try {
+      if (on === void 0) {
+        element.classList.toggle(token);
+      } else {
+        element.classList.toggle(token, on);
+      }
+      return { ok: true };
+    } catch (error) {
+      console.error("[LiveUI] DOMClass failed", {
+        refId,
+        className: token,
+        error
+      });
+      return { ok: false, reason: "class_toggle_failed", error };
+    }
+  }
+  function scrollElementIntoView(refId, options) {
+    const element = refId ? getRefElement(refId) : null;
+    if (!element) {
+      console.warn("[LiveUI] DOMScroll target missing", { refId });
+      return { ok: false, reason: "missing_element" };
+    }
+    const scrollFn = element.scrollIntoView;
+    if (typeof scrollFn !== "function") {
+      return { ok: false, reason: "missing_scroll" };
+    }
+    try {
+      if (options && Object.keys(options).length > 0) {
+        scrollFn.call(element, options);
+      } else {
+        scrollFn.call(element);
+      }
+      return { ok: true };
+    } catch (error) {
+      console.error("[LiveUI] DOMScroll failed", { refId, error });
+      return { ok: false, reason: "scroll_failed", error };
     }
   }
 
@@ -3579,9 +3654,9 @@ var LiveUIModule = (() => {
         registerHandlers(boot.handlers);
         syncEventListeners();
       }
-      primeSlotBindings(boot.bindings);
+      primeSlotBindings(boot.bindings?.slots ?? null);
       clearRefs();
-      registerRefs(boot.refs);
+      registerRefs(boot.refs?.add ?? null);
       if (typeof document !== "undefined") {
         bindRefsInTree(document);
         resetComponentRanges();
@@ -3718,6 +3793,8 @@ var LiveUIModule = (() => {
       this.rafHandle = null;
       this.rafUsesTimeoutFallback = false;
       this.cookieRequests = /* @__PURE__ */ new Set();
+      this.templateCache = /* @__PURE__ */ new Map();
+      this.MAX_TEMPLATE_CACHE_SIZE = 100;
       // Reconnection
       this.reconnectAttempts = 0;
       this.reconnectTimer = null;
@@ -4139,6 +4216,9 @@ var LiveUIModule = (() => {
         case "frame":
           this.handleFrame(msg);
           break;
+        case "template":
+          this.handleTemplate(msg);
+          break;
         case "join":
           this.handleJoin(msg);
           break;
@@ -4147,6 +4227,9 @@ var LiveUIModule = (() => {
           break;
         case "error":
           this.handleError(msg);
+          break;
+        case "diagnostic":
+          this.handleDiagnostic(msg);
           break;
         case "pubsub":
           this.handlePubsub(msg);
@@ -4178,9 +4261,11 @@ var LiveUIModule = (() => {
         registerHandlers(msg.handlers);
         syncEventListeners();
       }
-      primeSlotBindings(msg.bindings ?? null);
+      primeSlotBindings(msg.bindings?.slots ?? null);
       clearRefs();
-      registerRefs(msg.refs);
+      if (msg.refs?.add) {
+        registerRefs(msg.refs.add);
+      }
       if (typeof document !== "undefined") {
         bindRefsInTree(document);
         primeHandlerBindings(document);
@@ -4264,6 +4349,19 @@ var LiveUIModule = (() => {
         }
         syncEventListeners();
       }
+      if (msg.bindings?.slots) {
+        for (const [slotKey, specs] of Object.entries(msg.bindings.slots)) {
+          const slotId = Number(slotKey);
+          if (!Number.isInteger(slotId) || slotId < 0) {
+            continue;
+          }
+          if (Array.isArray(specs)) {
+            registerBindingsForSlot(slotId, specs);
+          } else {
+            registerBindingsForSlot(slotId, []);
+          }
+        }
+      }
       if (msg.refs) {
         if (msg.refs.del) {
           unregisterRefs(msg.refs.del);
@@ -4305,6 +4403,27 @@ var LiveUIModule = (() => {
         }
       }
     }
+    handleTemplate(msg) {
+      if (!msg) {
+        return;
+      }
+      const sid = this.sessionId.get();
+      if (msg.sid && sid && msg.sid !== sid) {
+        this.log("Template message for different session", msg.sid);
+        return;
+      }
+      if (!msg.scope) {
+        this.applyRootTemplatePayload(msg);
+        return;
+      }
+      this.applyComponentTemplatePayload(msg, msg.scope);
+    }
+    handleDiagnostic(msg) {
+      if (!msg) {
+        return;
+      }
+      this.recordDiagnostic(msg);
+    }
     /**
      * Drain buffered frames that are now in sequence
      */
@@ -4333,8 +4452,11 @@ var LiveUIModule = (() => {
             case "componentboot":
               this.applyComponentBootEffect(effect);
               break;
+            case "dom":
+              this.applyDOMActionEffect(effect);
+              break;
             case "domcall":
-              this.applyDOMCallEffect(effect);
+              this.applyLegacyDOMCallEffect(effect);
               break;
             case "scroll":
             case "scrolltop":
@@ -4379,6 +4501,127 @@ var LiveUIModule = (() => {
         }
       }
     }
+    applyRootTemplatePayload(payload) {
+      if (typeof document === "undefined") {
+        return;
+      }
+      const markup = this.getTemplateMarkup(payload, "__root__");
+      clearPatcherCaches();
+      reset();
+      if (document.body) {
+        document.body.innerHTML = markup;
+      } else if (document.documentElement) {
+        document.documentElement.innerHTML = markup;
+      }
+      const rootContainer = document.body ?? document;
+      primeHandlerBindings(rootContainer);
+      clearHandlers();
+      if (payload.handlers && Object.keys(payload.handlers).length > 0) {
+        registerHandlers(payload.handlers);
+      }
+      syncEventListeners();
+      primeSlotBindings(payload.bindings?.slots ?? null);
+      if (payload.refs?.del) {
+        unregisterRefs(payload.refs.del);
+      }
+      if (payload.refs?.add) {
+        registerRefs(payload.refs.add);
+      }
+      bindRefsInTree(document);
+      resetComponentRanges();
+      const childCount = rootContainer.childNodes.length;
+      const range = {
+        container: rootContainer,
+        startIndex: 0,
+        endIndex: childCount > 0 ? childCount - 1 : -1
+      };
+      const overrides = applyComponentRanges(payload.componentPaths, { root: document });
+      this.registerTemplateAnchors(range, payload, overrides);
+    }
+    applyComponentTemplatePayload(payload, scope) {
+      if (typeof document === "undefined") {
+        return;
+      }
+      if (!scope || !scope.componentId) {
+        return;
+      }
+      const range = this.findComponentRange(scope.componentId);
+      if (!range) {
+        if (this.options.debug) {
+          console.warn(
+            `liveui: component ${scope.componentId} range not found for template payload`
+          );
+        }
+        return;
+      }
+      const slotIds = this.extractSlotIds(payload.slots);
+      for (const slot of slotIds) {
+        unregisterSlot(slot);
+      }
+      const listSlotIds = this.extractListSlotIds(payload.listPaths);
+      for (const slot of listSlotIds) {
+        unregisterList(slot);
+      }
+      clearPatcherCaches();
+      const template = document.createElement("template");
+      const markup = this.getTemplateMarkup(payload, scope.componentId);
+      template.innerHTML = markup;
+      const fragment = template.content.cloneNode(true);
+      primeHandlerBindings(fragment);
+      const insertedNodes = [];
+      for (let child = fragment.firstChild; child; child = child.nextSibling) {
+        insertedNodes.push(child);
+      }
+      const { container } = range;
+      const startIndex = range.startIndex;
+      const endIndex = range.endIndex;
+      const referenceNode = endIndex + 1 < container.childNodes.length ? container.childNodes.item(endIndex + 1) : null;
+      for (let index = endIndex; index >= startIndex; index--) {
+        const node = container.childNodes.item(index);
+        if (node) {
+          container.removeChild(node);
+        }
+      }
+      container.insertBefore(fragment, referenceNode);
+      const insertedCount = insertedNodes.length;
+      let refreshed = registerComponentRange(scope.componentId, {
+        container,
+        startIndex,
+        endIndex: insertedCount > 0 ? startIndex + insertedCount - 1 : startIndex - 1
+      });
+      if (!refreshed) {
+        refreshed = {
+          container,
+          startIndex,
+          endIndex: insertedCount > 0 ? startIndex + insertedCount - 1 : startIndex - 1
+        };
+      }
+      const overrides = applyComponentRanges(payload.componentPaths, {
+        baseId: scope.componentId,
+        baseRange: refreshed
+      });
+      this.registerTemplateAnchors(refreshed, payload, overrides);
+      if (payload.handlers && Object.keys(payload.handlers).length > 0) {
+        registerHandlers(payload.handlers);
+        syncEventListeners();
+      }
+      if (payload.bindings?.slots) {
+        for (const [slotKey, specs] of Object.entries(payload.bindings.slots)) {
+          const slotId = Number(slotKey);
+          if (!Number.isInteger(slotId) || slotId < 0) {
+            continue;
+          }
+          registerBindingsForSlot(slotId, Array.isArray(specs) ? specs : []);
+        }
+      }
+      if (payload.refs?.del) {
+        unregisterRefs(payload.refs.del);
+      }
+      if (payload.refs?.add) {
+        registerRefs(payload.refs.add);
+      }
+      bindRefsInTree(container);
+    }
     handleDOMRequest(msg) {
       if (!msg || !msg.id) {
         return;
@@ -4418,24 +4661,186 @@ var LiveUIModule = (() => {
       }
       this.sendDOMResponse(response);
     }
-    applyDOMCallEffect(effect) {
-      const refId = effect.ref ?? effect.Ref ?? "";
-      const method = effect.method ?? effect.Method ?? "";
-      if (!refId || !method) {
-        this.log("DOMCall effect missing ref or method", effect);
+    applyDOMActionEffect(effect) {
+      if (typeof document === "undefined") {
         return;
       }
-      let args = [];
-      if (Array.isArray(effect.args)) {
-        args = effect.args;
-      } else if (Array.isArray(effect.Args)) {
-        args = effect.Args;
-      } else if (effect.args !== void 0) {
-        args = [effect.args];
-      } else if (effect.Args !== void 0) {
-        args = [effect.Args];
+      const kind = (effect.kind ?? effect.Kind ?? "").toLowerCase();
+      const refId = (effect.ref ?? effect.Ref ?? "").trim();
+      if (!kind) {
+        this.reportDOMActionFailure(effect, "missing_kind");
+        return;
       }
-      callElementMethod(refId, method, args);
+      if (!refId) {
+        this.reportDOMActionFailure(effect, "missing_ref");
+        return;
+      }
+      switch (kind) {
+        case "dom.call": {
+          const method = (effect.method ?? effect.Method ?? "").trim();
+          if (!method) {
+            this.reportDOMActionFailure(effect, "missing_method");
+            return;
+          }
+          const args = this.normalizeDOMActionArgs(effect);
+          const result = callElementMethod(refId, method, args);
+          if (!result.ok) {
+            this.reportDOMActionFailure(
+              effect,
+              result.reason ?? "call_failed",
+              { method, argsLength: args.length },
+              result.error
+            );
+          }
+          break;
+        }
+        case "dom.set": {
+          const prop = (effect.prop ?? effect.Prop ?? "").trim();
+          if (!prop) {
+            this.reportDOMActionFailure(effect, "missing_property");
+            return;
+          }
+          const value = effect.value ?? effect.Value;
+          const result = setElementProperty(refId, prop, value);
+          if (!result.ok) {
+            this.reportDOMActionFailure(
+              effect,
+              result.reason ?? "set_failed",
+              { prop },
+              result.error
+            );
+          }
+          break;
+        }
+        case "dom.toggle": {
+          const prop = (effect.prop ?? effect.Prop ?? "").trim();
+          if (!prop) {
+            this.reportDOMActionFailure(effect, "missing_property");
+            return;
+          }
+          const value = effect.value ?? effect.Value;
+          if (typeof value !== "boolean") {
+            this.reportDOMActionFailure(effect, "invalid_toggle_value", { prop, value });
+            return;
+          }
+          const result = setBooleanProperty(refId, prop, value);
+          if (!result.ok) {
+            this.reportDOMActionFailure(
+              effect,
+              result.reason ?? "toggle_failed",
+              { prop, value },
+              result.error
+            );
+          }
+          break;
+        }
+        case "dom.class": {
+          const className = (effect["class"] ?? effect.Class ?? "").trim();
+          if (!className) {
+            this.reportDOMActionFailure(effect, "missing_class");
+            return;
+          }
+          const toggle = effect.on ?? effect.On;
+          const result = toggleElementClass(refId, className, toggle);
+          if (!result.ok) {
+            this.reportDOMActionFailure(
+              effect,
+              result.reason ?? "class_failed",
+              { className, toggle },
+              result.error
+            );
+          }
+          break;
+        }
+        case "dom.scroll": {
+          const options = {};
+          const behavior = effect.behavior ?? effect.Behavior;
+          const block = effect.block ?? effect.Block;
+          const inline = effect.inline ?? effect.Inline;
+          if (behavior) {
+            options.behavior = behavior;
+          }
+          if (block) {
+            options.block = block;
+          }
+          if (inline) {
+            options.inline = inline;
+          }
+          const result = scrollElementIntoView(
+            refId,
+            Object.keys(options).length > 0 ? options : null
+          );
+          if (!result.ok) {
+            this.reportDOMActionFailure(
+              effect,
+              result.reason ?? "scroll_failed",
+              void 0,
+              result.error
+            );
+          }
+          break;
+        }
+        default:
+          this.reportDOMActionFailure(effect, "unknown_kind", { kind });
+      }
+    }
+    applyLegacyDOMCallEffect(effect) {
+      const normalizedArgs = Array.isArray(effect.args) ? effect.args : Array.isArray(effect.Args) ? effect.Args : effect.args !== void 0 ? [effect.args] : effect.Args !== void 0 ? [effect.Args] : void 0;
+      const normalized = {
+        type: "dom",
+        kind: "dom.call",
+        ref: effect.ref ?? effect.Ref ?? void 0,
+        method: effect.method ?? effect.Method ?? void 0,
+        args: normalizedArgs
+      };
+      this.applyDOMActionEffect(normalized);
+    }
+    normalizeDOMActionArgs(effect) {
+      if (Array.isArray(effect.args)) {
+        return effect.args;
+      }
+      if (Array.isArray(effect.Args)) {
+        return effect.Args;
+      }
+      if (effect.args !== void 0) {
+        return [effect.args];
+      }
+      if (effect.Args !== void 0) {
+        return [effect.Args];
+      }
+      return [];
+    }
+    reportDOMActionFailure(effect, reason, metadata, error) {
+      const kind = effect.kind ?? effect.Kind ?? "";
+      const refId = effect.ref ?? effect.Ref ?? "" ?? "";
+      const message = `DOM action ${kind || "unknown"} failed: ${reason}`;
+      const detailsMetadata = {
+        kind,
+        ref: refId
+      };
+      if (metadata) {
+        Object.assign(detailsMetadata, metadata);
+      }
+      if (error instanceof Error) {
+        detailsMetadata.error = error.message;
+        if (error.stack) {
+          detailsMetadata.stack = error.stack;
+        }
+      } else if (error !== void 0) {
+        detailsMetadata.error = error;
+      }
+      console.warn("[LiveUI]", message, { effect, metadata: detailsMetadata });
+      const diagnostic = {
+        t: "diagnostic",
+        sid: this.sessionId.get() ?? "",
+        code: "dom_action_failed",
+        message,
+        details: {
+          phase: "dom_action",
+          metadata: detailsMetadata
+        }
+      };
+      this.recordDiagnostic(diagnostic);
     }
     sendDOMResponse(payload) {
       if (!this.channel) {
@@ -4737,24 +5142,11 @@ var LiveUIModule = (() => {
     }
     applyBootEffect(effect) {
       const boot = effect?.boot;
-      if (!boot || typeof boot.html !== "string") {
+      if (!boot) {
         return;
       }
-      clearPatcherCaches();
-      reset();
-      if (typeof document !== "undefined") {
-        document.body.innerHTML = boot.html;
-        primeHandlerBindings(document);
-        applyComponentRanges(boot.componentPaths, { root: document });
-      }
+      this.applyRootTemplatePayload(boot);
       this.bootHandler.load(boot);
-      syncEventListeners();
-      if (Array.isArray(boot.slotPaths) && boot.slotPaths.length > 0) {
-        const anchors = resolveSlotAnchors(boot.slotPaths);
-        anchors.forEach((node, slotId) => {
-          registerSlot(slotId, node);
-        });
-      }
     }
     applyComponentBootEffect(effect) {
       if (typeof document === "undefined") return;
@@ -4819,8 +5211,9 @@ var LiveUIModule = (() => {
         baseId: componentId,
         baseRange: refreshed
       });
-      if (bindings && typeof bindings === "object") {
-        for (const [slotKey, specs] of Object.entries(bindings)) {
+      const slotBindingTable = bindings?.slots ?? bindings;
+      if (slotBindingTable && typeof slotBindingTable === "object") {
+        for (const [slotKey, specs] of Object.entries(slotBindingTable)) {
           const slotId = Number(slotKey);
           if (Number.isNaN(slotId)) {
             continue;
@@ -4840,6 +5233,101 @@ var LiveUIModule = (() => {
         const anchors = resolveSlotAnchors(slotPaths, rangeOverrides);
         anchors.forEach((node, slotId) => registerSlot(slotId, node));
       }
+    }
+    registerTemplateAnchors(range, payload, overrides) {
+      if (!range) {
+        return;
+      }
+      const slotIds = this.extractSlotIds(payload.slots);
+      const listSlotIds = this.extractListSlotIds(payload.listPaths);
+      this.registerComponentAnchors(
+        range,
+        slotIds,
+        listSlotIds,
+        payload.slotPaths,
+        payload.listPaths,
+        overrides
+      );
+    }
+    extractSlotIds(slots) {
+      if (!Array.isArray(slots)) {
+        return [];
+      }
+      const ids = [];
+      for (const meta of slots) {
+        const id = Number(meta?.anchorId);
+        if (Number.isInteger(id) && id >= 0) {
+          ids.push(id);
+        }
+      }
+      return ids;
+    }
+    extractListSlotIds(descriptors) {
+      if (!Array.isArray(descriptors)) {
+        return [];
+      }
+      const seen = /* @__PURE__ */ new Set();
+      const ids = [];
+      for (const descriptor of descriptors) {
+        const id = Number(descriptor?.slot);
+        if (!Number.isInteger(id) || id < 0 || seen.has(id)) {
+          continue;
+        }
+        seen.add(id);
+        ids.push(id);
+      }
+      return ids;
+    }
+    getTemplateMarkup(payload, scopeKey) {
+      const scope = scopeKey && scopeKey.length > 0 ? scopeKey : "__root__";
+      const templateHash = typeof payload.templateHash === "string" ? payload.templateHash : "";
+      if (typeof payload.html === "string") {
+        this.cacheTemplateMarkup(scope, templateHash, payload.html);
+        return payload.html;
+      }
+      if (templateHash) {
+        const cached = this.lookupTemplateMarkup(scope, templateHash);
+        if (cached !== null) {
+          return cached;
+        }
+      }
+      if (Array.isArray(payload.s) && payload.s.length > 0) {
+        const markup = payload.s.join("");
+        this.cacheTemplateMarkup(scope, templateHash, markup);
+        return markup;
+      }
+      this.cacheTemplateMarkup(scope, templateHash, "");
+      return "";
+    }
+    buildTemplateCacheKey(scope, hash) {
+      return `${scope}::${hash}`;
+    }
+    cacheTemplateMarkup(scope, hash, markup) {
+      if (!hash) {
+        return;
+      }
+      const key = this.buildTemplateCacheKey(scope, hash);
+      if (this.templateCache.has(key)) {
+        this.templateCache.delete(key);
+      }
+      this.templateCache.set(key, markup);
+      if (this.templateCache.size > this.MAX_TEMPLATE_CACHE_SIZE) {
+        const oldest = this.templateCache.keys().next();
+        if (!oldest.done) {
+          this.templateCache.delete(oldest.value);
+        }
+      }
+    }
+    lookupTemplateMarkup(scope, hash) {
+      if (!hash) {
+        return null;
+      }
+      const key = this.buildTemplateCacheKey(scope, hash);
+      if (!this.templateCache.has(key)) {
+        return null;
+      }
+      const cached = this.templateCache.get(key);
+      return cached !== void 0 ? cached : null;
     }
     findComponentRange(id) {
       if (typeof document === "undefined" || !id) return null;

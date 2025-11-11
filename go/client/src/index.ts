@@ -7,7 +7,14 @@
 
 import { PondClient } from "@eleven-am/pondsocket-client";
 import * as dom from "./dom-index";
-import { callElementMethod, domGetSync } from "./dom";
+import {
+  callElementMethod,
+  domGetSync,
+  scrollElementIntoView,
+  setBooleanProperty,
+  setElementProperty,
+  toggleElementClass,
+} from "./dom";
 import {
   applyOps,
   clearPatcherCaches,
@@ -50,6 +57,7 @@ import type {
   ConnectionState,
   DiffOp,
   DispatchEffect,
+  DOMActionEffect,
   DOMCallEffect,
   DOMRequestMessage,
   DOMResponseMessage,
@@ -938,8 +946,11 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
           case "componentboot":
             this.applyComponentBootEffect(effect as ComponentBootEffect);
             break;
+          case "dom":
+            this.applyDOMActionEffect(effect as DOMActionEffect);
+            break;
           case "domcall":
-            this.applyDOMCallEffect(effect as DOMCallEffect);
+            this.applyLegacyDOMCallEffect(effect as DOMCallEffect);
             break;
           case "scroll":
           case "scrolltop":
@@ -1186,24 +1197,211 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     this.sendDOMResponse(response);
   }
 
-  private applyDOMCallEffect(effect: DOMCallEffect): void {
-    const refId = effect.ref ?? effect.Ref ?? "";
-    const method = effect.method ?? effect.Method ?? "";
-    if (!refId || !method) {
-      this.log("DOMCall effect missing ref or method", effect);
+  private applyDOMActionEffect(effect: DOMActionEffect): void {
+    if (typeof document === "undefined") {
       return;
     }
-    let args: any[] = [];
-    if (Array.isArray(effect.args)) {
-      args = effect.args;
-    } else if (Array.isArray(effect.Args)) {
-      args = effect.Args;
-    } else if (effect.args !== undefined) {
-      args = [effect.args];
-    } else if (effect.Args !== undefined) {
-      args = [effect.Args];
+
+    const kind = (effect.kind ?? effect.Kind ?? "").toLowerCase();
+    const refId = (effect.ref ?? effect.Ref ?? "").trim();
+
+    if (!kind) {
+      this.reportDOMActionFailure(effect, "missing_kind");
+      return;
     }
-    callElementMethod(refId, method, args);
+    if (!refId) {
+      this.reportDOMActionFailure(effect, "missing_ref");
+      return;
+    }
+
+    switch (kind) {
+      case "dom.call": {
+        const method = (effect.method ?? effect.Method ?? "").trim();
+        if (!method) {
+          this.reportDOMActionFailure(effect, "missing_method");
+          return;
+        }
+        const args = this.normalizeDOMActionArgs(effect);
+        const result = callElementMethod(refId, method, args);
+        if (!result.ok) {
+          this.reportDOMActionFailure(
+            effect,
+            result.reason ?? "call_failed",
+            { method, argsLength: args.length },
+            result.error,
+          );
+        }
+        break;
+      }
+      case "dom.set": {
+        const prop = (effect.prop ?? effect.Prop ?? "").trim();
+        if (!prop) {
+          this.reportDOMActionFailure(effect, "missing_property");
+          return;
+        }
+        const value = effect.value ?? effect.Value;
+        const result = setElementProperty(refId, prop, value);
+        if (!result.ok) {
+          this.reportDOMActionFailure(
+            effect,
+            result.reason ?? "set_failed",
+            { prop },
+            result.error,
+          );
+        }
+        break;
+      }
+      case "dom.toggle": {
+        const prop = (effect.prop ?? effect.Prop ?? "").trim();
+        if (!prop) {
+          this.reportDOMActionFailure(effect, "missing_property");
+          return;
+        }
+        const value = effect.value ?? effect.Value;
+        if (typeof value !== "boolean") {
+          this.reportDOMActionFailure(effect, "invalid_toggle_value", { prop, value });
+          return;
+        }
+        const result = setBooleanProperty(refId, prop, value);
+        if (!result.ok) {
+          this.reportDOMActionFailure(
+            effect,
+            result.reason ?? "toggle_failed",
+            { prop, value },
+            result.error,
+          );
+        }
+        break;
+      }
+      case "dom.class": {
+        const className = (effect["class"] ?? effect.Class ?? "").trim();
+        if (!className) {
+          this.reportDOMActionFailure(effect, "missing_class");
+          return;
+        }
+        const toggle = effect.on ?? effect.On;
+        const result = toggleElementClass(refId, className, toggle);
+        if (!result.ok) {
+          this.reportDOMActionFailure(
+            effect,
+            result.reason ?? "class_failed",
+            { className, toggle },
+            result.error,
+          );
+        }
+        break;
+      }
+      case "dom.scroll": {
+        const options: ScrollIntoViewOptions = {};
+        const behavior = effect.behavior ?? effect.Behavior;
+        const block = effect.block ?? effect.Block;
+        const inline = effect.inline ?? effect.Inline;
+        if (behavior) {
+          options.behavior = behavior;
+        }
+        if (block) {
+          options.block = block;
+        }
+        if (inline) {
+          options.inline = inline;
+        }
+        const result = scrollElementIntoView(
+          refId,
+          Object.keys(options).length > 0 ? options : null,
+        );
+        if (!result.ok) {
+          this.reportDOMActionFailure(
+            effect,
+            result.reason ?? "scroll_failed",
+            undefined,
+            result.error,
+          );
+        }
+        break;
+      }
+      default:
+        this.reportDOMActionFailure(effect, "unknown_kind", { kind });
+    }
+  }
+
+  private applyLegacyDOMCallEffect(effect: DOMCallEffect): void {
+    const normalizedArgs = Array.isArray(effect.args)
+      ? effect.args
+      : Array.isArray(effect.Args)
+      ? effect.Args
+      : effect.args !== undefined
+      ? [effect.args]
+      : effect.Args !== undefined
+      ? [effect.Args]
+      : undefined;
+
+    const normalized: DOMActionEffect = {
+      type: "dom",
+      kind: "dom.call",
+      ref: effect.ref ?? effect.Ref ?? undefined,
+      method: effect.method ?? effect.Method ?? undefined,
+      args: normalizedArgs,
+    };
+
+    this.applyDOMActionEffect(normalized);
+  }
+
+  private normalizeDOMActionArgs(effect: DOMActionEffect): any[] {
+    if (Array.isArray(effect.args)) {
+      return effect.args;
+    }
+    if (Array.isArray(effect.Args)) {
+      return effect.Args;
+    }
+    if (effect.args !== undefined) {
+      return [effect.args];
+    }
+    if (effect.Args !== undefined) {
+      return [effect.Args];
+    }
+    return [];
+  }
+
+  private reportDOMActionFailure(
+    effect: DOMActionEffect,
+    reason: string,
+    metadata?: Record<string, unknown>,
+    error?: unknown,
+  ): void {
+    const kind = effect.kind ?? effect.Kind ?? "";
+    const refId = (effect.ref ?? effect.Ref ?? "") ?? "";
+    const message = `DOM action ${kind || "unknown"} failed: ${reason}`;
+
+    const detailsMetadata: Record<string, unknown> = {
+      kind,
+      ref: refId,
+    };
+    if (metadata) {
+      Object.assign(detailsMetadata, metadata);
+    }
+    if (error instanceof Error) {
+      detailsMetadata.error = error.message;
+      if (error.stack) {
+        detailsMetadata.stack = error.stack;
+      }
+    } else if (error !== undefined) {
+      detailsMetadata.error = error;
+    }
+
+    console.warn("[LiveUI]", message, { effect, metadata: detailsMetadata });
+
+    const diagnostic: DiagnosticMessage = {
+      t: "diagnostic",
+      sid: this.sessionId.get() ?? "",
+      code: "dom_action_failed",
+      message,
+      details: {
+        phase: "dom_action",
+        metadata: detailsMetadata,
+      },
+    };
+
+    this.recordDiagnostic(diagnostic);
   }
 
   private sendDOMResponse(payload: DOMResponseMessage): void {
