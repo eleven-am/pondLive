@@ -50,11 +50,17 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 	if err := tr.SendFrame(protocol.Frame{}); err != nil {
 		t.Fatalf("SendFrame: %v", err)
 	}
+	if err := tr.SendTemplate(protocol.TemplateFrame{}); err != nil {
+		t.Fatalf("SendTemplate: %v", err)
+	}
 	if err := tr.SendEventAck(protocol.EventAck{}); err != nil {
 		t.Fatalf("SendEventAck: %v", err)
 	}
 	if err := tr.SendServerError(protocol.ServerError{}); err != nil {
 		t.Fatalf("SendServerError: %v", err)
+	}
+	if err := tr.SendDiagnostic(protocol.Diagnostic{}); err != nil {
+		t.Fatalf("SendDiagnostic: %v", err)
 	}
 	if err := tr.SendPubsubControl(protocol.PubsubControl{Op: "join", Topic: "news"}); err != nil {
 		t.Fatalf("SendPubsubControl: %v", err)
@@ -69,11 +75,11 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
 
-	if len(ch.calls) != 8 {
-		t.Fatalf("expected 8 calls, got %d", len(ch.calls))
+	if len(ch.calls) != 10 {
+		t.Fatalf("expected 10 calls, got %d", len(ch.calls))
 	}
 
-	want := []string{"init", "resume", "frame", "evt-ack", "error", "pubsub", "upload", "domreq"}
+	want := []string{"init", "resume", "frame", "template", "evt-ack", "error", "diagnostic", "pubsub", "upload", "domreq"}
 	for i, event := range want {
 		if ch.calls[i].event != event {
 			t.Fatalf("call %d expecting event %q, got %q", i, event, ch.calls[i].event)
@@ -95,6 +101,10 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 			if payload.T != "frame" {
 				t.Fatalf("expected frame payload T, got %q", payload.T)
 			}
+		case protocol.TemplateFrame:
+			if payload.T != "template" {
+				t.Fatalf("expected template payload T, got %q", payload.T)
+			}
 		case protocol.EventAck:
 			if payload.T != "evt-ack" {
 				t.Fatalf("expected ack payload T, got %q", payload.T)
@@ -102,6 +112,10 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 		case protocol.ServerError:
 			if payload.T != "error" {
 				t.Fatalf("expected error payload T, got %q", payload.T)
+			}
+		case protocol.Diagnostic:
+			if payload.T != "diagnostic" {
+				t.Fatalf("expected diagnostic payload T, got %q", payload.T)
 			}
 		case protocol.PubsubControl:
 			if payload.T != "pubsub" {

@@ -145,6 +145,13 @@ func (e *Endpoint) onJoin(ctx *pond.JoinContext) error {
 		}
 	}
 
+	for _, frame := range join.Templates {
+		if err := transport.SendTemplate(frame); err != nil {
+			e.registry.DetachConnection(user.UserID)
+			return err
+		}
+	}
+
 	for _, frame := range join.Frames {
 		if err := transport.SendFrame(frame); err != nil {
 			e.registry.DetachConnection(user.UserID)

@@ -9,6 +9,20 @@ import {
   registerComponentRanges,
 } from './componentRanges';
 
+function debugLog(...args: any[]): void {
+  if (typeof console === 'undefined') {
+    return;
+  }
+  console.log('[liveui][manifest]', ...args);
+}
+
+function debugWarn(...args: any[]): void {
+  if (typeof console === 'undefined') {
+    return;
+  }
+  console.warn('[liveui][manifest]', ...args);
+}
+
 function ensureArray(path?: number[] | null): number[] {
   if (!Array.isArray(path)) {
     return [];
@@ -195,12 +209,12 @@ function resolveNodeInRange(
   if (steps.length === 0) {
     return current;
   }
-  for (let i = 0; i < steps.length; i++) {
-    const step = steps[i];
+  for (const step of steps) {
     if (!(current instanceof Element || current instanceof DocumentFragment)) {
       return null;
     }
-    current = current.childNodes.item(step) ?? null;
+    const childIndex = clampIndex(current, step);
+    current = current.childNodes.item(childIndex) ?? null;
     if (!current) {
       return null;
     }
@@ -222,18 +236,29 @@ export function resolveSlotAnchors(
     if (!Number.isInteger(slotId) || slotId < 0 || anchors.has(slotId)) {
       continue;
     }
-    const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
+    const range =
+      overrides?.get(descriptor.componentId) ??
+      getComponentRange(descriptor.componentId);
     if (!range) {
+      debugWarn(
+        'slot range missing',
+        descriptor.componentId,
+        descriptor,
+        Array.from(overrides?.keys() ?? []),
+      );
       continue;
     }
     const anchor = resolveNodeInRange(range, descriptor.elementPath);
     if (!anchor) {
+      debugWarn('slot anchor not found', descriptor, range);
       continue;
     }
     let target: Node | null = anchor;
     const textIndex = Number(descriptor.textChildIndex);
     if (Number.isInteger(textIndex) && textIndex >= 0) {
-      if (anchor instanceof Element || anchor instanceof DocumentFragment) {
+      if (anchor instanceof Text) {
+        target = anchor;
+      } else if (anchor instanceof Element || anchor instanceof DocumentFragment) {
         let textNode = anchor.childNodes.item(textIndex) ?? null;
         if (!textNode && typeof document !== 'undefined') {
           textNode = document.createTextNode('');
@@ -249,8 +274,13 @@ export function resolveSlotAnchors(
       }
     }
     if (!target) {
+      debugWarn('slot target missing', descriptor, {
+        anchorName:
+          anchor instanceof Element ? anchor.tagName : anchor?.nodeName,
+      });
       continue;
     }
+    debugLog('slot resolved', slotId, descriptor.componentId);
     anchors.set(slotId, target);
   }
   return anchors;
@@ -270,14 +300,24 @@ export function resolveListContainers(
     if (!Number.isInteger(slotId) || slotId < 0 || lists.has(slotId)) {
       continue;
     }
-    const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
+    const range =
+      overrides?.get(descriptor.componentId) ??
+      getComponentRange(descriptor.componentId);
     if (!range) {
+      debugWarn(
+        'list range missing',
+        descriptor.componentId,
+        descriptor,
+        Array.from(overrides?.keys() ?? []),
+      );
       continue;
     }
     const node = resolveNodeInRange(range, descriptor.elementPath);
     if (!(node instanceof Element)) {
+      debugWarn('list container not found', descriptor, range);
       continue;
     }
+    debugLog('list container resolved', slotId, descriptor.componentId);
     lists.set(slotId, node);
   }
   return lists;

@@ -3,23 +3,14 @@ package protocol
 import "github.com/eleven-am/pondlive/go/internal/diff"
 
 type Boot struct {
-	T              string                 `json:"t"`
-	SID            string                 `json:"sid"`
-	Ver            int                    `json:"ver"`
-	Seq            int                    `json:"seq"`
-	HTML           string                 `json:"html"`
-	S              []string               `json:"s"`
-	D              []DynamicSlot          `json:"d"`
-	Slots          []SlotMeta             `json:"slots"`
-	SlotPaths      []SlotPath             `json:"slotPaths,omitempty"`
-	ListPaths      []ListPath             `json:"listPaths,omitempty"`
-	ComponentPaths []ComponentPath        `json:"componentPaths,omitempty"`
-	Handlers       map[string]HandlerMeta `json:"handlers"`
-	Bindings       BindingTable           `json:"bindings,omitempty"`
-	Refs           map[string]RefMeta     `json:"refs,omitempty"`
-	Location       Location               `json:"location"`
-	Client         *ClientConfig          `json:"client,omitempty"`
-	Errors         []ServerError          `json:"errors,omitempty"`
+	TemplatePayload
+	T        string        `json:"t"`
+	SID      string        `json:"sid"`
+	Ver      int           `json:"ver"`
+	Seq      int           `json:"seq"`
+	Location Location      `json:"location"`
+	Client   *ClientConfig `json:"client,omitempty"`
+	Errors   []ServerError `json:"errors,omitempty"`
 }
 
 type ClientConfig struct {
@@ -29,21 +20,45 @@ type ClientConfig struct {
 }
 
 type Init struct {
-	T              string                 `json:"t"`
-	SID            string                 `json:"sid"`
-	Ver            int                    `json:"ver"`
+	TemplatePayload
+	T        string        `json:"t"`
+	SID      string        `json:"sid"`
+	Ver      int           `json:"ver"`
+	Location Location      `json:"location"`
+	Seq      int           `json:"seq"`
+	Errors   []ServerError `json:"errors,omitempty"`
+}
+
+type TemplateFrame struct {
+	TemplatePayload
+	T     string         `json:"t"`
+	SID   string         `json:"sid"`
+	Ver   int            `json:"ver"`
+	Scope *TemplateScope `json:"scope,omitempty"`
+}
+
+type TemplateScope struct {
+	ComponentID string `json:"componentId"`
+	ParentID    string `json:"parentId,omitempty"`
+	ParentPath  []int  `json:"parentPath,omitempty"`
+}
+
+type TemplatePayload struct {
+	HTML           string                 `json:"html,omitempty"`
+	TemplateHash   string                 `json:"templateHash,omitempty"`
 	S              []string               `json:"s"`
 	D              []DynamicSlot          `json:"d"`
 	Slots          []SlotMeta             `json:"slots"`
 	SlotPaths      []SlotPath             `json:"slotPaths,omitempty"`
 	ListPaths      []ListPath             `json:"listPaths,omitempty"`
 	ComponentPaths []ComponentPath        `json:"componentPaths,omitempty"`
-	Handlers       map[string]HandlerMeta `json:"handlers"`
-	Bindings       BindingTable           `json:"bindings,omitempty"`
-	Refs           map[string]RefMeta     `json:"refs,omitempty"`
-	Location       Location               `json:"location"`
-	Seq            int                    `json:"seq"`
-	Errors         []ServerError          `json:"errors,omitempty"`
+	Handlers       map[string]HandlerMeta `json:"handlers,omitempty"`
+	Bindings       TemplateBindings       `json:"bindings,omitempty"`
+	Refs           RefDelta               `json:"refs,omitempty"`
+}
+
+type TemplateBindings struct {
+	Slots BindingTable `json:"slots,omitempty"`
 }
 
 type DynamicSlot struct {
@@ -159,17 +174,18 @@ type ErrorDetails struct {
 }
 
 type Frame struct {
-	T        string       `json:"t"`
-	SID      string       `json:"sid"`
-	Seq      int          `json:"seq"`
-	Ver      int          `json:"ver"`
-	Delta    FrameDelta   `json:"delta"`
-	Patch    []diff.Op    `json:"patch"`
-	Effects  []any        `json:"effects"`
-	Nav      *NavDelta    `json:"nav,omitempty"`
-	Handlers HandlerDelta `json:"handlers"`
-	Refs     RefDelta     `json:"refs"`
-	Metrics  FrameMetrics `json:"metrics"`
+	T        string            `json:"t"`
+	SID      string            `json:"sid"`
+	Seq      int               `json:"seq"`
+	Ver      int               `json:"ver"`
+	Delta    FrameDelta        `json:"delta"`
+	Patch    []diff.Op         `json:"patch"`
+	Effects  []any             `json:"effects"`
+	Nav      *NavDelta         `json:"nav,omitempty"`
+	Handlers HandlerDelta      `json:"handlers"`
+	Refs     RefDelta          `json:"refs"`
+	Bindings *TemplateBindings `json:"bindings,omitempty"`
+	Metrics  FrameMetrics      `json:"metrics"`
 }
 
 type FrameDelta struct {
@@ -200,6 +216,14 @@ type RefMeta struct {
 type RefEventMeta struct {
 	Listen []string `json:"listen,omitempty"`
 	Props  []string `json:"props,omitempty"`
+}
+
+type Diagnostic struct {
+	T       string        `json:"t"`
+	SID     string        `json:"sid"`
+	Code    string        `json:"code"`
+	Message string        `json:"message"`
+	Details *ErrorDetails `json:"details,omitempty"`
 }
 
 type DOMRequest struct {

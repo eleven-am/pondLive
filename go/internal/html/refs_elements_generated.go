@@ -9,28 +9,18 @@ type ARef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -44,28 +34,18 @@ func NewARef(ref *ElementRef[HTMLAElement]) *ARef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -76,28 +56,18 @@ type AbbrRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -111,28 +81,18 @@ func NewAbbrRef(ref *ElementRef[HTMLAbbrElement]) *AbbrRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -143,28 +103,18 @@ type AddressRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -178,28 +128,18 @@ func NewAddressRef(ref *ElementRef[HTMLAddressElement]) *AddressRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -210,28 +150,18 @@ type AreaRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -245,28 +175,18 @@ func NewAreaRef(ref *ElementRef[HTMLAreaElement]) *AreaRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -277,28 +197,18 @@ type ArticleRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -312,28 +222,18 @@ func NewArticleRef(ref *ElementRef[HTMLArticleElement]) *ArticleRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -344,28 +244,18 @@ type AsideRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -379,28 +269,18 @@ func NewAsideRef(ref *ElementRef[HTMLAsideElement]) *AsideRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -411,29 +291,20 @@ type AudioRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*MediaHandler
 }
 
 func NewAudioRef(ref *ElementRef[HTMLAudioElement]) *AudioRef {
@@ -446,29 +317,20 @@ func NewAudioRef(ref *ElementRef[HTMLAudioElement]) *AudioRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		MediaHandler:       NewMediaHandler(ref),
 	}
 }
 
@@ -478,28 +340,18 @@ type BRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -513,28 +365,18 @@ func NewBRef(ref *ElementRef[HTMLBElement]) *BRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -545,28 +387,18 @@ type BaseRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -580,28 +412,18 @@ func NewBaseRef(ref *ElementRef[HTMLBaseElement]) *BaseRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -612,28 +434,18 @@ type BdiRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -647,28 +459,18 @@ func NewBdiRef(ref *ElementRef[HTMLBdiElement]) *BdiRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -679,28 +481,18 @@ type BdoRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -714,28 +506,18 @@ func NewBdoRef(ref *ElementRef[HTMLBdoElement]) *BdoRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -746,28 +528,18 @@ type BlockquoteRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -781,28 +553,18 @@ func NewBlockquoteRef(ref *ElementRef[HTMLBlockquoteElement]) *BlockquoteRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -813,28 +575,18 @@ type BodyRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -848,28 +600,18 @@ func NewBodyRef(ref *ElementRef[HTMLBodyElement]) *BodyRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -880,28 +622,18 @@ type BrRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -915,28 +647,18 @@ func NewBrRef(ref *ElementRef[HTMLBrElement]) *BrRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -947,28 +669,18 @@ type ButtonRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -982,28 +694,18 @@ func NewButtonRef(ref *ElementRef[HTMLButtonElement]) *ButtonRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1014,28 +716,18 @@ type CanvasRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1049,28 +741,18 @@ func NewCanvasRef(ref *ElementRef[HTMLCanvasElement]) *CanvasRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1081,28 +763,18 @@ type CaptionRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1116,28 +788,18 @@ func NewCaptionRef(ref *ElementRef[HTMLCaptionElement]) *CaptionRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1148,28 +810,18 @@ type CircleRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1183,28 +835,18 @@ func NewCircleRef(ref *ElementRef[SVGCircleElement]) *CircleRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1215,28 +857,18 @@ type CiteRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1250,28 +882,18 @@ func NewCiteRef(ref *ElementRef[HTMLCiteElement]) *CiteRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1282,28 +904,18 @@ type ClipPathRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1317,28 +929,18 @@ func NewClipPathRef(ref *ElementRef[SVGClipPathElement]) *ClipPathRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1349,28 +951,18 @@ type CodeRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1384,28 +976,18 @@ func NewCodeRef(ref *ElementRef[HTMLCodeElement]) *CodeRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1416,28 +998,18 @@ type ColRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1451,28 +1023,18 @@ func NewColRef(ref *ElementRef[HTMLColElement]) *ColRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1483,28 +1045,18 @@ type ColgroupRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1518,28 +1070,18 @@ func NewColgroupRef(ref *ElementRef[HTMLColgroupElement]) *ColgroupRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1550,28 +1092,18 @@ type DataElRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1585,28 +1117,18 @@ func NewDataElRef(ref *ElementRef[HTMLDataElement]) *DataElRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1617,28 +1139,18 @@ type DatalistRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1652,28 +1164,18 @@ func NewDatalistRef(ref *ElementRef[HTMLDatalistElement]) *DatalistRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1684,28 +1186,18 @@ type DdRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1719,28 +1211,18 @@ func NewDdRef(ref *ElementRef[HTMLDdElement]) *DdRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1751,28 +1233,18 @@ type DefsRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1786,28 +1258,18 @@ func NewDefsRef(ref *ElementRef[SVGDefsElement]) *DefsRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1818,28 +1280,18 @@ type DelElRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1853,28 +1305,18 @@ func NewDelElRef(ref *ElementRef[HTMLDelElement]) *DelElRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -1885,29 +1327,20 @@ type DetailsRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*ToggleHandler
 }
 
 func NewDetailsRef(ref *ElementRef[HTMLDetailsElement]) *DetailsRef {
@@ -1920,29 +1353,20 @@ func NewDetailsRef(ref *ElementRef[HTMLDetailsElement]) *DetailsRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		ToggleHandler:      NewToggleHandler(ref),
 	}
 }
 
@@ -1952,28 +1376,18 @@ type DfnRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -1987,28 +1401,18 @@ func NewDfnRef(ref *ElementRef[HTMLDfnElement]) *DfnRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2019,29 +1423,20 @@ type DialogRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*DialogHandler
 }
 
 func NewDialogRef(ref *ElementRef[HTMLDialogElement]) *DialogRef {
@@ -2054,29 +1449,20 @@ func NewDialogRef(ref *ElementRef[HTMLDialogElement]) *DialogRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		DialogHandler:      NewDialogHandler(ref),
 	}
 }
 
@@ -2086,28 +1472,18 @@ type DivRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2121,28 +1497,18 @@ func NewDivRef(ref *ElementRef[HTMLDivElement]) *DivRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2153,28 +1519,18 @@ type DlRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2188,28 +1544,18 @@ func NewDlRef(ref *ElementRef[HTMLDlElement]) *DlRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2220,28 +1566,18 @@ type DtRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2255,28 +1591,18 @@ func NewDtRef(ref *ElementRef[HTMLDtElement]) *DtRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2287,28 +1613,18 @@ type EllipseRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2322,28 +1638,18 @@ func NewEllipseRef(ref *ElementRef[SVGEllipseElement]) *EllipseRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2354,28 +1660,18 @@ type EmRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2389,28 +1685,18 @@ func NewEmRef(ref *ElementRef[HTMLEmElement]) *EmRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2421,28 +1707,18 @@ type EmbedRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2456,28 +1732,18 @@ func NewEmbedRef(ref *ElementRef[HTMLEmbedElement]) *EmbedRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2488,28 +1754,18 @@ type FieldsetRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2523,28 +1779,18 @@ func NewFieldsetRef(ref *ElementRef[HTMLFieldsetElement]) *FieldsetRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2555,28 +1801,18 @@ type FigcaptionRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2590,28 +1826,18 @@ func NewFigcaptionRef(ref *ElementRef[HTMLFigcaptionElement]) *FigcaptionRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2622,28 +1848,18 @@ type FigureRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2657,28 +1873,18 @@ func NewFigureRef(ref *ElementRef[HTMLFigureElement]) *FigureRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2689,28 +1895,18 @@ type FooterRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2724,28 +1920,18 @@ func NewFooterRef(ref *ElementRef[HTMLFooterElement]) *FooterRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2756,28 +1942,18 @@ type ForeignObjectRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2791,28 +1967,18 @@ func NewForeignObjectRef(ref *ElementRef[SVGForeignObjectElement]) *ForeignObjec
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2823,29 +1989,20 @@ type FormRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*FormHandler
 }
 
 func NewFormRef(ref *ElementRef[HTMLFormElement]) *FormRef {
@@ -2858,29 +2015,20 @@ func NewFormRef(ref *ElementRef[HTMLFormElement]) *FormRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		FormHandler:        NewFormHandler(ref),
 	}
 }
 
@@ -2890,28 +2038,18 @@ type GRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2925,28 +2063,18 @@ func NewGRef(ref *ElementRef[SVGGElement]) *GRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -2957,28 +2085,18 @@ type H1Ref struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -2992,28 +2110,18 @@ func NewH1Ref(ref *ElementRef[HTMLH1Element]) *H1Ref {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3024,28 +2132,18 @@ type H2Ref struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3059,28 +2157,18 @@ func NewH2Ref(ref *ElementRef[HTMLH2Element]) *H2Ref {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3091,28 +2179,18 @@ type H3Ref struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3126,28 +2204,18 @@ func NewH3Ref(ref *ElementRef[HTMLH3Element]) *H3Ref {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3158,28 +2226,18 @@ type H4Ref struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3193,28 +2251,18 @@ func NewH4Ref(ref *ElementRef[HTMLH4Element]) *H4Ref {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3225,28 +2273,18 @@ type H5Ref struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3260,28 +2298,18 @@ func NewH5Ref(ref *ElementRef[HTMLH5Element]) *H5Ref {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3292,28 +2320,18 @@ type H6Ref struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3327,28 +2345,18 @@ func NewH6Ref(ref *ElementRef[HTMLH6Element]) *H6Ref {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3359,28 +2367,18 @@ type HeadRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3394,28 +2392,18 @@ func NewHeadRef(ref *ElementRef[HTMLHeadElement]) *HeadRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3426,28 +2414,18 @@ type HeaderRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3461,28 +2439,18 @@ func NewHeaderRef(ref *ElementRef[HTMLHeaderElement]) *HeaderRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3493,28 +2461,18 @@ type HgroupRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3528,28 +2486,18 @@ func NewHgroupRef(ref *ElementRef[HTMLHgroupElement]) *HgroupRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3560,28 +2508,18 @@ type HrRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3595,28 +2533,18 @@ func NewHrRef(ref *ElementRef[HTMLHrElement]) *HrRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3627,28 +2555,18 @@ type HtmlRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3662,28 +2580,18 @@ func NewHtmlRef(ref *ElementRef[HTMLHtmlElement]) *HtmlRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3694,28 +2602,18 @@ type IRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3729,28 +2627,18 @@ func NewIRef(ref *ElementRef[HTMLIElement]) *IRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3761,28 +2649,18 @@ type IframeRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3796,28 +2674,18 @@ func NewIframeRef(ref *ElementRef[HTMLIframeElement]) *IframeRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3828,28 +2696,18 @@ type ImageRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3863,28 +2721,18 @@ func NewImageRef(ref *ElementRef[SVGImageElement]) *ImageRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3895,28 +2743,18 @@ type ImgRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -3930,28 +2768,18 @@ func NewImgRef(ref *ElementRef[HTMLImgElement]) *ImgRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -3962,29 +2790,21 @@ type InputRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*FormHandler
+	*InputHandler
 }
 
 func NewInputRef(ref *ElementRef[HTMLInputElement]) *InputRef {
@@ -3997,29 +2817,21 @@ func NewInputRef(ref *ElementRef[HTMLInputElement]) *InputRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		FormHandler:        NewFormHandler(ref),
+		InputHandler:       NewInputHandler(ref),
 	}
 }
 
@@ -4029,28 +2841,18 @@ type InsElRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4064,28 +2866,18 @@ func NewInsElRef(ref *ElementRef[HTMLInsElement]) *InsElRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4096,28 +2888,18 @@ type KbdRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4131,28 +2913,18 @@ func NewKbdRef(ref *ElementRef[HTMLKbdElement]) *KbdRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4163,28 +2935,18 @@ type LabelRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4198,28 +2960,18 @@ func NewLabelRef(ref *ElementRef[HTMLLabelElement]) *LabelRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4230,28 +2982,18 @@ type LegendRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4265,28 +3007,18 @@ func NewLegendRef(ref *ElementRef[HTMLLegendElement]) *LegendRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4297,28 +3029,18 @@ type LiRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4332,28 +3054,18 @@ func NewLiRef(ref *ElementRef[HTMLLiElement]) *LiRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4364,28 +3076,18 @@ type LineRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4399,28 +3101,18 @@ func NewLineRef(ref *ElementRef[SVGLineElement]) *LineRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4431,28 +3123,18 @@ type LinearGradientRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4466,28 +3148,18 @@ func NewLinearGradientRef(ref *ElementRef[SVGLinearGradientElement]) *LinearGrad
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4498,28 +3170,18 @@ type LinkRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4533,28 +3195,18 @@ func NewLinkRef(ref *ElementRef[HTMLLinkElement]) *LinkRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4565,28 +3217,18 @@ type MainRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4600,28 +3242,18 @@ func NewMainRef(ref *ElementRef[HTMLMainElement]) *MainRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4632,28 +3264,18 @@ type MapElRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4667,28 +3289,18 @@ func NewMapElRef(ref *ElementRef[HTMLMapElement]) *MapElRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4699,28 +3311,18 @@ type MarkRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4734,28 +3336,18 @@ func NewMarkRef(ref *ElementRef[HTMLMarkElement]) *MarkRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4766,28 +3358,18 @@ type MarkerRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4801,28 +3383,18 @@ func NewMarkerRef(ref *ElementRef[SVGMarkerElement]) *MarkerRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4833,28 +3405,18 @@ type MaskRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4868,28 +3430,18 @@ func NewMaskRef(ref *ElementRef[SVGMaskElement]) *MaskRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4900,28 +3452,18 @@ type MenuRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -4935,28 +3477,18 @@ func NewMenuRef(ref *ElementRef[HTMLMenuElement]) *MenuRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -4967,28 +3499,18 @@ type MenuItemRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5002,28 +3524,18 @@ func NewMenuItemRef(ref *ElementRef[HTMLMenuItemElement]) *MenuItemRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5034,28 +3546,18 @@ type MetaRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5069,28 +3571,18 @@ func NewMetaRef(ref *ElementRef[HTMLMetaElement]) *MetaRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5101,29 +3593,21 @@ type MeterRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*FormHandler
+	*InputHandler
 }
 
 func NewMeterRef(ref *ElementRef[HTMLMeterElement]) *MeterRef {
@@ -5136,29 +3620,21 @@ func NewMeterRef(ref *ElementRef[HTMLMeterElement]) *MeterRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		FormHandler:        NewFormHandler(ref),
+		InputHandler:       NewInputHandler(ref),
 	}
 }
 
@@ -5168,28 +3644,18 @@ type NavRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5203,28 +3669,18 @@ func NewNavRef(ref *ElementRef[HTMLNavElement]) *NavRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5235,28 +3691,18 @@ type NoscriptRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5270,28 +3716,18 @@ func NewNoscriptRef(ref *ElementRef[HTMLNoscriptElement]) *NoscriptRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5302,28 +3738,18 @@ type ObjectRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5337,28 +3763,18 @@ func NewObjectRef(ref *ElementRef[HTMLObjectElement]) *ObjectRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5369,28 +3785,18 @@ type OlRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5404,28 +3810,18 @@ func NewOlRef(ref *ElementRef[HTMLOlElement]) *OlRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5436,28 +3832,18 @@ type OptgroupRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5471,28 +3857,18 @@ func NewOptgroupRef(ref *ElementRef[HTMLOptgroupElement]) *OptgroupRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5503,28 +3879,18 @@ type OptionRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5538,28 +3904,18 @@ func NewOptionRef(ref *ElementRef[HTMLOptionElement]) *OptionRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5570,28 +3926,18 @@ type OutputRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5605,28 +3951,18 @@ func NewOutputRef(ref *ElementRef[HTMLOutputElement]) *OutputRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5637,28 +3973,18 @@ type PRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5672,28 +3998,18 @@ func NewPRef(ref *ElementRef[HTMLPElement]) *PRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5704,28 +4020,18 @@ type ParamRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5739,28 +4045,18 @@ func NewParamRef(ref *ElementRef[HTMLParamElement]) *ParamRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5771,28 +4067,18 @@ type PathRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5806,28 +4092,18 @@ func NewPathRef(ref *ElementRef[SVGPathElement]) *PathRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5838,28 +4114,18 @@ type PatternRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5873,28 +4139,18 @@ func NewPatternRef(ref *ElementRef[SVGPatternElement]) *PatternRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5905,28 +4161,18 @@ type PictureRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -5940,28 +4186,18 @@ func NewPictureRef(ref *ElementRef[HTMLPictureElement]) *PictureRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -5972,28 +4208,18 @@ type PolygonRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6007,28 +4233,18 @@ func NewPolygonRef(ref *ElementRef[SVGPolygonElement]) *PolygonRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6039,28 +4255,18 @@ type PolylineRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6074,28 +4280,18 @@ func NewPolylineRef(ref *ElementRef[SVGPolylineElement]) *PolylineRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6106,28 +4302,18 @@ type PortalRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6141,28 +4327,18 @@ func NewPortalRef(ref *ElementRef[HTMLPortalElement]) *PortalRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6173,28 +4349,18 @@ type PreRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6208,28 +4374,18 @@ func NewPreRef(ref *ElementRef[HTMLPreElement]) *PreRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6240,29 +4396,21 @@ type ProgressRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*FormHandler
+	*InputHandler
 }
 
 func NewProgressRef(ref *ElementRef[HTMLProgressElement]) *ProgressRef {
@@ -6275,29 +4423,21 @@ func NewProgressRef(ref *ElementRef[HTMLProgressElement]) *ProgressRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		FormHandler:        NewFormHandler(ref),
+		InputHandler:       NewInputHandler(ref),
 	}
 }
 
@@ -6307,28 +4447,18 @@ type QRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6342,28 +4472,18 @@ func NewQRef(ref *ElementRef[HTMLQElement]) *QRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6374,28 +4494,18 @@ type RadialGradientRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6409,28 +4519,18 @@ func NewRadialGradientRef(ref *ElementRef[SVGRadialGradientElement]) *RadialGrad
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6441,28 +4541,18 @@ type RbRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6476,28 +4566,18 @@ func NewRbRef(ref *ElementRef[HTMLRbElement]) *RbRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6508,28 +4588,18 @@ type RectRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6543,28 +4613,18 @@ func NewRectRef(ref *ElementRef[SVGRectElement]) *RectRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6575,28 +4635,18 @@ type RpRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6610,28 +4660,18 @@ func NewRpRef(ref *ElementRef[HTMLRpElement]) *RpRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6642,28 +4682,18 @@ type RtRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6677,28 +4707,18 @@ func NewRtRef(ref *ElementRef[HTMLRtElement]) *RtRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6709,28 +4729,18 @@ type RtcRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6744,28 +4754,18 @@ func NewRtcRef(ref *ElementRef[HTMLRtcElement]) *RtcRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6776,28 +4776,18 @@ type RubyRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6811,28 +4801,18 @@ func NewRubyRef(ref *ElementRef[HTMLRubyElement]) *RubyRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6843,28 +4823,18 @@ type SRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6878,28 +4848,18 @@ func NewSRef(ref *ElementRef[HTMLSElement]) *SRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6910,28 +4870,18 @@ type SampRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -6945,28 +4895,18 @@ func NewSampRef(ref *ElementRef[HTMLSampElement]) *SampRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -6977,28 +4917,18 @@ type ScriptRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7012,28 +4942,18 @@ func NewScriptRef(ref *ElementRef[HTMLScriptElement]) *ScriptRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7044,28 +4964,18 @@ type SectionRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7079,28 +4989,18 @@ func NewSectionRef(ref *ElementRef[HTMLSectionElement]) *SectionRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7111,29 +5011,21 @@ type SelectRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*FormHandler
+	*InputHandler
 }
 
 func NewSelectRef(ref *ElementRef[HTMLSelectElement]) *SelectRef {
@@ -7146,29 +5038,21 @@ func NewSelectRef(ref *ElementRef[HTMLSelectElement]) *SelectRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		FormHandler:        NewFormHandler(ref),
+		InputHandler:       NewInputHandler(ref),
 	}
 }
 
@@ -7178,28 +5062,18 @@ type SlotRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7213,28 +5087,18 @@ func NewSlotRef(ref *ElementRef[HTMLSlotElement]) *SlotRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7245,28 +5109,18 @@ type SmallRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7280,28 +5134,18 @@ func NewSmallRef(ref *ElementRef[HTMLSmallElement]) *SmallRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7312,28 +5156,18 @@ type SourceRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7347,28 +5181,18 @@ func NewSourceRef(ref *ElementRef[HTMLSourceElement]) *SourceRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7379,28 +5203,18 @@ type SpanRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7414,28 +5228,18 @@ func NewSpanRef(ref *ElementRef[HTMLSpanElement]) *SpanRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7446,28 +5250,18 @@ type StopRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7481,28 +5275,18 @@ func NewStopRef(ref *ElementRef[SVGStopElement]) *StopRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7513,28 +5297,18 @@ type StrongRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7548,28 +5322,18 @@ func NewStrongRef(ref *ElementRef[HTMLStrongElement]) *StrongRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7580,28 +5344,18 @@ type StyleElRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7615,28 +5369,18 @@ func NewStyleElRef(ref *ElementRef[HTMLStyleElement]) *StyleElRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7647,28 +5391,18 @@ type SubRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7682,28 +5416,18 @@ func NewSubRef(ref *ElementRef[HTMLSubElement]) *SubRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7714,28 +5438,18 @@ type SummaryRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7749,28 +5463,18 @@ func NewSummaryRef(ref *ElementRef[HTMLSummaryElement]) *SummaryRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7781,28 +5485,18 @@ type SupRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7816,28 +5510,18 @@ func NewSupRef(ref *ElementRef[HTMLSupElement]) *SupRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7848,28 +5532,18 @@ type SvgRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7883,28 +5557,18 @@ func NewSvgRef(ref *ElementRef[SVGSvgElement]) *SvgRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7915,28 +5579,18 @@ type SvgTextRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -7950,28 +5604,18 @@ func NewSvgTextRef(ref *ElementRef[SVGSvgTextElement]) *SvgTextRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -7982,28 +5626,18 @@ type TSpanRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8017,28 +5651,18 @@ func NewTSpanRef(ref *ElementRef[SVGTSpanElement]) *TSpanRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8049,28 +5673,18 @@ type TableRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8084,28 +5698,18 @@ func NewTableRef(ref *ElementRef[HTMLTableElement]) *TableRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8116,28 +5720,18 @@ type TbodyRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8151,28 +5745,18 @@ func NewTbodyRef(ref *ElementRef[HTMLTbodyElement]) *TbodyRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8183,28 +5767,18 @@ type TdRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8218,28 +5792,18 @@ func NewTdRef(ref *ElementRef[HTMLTdElement]) *TdRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8250,28 +5814,18 @@ type TemplateRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8285,28 +5839,18 @@ func NewTemplateRef(ref *ElementRef[HTMLTemplateElement]) *TemplateRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8317,29 +5861,21 @@ type TextareaRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*FormHandler
+	*InputHandler
 }
 
 func NewTextareaRef(ref *ElementRef[HTMLTextareaElement]) *TextareaRef {
@@ -8352,29 +5888,21 @@ func NewTextareaRef(ref *ElementRef[HTMLTextareaElement]) *TextareaRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		FormHandler:        NewFormHandler(ref),
+		InputHandler:       NewInputHandler(ref),
 	}
 }
 
@@ -8384,28 +5912,18 @@ type TfootRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8419,28 +5937,18 @@ func NewTfootRef(ref *ElementRef[HTMLTfootElement]) *TfootRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8451,28 +5959,18 @@ type ThRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8486,28 +5984,18 @@ func NewThRef(ref *ElementRef[HTMLThElement]) *ThRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8518,28 +6006,18 @@ type TheadRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8553,28 +6031,18 @@ func NewTheadRef(ref *ElementRef[HTMLTheadElement]) *TheadRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8585,28 +6053,18 @@ type TimeRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8620,28 +6078,18 @@ func NewTimeRef(ref *ElementRef[HTMLTimeElement]) *TimeRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8652,28 +6100,18 @@ type TitleElRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8687,28 +6125,18 @@ func NewTitleElRef(ref *ElementRef[HTMLTitleElement]) *TitleElRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8719,28 +6147,18 @@ type TrRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8754,28 +6172,18 @@ func NewTrRef(ref *ElementRef[HTMLTrElement]) *TrRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8786,28 +6194,18 @@ type TrackRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8821,28 +6219,18 @@ func NewTrackRef(ref *ElementRef[HTMLTrackElement]) *TrackRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8853,28 +6241,18 @@ type URef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8888,28 +6266,18 @@ func NewURef(ref *ElementRef[HTMLUElement]) *URef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8920,28 +6288,18 @@ type UlRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -8955,28 +6313,18 @@ func NewUlRef(ref *ElementRef[HTMLUlElement]) *UlRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -8987,28 +6335,18 @@ type UseRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -9022,28 +6360,18 @@ func NewUseRef(ref *ElementRef[SVGUseElement]) *UseRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -9054,28 +6382,18 @@ type VarRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -9089,28 +6407,18 @@ func NewVarRef(ref *ElementRef[HTMLVarElement]) *VarRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
@@ -9121,29 +6429,20 @@ type VideoRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
+	*MediaHandler
 }
 
 func NewVideoRef(ref *ElementRef[HTMLVideoElement]) *VideoRef {
@@ -9156,29 +6455,20 @@ func NewVideoRef(ref *ElementRef[HTMLVideoElement]) *VideoRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
+		MediaHandler:       NewMediaHandler(ref),
 	}
 }
 
@@ -9188,28 +6478,18 @@ type WbrRef struct {
 	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DialogHandler
 	*DragHandler
 	*FocusHandler
-	*FormHandler
 	*FullscreenHandler
-	*HashChangeHandler
-	*InputHandler
 	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MediaHandler
 	*MouseHandler
 	*PointerHandler
-	*PrintHandler
-	*ResizeHandler
 	*ScrollHandler
 	*SelectionHandler
-	*StorageHandler
-	*ToggleHandler
 	*TouchHandler
 	*TransitionHandler
-	*VisibilityHandler
 	*WheelHandler
 }
 
@@ -9223,28 +6503,18 @@ func NewWbrRef(ref *ElementRef[HTMLWbrElement]) *WbrRef {
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 		DragHandler:        NewDragHandler(ref),
 		FocusHandler:       NewFocusHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		HashChangeHandler:  NewHashChangeHandler(ref),
-		InputHandler:       NewInputHandler(ref),
 		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 		MouseHandler:       NewMouseHandler(ref),
 		PointerHandler:     NewPointerHandler(ref),
-		PrintHandler:       NewPrintHandler(ref),
-		ResizeHandler:      NewResizeHandler(ref),
 		ScrollHandler:      NewScrollHandler(ref),
 		SelectionHandler:   NewSelectionHandler(ref),
-		StorageHandler:     NewStorageHandler(ref),
-		ToggleHandler:      NewToggleHandler(ref),
 		TouchHandler:       NewTouchHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
-		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }

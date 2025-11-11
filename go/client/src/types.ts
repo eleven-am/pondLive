@@ -6,9 +6,11 @@
 export type MessageType =
   | "init"
   | "frame"
+  | "template"
   | "join"
   | "resume"
   | "error"
+  | "diagnostic"
   | "evt"
   | "ack"
   | "nav"
@@ -24,21 +26,29 @@ export interface Location {
 }
 
 // Boot payload produced during SSR
-export interface BootPayload {
-  t: "boot";
-  sid: string;
-  ver: number;
-  seq: number;
+export interface BindingsPayload {
+  slots?: BindingTable;
+}
+
+export interface TemplatePayload {
   html?: string;
+  templateHash?: string;
   s: string[];
   d: DynamicSlot[];
   slots: SlotMeta[];
   slotPaths?: SlotPathDescriptor[];
   listPaths?: ListPathDescriptor[];
   componentPaths?: ComponentPathDescriptor[];
-  handlers: HandlerMap;
-  bindings?: BindingTable;
-  refs?: RefMap;
+  handlers?: HandlerMap;
+  bindings?: BindingsPayload;
+  refs?: RefDelta;
+}
+
+export interface BootPayload extends TemplatePayload {
+  t: "boot";
+  sid: string;
+  ver: number;
+  seq: number;
   location: Location;
   errors?: ErrorMessage[];
   client?: BootClientConfig;
@@ -132,19 +142,10 @@ export interface ComponentPathDescriptor {
 }
 
 // Init message
-export interface InitMessage {
+export interface InitMessage extends TemplatePayload {
   t: "init";
   sid: string;
   ver: number;
-  s: string[];
-  d: DynamicSlot[];
-  slots: SlotMeta[];
-  slotPaths?: SlotPathDescriptor[];
-  listPaths?: ListPathDescriptor[];
-  componentPaths?: ComponentPathDescriptor[];
-  handlers: HandlerMap;
-  bindings?: BindingTable;
-  refs?: RefMap;
   location: Location;
   seq?: number;
   errors?: ErrorMessage[];
@@ -208,7 +209,21 @@ export interface FrameMessage {
   nav?: NavDelta | null;
   handlers: HandlerDelta;
   refs: RefDelta;
+  bindings?: BindingsPayload;
   metrics: FrameMetrics;
+}
+
+export interface TemplateScope {
+  componentId: string;
+  parentId?: string;
+  parentPath?: number[];
+}
+
+export interface TemplateMessage extends TemplatePayload {
+  t: "template";
+  sid: string;
+  ver: number;
+  scope?: TemplateScope;
 }
 
 // Join message
@@ -232,6 +247,14 @@ export interface ResumeMessage {
 // Error message
 export interface ErrorMessage {
   t: "error";
+  sid: string;
+  code: string;
+  message: string;
+  details?: ErrorDetails;
+}
+
+export interface DiagnosticMessage {
+  t: "diagnostic";
   sid: string;
   code: string;
   message: string;
@@ -348,9 +371,11 @@ export interface EventPayload {
 export type ServerMessage =
   | InitMessage
   | FrameMessage
+  | TemplateMessage
   | JoinMessage
   | ResumeMessage
   | ErrorMessage
+  | DiagnosticMessage
   | PubsubControlMessage
   | UploadControlMessage
   | DOMRequestMessage;
@@ -368,9 +393,11 @@ export type ClientMessage =
 export interface LiveUIEventMap {
   init: InitMessage;
   frame: FrameMessage;
+  template: TemplateMessage;
   join: JoinMessage;
   resume: ResumeMessage;
   error: ErrorMessage;
+  diagnostic: DiagnosticMessage;
   pubsub: PubsubControlMessage;
   evt: ClientEventMessage;
   ack: ClientAckMessage;
@@ -627,6 +654,7 @@ export interface LiveUIEvents {
   reconnecting: { attempt: number };
   reconnected: { sessionId: string };
   error: { error: Error; context?: string };
+  diagnostic: { diagnostic: DiagnosticMessage };
   frameApplied: { operations: number; duration: number };
   stateChanged: { from: ConnectionState; to: ConnectionState };
   effect: { effect: Effect };

@@ -166,12 +166,8 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 	}
 	if entry != nil && depth == 1 {
 		entry.mu.Lock()
-		prevPattern := entry.render.currentRoute
 		entry.render.currentRoute = chosen.entry.pattern
 		entry.mu.Unlock()
-		if prevPattern != "" && prevPattern != chosen.entry.pattern {
-			requestTemplateReset(sess)
-		}
 	}
 	return ParamsCtx.Provide(ctx, params, func() h.Node {
 		return routeBaseCtx.Provide(ctx, chosen.entry.pattern, func() h.Node {

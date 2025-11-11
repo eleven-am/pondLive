@@ -80,6 +80,69 @@ var handlerSpecs = []handlerSpec{
 	{"WheelHandler", "NewWheelHandler", "WheelHandler"},
 }
 
+var handlerSpecByType = func() map[string]handlerSpec {
+	m := make(map[string]handlerSpec, len(handlerSpecs))
+	for _, spec := range handlerSpecs {
+		m[spec.Type] = spec
+	}
+	return m
+}()
+
+var handlerMixins = map[string][]string{
+	"base": {
+		"AnimationHandler",
+		"ClickHandler",
+		"ClipboardHandler",
+		"CompositionHandler",
+		"DragHandler",
+		"FocusHandler",
+		"FullscreenHandler",
+		"KeyboardHandler",
+		"LifecycleHandler",
+		"LoadHandler",
+		"MouseHandler",
+		"PointerHandler",
+		"ScrollHandler",
+		"SelectionHandler",
+		"TouchHandler",
+		"TransitionHandler",
+		"WheelHandler",
+	},
+	"dialog":      {"DialogHandler"},
+	"formControl": {"FormHandler", "InputHandler"},
+	"formElement": {"FormHandler"},
+	"media":       {"MediaHandler"},
+	"toggle":      {"ToggleHandler"},
+}
+
+func handlersForTag(spec tagSpec) []handlerSpec {
+	desired := append([]string{}, handlerMixins["base"]...)
+	if spec.Ref != nil {
+		for _, mixin := range spec.Ref.Mixins {
+			names, ok := handlerMixins[mixin]
+			if !ok {
+				panic(fmt.Sprintf("unknown handler mixin %q", mixin))
+			}
+			desired = append(desired, names...)
+		}
+	}
+
+	seen := make(map[string]struct{}, len(desired))
+	var resolved []handlerSpec
+	for _, name := range desired {
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		spec, ok := handlerSpecByType[name]
+		if !ok {
+			panic(fmt.Sprintf("missing handler spec for %q", name))
+		}
+		seen[name] = struct{}{}
+		resolved = append(resolved, spec)
+	}
+	return resolved
+}
+
 var tags = []tagSpec{
 	{"A", "a", "A creates an <a> element.", "html", nil},
 	{"Abbr", "abbr", "Abbr creates an <abbr> element.", "html", nil},
@@ -150,6 +213,7 @@ var tags = []tagSpec{
 	{"DelEl", "del", "DelEl creates a <del> element.", "html", nil},
 	{"Details", "details", "Details creates a <details> element.", "html", &refSpec{
 		StateMethod: "DetailsState",
+		Mixins:      []string{"toggle"},
 		Fields: []stateFieldSpec{
 			{Name: "Open", Type: "bool", Selector: "target.open"},
 		},
@@ -160,6 +224,7 @@ var tags = []tagSpec{
 	{"Dfn", "dfn", "Dfn creates a <dfn> element.", "html", nil},
 	{"Dialog", "dialog", "Dialog creates a <dialog> element.", "html", &refSpec{
 		StateMethod: "DialogState",
+		Mixins:      []string{"dialog"},
 		Fields: []stateFieldSpec{
 			{Name: "Open", Type: "bool", Selector: "target.open"},
 			{Name: "ReturnValue", Type: "string", Selector: "target.returnValue"},
@@ -189,6 +254,7 @@ var tags = []tagSpec{
 	{"Footer", "footer", "Footer creates a <footer> element.", "html", nil},
 	{"Form", "form", "Form creates a <form> element.", "html", &refSpec{
 		StateMethod: "FormState",
+		Mixins:      []string{"formElement"},
 		Fields: []stateFieldSpec{
 			{Name: "Action", Type: "string", Selector: "target.action"},
 			{Name: "Method", Type: "string", Selector: "target.method"},
@@ -219,6 +285,7 @@ var tags = []tagSpec{
 	{"Img", "img", "Img creates an <img> element.", "html", nil},
 	{"Input", "input", "Input creates an <input> element.", "html", &refSpec{
 		StateMethod: "InputState",
+		Mixins:      []string{"formControl"},
 		Fields: []stateFieldSpec{
 			{Name: "Value", Type: "string", Selector: "target.value"},
 			{Name: "Checked", Type: "bool", Selector: "target.checked"},
@@ -248,6 +315,7 @@ var tags = []tagSpec{
 	{"Meta", "meta", "Meta creates a <meta> element.", "html", nil},
 	{"Meter", "meter", "Meter creates a <meter> element.", "html", &refSpec{
 		StateMethod: "MeterState",
+		Mixins:      []string{"formControl"},
 		Fields: []stateFieldSpec{
 			{Name: "Value", Type: "float64", Selector: "target.value"},
 			{Name: "Min", Type: "float64", Selector: "target.min"},
@@ -275,6 +343,7 @@ var tags = []tagSpec{
 	{"Pre", "pre", "Pre creates a <pre> element.", "html", nil},
 	{"Progress", "progress", "Progress creates a <progress> element.", "html", &refSpec{
 		StateMethod: "ProgressState",
+		Mixins:      []string{"formControl"},
 		Fields: []stateFieldSpec{
 			{Name: "Value", Type: "float64", Selector: "target.value"},
 			{Name: "Max", Type: "float64", Selector: "target.max"},
@@ -296,6 +365,7 @@ var tags = []tagSpec{
 	{"Section", "section", "Section creates a <section> element.", "html", nil},
 	{"Select", "select", "Select creates a <select> element.", "html", &refSpec{
 		StateMethod: "SelectState",
+		Mixins:      []string{"formControl"},
 		Fields: []stateFieldSpec{
 			{Name: "Value", Type: "string", Selector: "target.value"},
 			{Name: "SelectedIndex", Type: "int", Selector: "target.selectedIndex"},
@@ -331,6 +401,7 @@ var tags = []tagSpec{
 	{"Template", "template", "Template creates a <template> element.", "html", nil},
 	{"Textarea", "textarea", "Textarea creates a <textarea> element.", "html", &refSpec{
 		StateMethod: "TextareaState",
+		Mixins:      []string{"formControl"},
 		Fields: []stateFieldSpec{
 			{Name: "Value", Type: "string", Selector: "target.value"},
 			{Name: "SelectionStart", Type: "int", Selector: "target.selectionStart"},
@@ -450,9 +521,10 @@ func generateElementRefs(specs []tagSpec) {
 	for _, spec := range specs {
 		refName := spec.Name + "Ref"
 		descriptor := descriptorName(spec)
+		handlers := handlersForTag(spec)
 		fmt.Fprintf(&b, "type %s struct {\n", refName)
 		fmt.Fprintf(&b, "\t*ElementRef[%s]\n", descriptor)
-		for _, handler := range handlerSpecs {
+		for _, handler := range handlers {
 			fmt.Fprintf(&b, "\t*%s\n", handler.Type)
 		}
 		b.WriteString("}\n\n")
@@ -462,7 +534,7 @@ func generateElementRefs(specs []tagSpec) {
 		b.WriteString("\tif ref == nil {\n\t\treturn nil\n\t}\n")
 		fmt.Fprintf(&b, "\treturn &%s{\n", refName)
 		b.WriteString("\t\tElementRef: ref,\n")
-		for _, handler := range handlerSpecs {
+		for _, handler := range handlers {
 			fmt.Fprintf(&b, "\t\t%s: %s(ref),\n", handler.FieldName, handler.Constructor)
 		}
 		b.WriteString("\t}\n}\n\n")

@@ -73,11 +73,11 @@ export class BootHandler {
       syncEventListeners();
     }
 
-    primeSlotBindings(boot.bindings);
+    primeSlotBindings(boot.bindings?.slots ?? null);
 
     // Register element refs and index current DOM
     clearRefs();
-    registerRefs(boot.refs);
+    registerRefs(boot.refs?.add ?? null);
     if (typeof document !== 'undefined') {
       bindRefsInTree(document);
       resetComponentRanges();
@@ -110,6 +110,15 @@ export class BootHandler {
     dom.reset();
 
     const slotAnchors = resolveSlotAnchors(boot.slotPaths);
+    if (this.debug) {
+      console.log(
+        '[liveui][boot]',
+        'slotAnchors',
+        slotAnchors.size,
+        'boot slots',
+        Array.isArray(boot.slots) ? boot.slots.length : 0,
+      );
+    }
     if (Array.isArray(boot.slots) && boot.slots.length > 0) {
       for (const slot of boot.slots) {
         if (!slot || typeof slot.anchorId !== 'number') continue;
@@ -117,7 +126,13 @@ export class BootHandler {
         if (node) {
           dom.registerSlot(slot.anchorId, node);
         } else if (this.debug) {
-          console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
+          console.warn(
+            '[liveui][boot]',
+            `slot ${slot.anchorId} not registered during boot`,
+            slot,
+            'available anchors',
+            Array.from(slotAnchors.keys()),
+          );
         }
       }
     } else {

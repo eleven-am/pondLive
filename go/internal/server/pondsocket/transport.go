@@ -53,6 +53,13 @@ func (t *transport) SendFrame(frame protocol.Frame) error {
 	return t.send("frame", frame)
 }
 
+func (t *transport) SendTemplate(frame protocol.TemplateFrame) error {
+	if frame.T == "" {
+		frame.T = "template"
+	}
+	return t.send("template", frame)
+}
+
 func (t *transport) SendEventAck(ack protocol.EventAck) error {
 	if ack.T == "" {
 		ack.T = "evt-ack"
@@ -65,6 +72,13 @@ func (t *transport) SendServerError(err protocol.ServerError) error {
 		err.T = "error"
 	}
 	return t.send("error", err)
+}
+
+func (t *transport) SendDiagnostic(diag protocol.Diagnostic) error {
+	if diag.T == "" {
+		diag.T = "diagnostic"
+	}
+	return t.send("diagnostic", diag)
 }
 
 func (t *transport) SendPubsubControl(ctrl protocol.PubsubControl) error {

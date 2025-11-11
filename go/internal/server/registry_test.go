@@ -11,16 +11,18 @@ import (
 )
 
 type stubTransport struct {
-	mu       sync.Mutex
-	closed   bool
-	inits    []protocol.Init
-	resumes  []protocol.ResumeOK
-	frames   []protocol.Frame
-	acks     []protocol.EventAck
-	errors   []protocol.ServerError
-	controls []protocol.PubsubControl
-	uploads  []protocol.UploadControl
-	dom      []protocol.DOMRequest
+	mu          sync.Mutex
+	closed      bool
+	inits       []protocol.Init
+	resumes     []protocol.ResumeOK
+	frames      []protocol.Frame
+	templates   []protocol.TemplateFrame
+	acks        []protocol.EventAck
+	errors      []protocol.ServerError
+	diagnostics []protocol.Diagnostic
+	controls    []protocol.PubsubControl
+	uploads     []protocol.UploadControl
+	dom         []protocol.DOMRequest
 }
 
 func (s *stubTransport) Close() error {
@@ -51,6 +53,13 @@ func (s *stubTransport) SendFrame(frame protocol.Frame) error {
 	return nil
 }
 
+func (s *stubTransport) SendTemplate(frame protocol.TemplateFrame) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.templates = append(s.templates, frame)
+	return nil
+}
+
 func (s *stubTransport) SendEventAck(ack protocol.EventAck) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -62,6 +71,13 @@ func (s *stubTransport) SendServerError(err protocol.ServerError) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.errors = append(s.errors, err)
+	return nil
+}
+
+func (s *stubTransport) SendDiagnostic(diag protocol.Diagnostic) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.diagnostics = append(s.diagnostics, diag)
 	return nil
 }
 

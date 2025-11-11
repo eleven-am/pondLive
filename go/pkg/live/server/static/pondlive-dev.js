@@ -2355,6 +2355,18 @@ var LiveUIModule = (() => {
   }
 
   // src/manifest.ts
+  function debugLog(...args) {
+    if (typeof console === "undefined") {
+      return;
+    }
+    console.log("[liveui][manifest]", ...args);
+  }
+  function debugWarn(...args) {
+    if (typeof console === "undefined") {
+      return;
+    }
+    console.warn("[liveui][manifest]", ...args);
+  }
   function ensureArray(path) {
     if (!Array.isArray(path)) {
       return [];
@@ -2482,12 +2494,12 @@ var LiveUIModule = (() => {
     if (steps.length === 0) {
       return current;
     }
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
+    for (const step of steps) {
       if (!(current instanceof Element || current instanceof DocumentFragment)) {
         return null;
       }
-      current = current.childNodes.item(step) ?? null;
+      const childIndex = clampIndex(current, step);
+      current = current.childNodes.item(childIndex) ?? null;
       if (!current) {
         return null;
       }
@@ -2507,16 +2519,25 @@ var LiveUIModule = (() => {
       }
       const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
       if (!range) {
+        debugWarn(
+          "slot range missing",
+          descriptor.componentId,
+          descriptor,
+          Array.from(overrides?.keys() ?? [])
+        );
         continue;
       }
       const anchor = resolveNodeInRange(range, descriptor.elementPath);
       if (!anchor) {
+        debugWarn("slot anchor not found", descriptor, range);
         continue;
       }
       let target = anchor;
       const textIndex = Number(descriptor.textChildIndex);
       if (Number.isInteger(textIndex) && textIndex >= 0) {
-        if (anchor instanceof Element || anchor instanceof DocumentFragment) {
+        if (anchor instanceof Text) {
+          target = anchor;
+        } else if (anchor instanceof Element || anchor instanceof DocumentFragment) {
           let textNode = anchor.childNodes.item(textIndex) ?? null;
           if (!textNode && typeof document !== "undefined") {
             textNode = document.createTextNode("");
@@ -2529,8 +2550,12 @@ var LiveUIModule = (() => {
         }
       }
       if (!target) {
+        debugWarn("slot target missing", descriptor, {
+          anchorName: anchor instanceof Element ? anchor.tagName : anchor?.nodeName
+        });
         continue;
       }
+      debugLog("slot resolved", slotId, descriptor.componentId);
       anchors.set(slotId, target);
     }
     return anchors;
@@ -2548,12 +2573,20 @@ var LiveUIModule = (() => {
       }
       const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
       if (!range) {
+        debugWarn(
+          "list range missing",
+          descriptor.componentId,
+          descriptor,
+          Array.from(overrides?.keys() ?? [])
+        );
         continue;
       }
       const node = resolveNodeInRange(range, descriptor.elementPath);
       if (!(node instanceof Element)) {
+        debugWarn("list container not found", descriptor, range);
         continue;
       }
+      debugLog("list container resolved", slotId, descriptor.componentId);
       lists.set(slotId, node);
     }
     return lists;
@@ -3574,6 +3607,15 @@ var LiveUIModule = (() => {
       }
       reset();
       const slotAnchors = resolveSlotAnchors(boot.slotPaths);
+      if (this.debug) {
+        console.log(
+          "[liveui][boot]",
+          "slotAnchors",
+          slotAnchors.size,
+          "boot slots",
+          Array.isArray(boot.slots) ? boot.slots.length : 0
+        );
+      }
       if (Array.isArray(boot.slots) && boot.slots.length > 0) {
         for (const slot of boot.slots) {
           if (!slot || typeof slot.anchorId !== "number") continue;
@@ -3581,7 +3623,13 @@ var LiveUIModule = (() => {
           if (node) {
             registerSlot(slot.anchorId, node);
           } else if (this.debug) {
-            console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
+            console.warn(
+              "[liveui][boot]",
+              `slot ${slot.anchorId} not registered during boot`,
+              slot,
+              "available anchors",
+              Array.from(slotAnchors.keys())
+            );
           }
         }
       } else {
@@ -4701,6 +4749,12 @@ var LiveUIModule = (() => {
       }
       this.bootHandler.load(boot);
       syncEventListeners();
+      if (Array.isArray(boot.slotPaths) && boot.slotPaths.length > 0) {
+        const anchors = resolveSlotAnchors(boot.slotPaths);
+        anchors.forEach((node, slotId) => {
+          registerSlot(slotId, node);
+        });
+      }
     }
     applyComponentBootEffect(effect) {
       if (typeof document === "undefined") return;
@@ -4782,6 +4836,10 @@ var LiveUIModule = (() => {
         Array.isArray(listPaths) ? listPaths : void 0,
         rangeOverrides
       );
+      if (Array.isArray(slotPaths) && slotPaths.length > 0) {
+        const anchors = resolveSlotAnchors(slotPaths, rangeOverrides);
+        anchors.forEach((node, slotId) => registerSlot(slotId, node));
+      }
     }
     findComponentRange(id) {
       if (typeof document === "undefined" || !id) return null;

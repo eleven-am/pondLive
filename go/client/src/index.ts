@@ -42,7 +42,7 @@ import { EventEmitter } from "./emitter";
 import { OptimisticUpdateManager } from "./optimistic";
 import { BootHandler } from "./boot";
 import { resolveListContainers, resolveSlotAnchors, applyComponentRanges } from "./manifest";
-import { getComponentRange, registerComponentRange } from "./componentRanges";
+import { getComponentRange, registerComponentRange, resetComponentRanges } from "./componentRanges";
 import type {
   AlertEffect,
   ComponentBootEffect,
@@ -71,6 +71,8 @@ import type {
   ResumeMessage,
   ScrollEffect,
   ServerMessage,
+  TemplateMessage,
+  DiagnosticMessage,
   ToastEffect,
   MetadataEffect,
   MetadataTagPayload,
@@ -79,6 +81,8 @@ import type {
   CookieEffect,
   UploadClientMessage,
   UploadControlMessage,
+  TemplatePayload,
+  TemplateScope,
 } from "./types";
 
 interface RuntimeDiagnosticEntry {
@@ -139,6 +143,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
   private rafUsesTimeoutFallback = false;
 
   private cookieRequests = new Set<string>();
+
+  private templateCache: Map<string, string> = new Map();
+  private readonly MAX_TEMPLATE_CACHE_SIZE = 100;
 
   // Reconnection
   private reconnectAttempts: number = 0;
@@ -638,6 +645,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       case "frame":
         this.handleFrame(msg as FrameMessage);
         break;
+      case "template":
+        this.handleTemplate(msg as TemplateMessage);
+        break;
       case "join":
         this.handleJoin(msg as JoinMessage);
         break;
@@ -646,6 +656,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
         break;
       case "error":
         this.handleError(msg as ErrorMessage);
+        break;
+      case "diagnostic":
+        this.handleDiagnostic(msg as DiagnosticMessage);
         break;
       case "pubsub":
         this.handlePubsub(msg as PubsubControlMessage);
@@ -684,10 +697,12 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       syncEventListeners();
     }
 
-    primeSlotBindings(msg.bindings ?? null);
+    primeSlotBindings(msg.bindings?.slots ?? null);
 
     clearRefRegistry();
-    registerRefMetadata(msg.refs);
+    if (msg.refs?.add) {
+      registerRefMetadata(msg.refs.add);
+    }
     if (typeof document !== "undefined") {
       bindRefsInTree(document);
       primeHandlerBindings(document);
@@ -797,6 +812,20 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       syncEventListeners();
     }
 
+    if (msg.bindings?.slots) {
+      for (const [slotKey, specs] of Object.entries(msg.bindings.slots)) {
+        const slotId = Number(slotKey);
+        if (!Number.isInteger(slotId) || slotId < 0) {
+          continue;
+        }
+        if (Array.isArray(specs)) {
+          registerBindingsForSlot(slotId, specs);
+        } else {
+          registerBindingsForSlot(slotId, []);
+        }
+      }
+    }
+
     if (msg.refs) {
       if (msg.refs.del) {
         unregisterRefMetadata(msg.refs.del);
@@ -849,6 +878,29 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
         this.metrics.slowEffects = msg.metrics.slowEffects;
       }
     }
+  }
+
+  private handleTemplate(msg: TemplateMessage): void {
+    if (!msg) {
+      return;
+    }
+    const sid = this.sessionId.get();
+    if (msg.sid && sid && msg.sid !== sid) {
+      this.log("Template message for different session", msg.sid);
+      return;
+    }
+    if (!msg.scope) {
+      this.applyRootTemplatePayload(msg);
+      return;
+    }
+    this.applyComponentTemplatePayload(msg, msg.scope);
+  }
+
+  private handleDiagnostic(msg: DiagnosticMessage): void {
+    if (!msg) {
+      return;
+    }
+    this.recordDiagnostic(msg);
   }
 
   /**
@@ -933,6 +985,160 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
         this.emit("error", { error: error as Error, context: "effect" });
       }
     }
+  }
+
+  private applyRootTemplatePayload(payload: TemplatePayload): void {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const markup = this.getTemplateMarkup(payload, "__root__");
+
+    clearPatcherCaches();
+    dom.reset();
+
+    if (document.body) {
+      document.body.innerHTML = markup;
+    } else if (document.documentElement) {
+      document.documentElement.innerHTML = markup;
+    }
+
+    const rootContainer: ParentNode = (document.body ?? document) as ParentNode;
+    primeHandlerBindings(rootContainer);
+
+    clearHandlers();
+    if (payload.handlers && Object.keys(payload.handlers).length > 0) {
+      registerHandlers(payload.handlers);
+    }
+    syncEventListeners();
+
+    primeSlotBindings(payload.bindings?.slots ?? null);
+
+    if (payload.refs?.del) {
+      unregisterRefMetadata(payload.refs.del);
+    }
+    if (payload.refs?.add) {
+      registerRefMetadata(payload.refs.add);
+    }
+
+    bindRefsInTree(document);
+
+    resetComponentRanges();
+    const childCount = rootContainer.childNodes.length;
+    const range: import("./componentRanges").ComponentRange = {
+      container: rootContainer,
+      startIndex: 0,
+      endIndex: childCount > 0 ? childCount - 1 : -1,
+    };
+    const overrides = applyComponentRanges(payload.componentPaths, { root: document });
+    this.registerTemplateAnchors(range, payload, overrides);
+  }
+
+  private applyComponentTemplatePayload(
+    payload: TemplatePayload,
+    scope: TemplateScope,
+  ): void {
+    if (typeof document === "undefined") {
+      return;
+    }
+    if (!scope || !scope.componentId) {
+      return;
+    }
+
+    const range = this.findComponentRange(scope.componentId);
+    if (!range) {
+      if (this.options.debug) {
+        console.warn(
+          `liveui: component ${scope.componentId} range not found for template payload`,
+        );
+      }
+      return;
+    }
+
+    const slotIds = this.extractSlotIds(payload.slots);
+    for (const slot of slotIds) {
+      dom.unregisterSlot(slot);
+    }
+
+    const listSlotIds = this.extractListSlotIds(payload.listPaths);
+    for (const slot of listSlotIds) {
+      dom.unregisterList(slot);
+    }
+
+    clearPatcherCaches();
+
+    const template = document.createElement("template");
+    const markup = this.getTemplateMarkup(payload, scope.componentId);
+    template.innerHTML = markup;
+    const fragment = template.content.cloneNode(true);
+    primeHandlerBindings(fragment);
+
+    const insertedNodes: Node[] = [];
+    for (let child = fragment.firstChild; child; child = child.nextSibling) {
+      insertedNodes.push(child);
+    }
+
+    const { container } = range;
+    const startIndex = range.startIndex;
+    const endIndex = range.endIndex;
+    const referenceNode =
+      endIndex + 1 < container.childNodes.length
+        ? container.childNodes.item(endIndex + 1)
+        : null;
+
+    for (let index = endIndex; index >= startIndex; index--) {
+      const node = container.childNodes.item(index);
+      if (node) {
+        container.removeChild(node);
+      }
+    }
+
+    container.insertBefore(fragment, referenceNode);
+
+    const insertedCount = insertedNodes.length;
+    let refreshed = registerComponentRange(scope.componentId, {
+      container,
+      startIndex,
+      endIndex: insertedCount > 0 ? startIndex + insertedCount - 1 : startIndex - 1,
+    });
+    if (!refreshed) {
+      refreshed = {
+        container,
+        startIndex,
+        endIndex: insertedCount > 0 ? startIndex + insertedCount - 1 : startIndex - 1,
+      };
+    }
+
+    const overrides = applyComponentRanges(payload.componentPaths, {
+      baseId: scope.componentId,
+      baseRange: refreshed,
+    });
+
+    this.registerTemplateAnchors(refreshed, payload, overrides);
+
+    if (payload.handlers && Object.keys(payload.handlers).length > 0) {
+      registerHandlers(payload.handlers);
+      syncEventListeners();
+    }
+
+    if (payload.bindings?.slots) {
+      for (const [slotKey, specs] of Object.entries(payload.bindings.slots)) {
+        const slotId = Number(slotKey);
+        if (!Number.isInteger(slotId) || slotId < 0) {
+          continue;
+        }
+        registerBindingsForSlot(slotId, Array.isArray(specs) ? specs : []);
+      }
+    }
+
+    if (payload.refs?.del) {
+      unregisterRefMetadata(payload.refs.del);
+    }
+    if (payload.refs?.add) {
+      registerRefMetadata(payload.refs.add);
+    }
+
+    bindRefsInTree(container);
   }
 
   private handleDOMRequest(msg: DOMRequestMessage): void {
@@ -1348,19 +1554,11 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
 
   private applyBootEffect(effect: any): void {
     const boot = effect?.boot as BootPayload | undefined;
-    if (!boot || typeof boot.html !== "string") {
+    if (!boot) {
       return;
     }
-
-    clearPatcherCaches();
-    dom.reset();
-    if (typeof document !== "undefined") {
-      document.body.innerHTML = boot.html;
-      primeHandlerBindings(document);
-      applyComponentRanges(boot.componentPaths, { root: document });
-    }
+    this.applyRootTemplatePayload(boot);
     this.bootHandler.load(boot);
-    syncEventListeners();
   }
 
   private applyComponentBootEffect(effect: ComponentBootEffect): void {
@@ -1441,8 +1639,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       baseRange: refreshed,
     });
 
-    if (bindings && typeof bindings === "object") {
-      for (const [slotKey, specs] of Object.entries(bindings)) {
+    const slotBindingTable = (bindings as any)?.slots ?? bindings;
+    if (slotBindingTable && typeof slotBindingTable === "object") {
+      for (const [slotKey, specs] of Object.entries(slotBindingTable)) {
         const slotId = Number(slotKey);
         if (Number.isNaN(slotId)) {
           continue;
@@ -1459,6 +1658,123 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       Array.isArray(listPaths) ? listPaths : undefined,
       rangeOverrides,
     );
+
+    if (Array.isArray(slotPaths) && slotPaths.length > 0) {
+      const anchors = resolveSlotAnchors(slotPaths, rangeOverrides);
+      anchors.forEach((node, slotId) => dom.registerSlot(slotId, node));
+    }
+  }
+
+  private registerTemplateAnchors(
+    range: import("./componentRanges").ComponentRange | null,
+    payload: TemplatePayload,
+    overrides?: Map<string, import("./componentRanges").ComponentRange>,
+  ): void {
+    if (!range) {
+      return;
+    }
+    const slotIds = this.extractSlotIds(payload.slots);
+    const listSlotIds = this.extractListSlotIds(payload.listPaths);
+    this.registerComponentAnchors(
+      range,
+      slotIds,
+      listSlotIds,
+      payload.slotPaths,
+      payload.listPaths,
+      overrides,
+    );
+  }
+
+  private extractSlotIds(slots?: TemplatePayload["slots"] | null): number[] {
+    if (!Array.isArray(slots)) {
+      return [];
+    }
+    const ids: number[] = [];
+    for (const meta of slots) {
+      const id = Number(meta?.anchorId);
+      if (Number.isInteger(id) && id >= 0) {
+        ids.push(id);
+      }
+    }
+    return ids;
+  }
+
+  private extractListSlotIds(
+    descriptors?: TemplatePayload["listPaths"] | null,
+  ): number[] {
+    if (!Array.isArray(descriptors)) {
+      return [];
+    }
+    const seen = new Set<number>();
+    const ids: number[] = [];
+    for (const descriptor of descriptors) {
+      const id = Number(descriptor?.slot);
+      if (!Number.isInteger(id) || id < 0 || seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      ids.push(id);
+    }
+    return ids;
+  }
+
+  private getTemplateMarkup(payload: TemplatePayload, scopeKey?: string): string {
+    const scope = scopeKey && scopeKey.length > 0 ? scopeKey : "__root__";
+    const templateHash = typeof payload.templateHash === "string" ? payload.templateHash : "";
+
+    if (typeof payload.html === "string") {
+      this.cacheTemplateMarkup(scope, templateHash, payload.html);
+      return payload.html;
+    }
+
+    if (templateHash) {
+      const cached = this.lookupTemplateMarkup(scope, templateHash);
+      if (cached !== null) {
+        return cached;
+      }
+    }
+
+    if (Array.isArray(payload.s) && payload.s.length > 0) {
+      const markup = payload.s.join("");
+      this.cacheTemplateMarkup(scope, templateHash, markup);
+      return markup;
+    }
+
+    this.cacheTemplateMarkup(scope, templateHash, "");
+    return "";
+  }
+
+  private buildTemplateCacheKey(scope: string, hash: string): string {
+    return `${scope}::${hash}`;
+  }
+
+  private cacheTemplateMarkup(scope: string, hash: string, markup: string): void {
+    if (!hash) {
+      return;
+    }
+    const key = this.buildTemplateCacheKey(scope, hash);
+    if (this.templateCache.has(key)) {
+      this.templateCache.delete(key);
+    }
+    this.templateCache.set(key, markup);
+    if (this.templateCache.size > this.MAX_TEMPLATE_CACHE_SIZE) {
+      const oldest = this.templateCache.keys().next();
+      if (!oldest.done) {
+        this.templateCache.delete(oldest.value);
+      }
+    }
+  }
+
+  private lookupTemplateMarkup(scope: string, hash: string): string | null {
+    if (!hash) {
+      return null;
+    }
+    const key = this.buildTemplateCacheKey(scope, hash);
+    if (!this.templateCache.has(key)) {
+      return null;
+    }
+    const cached = this.templateCache.get(key);
+    return cached !== undefined ? cached : null;
   }
 
   private findComponentRange(id: string): import("./componentRanges").ComponentRange | null {
@@ -1704,7 +2020,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     }
   }
 
-  private recordDiagnostic(msg: ErrorMessage): void {
+  private recordDiagnostic(msg: ErrorMessage | DiagnosticMessage): void {
     if (!this.options.debug) {
       return;
     }
@@ -1732,7 +2048,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     }
   }
 
-  private buildDiagnosticKey(msg: ErrorMessage): string {
+  private buildDiagnosticKey(msg: ErrorMessage | DiagnosticMessage): string {
     const details = msg.details;
     const component = details?.componentId ?? details?.componentName ?? "";
     const hook = details?.hook ?? "";

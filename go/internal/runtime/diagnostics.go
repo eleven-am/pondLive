@@ -65,6 +65,26 @@ func (d Diagnostic) ToServerError(id SessionID) protocol.ServerError {
 	}
 }
 
+// ToProtocolDiagnostic encodes the diagnostic as a protocol.Diagnostic message.
+func (d Diagnostic) ToProtocolDiagnostic(id SessionID) protocol.Diagnostic {
+	details := d.ToErrorDetails()
+	code := d.Code
+	if code == "" {
+		code = "runtime_panic"
+	}
+	message := d.Message
+	if message == "" {
+		message = "live: runtime panic recovered"
+	}
+	return protocol.Diagnostic{
+		T:       "diagnostic",
+		SID:     string(id),
+		Code:    code,
+		Message: message,
+		Details: &details,
+	}
+}
+
 // DiagnosticError wraps a Diagnostic to implement the error interface.
 type DiagnosticError struct {
 	diag Diagnostic

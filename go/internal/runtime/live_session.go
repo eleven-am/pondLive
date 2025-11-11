@@ -35,8 +35,10 @@ var (
 type Transport interface {
 	SendInit(protocol.Init) error
 	SendResume(protocol.ResumeOK) error
+	SendTemplate(protocol.TemplateFrame) error
 	SendFrame(protocol.Frame) error
 	SendServerError(protocol.ServerError) error
+	SendDiagnostic(protocol.Diagnostic) error
 	SendPubsubControl(protocol.PubsubControl) error
 	SendUploadControl(protocol.UploadControl) error
 	SendDOMRequest(protocol.DOMRequest) error
@@ -65,6 +67,8 @@ type LiveSession struct {
 
 	frames []protocol.Frame
 
+	templateFrames []queuedTemplateFrame
+
 	snapshot snapshot
 
 	pendingEffects []any
@@ -87,6 +91,11 @@ type LiveSession struct {
 	hasInit bool
 
 	clientConfig *protocol.ClientConfig
+}
+
+type queuedTemplateFrame struct {
+	seq   int
+	frame protocol.TemplateFrame
 }
 
 type domGetResult struct {
@@ -296,9 +305,10 @@ func (s *LiveSession) AddTouchObserver(cb func(time.Time)) func() {
 
 // JoinResult captures the work required to satisfy a resume attempt.
 type JoinResult struct {
-	Init   *protocol.Init
-	Resume *protocol.ResumeOK
-	Frames []protocol.Frame
+	Init      *protocol.Init
+	Resume    *protocol.ResumeOK
+	Templates []protocol.TemplateFrame
+	Frames    []protocol.Frame
 }
 
 // Join reconciles a client resume attempt and decides between a full init or
@@ -350,6 +360,7 @@ func (s *LiveSession) Join(clientVersion int, ack int) JoinResult {
 		return JoinResult{Init: &init}
 	}
 
+	templates := s.templateFramesFromLocked(from)
 	frames := s.framesFromLocked(from)
 	resume := protocol.ResumeOK{
 		T:    "resume",
@@ -362,7 +373,7 @@ func (s *LiveSession) Join(clientVersion int, ack int) JoinResult {
 	}
 	s.mu.Unlock()
 
-	return JoinResult{Resume: &resume, Frames: frames}
+	return JoinResult{Resume: &resume, Templates: templates, Frames: frames}
 }
 
 // Ack updates the session with the latest acknowledged sequence and prunes
@@ -412,7 +423,8 @@ func (s *LiveSession) ReportDiagnostic(diag Diagnostic) {
 	}
 	var (
 		transport Transport
-		payload   protocol.ServerError
+		diagMsg   protocol.Diagnostic
+		errMsg    protocol.ServerError
 		send      bool
 	)
 	s.mu.Lock()
@@ -422,13 +434,15 @@ func (s *LiveSession) ReportDiagnostic(diag Diagnostic) {
 	}
 	if s.devMode && s.transport != nil {
 		transport = s.transport
-		payload = diag.ToServerError(s.id)
+		diagMsg = diag.ToProtocolDiagnostic(s.id)
+		errMsg = diag.ToServerError(s.id)
 		send = true
 	}
 	s.mu.Unlock()
 
 	if send && transport != nil {
-		_ = transport.SendServerError(payload)
+		_ = transport.SendDiagnostic(diagMsg)
+		_ = transport.SendServerError(errMsg)
 	}
 }
 
@@ -474,6 +488,30 @@ func (s *LiveSession) SendFrame(frame protocol.Frame) error {
 
 	if transport != nil {
 		return transport.SendFrame(frame)
+	}
+	return nil
+}
+
+// SendTemplate delivers a template frame to the client transport.
+func (s *LiveSession) SendTemplate(frame protocol.TemplateFrame) error {
+	s.mu.Lock()
+	if frame.T == "" {
+		frame.T = "template"
+	}
+	if frame.SID == "" {
+		frame.SID = string(s.id)
+	}
+	if frame.Ver == 0 {
+		frame.Ver = s.version
+	}
+	seq := s.nextSeq
+	s.appendTemplateFrameLocked(seq, frame)
+	transport := s.transport
+	s.touchLocked()
+	s.mu.Unlock()
+
+	if transport != nil {
+		return transport.SendTemplate(frame)
 	}
 	return nil
 }
@@ -993,7 +1031,10 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 		Patch:   append([]diff.Op(nil), ops...),
 		Metrics: protocol.FrameMetrics{Ops: len(ops)},
 	}
-	var refDelta protocol.RefDelta
+	var (
+		refDelta       protocol.RefDelta
+		templateFrames []protocol.TemplateFrame
+	)
 	if effects := s.dequeueFrameEffects(); len(effects) > 0 {
 		frame.Effects = append(frame.Effects, effects...)
 	}
@@ -1013,24 +1054,18 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 		snap := s.buildSnapshot(template.structured, s.loc, s.component.Metadata())
 		refDelta = diffRefs(previousRefs, snap.Refs)
 		s.snapshot = snap
-		boot := protocol.Boot{
-			T:        "boot",
-			SID:      string(s.id),
-			Ver:      s.version,
-			Seq:      s.nextSeq,
-			HTML:     template.html,
-			S:        append([]string(nil), snap.Statics...),
-			D:        append([]protocol.DynamicSlot(nil), snap.Dynamics...),
-			Slots:    cloneSlots(snap.Slots),
-			Handlers: cloneHandlers(snap.Handlers),
-			Bindings: cloneBindingTable(snap.Bindings),
-			Refs:     cloneRefs(snap.Refs),
-			Location: snap.Location,
-		}
-		frame.Delta.Statics = true
-		frame.Delta.Slots = cloneSlots(snap.Slots)
+		payload := s.templatePayloadFromSnapshot(snap)
+		payload.HTML = template.html
+		payload.Refs = refDelta
+		templateFrames = append(templateFrames, protocol.TemplateFrame{
+			TemplatePayload: payload,
+			T:               "template",
+			SID:             string(s.id),
+			Ver:             s.version,
+		})
+		frame.Delta = protocol.FrameDelta{}
 		frame.Patch = nil
-		frame.Effects = append(frame.Effects, map[string]any{"type": "boot", "boot": boot})
+		refDelta = protocol.RefDelta{}
 	} else if s.component != nil {
 		pending := s.component.pendingRefs
 		s.component.pendingRefs = nil
@@ -1096,21 +1131,24 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 				frame.Handlers.Del = append(frame.Handlers.Del, update.handlersDel...)
 			}
 			if len(update.slots) > 0 {
-				if s.snapshot.Bindings == nil && (len(update.bindings) > 0) {
-					s.snapshot.Bindings = make(protocol.BindingTable)
-				}
-				for _, slot := range update.slots {
-					entries, ok := update.bindings[slot]
-					if !ok || len(entries) == 0 {
-						if s.snapshot.Bindings != nil {
-							delete(s.snapshot.Bindings, slot)
+				if len(update.bindings.Slots) == 0 {
+					if len(s.snapshot.Bindings.Slots) > 0 {
+						for _, slot := range update.slots {
+							delete(s.snapshot.Bindings.Slots, slot)
 						}
-						continue
 					}
-					if s.snapshot.Bindings == nil {
-						s.snapshot.Bindings = make(protocol.BindingTable)
+				} else {
+					if s.snapshot.Bindings.Slots == nil {
+						s.snapshot.Bindings.Slots = make(protocol.BindingTable)
 					}
-					s.snapshot.Bindings[slot] = copySlotBindings(entries)
+					for _, slot := range update.slots {
+						entries, ok := update.bindings.Slots[slot]
+						if !ok || len(entries) == 0 {
+							delete(s.snapshot.Bindings.Slots, slot)
+							continue
+						}
+						s.snapshot.Bindings.Slots[slot] = copySlotBindings(entries)
+					}
 				}
 			}
 			if len(update.slotPaths) > 0 {
@@ -1122,28 +1160,20 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 			if len(update.componentPaths) > 0 {
 				s.snapshot.ComponentPaths = replaceComponentPaths(s.snapshot.ComponentPaths, update.componentPaths)
 			}
-			effect := map[string]any{
-				"type":        "componentBoot",
-				"componentId": update.id,
-				"html":        update.html,
-				"slots":       update.slots,
-			}
-			if len(update.listSlots) > 0 {
-				effect["listSlots"] = update.listSlots
-			}
-			if len(update.slotPaths) > 0 {
-				effect["slotPaths"] = cloneSlotPaths(update.slotPaths)
-			}
-			if len(update.listPaths) > 0 {
-				effect["listPaths"] = cloneListPaths(update.listPaths)
-			}
-			if len(update.componentPaths) > 0 {
-				effect["componentPaths"] = cloneComponentPaths(update.componentPaths)
-			}
-			if update.bindings != nil {
-				effect["bindings"] = update.bindings
-			}
-			frame.Effects = append(frame.Effects, effect)
+			payload := templatePayloadFromComponentUpdate(update)
+			scope := templateScopeFromUpdate(update)
+			templateFrames = append(templateFrames, protocol.TemplateFrame{
+				TemplatePayload: payload,
+				T:               "template",
+				SID:             string(s.id),
+				Ver:             s.version,
+				Scope:           scope,
+			})
+		}
+	}
+	for _, tpl := range templateFrames {
+		if err := s.SendTemplate(tpl); err != nil {
+			return err
 		}
 	}
 	return s.SendFrame(frame)
@@ -1224,6 +1254,19 @@ type cookieBatch struct {
 	Mutations CookieBatch
 }
 
+func (s *LiveSession) appendTemplateFrameLocked(seq int, frame protocol.TemplateFrame) {
+	frameCopy := cloneTemplateFrame(frame)
+	s.templateFrames = append(s.templateFrames, queuedTemplateFrame{seq: seq, frame: frameCopy})
+	if s.frameCap > 0 && len(s.templateFrames) > s.frameCap {
+		drop := len(s.templateFrames) - s.frameCap
+		newLen := copy(s.templateFrames, s.templateFrames[drop:])
+		for i := newLen; i < len(s.templateFrames); i++ {
+			s.templateFrames[i] = queuedTemplateFrame{}
+		}
+		s.templateFrames = s.templateFrames[:newLen]
+	}
+}
+
 func (s *LiveSession) appendFrameLocked(frame protocol.Frame) {
 	s.frames = append(s.frames, frame)
 	if s.frameCap > 0 && len(s.frames) > s.frameCap {
@@ -1238,12 +1281,14 @@ func (s *LiveSession) appendFrameLocked(frame protocol.Frame) {
 
 func (s *LiveSession) pruneAckedLocked() {
 	if len(s.frames) == 0 {
+		s.pruneTemplateFramesLocked()
 		return
 	}
 	idx := sort.Search(len(s.frames), func(i int) bool {
 		return s.frames[i].Seq > s.lastAck
 	})
 	if idx <= 0 {
+		s.pruneTemplateFramesLocked()
 		return
 	}
 	if idx >= len(s.frames) {
@@ -1251,6 +1296,7 @@ func (s *LiveSession) pruneAckedLocked() {
 			s.frames[i] = protocol.Frame{}
 		}
 		s.frames = s.frames[:0]
+		s.pruneTemplateFramesLocked()
 		return
 	}
 	newLen := copy(s.frames, s.frames[idx:])
@@ -1258,6 +1304,7 @@ func (s *LiveSession) pruneAckedLocked() {
 		s.frames[i] = protocol.Frame{}
 	}
 	s.frames = s.frames[:newLen]
+	s.pruneTemplateFramesLocked()
 }
 
 func (s *LiveSession) framesFromLocked(start int) []protocol.Frame {
@@ -1274,22 +1321,49 @@ func (s *LiveSession) framesFromLocked(start int) []protocol.Frame {
 	return out
 }
 
+func (s *LiveSession) pruneTemplateFramesLocked() {
+	if len(s.templateFrames) == 0 {
+		return
+	}
+	keep := s.templateFrames[:0]
+	for _, tpl := range s.templateFrames {
+		if tpl.seq <= s.lastAck {
+			continue
+		}
+		keep = append(keep, tpl)
+	}
+	for i := len(keep); i < len(s.templateFrames); i++ {
+		s.templateFrames[i] = queuedTemplateFrame{}
+	}
+	s.templateFrames = keep
+}
+
+func (s *LiveSession) templateFramesFromLocked(start int) []protocol.TemplateFrame {
+	if len(s.templateFrames) == 0 {
+		return nil
+	}
+	out := make([]protocol.TemplateFrame, 0, len(s.templateFrames))
+	for _, tpl := range s.templateFrames {
+		if tpl.seq < start {
+			continue
+		}
+		out = append(out, cloneTemplateFrame(tpl.frame))
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 func (s *LiveSession) buildInitLocked(errors []protocol.ServerError) protocol.Init {
+	payload := s.templatePayloadFromSnapshot(s.snapshot)
 	init := protocol.Init{
-		T:              "init",
-		SID:            string(s.id),
-		Ver:            s.version,
-		S:              append([]string(nil), s.snapshot.Statics...),
-		D:              cloneDynamics(s.snapshot.Dynamics),
-		Slots:          cloneSlots(s.snapshot.Slots),
-		SlotPaths:      cloneSlotPaths(s.snapshot.SlotPaths),
-		ListPaths:      cloneListPaths(s.snapshot.ListPaths),
-		ComponentPaths: cloneComponentPaths(s.snapshot.ComponentPaths),
-		Handlers:       cloneHandlers(s.snapshot.Handlers),
-		Bindings:       cloneBindingTable(s.snapshot.Bindings),
-		Refs:           cloneRefs(s.snapshot.Refs),
-		Location:       s.snapshot.Location,
-		Seq:            s.nextSeq,
+		TemplatePayload: payload,
+		T:               "init",
+		SID:             string(s.id),
+		Ver:             s.version,
+		Location:        s.snapshot.Location,
+		Seq:             s.nextSeq,
 	}
 	if len(errors) > 0 {
 		init.Errors = cloneServerErrors(errors)
@@ -1307,22 +1381,15 @@ func (s *LiveSession) BuildBoot(html string) protocol.Boot {
 	init := s.buildInitLocked(diagSnapshot)
 	s.mu.Unlock()
 
+	payload := cloneTemplatePayload(init.TemplatePayload)
+	payload.HTML = html
 	boot := protocol.Boot{
-		T:              "boot",
-		SID:            init.SID,
-		Ver:            init.Ver,
-		Seq:            init.Seq,
-		HTML:           html,
-		S:              append([]string(nil), init.S...),
-		D:              cloneDynamics(init.D),
-		Slots:          cloneSlots(init.Slots),
-		SlotPaths:      cloneSlotPaths(init.SlotPaths),
-		ListPaths:      cloneListPaths(init.ListPaths),
-		ComponentPaths: cloneComponentPaths(init.ComponentPaths),
-		Handlers:       cloneHandlers(init.Handlers),
-		Bindings:       cloneBindingTable(init.Bindings),
-		Refs:           cloneRefs(init.Refs),
-		Location:       init.Location,
+		TemplatePayload: payload,
+		T:               "boot",
+		SID:             init.SID,
+		Ver:             init.Ver,
+		Seq:             init.Seq,
+		Location:        init.Location,
 	}
 	if boot.T == "" {
 		boot.T = "boot"
@@ -1425,7 +1492,7 @@ type snapshot struct {
 	ListPaths      []protocol.ListPath
 	ComponentPaths []protocol.ComponentPath
 	Handlers       map[string]protocol.HandlerMeta
-	Bindings       protocol.BindingTable
+	Bindings       protocol.TemplateBindings
 	Refs           map[string]protocol.RefMeta
 	Location       protocol.Location
 	Metadata       *Meta
@@ -1457,12 +1524,67 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 		ListPaths:      listPaths,
 		ComponentPaths: componentPaths,
 		Handlers:       handlers,
-		Bindings:       encodeBindingTable(structured.Bindings),
+		Bindings:       encodeTemplateBindings(structured.Bindings),
 		Refs:           refs,
 		Location:       protoLoc,
 		Metadata:       CloneMeta(meta),
 		staticsOwned:   false,
 	}
+}
+
+func (s *LiveSession) templatePayloadFromSnapshot(snap snapshot) protocol.TemplatePayload {
+	payload := protocol.TemplatePayload{
+		S:              append([]string(nil), snap.Statics...),
+		D:              cloneDynamics(snap.Dynamics),
+		Slots:          cloneSlots(snap.Slots),
+		SlotPaths:      cloneSlotPaths(snap.SlotPaths),
+		ListPaths:      cloneListPaths(snap.ListPaths),
+		ComponentPaths: cloneComponentPaths(snap.ComponentPaths),
+		Handlers:       cloneHandlers(snap.Handlers),
+		Bindings:       cloneTemplateBindings(snap.Bindings),
+	}
+	if len(snap.Refs) > 0 {
+		payload.Refs = protocol.RefDelta{Add: cloneRefs(snap.Refs)}
+	}
+	return payload
+}
+
+func templatePayloadFromComponentUpdate(update componentTemplateUpdate) protocol.TemplatePayload {
+	payload := protocol.TemplatePayload{
+		HTML:           update.html,
+		S:              append([]string(nil), update.statics...),
+		D:              cloneDynamics(update.dynamics),
+		SlotPaths:      cloneSlotPaths(update.slotPaths),
+		ListPaths:      cloneListPaths(update.listPaths),
+		ComponentPaths: cloneComponentPaths(update.componentPaths),
+		Handlers:       cloneHandlers(update.handlersAdd),
+		Bindings:       cloneTemplateBindings(update.bindings),
+	}
+	if len(update.slots) > 0 {
+		slots := make([]protocol.SlotMeta, len(update.slots))
+		for i, slot := range update.slots {
+			slots[i] = protocol.SlotMeta{AnchorID: slot}
+		}
+		payload.Slots = slots
+	}
+	return payload
+}
+
+func templateScopeFromUpdate(update componentTemplateUpdate) *protocol.TemplateScope {
+	scope := &protocol.TemplateScope{ComponentID: update.id}
+	for _, path := range update.componentPaths {
+		if path.ComponentID != update.id {
+			continue
+		}
+		if path.ParentID != "" {
+			scope.ParentID = path.ParentID
+		}
+		if len(path.ParentPath) > 0 {
+			scope.ParentPath = append([]int(nil), path.ParentPath...)
+		}
+		break
+	}
+	return scope
 }
 
 func (s *LiveSession) ensureSnapshotStaticsOwned() {
@@ -1530,6 +1652,14 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 		out[i] = slot
 	}
 	return out
+}
+
+func encodeTemplateBindings(bindings []render.HandlerBinding) protocol.TemplateBindings {
+	table := encodeBindingTable(bindings)
+	if len(table) == 0 {
+		return protocol.TemplateBindings{}
+	}
+	return protocol.TemplateBindings{Slots: table}
 }
 
 func encodeBindingTable(bindings []render.HandlerBinding) protocol.BindingTable {
@@ -2158,6 +2288,76 @@ func cloneHandlers(handlers map[string]protocol.HandlerMeta) map[string]protocol
 		out[k] = meta
 	}
 	return out
+}
+
+func cloneTemplatePayload(payload protocol.TemplatePayload) protocol.TemplatePayload {
+	cloned := protocol.TemplatePayload{
+		HTML:         payload.HTML,
+		TemplateHash: payload.TemplateHash,
+	}
+	if len(payload.S) > 0 {
+		cloned.S = append([]string(nil), payload.S...)
+	}
+	if len(payload.D) > 0 {
+		cloned.D = cloneDynamics(payload.D)
+	}
+	if len(payload.Slots) > 0 {
+		cloned.Slots = cloneSlots(payload.Slots)
+	}
+	if len(payload.SlotPaths) > 0 {
+		cloned.SlotPaths = cloneSlotPaths(payload.SlotPaths)
+	}
+	if len(payload.ListPaths) > 0 {
+		cloned.ListPaths = cloneListPaths(payload.ListPaths)
+	}
+	if len(payload.ComponentPaths) > 0 {
+		cloned.ComponentPaths = cloneComponentPaths(payload.ComponentPaths)
+	}
+	if len(payload.Handlers) > 0 {
+		cloned.Handlers = cloneHandlers(payload.Handlers)
+	}
+	cloned.Bindings = cloneTemplateBindings(payload.Bindings)
+	if len(payload.Refs.Add) > 0 {
+		cloned.Refs.Add = cloneRefs(payload.Refs.Add)
+	}
+	if len(payload.Refs.Del) > 0 {
+		cloned.Refs.Del = append([]string(nil), payload.Refs.Del...)
+	}
+	return cloned
+}
+
+func cloneTemplateFrame(frame protocol.TemplateFrame) protocol.TemplateFrame {
+	cloned := protocol.TemplateFrame{
+		TemplatePayload: cloneTemplatePayload(frame.TemplatePayload),
+		T:               frame.T,
+		SID:             frame.SID,
+		Ver:             frame.Ver,
+	}
+	if frame.Scope != nil {
+		cloned.Scope = cloneTemplateScope(frame.Scope)
+	}
+	return cloned
+}
+
+func cloneTemplateScope(scope *protocol.TemplateScope) *protocol.TemplateScope {
+	if scope == nil {
+		return nil
+	}
+	cloned := &protocol.TemplateScope{
+		ComponentID: scope.ComponentID,
+		ParentID:    scope.ParentID,
+	}
+	if len(scope.ParentPath) > 0 {
+		cloned.ParentPath = append([]int(nil), scope.ParentPath...)
+	}
+	return cloned
+}
+
+func cloneTemplateBindings(bindings protocol.TemplateBindings) protocol.TemplateBindings {
+	if len(bindings.Slots) == 0 {
+		return protocol.TemplateBindings{}
+	}
+	return protocol.TemplateBindings{Slots: cloneBindingTable(bindings.Slots)}
 }
 
 func cloneBindingTable(bindings protocol.BindingTable) protocol.BindingTable {

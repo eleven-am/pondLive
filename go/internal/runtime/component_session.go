@@ -116,7 +116,7 @@ type componentTemplateUpdate struct {
 	componentPaths []protocol.ComponentPath
 	handlersAdd    map[string]protocol.HandlerMeta
 	handlersDel    []string
-	bindings       protocol.BindingTable
+	bindings       protocol.TemplateBindings
 }
 
 type componentPromotionState struct {
@@ -1438,14 +1438,26 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 				update.listSlots = append(update.listSlots, span.DynamicsStart+idx)
 			}
 		}
-		if filtered := filterSlotPathsForComponent(next.SlotPaths, id, span); len(filtered) > 0 {
-			update.slotPaths = encodeSlotPaths(filtered)
+		slotPaths := filterSlotPathsForComponent(next.SlotPaths, id, span)
+		if dynPaths := collectSlotPathsFromDynamics(dynamicsSlice); len(dynPaths) > 0 {
+			slotPaths = append(slotPaths, dynPaths...)
 		}
-		if filteredLists := filterListPathsForComponent(next.ListPaths, id, span); len(filteredLists) > 0 {
-			update.listPaths = encodeListPaths(filteredLists)
+		if len(slotPaths) > 0 {
+			update.slotPaths = encodeSlotPaths(slotPaths)
 		}
-		if filteredComponents := filterComponentPathsForSpan(next.ComponentPaths, span, next.Components); len(filteredComponents) > 0 {
-			update.componentPaths = encodeComponentPaths(filteredComponents)
+		listPaths := filterListPathsForComponent(next.ListPaths, id, span)
+		if dynListPaths := collectListPathsFromDynamics(dynamicsSlice); len(dynListPaths) > 0 {
+			listPaths = append(listPaths, dynListPaths...)
+		}
+		if len(listPaths) > 0 {
+			update.listPaths = encodeListPaths(listPaths)
+		}
+		componentPaths := filterComponentPathsForSpan(next.ComponentPaths, span, next.Components)
+		if dynComponentPaths := collectComponentPathsFromDynamics(dynamicsSlice); len(dynComponentPaths) > 0 {
+			componentPaths = append(componentPaths, dynComponentPaths...)
+		}
+		if len(componentPaths) > 0 {
+			update.componentPaths = encodeComponentPaths(componentPaths)
 		}
 		if len(update.slots) > 0 {
 			componentBindings := make(protocol.BindingTable, len(update.slots))
@@ -1468,7 +1480,9 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 				}
 				componentBindings[slot] = cloned
 			}
-			update.bindings = componentBindings
+			if len(componentBindings) > 0 {
+				update.bindings = protocol.TemplateBindings{Slots: componentBindings}
+			}
 		}
 		if req != nil && req.component != nil {
 			node := req.component.render()
@@ -1640,6 +1654,54 @@ func filterComponentPathsForSpan(paths []render.ComponentPath, span render.Compo
 		return nil
 	}
 	return filtered
+}
+
+func collectSlotPathsFromDynamics(dynamics []render.Dyn) []render.SlotPath {
+	var out []render.SlotPath
+	for _, dyn := range dynamics {
+		if dyn.Kind != render.DynList {
+			continue
+		}
+		for _, row := range dyn.List {
+			if len(row.SlotPaths) == 0 {
+				continue
+			}
+			out = append(out, row.SlotPaths...)
+		}
+	}
+	return out
+}
+
+func collectListPathsFromDynamics(dynamics []render.Dyn) []render.ListPath {
+	var out []render.ListPath
+	for _, dyn := range dynamics {
+		if dyn.Kind != render.DynList {
+			continue
+		}
+		for _, row := range dyn.List {
+			if len(row.ListPaths) == 0 {
+				continue
+			}
+			out = append(out, row.ListPaths...)
+		}
+	}
+	return out
+}
+
+func collectComponentPathsFromDynamics(dynamics []render.Dyn) []render.ComponentPath {
+	var out []render.ComponentPath
+	for _, dyn := range dynamics {
+		if dyn.Kind != render.DynList {
+			continue
+		}
+		for _, row := range dyn.List {
+			if len(row.ComponentPaths) == 0 {
+				continue
+			}
+			out = append(out, row.ComponentPaths...)
+		}
+	}
+	return out
 }
 
 func componentEqualStrings(a, b []string) bool {

@@ -61,6 +61,7 @@ func (s *stubServerTransport) Close() error                                   { 
 func (s *stubServerTransport) SendInit(protocol.Init) error                   { return nil }
 func (s *stubServerTransport) SendResume(protocol.ResumeOK) error             { return nil }
 func (s *stubServerTransport) SendFrame(protocol.Frame) error                 { return nil }
+func (s *stubServerTransport) SendTemplate(protocol.TemplateFrame) error      { return nil }
 func (s *stubServerTransport) SendPubsubControl(protocol.PubsubControl) error { return nil }
 func (s *stubServerTransport) SendUploadControl(protocol.UploadControl) error { return nil }
 func (s *stubServerTransport) SendDOMRequest(protocol.DOMRequest) error       { return nil }
@@ -71,6 +72,7 @@ func (s *stubServerTransport) SendServerError(err protocol.ServerError) error {
 	s.errors = append(s.errors, err)
 	return nil
 }
+func (s *stubServerTransport) SendDiagnostic(protocol.Diagnostic) error { return nil }
 
 func TestDeliverToSessionFlushes(t *testing.T) {
 	session := &stubPubsubSession{id: runtime.SessionID("sess")}

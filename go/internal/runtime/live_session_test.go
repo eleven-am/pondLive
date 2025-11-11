@@ -14,13 +14,15 @@ import (
 )
 
 type stubTransport struct {
-	inits    []protocol.Init
-	resumes  []protocol.ResumeOK
-	frames   []protocol.Frame
-	errors   []protocol.ServerError
-	controls []protocol.PubsubControl
-	uploads  []protocol.UploadControl
-	dom      []protocol.DOMRequest
+	inits       []protocol.Init
+	resumes     []protocol.ResumeOK
+	frames      []protocol.Frame
+	templates   []protocol.TemplateFrame
+	errors      []protocol.ServerError
+	diagnostics []protocol.Diagnostic
+	controls    []protocol.PubsubControl
+	uploads     []protocol.UploadControl
+	dom         []protocol.DOMRequest
 }
 
 func (s *stubTransport) SendInit(init protocol.Init) error {
@@ -38,8 +40,18 @@ func (s *stubTransport) SendFrame(frame protocol.Frame) error {
 	return nil
 }
 
+func (s *stubTransport) SendTemplate(frame protocol.TemplateFrame) error {
+	s.templates = append(s.templates, frame)
+	return nil
+}
+
 func (s *stubTransport) SendServerError(err protocol.ServerError) error {
 	s.errors = append(s.errors, err)
+	return nil
+}
+
+func (s *stubTransport) SendDiagnostic(diag protocol.Diagnostic) error {
+	s.diagnostics = append(s.diagnostics, diag)
 	return nil
 }
 
@@ -181,6 +193,9 @@ func TestLiveSessionJoinAndReplay(t *testing.T) {
 	if resume.Resume.From != 2 || resume.Resume.To != 3 {
 		t.Fatalf("unexpected resume range: %+v", resume.Resume)
 	}
+	if len(resume.Templates) != 0 {
+		t.Fatalf("expected no template replay, got %d", len(resume.Templates))
+	}
 	if len(resume.Frames) != 1 || resume.Frames[0].Seq != 2 {
 		t.Fatalf("expected replay of seq 2, got %+v", resume.Frames)
 	}
@@ -202,6 +217,9 @@ func TestLiveSessionJoinAndReplay(t *testing.T) {
 	if resume.Resume == nil {
 		t.Fatal("expected resume for stale client")
 	}
+	if len(resume.Templates) != 0 {
+		t.Fatalf("expected no template replay for stale client, got %d", len(resume.Templates))
+	}
 	if len(resume.Frames) != 2 {
 		t.Fatalf("expected two frames in replay, got %d", len(resume.Frames))
 	}
@@ -215,6 +233,9 @@ func TestLiveSessionJoinAndReplay(t *testing.T) {
 	}
 	if resume.Resume.From != sess.nextSeq || resume.Resume.To != sess.nextSeq {
 		t.Fatalf("expected resume range equal nextSeq, got %+v", resume.Resume)
+	}
+	if len(resume.Templates) != 0 {
+		t.Fatalf("expected no template replay when up to date, got %d", len(resume.Templates))
 	}
 }
 
@@ -293,6 +314,116 @@ func TestLiveSessionRefDeltaOnlyMetadata(t *testing.T) {
 	}
 }
 
+func TestLiveSessionEmitsTemplateFrame(t *testing.T) {
+	transport := &stubTransport{}
+	sess := NewLiveSession("tpl", 1, counterComponent, struct{}{}, &LiveSessionConfig{Transport: transport})
+
+	sess.component.setTemplateUpdate(templateUpdate{
+		structured: sess.component.prev,
+		html:       "<div>fresh</div>",
+	})
+
+	if err := sess.onPatch(nil); err != nil {
+		t.Fatalf("onPatch returned error: %v", err)
+	}
+
+	if len(transport.templates) != 1 {
+		t.Fatalf("expected one template frame, got %d", len(transport.templates))
+	}
+	tpl := transport.templates[0]
+	if tpl.TemplatePayload.HTML != "<div>fresh</div>" {
+		t.Fatalf("unexpected template html: %q", tpl.TemplatePayload.HTML)
+	}
+	if tpl.SID != string(sess.id) {
+		t.Fatalf("template sid mismatch: %q", tpl.SID)
+	}
+
+	if len(transport.frames) != 1 {
+		t.Fatalf("expected one subsequent frame, got %d", len(transport.frames))
+	}
+	frame := transport.frames[0]
+	if len(frame.Patch) != 0 {
+		t.Fatalf("expected no patch operations after template, got %d", len(frame.Patch))
+	}
+	if frame.Seq == 0 {
+		t.Fatalf("expected frame sequence to be assigned")
+	}
+}
+
+func TestLiveSessionReplaysTemplateFramesOnResume(t *testing.T) {
+	transport := &stubTransport{}
+	sess := NewLiveSession("tpl-replay", 1, counterComponent, struct{}{}, &LiveSessionConfig{Transport: transport})
+
+	join := sess.Join(1, 0)
+	if join.Init == nil {
+		t.Fatal("expected init on first join")
+	}
+
+	sess.component.setTemplateUpdate(templateUpdate{
+		structured: sess.component.prev,
+		html:       "<div>fresh</div>",
+	})
+
+	if err := sess.onPatch(nil); err != nil {
+		t.Fatalf("onPatch returned error: %v", err)
+	}
+
+	if len(transport.templates) != 1 {
+		t.Fatalf("expected template frame to be sent, got %d", len(transport.templates))
+	}
+	if len(transport.frames) != 1 {
+		t.Fatalf("expected follow-up frame to be sent, got %d", len(transport.frames))
+	}
+
+	frameSeq := transport.frames[0].Seq
+	if frameSeq == 0 {
+		t.Fatal("expected frame sequence to be assigned")
+	}
+
+	resume := sess.Join(1, join.Init.Seq)
+	if resume.Resume == nil {
+		t.Fatal("expected resume payload when acking init")
+	}
+	if len(resume.Templates) != 1 {
+		t.Fatalf("expected one template frame to replay, got %d", len(resume.Templates))
+	}
+	tpl := resume.Templates[0]
+	if tpl.TemplatePayload.HTML != "<div>fresh</div>" {
+		t.Fatalf("unexpected template html replay: %q", tpl.TemplatePayload.HTML)
+	}
+	if len(resume.Frames) != 1 || resume.Frames[0].Seq != frameSeq {
+		t.Fatalf("expected frame %d to replay, got %+v", frameSeq, resume.Frames)
+	}
+
+	sess.Ack(frameSeq)
+
+	resume = sess.Join(1, frameSeq)
+	if resume.Resume == nil {
+		t.Fatal("expected resume payload when up to date")
+	}
+	if len(resume.Templates) != 0 {
+		t.Fatalf("expected template replay to be pruned, got %d", len(resume.Templates))
+	}
+}
+
+func TestLiveSessionStreamsDiagnostics(t *testing.T) {
+	transport := &stubTransport{}
+	sess := NewLiveSession("diag-stream", 1, counterComponent, struct{}{}, &LiveSessionConfig{Transport: transport, DevMode: boolPtr(true)})
+
+	sess.ReportDiagnostic(Diagnostic{Code: "template_mismatch", Message: "boom"})
+
+	if len(transport.diagnostics) != 1 {
+		t.Fatalf("expected diagnostic stream to emit frame, got %d", len(transport.diagnostics))
+	}
+	diag := transport.diagnostics[0]
+	if diag.Code != "template_mismatch" {
+		t.Fatalf("unexpected diagnostic code: %q", diag.Code)
+	}
+	if diag.SID != string(sess.id) {
+		t.Fatalf("expected diagnostic sid to match session, got %q", diag.SID)
+	}
+}
+
 func TestEnsureSnapshotStaticsOwnedCopiesOnWrite(t *testing.T) {
 	transport := &stubTransport{}
 	sess := NewLiveSession("sid-copy", 1, counterComponent, struct{}{}, &LiveSessionConfig{Transport: transport})
@@ -345,15 +476,22 @@ func TestLiveSessionRefDeltaRemovesRef(t *testing.T) {
 		t.Fatalf("flush: %v", err)
 	}
 
-	if len(transport.frames) != 1 {
-		t.Fatalf("expected one frame, got %d", len(transport.frames))
+	if len(transport.templates) == 0 {
+		t.Fatalf("expected template frame to carry ref delta")
 	}
-	frame := transport.frames[0]
-	if len(frame.Refs.Add) != 0 {
-		t.Fatalf("expected no ref additions, got %v", frame.Refs.Add)
+	var refTemplate *protocol.TemplateFrame
+	for i := len(transport.templates) - 1; i >= 0; i-- {
+		tpl := transport.templates[i]
+		if len(tpl.TemplatePayload.Refs.Del) > 0 {
+			refTemplate = &tpl
+			break
+		}
 	}
-	if len(frame.Refs.Del) != 1 || frame.Refs.Del[0] != id {
-		t.Fatalf("expected ref deletion for %q, got %v", id, frame.Refs.Del)
+	if refTemplate == nil {
+		t.Fatalf("expected ref delta to be present in template frames, got %+v", transport.templates)
+	}
+	if len(refTemplate.TemplatePayload.Refs.Del) != 1 || refTemplate.TemplatePayload.Refs.Del[0] != id {
+		t.Fatalf("expected ref deletion for %q, got %v", id, refTemplate.TemplatePayload.Refs.Del)
 	}
 	if _, ok := sess.snapshot.Refs[id]; ok {
 		t.Fatalf("expected ref %q removed from snapshot", id)
