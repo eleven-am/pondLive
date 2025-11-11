@@ -97,6 +97,14 @@ func NoRender(ctx Ctx) {
 	ctx.sess.clearDirty(ctx.comp)
 }
 
+// EnqueueDOMAction implements dom.ActionExecutor by enqueuing a DOM action effect.
+func (c Ctx) EnqueueDOMAction(effect dom.DOMActionEffect) {
+	if c.sess == nil || c.sess.owner == nil {
+		return
+	}
+	c.sess.owner.enqueueFrameEffect(effect)
+}
+
 func panicHookMismatch(comp *component, idx int, expected string, actual any) {
 	name := "<component>"
 	if comp != nil && comp.callable != nil {

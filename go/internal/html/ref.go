@@ -53,5 +53,3 @@ func (elementAttachProp[T]) isProp() {}
 func (p elementAttachProp[T]) ApplyTo(e *Element) {
 	dom.AttachElementRef[T](p.ref.ElementRef, e)
 }
-
-// no builder registry needed; ref construction handled in generated façade
