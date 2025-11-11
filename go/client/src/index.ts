@@ -41,13 +41,8 @@ import { ComputedSignal, Signal } from "./reactive";
 import { EventEmitter } from "./emitter";
 import { OptimisticUpdateManager } from "./optimistic";
 import { BootHandler } from "./boot";
-import {
-  getComponentBounds,
-  initializeComponentMarkers,
-  registerComponentMarkers,
-} from "./componentMarkers";
-import type { ComponentMarkerBounds } from "./componentMarkers";
-import { resolveListContainer, resolveSlotTarget } from "./slot-resolver";
+import { resolveListContainers, resolveSlotAnchors, applyComponentRanges } from "./manifest";
+import { getComponentRange, registerComponentRange } from "./componentRanges";
 import type {
   AlertEffect,
   ComponentBootEffect,
@@ -84,7 +79,6 @@ import type {
   CookieEffect,
   UploadClientMessage,
   UploadControlMessage,
-  SlotMeta,
 } from "./types";
 
 interface RuntimeDiagnosticEntry {
@@ -697,7 +691,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     if (typeof document !== "undefined") {
       bindRefsInTree(document);
       primeHandlerBindings(document);
-      initializeComponentMarkers(msg.markers ?? null, document);
+      applyComponentRanges(msg.componentPaths, { root: document });
     }
 
     // Acknowledge if needed
@@ -1363,7 +1357,7 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     if (typeof document !== "undefined") {
       document.body.innerHTML = boot.html;
       primeHandlerBindings(document);
-      initializeComponentMarkers(boot.markers ?? null, document);
+      applyComponentRanges(boot.componentPaths, { root: document });
     }
     this.bootHandler.load(boot);
     syncEventListeners();
@@ -1373,8 +1367,8 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     if (typeof document === "undefined") return;
     if (!effect || !effect.componentId) return;
 
-    const { componentId, html, slots, listSlots, bindings } = effect;
-    const bounds = this.findComponentBounds(componentId);
+    const { componentId, html, slots, listSlots, bindings, slotPaths, listPaths } = effect;
+    const bounds = this.findComponentRange(componentId);
     if (!bounds) {
       if (this.options.debug) {
         console.warn(`liveui: component ${componentId} bounds not found for componentBoot effect`);
@@ -1382,19 +1376,10 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       return;
     }
 
-    const normalizedSlots: SlotMeta[] = Array.isArray(slots)
-      ? slots
-          .map((entry) => {
-            if (typeof entry === "number") {
-              return { anchorId: entry } as SlotMeta;
-            }
-            return entry && typeof entry.anchorId === "number" ? entry : null;
-          })
-          .filter((entry): entry is SlotMeta => !!entry)
-      : [];
-
-    for (const slot of normalizedSlots) {
-      dom.unregisterSlot(slot.anchorId);
+    if (Array.isArray(slots)) {
+      for (const slot of slots) {
+        dom.unregisterSlot(slot);
+      }
     }
     if (Array.isArray(listSlots)) {
       for (const slot of listSlots) {
@@ -1411,23 +1396,50 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     template.innerHTML = html || "";
     const fragment = template.content.cloneNode(true);
     primeHandlerBindings(fragment);
-    if (effect.markers) {
-      registerComponentMarkers(effect.markers, fragment);
+
+    const insertedNodes: Node[] = [];
+    for (let child = fragment.firstChild; child; child = child.nextSibling) {
+      insertedNodes.push(child);
     }
 
-    const range = document.createRange();
-    setRangeFromBounds(range, bounds);
-    range.deleteContents();
-    range.insertNode(fragment);
-    range.detach();
+    const container = bounds.container;
+    const afterIndex = bounds.endIndex + 1;
+    const referenceNode =
+      afterIndex < container.childNodes.length ? container.childNodes.item(afterIndex) : null;
 
-    const refreshed = this.findComponentBounds(componentId);
-    if (!refreshed) {
-      if (this.options.debug) {
-        console.warn(`liveui: component ${componentId} bounds missing after componentBoot replacement`);
+    for (let index = bounds.endIndex; index >= bounds.startIndex; index--) {
+      const node = container.childNodes.item(index);
+      if (node) {
+        container.removeChild(node);
       }
-      return;
     }
+
+    container.insertBefore(fragment, referenceNode ?? null);
+
+    const insertedCount = insertedNodes.length;
+    let refreshed: import("./componentRanges").ComponentRange | null = null;
+    if (insertedCount > 0) {
+      const endIndex = bounds.startIndex + insertedCount - 1;
+      refreshed = registerComponentRange(componentId, {
+        container,
+        startIndex: bounds.startIndex,
+        endIndex,
+      });
+    } else {
+      refreshed = registerComponentRange(componentId, {
+        container,
+        startIndex: bounds.startIndex,
+        endIndex: bounds.startIndex - 1,
+      });
+    }
+    if (!refreshed) {
+      refreshed = { container, startIndex: bounds.startIndex, endIndex: bounds.startIndex - 1 };
+    }
+
+    const rangeOverrides = applyComponentRanges(effect.componentPaths, {
+      baseId: componentId,
+      baseRange: refreshed,
+    });
 
     if (bindings && typeof bindings === "object") {
       for (const [slotKey, specs] of Object.entries(bindings)) {
@@ -1439,30 +1451,76 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       }
     }
 
-    this.registerComponentAnchors(normalizedSlots);
+    this.registerComponentAnchors(
+      refreshed,
+      Array.isArray(slots) ? slots : [],
+      Array.isArray(listSlots) ? listSlots : [],
+      Array.isArray(slotPaths) ? slotPaths : undefined,
+      Array.isArray(listPaths) ? listPaths : undefined,
+      rangeOverrides,
+    );
   }
 
-  private findComponentBounds(id: string): ComponentMarkerBounds | null {
+  private findComponentRange(id: string): import("./componentRanges").ComponentRange | null {
     if (typeof document === "undefined" || !id) return null;
-    return getComponentBounds(id);
+    return getComponentRange(id);
   }
 
-  private registerComponentAnchors(slots: SlotMeta[]): void {
-    for (const slot of slots) {
-      const target = resolveSlotTarget(slot);
-      if (target) {
-        dom.registerSlot(slot.anchorId, target);
-      } else if (this.options.debug) {
-        console.warn(`liveui: slot ${slot.anchorId} not registered during componentBoot`);
-      }
+  private registerComponentAnchors(
+    range: import("./componentRanges").ComponentRange,
+    slots: number[],
+    listSlots: number[],
+    slotDescriptors?: import("./types").SlotPathDescriptor[],
+    listDescriptors?: import("./types").ListPathDescriptor[],
+    overrides?: Map<string, import("./componentRanges").ComponentRange>,
+  ): void {
+    if (!range || range.endIndex < range.startIndex) {
+      return;
+    }
+    const requestedSlots = Array.isArray(slots)
+      ? slots.filter((value) => Number.isInteger(value) && value >= 0)
+      : [];
+    const requestedLists = Array.isArray(listSlots)
+      ? listSlots.filter((value) => Number.isInteger(value) && value >= 0)
+      : [];
 
-      const listContainer = resolveListContainer(slot);
-      if (listContainer) {
-        dom.registerList(slot.anchorId, listContainer);
+    const pendingSlots = new Set<number>(requestedSlots);
+    const pendingLists = new Set<number>(requestedLists);
+
+    const slotAnchors = resolveSlotAnchors(slotDescriptors, overrides);
+    if (slotAnchors.size > 0) {
+      if (pendingSlots.size > 0) {
+        for (const slotId of Array.from(pendingSlots)) {
+          const node = slotAnchors.get(slotId);
+          if (node) {
+            dom.registerSlot(slotId, node);
+            pendingSlots.delete(slotId);
+          }
+        }
+      } else {
+        for (const [slotId, node] of slotAnchors.entries()) {
+          dom.registerSlot(slotId, node);
+        }
+      }
+    }
+
+    const listAnchors = resolveListContainers(listDescriptors, overrides);
+    if (listAnchors.size > 0) {
+      if (pendingLists.size > 0) {
+        for (const slotId of Array.from(pendingLists)) {
+          const element = listAnchors.get(slotId);
+          if (element) {
+            dom.registerList(slotId, element);
+            pendingLists.delete(slotId);
+          }
+        }
+      } else {
+        for (const [slotId, element] of listAnchors.entries()) {
+          dom.registerList(slotId, element);
+        }
       }
     }
   }
-
   private dispatchCustomEvent(eventName: string, detail?: unknown): void {
     const event = new CustomEvent(eventName, {
       detail,
@@ -2243,72 +2301,6 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
 }
 
 export default LiveUI;
-function setRangeFromBounds(range: Range, bounds: ComponentMarkerBounds): void {
-  const { container, start, end } = bounds;
-  const startNode = getRenderableChildAt(container, start);
-  if (startNode) {
-    range.setStartBefore(startNode);
-  } else {
-    const offset = getRenderableChildOffset(container, start);
-    range.setStart(container, offset);
-  }
-
-  if (end > start) {
-    const endNode = getRenderableChildAt(container, end - 1);
-    if (endNode) {
-      range.setEndAfter(endNode);
-      return;
-    }
-    const offset = getRenderableChildOffset(container, end);
-    range.setEnd(container, offset);
-    return;
-  }
-
-  const offset = getRenderableChildOffset(container, start);
-  range.setEnd(container, offset);
-}
-
-function getRenderableChildAt(parent: ParentNode, index: number): Node | null {
-  if (index < 0) {
-    return null;
-  }
-  let seen = 0;
-  for (let child = parent.firstChild; child; child = child.nextSibling) {
-    if (!isRenderableNode(child)) {
-      continue;
-    }
-    if (seen === index) {
-      return child;
-    }
-    seen += 1;
-  }
-  return null;
-}
-
-function getRenderableChildOffset(parent: ParentNode, index: number): number {
-  if (index <= 0) {
-    return 0;
-  }
-  let offset = 0;
-  let seen = 0;
-  for (let child = parent.firstChild; child; child = child.nextSibling) {
-    if (seen >= index) {
-      break;
-    }
-    offset += 1;
-    if (isRenderableNode(child)) {
-      seen += 1;
-    }
-  }
-  if (seen < index) {
-    return parent.childNodes.length;
-  }
-  return offset;
-}
-
-function isRenderableNode(node: Node | null): boolean {
-  return !!node && node.nodeType !== Node.COMMENT_NODE;
-}
 
 export {
   configurePatcher,

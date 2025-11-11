@@ -362,8 +362,8 @@ func bootHasListOrder(boots []componentTemplateUpdate, slot int, expected []stri
 				continue
 			}
 			idx := -1
-			for i, slotMeta := range boot.slots {
-				if slotMeta.AnchorID == listSlot {
+			for i, slot := range boot.slots {
+				if slot == listSlot {
 					idx = i
 					break
 				}

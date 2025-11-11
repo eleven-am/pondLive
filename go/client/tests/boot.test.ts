@@ -182,12 +182,14 @@ describe('BootHandler', () => {
   });
 
   describe('DOM registration', () => {
-    it('should register slots from boot payload', () => {
+    it('should register slots from manifest data', () => {
       const registerSlotMock = vi.spyOn(dom, 'registerSlot');
 
-      document.body.innerHTML = '<div id="root"><span id="slot1"></span><div id="slot2"></div></div>';
-      const slot1 = document.getElementById('slot1');
-      const slot2 = document.getElementById('slot2');
+      document.body.replaceChildren();
+      const host = document.createElement('div');
+      const textNode = document.createTextNode('value');
+      host.appendChild(textNode);
+      document.body.append(host);
 
       const payload: BootPayload = {
         t: 'boot',
@@ -197,8 +199,15 @@ describe('BootHandler', () => {
         s: [],
         d: [],
         slots: [
-          { anchorId: 1, path: [0, 0] },
-          { anchorId: 2, path: [0, 1] },
+          { anchorId: 1 },
+          { anchorId: 2 },
+        ],
+        slotPaths: [
+          { slot: 1, componentId: 'comp', elementPath: [], textChildIndex: 0 },
+          { slot: 2, componentId: 'comp', elementPath: [] },
+        ],
+        componentPaths: [
+          { componentId: 'comp', firstChild: [0], lastChild: [0] },
         ],
         handlers: {},
         location: { path: '/', q: '', hash: '' },
@@ -206,16 +215,16 @@ describe('BootHandler', () => {
 
       bootHandler.load(payload);
 
-      expect(registerSlotMock).toHaveBeenCalledTimes(2);
-      expect(registerSlotMock).toHaveBeenCalledWith(1, slot1);
-      expect(registerSlotMock).toHaveBeenCalledWith(2, slot2);
+      expect(registerSlotMock).toHaveBeenCalledWith(1, textNode);
+      expect(registerSlotMock).toHaveBeenCalledWith(2, host);
     });
 
-    it('should register list containers from slot metadata', () => {
+    it('should register list containers from manifest data', () => {
       const registerListMock = vi.spyOn(dom, 'registerList');
 
-      document.body.innerHTML = '<div id="root"><ul id="list"></ul></div>';
-      const listEl = document.getElementById('list') as Element;
+      document.body.replaceChildren();
+      const list = document.createElement('ul');
+      document.body.append(list);
 
       const payload: BootPayload = {
         t: 'boot',
@@ -224,12 +233,12 @@ describe('BootHandler', () => {
         seq: 0,
         s: [],
         d: [],
-        slots: [
-          {
-            anchorId: 1,
-            path: [0, 0],
-            list: { path: [0, 0] },
-          },
+        slots: [],
+        listPaths: [
+          { slot: 4, componentId: 'comp', elementPath: [] },
+        ],
+        componentPaths: [
+          { componentId: 'comp', firstChild: [0], lastChild: [0] },
         ],
         handlers: {},
         location: { path: '/', q: '', hash: '' },
@@ -237,7 +246,7 @@ describe('BootHandler', () => {
 
       bootHandler.load(payload);
 
-      expect(registerListMock).toHaveBeenCalledWith(1, listEl);
+      expect(registerListMock).toHaveBeenCalledWith(4, list);
     });
   });
 

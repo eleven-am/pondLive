@@ -59,16 +59,19 @@ func TestComponentBootEffect(t *testing.T) {
 	if htmlValue == "" || !strings.Contains(htmlValue, "bravo") {
 		t.Fatalf("expected html payload to contain updated text, got %q", htmlValue)
 	}
-	slotsValue, ok := bootEffect["slots"].([]protocol.SlotMeta)
+	slotsValue, ok := bootEffect["slots"].([]int)
 	if !ok || len(slotsValue) == 0 {
 		t.Fatalf("expected slot metadata in effect, got %#v", bootEffect["slots"])
 	}
-	slotIndex := slotsValue[len(slotsValue)-1].AnchorID
+	slotIndex := slotsValue[len(slotsValue)-1]
 	if slotIndex < 0 || slotIndex >= len(sess.snapshot.Dynamics) {
 		t.Fatalf("expected slot to map into snapshot, got %d", slotIndex)
 	}
 	dyn := sess.snapshot.Dynamics[slotIndex]
 	if dyn.Kind != "text" || dyn.Text != "bravo" {
 		t.Fatalf("expected snapshot text slot to update to 'bravo', got %+v", dyn)
+	}
+	if paths, ok := bootEffect["slotPaths"].([]protocol.SlotPath); !ok || len(paths) == 0 {
+		t.Fatalf("expected slot path manifest in effect, got %#v", bootEffect["slotPaths"])
 	}
 }

@@ -27,6 +27,14 @@ const DATA_EVENT_ATTR_PREFIX = "data-on";
 export const DATA_ROUTER_ATTR_PREFIX = "data-router-";
 
 const ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
+const CAPTURE_EVENTS = new Set([
+  "blur",
+  "focus",
+  "mouseenter",
+  "mouseleave",
+  "pointerenter",
+  "pointerleave",
+]);
 
 interface RouterMeta {
   path?: string;
@@ -517,10 +525,14 @@ export function unregisterNavigationHandler(): void {
 /**
  * Install a listener for a specific event type (if not already installed)
  */
+function shouldUseCapture(eventType: string): boolean {
+  return CAPTURE_EVENTS.has(eventType);
+}
+
 function installListener(eventType: string): void {
   if (installedListeners.has(eventType)) return;
 
-  const useCapture = eventType === "blur" || eventType === "focus";
+  const useCapture = shouldUseCapture(eventType);
   const listener = (e: Event) => {
     if (sendEventCallback) {
       handleEvent(e, eventType, sendEventCallback);
@@ -538,7 +550,7 @@ function removeListener(eventType: string): void {
   const listener = installedListeners.get(eventType);
   if (!listener) return;
 
-  const useCapture = eventType === "blur" || eventType === "focus";
+  const useCapture = shouldUseCapture(eventType);
   document.removeEventListener(eventType, listener, useCapture);
   installedListeners.delete(eventType);
 }

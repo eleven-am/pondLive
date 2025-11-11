@@ -765,6 +765,8 @@ func (s *LiveSession) HandleUploadMessage(msg protocol.UploadClient) error {
 	if comp == nil {
 		return errors.New("runtime: session has no component")
 	}
+	release := comp.suspendFlushScheduling()
+	defer release()
 	switch msg.Op {
 	case "change":
 		if msg.Meta != nil {
@@ -1022,7 +1024,6 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 			Slots:    cloneSlots(snap.Slots),
 			Handlers: cloneHandlers(snap.Handlers),
 			Bindings: cloneBindingTable(snap.Bindings),
-			Markers:  cloneMarkers(snap.Markers),
 			Refs:     cloneRefs(snap.Refs),
 			Location: snap.Location,
 		}
@@ -1050,25 +1051,24 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 				copy(s.snapshot.Statics[update.staticsRange.start:update.staticsRange.end], update.statics)
 			}
 			for idx, slot := range update.slots {
-				anchor := slot.AnchorID
-				if anchor < 0 {
+				if slot < 0 {
 					continue
 				}
-				if anchor >= len(s.snapshot.Dynamics) {
-					extended := make([]protocol.DynamicSlot, anchor+1)
+				if slot >= len(s.snapshot.Dynamics) {
+					extended := make([]protocol.DynamicSlot, slot+1)
 					copy(extended, s.snapshot.Dynamics)
 					s.snapshot.Dynamics = extended
 				}
-				if anchor >= len(s.snapshot.Slots) {
-					extended := make([]protocol.SlotMeta, anchor+1)
+				if slot >= len(s.snapshot.Slots) {
+					extended := make([]protocol.SlotMeta, slot+1)
 					copy(extended, s.snapshot.Slots)
 					for i := len(s.snapshot.Slots); i < len(extended); i++ {
-						extended[i].AnchorID = i
+						extended[i] = protocol.SlotMeta{AnchorID: i}
 					}
 					s.snapshot.Slots = extended
 				}
 				if idx < len(update.dynamics) {
-					s.snapshot.Dynamics[anchor] = update.dynamics[idx]
+					s.snapshot.Dynamics[slot] = update.dynamics[idx]
 				}
 			}
 			if len(update.handlersDel) > 0 && s.snapshot.Handlers != nil {
@@ -1099,8 +1099,7 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 				if s.snapshot.Bindings == nil && (len(update.bindings) > 0) {
 					s.snapshot.Bindings = make(protocol.BindingTable)
 				}
-				for _, slotMeta := range update.slots {
-					slot := slotMeta.AnchorID
+				for _, slot := range update.slots {
 					entries, ok := update.bindings[slot]
 					if !ok || len(entries) == 0 {
 						if s.snapshot.Bindings != nil {
@@ -1114,13 +1113,14 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 					s.snapshot.Bindings[slot] = copySlotBindings(entries)
 				}
 			}
-			if len(update.markers) > 0 {
-				if s.snapshot.Markers == nil {
-					s.snapshot.Markers = make(map[string]protocol.ComponentMarker)
-				}
-				for id, marker := range update.markers {
-					s.snapshot.Markers[id] = marker
-				}
+			if len(update.slotPaths) > 0 {
+				s.snapshot.SlotPaths = replaceSlotPaths(s.snapshot.SlotPaths, update.slotPaths, update.slots)
+			}
+			if len(update.listPaths) > 0 {
+				s.snapshot.ListPaths = replaceListPaths(s.snapshot.ListPaths, update.listPaths, update.listSlots)
+			}
+			if len(update.componentPaths) > 0 {
+				s.snapshot.ComponentPaths = replaceComponentPaths(s.snapshot.ComponentPaths, update.componentPaths)
 			}
 			effect := map[string]any{
 				"type":        "componentBoot",
@@ -1131,11 +1131,17 @@ func (s *LiveSession) onPatch(ops []diff.Op) error {
 			if len(update.listSlots) > 0 {
 				effect["listSlots"] = update.listSlots
 			}
+			if len(update.slotPaths) > 0 {
+				effect["slotPaths"] = cloneSlotPaths(update.slotPaths)
+			}
+			if len(update.listPaths) > 0 {
+				effect["listPaths"] = cloneListPaths(update.listPaths)
+			}
+			if len(update.componentPaths) > 0 {
+				effect["componentPaths"] = cloneComponentPaths(update.componentPaths)
+			}
 			if update.bindings != nil {
 				effect["bindings"] = update.bindings
-			}
-			if update.markers != nil {
-				effect["markers"] = update.markers
 			}
 			frame.Effects = append(frame.Effects, effect)
 		}
@@ -1270,18 +1276,20 @@ func (s *LiveSession) framesFromLocked(start int) []protocol.Frame {
 
 func (s *LiveSession) buildInitLocked(errors []protocol.ServerError) protocol.Init {
 	init := protocol.Init{
-		T:        "init",
-		SID:      string(s.id),
-		Ver:      s.version,
-		S:        append([]string(nil), s.snapshot.Statics...),
-		D:        cloneDynamics(s.snapshot.Dynamics),
-		Slots:    cloneSlots(s.snapshot.Slots),
-		Handlers: cloneHandlers(s.snapshot.Handlers),
-		Bindings: cloneBindingTable(s.snapshot.Bindings),
-		Markers:  cloneMarkers(s.snapshot.Markers),
-		Refs:     cloneRefs(s.snapshot.Refs),
-		Location: s.snapshot.Location,
-		Seq:      s.nextSeq,
+		T:              "init",
+		SID:            string(s.id),
+		Ver:            s.version,
+		S:              append([]string(nil), s.snapshot.Statics...),
+		D:              cloneDynamics(s.snapshot.Dynamics),
+		Slots:          cloneSlots(s.snapshot.Slots),
+		SlotPaths:      cloneSlotPaths(s.snapshot.SlotPaths),
+		ListPaths:      cloneListPaths(s.snapshot.ListPaths),
+		ComponentPaths: cloneComponentPaths(s.snapshot.ComponentPaths),
+		Handlers:       cloneHandlers(s.snapshot.Handlers),
+		Bindings:       cloneBindingTable(s.snapshot.Bindings),
+		Refs:           cloneRefs(s.snapshot.Refs),
+		Location:       s.snapshot.Location,
+		Seq:            s.nextSeq,
 	}
 	if len(errors) > 0 {
 		init.Errors = cloneServerErrors(errors)
@@ -1300,19 +1308,21 @@ func (s *LiveSession) BuildBoot(html string) protocol.Boot {
 	s.mu.Unlock()
 
 	boot := protocol.Boot{
-		T:        "boot",
-		SID:      init.SID,
-		Ver:      init.Ver,
-		Seq:      init.Seq,
-		HTML:     html,
-		S:        append([]string(nil), init.S...),
-		D:        cloneDynamics(init.D),
-		Slots:    cloneSlots(init.Slots),
-		Handlers: cloneHandlers(init.Handlers),
-		Bindings: cloneBindingTable(init.Bindings),
-		Markers:  cloneMarkers(init.Markers),
-		Refs:     cloneRefs(init.Refs),
-		Location: init.Location,
+		T:              "boot",
+		SID:            init.SID,
+		Ver:            init.Ver,
+		Seq:            init.Seq,
+		HTML:           html,
+		S:              append([]string(nil), init.S...),
+		D:              cloneDynamics(init.D),
+		Slots:          cloneSlots(init.Slots),
+		SlotPaths:      cloneSlotPaths(init.SlotPaths),
+		ListPaths:      cloneListPaths(init.ListPaths),
+		ComponentPaths: cloneComponentPaths(init.ComponentPaths),
+		Handlers:       cloneHandlers(init.Handlers),
+		Bindings:       cloneBindingTable(init.Bindings),
+		Refs:           cloneRefs(init.Refs),
+		Location:       init.Location,
 	}
 	if boot.T == "" {
 		boot.T = "boot"
@@ -1407,22 +1417,30 @@ func paramsEqual(a, b map[string]string) bool {
 }
 
 type snapshot struct {
-	Statics      []string
-	staticsOwned bool
-	Dynamics     []protocol.DynamicSlot
-	Slots        []protocol.SlotMeta
-	Handlers     map[string]protocol.HandlerMeta
-	Bindings     protocol.BindingTable
-	Markers      map[string]protocol.ComponentMarker
-	Refs         map[string]protocol.RefMeta
-	Location     protocol.Location
-	Metadata     *Meta
+	Statics        []string
+	staticsOwned   bool
+	Dynamics       []protocol.DynamicSlot
+	Slots          []protocol.SlotMeta
+	SlotPaths      []protocol.SlotPath
+	ListPaths      []protocol.ListPath
+	ComponentPaths []protocol.ComponentPath
+	Handlers       map[string]protocol.HandlerMeta
+	Bindings       protocol.BindingTable
+	Refs           map[string]protocol.RefMeta
+	Location       protocol.Location
+	Metadata       *Meta
 }
 
 func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLocation, meta *Meta) snapshot {
 	statics := globalTemplateIntern.InternStatics(structured.S)
 	dynamics := encodeDynamics(structured.D)
-	slots := encodeSlotMeta(structured)
+	slots := make([]protocol.SlotMeta, len(dynamics))
+	for i := range slots {
+		slots[i] = protocol.SlotMeta{AnchorID: i}
+	}
+	slotPaths := encodeSlotPaths(structured.SlotPaths)
+	listPaths := encodeListPaths(structured.ListPaths)
+	componentPaths := encodeComponentPaths(structured.ComponentPaths)
 	handlers := extractHandlerMeta(structured)
 	var refs map[string]protocol.RefMeta
 	if ids := extractRefIDs(structured); len(ids) > 0 {
@@ -1432,16 +1450,18 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 	}
 	protoLoc := protocol.Location{Path: loc.Path, Query: loc.Query}
 	return snapshot{
-		Statics:      statics,
-		Dynamics:     dynamics,
-		Slots:        slots,
-		Handlers:     handlers,
-		Bindings:     encodeBindingTable(structured.Bindings),
-		Markers:      encodeComponentMarkers(structured.Components),
-		Refs:         refs,
-		Location:     protoLoc,
-		Metadata:     CloneMeta(meta),
-		staticsOwned: false,
+		Statics:        statics,
+		Dynamics:       dynamics,
+		Slots:          slots,
+		SlotPaths:      slotPaths,
+		ListPaths:      listPaths,
+		ComponentPaths: componentPaths,
+		Handlers:       handlers,
+		Bindings:       encodeBindingTable(structured.Bindings),
+		Refs:           refs,
+		Location:       protoLoc,
+		Metadata:       CloneMeta(meta),
+		staticsOwned:   false,
 	}
 }
 
@@ -1458,67 +1478,6 @@ func (s *LiveSession) ensureSnapshotStaticsOwned() {
 	}
 	s.snapshot.Statics = append([]string(nil), s.snapshot.Statics...)
 	s.snapshot.staticsOwned = true
-}
-
-func encodeSlotMeta(structured render.Structured) []protocol.SlotMeta {
-	if len(structured.D) == 0 {
-		return nil
-	}
-	slots := make([]protocol.SlotMeta, len(structured.D))
-	for i := range slots {
-		slots[i].AnchorID = i
-	}
-	for _, anchor := range structured.Anchors {
-		if anchor.Slot < 0 || anchor.Slot >= len(slots) {
-			continue
-		}
-		entry := &slots[anchor.Slot]
-		applyAnchorMetadata(entry, anchor)
-	}
-	for _, list := range structured.ListAnchors {
-		if list.Slot < 0 || list.Slot >= len(slots) {
-			continue
-		}
-		meta := protocol.ListAnchor{}
-		if list.ComponentID != "" {
-			meta.Component = list.ComponentID
-		}
-		switch {
-		case len(list.ComponentPath) > 0:
-			meta.Path = append([]int(nil), list.ComponentPath...)
-		case list.ComponentID != "":
-			meta.Path = []int{}
-		case len(list.NodePath) > 0:
-			meta.Path = append([]int(nil), list.NodePath...)
-		case meta.Path == nil:
-			meta.Path = []int{}
-		}
-		slots[list.Slot].List = &meta
-	}
-	return slots
-}
-
-func applyAnchorMetadata(dest *protocol.SlotMeta, anchor render.SlotAnchor) {
-	if dest == nil {
-		return
-	}
-	if anchor.ComponentID != "" {
-		dest.Component = anchor.ComponentID
-	}
-	switch {
-	case len(anchor.ComponentPath) > 0:
-		dest.Path = append([]int(nil), anchor.ComponentPath...)
-	case anchor.ComponentID != "":
-		dest.Path = []int{}
-	case len(anchor.NodePath) > 0:
-		dest.Path = append([]int(nil), anchor.NodePath...)
-	case dest.Path == nil:
-		dest.Path = []int{}
-	}
-	if anchor.ChildIndex >= 0 {
-		idx := anchor.ChildIndex
-		dest.TextIndex = &idx
-	}
 }
 
 func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
@@ -1547,20 +1506,20 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 				rows := make([]protocol.ListRow, len(dyn.List))
 				for j, row := range dyn.List {
 					rows[j] = protocol.ListRow{Key: row.Key}
-					if len(row.Anchors) > 0 {
-						metas := make([]protocol.SlotMeta, len(row.Anchors))
-						for idx, anchor := range row.Anchors {
-							meta := protocol.SlotMeta{AnchorID: anchor.Slot}
-							applyAnchorMetadata(&meta, anchor)
-							metas[idx] = meta
-						}
-						rows[j].Slots = metas
+					if len(row.Slots) > 0 {
+						rows[j].Slots = append([]int(nil), row.Slots...)
 					}
 					if bindings := encodeRowBindingTable(row.Bindings); len(bindings) > 0 {
 						rows[j].Bindings = bindings
 					}
-					if markers := encodeRowMarkers(row.Markers); len(markers) > 0 {
-						rows[j].Markers = markers
+					if encoded := encodeSlotPaths(row.SlotPaths); len(encoded) > 0 {
+						rows[j].SlotPaths = encoded
+					}
+					if encodedLists := encodeListPaths(row.ListPaths); len(encodedLists) > 0 {
+						rows[j].ListPaths = encodedLists
+					}
+					if encodedComponents := encodeComponentPaths(row.ComponentPaths); len(encodedComponents) > 0 {
+						rows[j].ComponentPaths = encodedComponents
 					}
 				}
 				slot.List = rows
@@ -1600,20 +1559,65 @@ func encodeBindingTable(bindings []render.HandlerBinding) protocol.BindingTable 
 	return table
 }
 
-func encodeComponentMarkers(components map[string]render.ComponentSpan) map[string]protocol.ComponentMarker {
-	if len(components) == 0 {
+func encodeSlotPaths(paths []render.SlotPath) []protocol.SlotPath {
+	if len(paths) == 0 {
 		return nil
 	}
-	out := make(map[string]protocol.ComponentMarker, len(components))
-	for id, span := range components {
-		marker := protocol.ComponentMarker{
-			Start: span.StartIndex,
-			End:   span.EndIndex,
+	out := make([]protocol.SlotPath, len(paths))
+	for i, path := range paths {
+		clone := protocol.SlotPath{
+			Slot:           path.Slot,
+			ComponentID:    path.ComponentID,
+			TextChildIndex: path.TextChildIndex,
 		}
-		if len(span.ContainerPath) > 0 {
-			marker.Container = append([]int(nil), span.ContainerPath...)
+		if len(path.ElementPath) > 0 {
+			clone.ElementPath = append([]int(nil), path.ElementPath...)
 		}
-		out[id] = marker
+		out[i] = clone
+	}
+	return out
+}
+
+func encodeListPaths(paths []render.ListPath) []protocol.ListPath {
+	if len(paths) == 0 {
+		return nil
+	}
+	out := make([]protocol.ListPath, len(paths))
+	for i, path := range paths {
+		clone := protocol.ListPath{
+			Slot:        path.Slot,
+			ComponentID: path.ComponentID,
+		}
+		if len(path.ElementPath) > 0 {
+			clone.ElementPath = append([]int(nil), path.ElementPath...)
+		}
+		out[i] = clone
+	}
+	return out
+}
+
+func encodeComponentPaths(paths []render.ComponentPath) []protocol.ComponentPath {
+	if len(paths) == 0 {
+		return nil
+	}
+	out := make([]protocol.ComponentPath, len(paths))
+	for i, path := range paths {
+		clone := protocol.ComponentPath{
+			ComponentID: path.ComponentID,
+		}
+		if path.ParentID != "" {
+			clone.ParentID = path.ParentID
+		}
+		if len(path.ParentPath) > 0 {
+			clone.ParentPath = append([]int(nil), path.ParentPath...)
+		}
+		if len(path.FirstChild) > 0 {
+			clone.FirstChild = append([]int(nil), path.FirstChild...)
+		}
+		if len(path.LastChild) > 0 {
+			clone.LastChild = append([]int(nil), path.LastChild...)
+		}
+		out[i] = clone
 	}
 	return out
 }
@@ -1670,24 +1674,6 @@ func encodeRowBindingTable(bindings []render.HandlerBinding) protocol.BindingTab
 		return nil
 	}
 	return table
-}
-
-func encodeRowMarkers(markers map[string]render.ComponentMarker) map[string]protocol.ComponentMarker {
-	if len(markers) == 0 {
-		return nil
-	}
-	out := make(map[string]protocol.ComponentMarker, len(markers))
-	for id, marker := range markers {
-		entry := protocol.ComponentMarker{
-			Start: marker.StartIndex,
-			End:   marker.EndIndex,
-		}
-		if len(marker.ContainerPath) > 0 {
-			entry.Container = append([]int(nil), marker.ContainerPath...)
-		}
-		out[id] = entry
-	}
-	return out
 }
 
 func (s *LiveSession) diagnosticsSnapshotLocked() []protocol.ServerError {
@@ -1989,7 +1975,7 @@ func cloneDynamics(dynamics []protocol.DynamicSlot) []protocol.DynamicSlot {
 			for j, row := range dyn.List {
 				rows[j] = protocol.ListRow{Key: row.Key}
 				if len(row.Slots) > 0 {
-					rows[j].Slots = cloneSlots(row.Slots)
+					rows[j].Slots = append([]int(nil), row.Slots...)
 				}
 				if len(row.Bindings) > 0 {
 					copied := make(protocol.BindingTable, len(row.Bindings))
@@ -2000,14 +1986,14 @@ func cloneDynamics(dynamics []protocol.DynamicSlot) []protocol.DynamicSlot {
 						rows[j].Bindings = copied
 					}
 				}
-				if len(row.Markers) > 0 {
-					copiedMarkers := make(map[string]protocol.ComponentMarker, len(row.Markers))
-					for id, marker := range row.Markers {
-						copiedMarkers[id] = marker
-					}
-					if len(copiedMarkers) > 0 {
-						rows[j].Markers = copiedMarkers
-					}
+				if len(row.SlotPaths) > 0 {
+					rows[j].SlotPaths = cloneSlotPaths(row.SlotPaths)
+				}
+				if len(row.ListPaths) > 0 {
+					rows[j].ListPaths = cloneListPaths(row.ListPaths)
+				}
+				if len(row.ComponentPaths) > 0 {
+					rows[j].ComponentPaths = cloneComponentPaths(row.ComponentPaths)
 				}
 			}
 			slot.List = rows
@@ -2022,35 +2008,138 @@ func cloneSlots(slots []protocol.SlotMeta) []protocol.SlotMeta {
 		return nil
 	}
 	out := make([]protocol.SlotMeta, len(slots))
-	for i, slot := range slots {
-		copied := slot
-		switch {
-		case len(slot.Path) > 0:
-			copied.Path = append([]int(nil), slot.Path...)
-		case slot.Path != nil:
-			copied.Path = []int{}
-		default:
-			copied.Path = nil
+	copy(out, slots)
+	return out
+}
+
+func cloneSlotPaths(paths []protocol.SlotPath) []protocol.SlotPath {
+	if len(paths) == 0 {
+		return nil
+	}
+	out := make([]protocol.SlotPath, len(paths))
+	for i, path := range paths {
+		clone := path
+		if len(path.ElementPath) > 0 {
+			clone.ElementPath = append([]int(nil), path.ElementPath...)
 		}
-		if slot.TextIndex != nil {
-			idx := *slot.TextIndex
-			copied.TextIndex = &idx
-		}
-		if slot.List != nil {
-			listCopy := *slot.List
-			switch {
-			case len(slot.List.Path) > 0:
-				listCopy.Path = append([]int(nil), slot.List.Path...)
-			case slot.List.Path != nil:
-				listCopy.Path = []int{}
-			default:
-				listCopy.Path = nil
-			}
-			copied.List = &listCopy
-		}
-		out[i] = copied
+		out[i] = clone
 	}
 	return out
+}
+
+func cloneListPaths(paths []protocol.ListPath) []protocol.ListPath {
+	if len(paths) == 0 {
+		return nil
+	}
+	out := make([]protocol.ListPath, len(paths))
+	for i, path := range paths {
+		clone := path
+		if len(path.ElementPath) > 0 {
+			clone.ElementPath = append([]int(nil), path.ElementPath...)
+		}
+		out[i] = clone
+	}
+	return out
+}
+
+func cloneComponentPaths(paths []protocol.ComponentPath) []protocol.ComponentPath {
+	if len(paths) == 0 {
+		return nil
+	}
+	out := make([]protocol.ComponentPath, len(paths))
+	for i, path := range paths {
+		clone := path
+		if len(path.ParentPath) > 0 {
+			clone.ParentPath = append([]int(nil), path.ParentPath...)
+		}
+		if len(path.FirstChild) > 0 {
+			clone.FirstChild = append([]int(nil), path.FirstChild...)
+		}
+		if len(path.LastChild) > 0 {
+			clone.LastChild = append([]int(nil), path.LastChild...)
+		}
+		out[i] = clone
+	}
+	return out
+}
+
+func replaceSlotPaths(existing []protocol.SlotPath, updates []protocol.SlotPath, slots []int) []protocol.SlotPath {
+	if len(updates) == 0 {
+		if len(existing) == 0 {
+			return nil
+		}
+		out := make([]protocol.SlotPath, len(existing))
+		copy(out, existing)
+		return out
+	}
+	slotSet := make(map[int]struct{}, len(slots))
+	for _, slot := range slots {
+		slotSet[slot] = struct{}{}
+	}
+	filtered := make([]protocol.SlotPath, 0, len(existing)+len(updates))
+	for _, path := range existing {
+		if len(slotSet) > 0 {
+			if _, ok := slotSet[path.Slot]; ok {
+				continue
+			}
+		}
+		filtered = append(filtered, path)
+	}
+	filtered = append(filtered, cloneSlotPaths(updates)...)
+	return filtered
+}
+
+func replaceListPaths(existing []protocol.ListPath, updates []protocol.ListPath, slots []int) []protocol.ListPath {
+	if len(updates) == 0 {
+		if len(existing) == 0 {
+			return nil
+		}
+		out := make([]protocol.ListPath, len(existing))
+		copy(out, existing)
+		return out
+	}
+	slotSet := make(map[int]struct{}, len(slots))
+	for _, slot := range slots {
+		slotSet[slot] = struct{}{}
+	}
+	filtered := make([]protocol.ListPath, 0, len(existing)+len(updates))
+	for _, path := range existing {
+		if len(slotSet) > 0 {
+			if _, ok := slotSet[path.Slot]; ok {
+				continue
+			}
+		}
+		filtered = append(filtered, path)
+	}
+	filtered = append(filtered, cloneListPaths(updates)...)
+	return filtered
+}
+
+func replaceComponentPaths(existing []protocol.ComponentPath, updates []protocol.ComponentPath) []protocol.ComponentPath {
+	if len(updates) == 0 {
+		if len(existing) == 0 {
+			return nil
+		}
+		out := make([]protocol.ComponentPath, len(existing))
+		copy(out, existing)
+		return out
+	}
+	idSet := make(map[string]struct{}, len(updates))
+	for _, path := range updates {
+		if path.ComponentID == "" {
+			continue
+		}
+		idSet[path.ComponentID] = struct{}{}
+	}
+	filtered := make([]protocol.ComponentPath, 0, len(existing)+len(updates))
+	for _, path := range existing {
+		if _, ok := idSet[path.ComponentID]; ok {
+			continue
+		}
+		filtered = append(filtered, path)
+	}
+	filtered = append(filtered, cloneComponentPaths(updates)...)
+	return filtered
 }
 
 func cloneHandlers(handlers map[string]protocol.HandlerMeta) map[string]protocol.HandlerMeta {
@@ -2081,21 +2170,6 @@ func cloneBindingTable(bindings protocol.BindingTable) protocol.BindingTable {
 	}
 	if len(out) == 0 {
 		return nil
-	}
-	return out
-}
-
-func cloneMarkers(markers map[string]protocol.ComponentMarker) map[string]protocol.ComponentMarker {
-	if len(markers) == 0 {
-		return nil
-	}
-	out := make(map[string]protocol.ComponentMarker, len(markers))
-	for id, marker := range markers {
-		clone := marker
-		if len(marker.Container) > 0 {
-			clone.Container = append([]int(nil), marker.Container...)
-		}
-		out[id] = clone
 	}
 	return out
 }

@@ -24,12 +24,6 @@ export interface Location {
 }
 
 // Boot payload produced during SSR
-export interface ComponentMarkerDescriptor {
-  container?: number[];
-  start: number;
-  end: number;
-}
-
 export interface BootPayload {
   t: "boot";
   sid: string;
@@ -39,9 +33,11 @@ export interface BootPayload {
   s: string[];
   d: DynamicSlot[];
   slots: SlotMeta[];
+  slotPaths?: SlotPathDescriptor[];
+  listPaths?: ListPathDescriptor[];
+  componentPaths?: ComponentPathDescriptor[];
   handlers: HandlerMap;
   bindings?: BindingTable;
-  markers?: Record<string, ComponentMarkerDescriptor>;
   refs?: RefMap;
   location: Location;
   errors?: ErrorMessage[];
@@ -103,22 +99,36 @@ export interface DynamicSlot {
 
 export interface ListRow {
   key: string;
-  slots?: SlotMeta[];
+  slots?: number[];
   bindings?: BindingTable;
-  markers?: Record<string, ComponentMarkerDescriptor>;
-}
-
-export interface SlotListMeta {
-  component?: string;
-  path?: number[];
+  slotPaths?: SlotPathDescriptor[];
+  listPaths?: ListPathDescriptor[];
+  componentPaths?: ComponentPathDescriptor[];
 }
 
 export interface SlotMeta {
   anchorId: number;
-  component?: string;
-  path?: number[];
-  text?: number;
-  list?: SlotListMeta;
+}
+
+export interface SlotPathDescriptor {
+  slot: number;
+  componentId: string;
+  elementPath?: number[];
+  textChildIndex: number;
+}
+
+export interface ListPathDescriptor {
+  slot: number;
+  componentId: string;
+  elementPath?: number[];
+}
+
+export interface ComponentPathDescriptor {
+  componentId: string;
+  parentId?: string;
+  parentPath?: number[];
+  firstChild?: number[];
+  lastChild?: number[];
 }
 
 // Init message
@@ -129,9 +139,11 @@ export interface InitMessage {
   s: string[];
   d: DynamicSlot[];
   slots: SlotMeta[];
+  slotPaths?: SlotPathDescriptor[];
+  listPaths?: ListPathDescriptor[];
+  componentPaths?: ComponentPathDescriptor[];
   handlers: HandlerMap;
   bindings?: BindingTable;
-  markers?: Record<string, ComponentMarkerDescriptor>;
   refs?: RefMap;
   location: Location;
   seq?: number;
@@ -177,7 +189,6 @@ export type ListInsOp = [
     html: string;
     slots?: number[];
     bindings?: BindingTable;
-    markers?: Record<string, ComponentMarkerDescriptor>;
   },
 ];
 export type ListMovOp = ["mov", number, number];
@@ -557,10 +568,12 @@ export interface ComponentBootEffect {
   type: "componentBoot" | "ComponentBoot";
   componentId: string;
   html: string;
-  slots: SlotMeta[];
+  slots: number[];
   listSlots?: number[];
+  slotPaths?: SlotPathDescriptor[];
+  listPaths?: ListPathDescriptor[];
+  componentPaths?: ComponentPathDescriptor[];
   bindings?: BindingTable;
-  markers?: Record<string, ComponentMarkerDescriptor>;
 }
 
 export interface BootEffect {

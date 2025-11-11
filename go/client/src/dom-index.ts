@@ -53,11 +53,45 @@ export function reset(): void {
   listMap.clear();
 }
 
-export function ensureList(slotIndex: number): ListRecord {
-  if (listMap.has(slotIndex)) {
-    return listMap.get(slotIndex)!;
+/**
+ * Initialize all list containers upfront.
+ * Optionally provide a lookup table to avoid DOM queries.
+ */
+export function initLists(
+  slotIndexes: number[],
+  containers?: Map<number, Element> | Record<number, Element | null | undefined>,
+): void {
+  if (!Array.isArray(slotIndexes)) return;
+  const lookup = (slotIndex: number): Element | null => {
+    if (containers instanceof Map) {
+      const candidate = containers.get(slotIndex);
+      return candidate instanceof Element ? candidate : null;
+    }
+    if (containers && typeof containers === 'object') {
+      const key = String(slotIndex);
+      const candidate = (containers as Record<string, Element | null | undefined>)[key];
+      return candidate instanceof Element ? candidate : null;
+    }
+    return null;
+  };
+
+  for (const slotIndex of slotIndexes) {
+    if (listMap.has(slotIndex) && listMap.get(slotIndex)?.container instanceof Element) {
+      continue;
+    }
+    const container = lookup(slotIndex);
+    if (container) {
+      registerList(slotIndex, container);
+    }
   }
-  throw new Error(`liveui: list slot ${slotIndex} not registered`);
+}
+
+export function ensureList(slotIndex: number): ListRecord {
+  const record = listMap.get(slotIndex);
+  if (!record || !record.container) {
+    throw new Error(`liveui: list slot ${slotIndex} not registered`);
+  }
+  return record;
 }
 
 export function registerList(

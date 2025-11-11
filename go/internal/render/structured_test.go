@@ -11,10 +11,10 @@ import (
 func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	reg := handlers.NewRegistry()
 	click := func(h.Event) h.Updates { return h.Rerender() }
-	tree := h.Div(
+	tree := h.WrapComponent("comp", h.Div(
 		h.Class("wrapper"),
 		h.Button(h.On("click", click), h.Textf("%d", 0)),
-	)
+	))
 
 	structured := ToStructuredWithHandlers(tree, reg)
 	if len(structured.S) == 0 {
@@ -23,45 +23,21 @@ func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	if len(structured.D) == 0 {
 		t.Fatal("expected dynamics to be populated")
 	}
-	textSlotIndex := -1
-	attrSlotIndex := -1
-	for i, dyn := range structured.D {
+	var textSlots int
+	var attrSlots int
+	for _, dyn := range structured.D {
 		switch dyn.Kind {
 		case DynText:
-			textSlotIndex = i
+			textSlots++
 		case DynAttrs:
-			attrSlotIndex = i
-			if _, ok := dyn.Attrs["data-slot-index"]; ok {
-				t.Fatal("expected dynamic attr slot to omit data-slot-index instrumentation")
-			}
+			attrSlots++
 		}
 	}
-	if textSlotIndex < 0 {
+	if textSlots == 0 {
 		t.Fatal("expected at least one text slot")
 	}
-	if attrSlotIndex < 0 {
+	if attrSlots == 0 {
 		t.Fatal("expected dynamic attr slot for handler bindings")
-	}
-
-	findAnchor := func(slot int) (SlotAnchor, bool) {
-		for _, anchor := range structured.Anchors {
-			if anchor.Slot == slot {
-				return anchor, true
-			}
-		}
-		return SlotAnchor{}, false
-	}
-
-	if anchor, ok := findAnchor(textSlotIndex); !ok {
-		t.Fatalf("expected slot anchor for text slot %d", textSlotIndex)
-	} else if anchor.ChildIndex < 0 {
-		t.Fatalf("expected text slot anchor to reference a text child, got %+v", anchor)
-	}
-
-	if anchor, ok := findAnchor(attrSlotIndex); !ok {
-		t.Fatalf("expected slot anchor for attr slot %d", attrSlotIndex)
-	} else if anchor.ChildIndex >= 0 {
-		t.Fatalf("expected attr slot anchor to point at element, got %+v", anchor)
 	}
 	combined := strings.Join(structured.S, "")
 	if strings.Contains(combined, "data-slot-index=") {
@@ -69,6 +45,9 @@ func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	}
 	if strings.Contains(combined, "data-onclick=") {
 		t.Fatalf("expected static markup to omit data-onclick attribute, got %q", combined)
+	}
+	if strings.Contains(combined, "<!---->") {
+		t.Fatalf("expected static markup to omit component markers, got %q", combined)
 	}
 	if len(structured.Bindings) == 0 {
 		t.Fatal("expected handler bindings to be recorded")
@@ -82,6 +61,16 @@ func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected click handler binding to be recorded, got %+v", structured.Bindings)
+	}
+	var slotFound bool
+	for _, path := range structured.SlotPaths {
+		if path.TextChildIndex == -1 {
+			slotFound = true
+			break
+		}
+	}
+	if !slotFound {
+		t.Fatalf("expected at least one slot path targeting element attributes, got %+v", structured.SlotPaths)
 	}
 }
 
@@ -116,41 +105,157 @@ func TestToStructuredKeyedList(t *testing.T) {
 	if listSlots != 1 {
 		t.Fatalf("expected a single list slot, got %d", listSlots)
 	}
+	combined := strings.Join(structured.S, "")
+	if strings.Contains(combined, "data-list-slot=") {
+		t.Fatalf("expected static markup to omit list annotations, got %q", combined)
+	}
+	if strings.Contains(combined, "<!---->") {
+		t.Fatalf("expected static markup to omit component markers, got %q", combined)
+	}
 	if listSlotIndex < 0 {
 		t.Fatalf("expected list slot index to be non-negative, got %d", listSlotIndex)
-	}
-	var found bool
-	for _, anchor := range structured.ListAnchors {
-		if anchor.Slot == listSlotIndex {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected list anchor for slot %d, got %+v", listSlotIndex, structured.ListAnchors)
 	}
 }
 
 func TestDataSlotIndexesEncodeChildOffsets(t *testing.T) {
-	tree := h.Div(
+	tree := h.WrapComponent("comp", h.Div(
 		h.Span(h.Textf("%s", "first")),
 		h.Textf("%s", " tail"),
-	)
+	))
 	structured := ToStructured(tree)
-	if len(structured.D) < 2 {
-		t.Fatalf("expected at least two dynamic slots, got %d", len(structured.D))
+	if len(structured.SlotPaths) == 0 {
+		t.Fatalf("expected slot paths to be recorded, got %+v", structured.SlotPaths)
 	}
-	offsets := make(map[int]int)
-	for _, anchor := range structured.Anchors {
-		if anchor.ChildIndex >= 0 {
-			offsets[anchor.Slot] = anchor.ChildIndex
+	var divChild, spanChild bool
+	for _, path := range structured.SlotPaths {
+		if path.TextChildIndex == 0 {
+			spanChild = true
+		}
+		if path.TextChildIndex == 1 {
+			divChild = true
 		}
 	}
-	if offsets[0] != 0 {
-		t.Fatalf("expected slot 0 to target child index 0, got %d", offsets[0])
+	if !spanChild || !divChild {
+		t.Fatalf("expected slot paths to capture text child offsets, got %+v", structured.SlotPaths)
 	}
-	if offsets[1] != 1 {
-		t.Fatalf("expected slot 1 to target child index 1, got %d", offsets[1])
+}
+
+func TestStructuredCapturesSlotPaths(t *testing.T) {
+	tree := h.WrapComponent("comp", h.Div(
+		h.Textf("%s", "value"),
+	))
+	structured := ToStructured(tree)
+	if len(structured.SlotPaths) != 1 {
+		t.Fatalf("expected a single slot path, got %d", len(structured.SlotPaths))
+	}
+	anchor := structured.SlotPaths[0]
+	if anchor.ComponentID != "comp" {
+		t.Fatalf("expected slot path component 'comp', got %q", anchor.ComponentID)
+	}
+	if len(anchor.ElementPath) != 0 {
+		t.Fatalf("expected slot path to target the component root element, got %+v", anchor.ElementPath)
+	}
+	if anchor.TextChildIndex != 0 {
+		t.Fatalf("expected text slot to reference first child, got %d", anchor.TextChildIndex)
+	}
+	var textSlot = -1
+	for idx, dyn := range structured.D {
+		if dyn.Kind == DynText {
+			textSlot = idx
+			break
+		}
+	}
+	if textSlot < 0 {
+		t.Fatalf("expected dynamic text slot, got %+v", structured.D)
+	}
+	if anchor.Slot != textSlot {
+		t.Fatalf("expected slot path to reference slot %d, got %d", textSlot, anchor.Slot)
+	}
+	var component ComponentPath
+	for _, cp := range structured.ComponentPaths {
+		if cp.ComponentID == "comp" {
+			component = cp
+			break
+		}
+	}
+	if component.ComponentID == "" {
+		t.Fatalf("expected component path for 'comp', got %+v", structured.ComponentPaths)
+	}
+	if component.ParentID != "" {
+		t.Fatalf("expected top-level component to have empty parent id, got %q", component.ParentID)
+	}
+	if len(component.ParentPath) != 0 {
+		t.Fatalf("expected top-level component parent path to be empty, got %+v", component.ParentPath)
+	}
+	if len(component.FirstChild) != 1 || component.FirstChild[0] != 0 {
+		t.Fatalf("expected component first child path [0], got %+v", component.FirstChild)
+	}
+	if len(component.LastChild) != 1 || component.LastChild[0] != 0 {
+		t.Fatalf("expected component last child path [0], got %+v", component.LastChild)
+	}
+}
+
+func TestStructuredCapturesListPaths(t *testing.T) {
+	tree := h.WrapComponent("comp", h.Ul(
+		h.Li(h.Key("a"), h.Text("first")),
+		h.Li(h.Key("b"), h.Text("second")),
+	))
+	structured := ToStructured(tree)
+	if len(structured.ListPaths) != 1 {
+		t.Fatalf("expected a single list path, got %d", len(structured.ListPaths))
+	}
+	anchor := structured.ListPaths[0]
+	if anchor.ComponentID != "comp" {
+		t.Fatalf("expected list path component 'comp', got %q", anchor.ComponentID)
+	}
+	if len(anchor.ElementPath) != 0 {
+		t.Fatalf("expected list path to reference component root element, got %+v", anchor.ElementPath)
+	}
+	var listSlot = -1
+	for idx, dyn := range structured.D {
+		if dyn.Kind == DynList {
+			listSlot = idx
+			break
+		}
+	}
+	if listSlot < 0 {
+		t.Fatalf("expected dynamic list slot, got %+v", structured.D)
+	}
+	if anchor.Slot != listSlot {
+		t.Fatalf("expected list path to reference slot %d, got %d", listSlot, anchor.Slot)
+	}
+}
+
+func TestKeyedRowCapturesSlotManifest(t *testing.T) {
+	tree := h.WrapComponent("comp", h.Ul(
+		h.Li(h.Key("a"), h.Textf("%s", "value")),
+	))
+	structured := ToStructured(tree)
+	var row Row
+	found := false
+	for _, dyn := range structured.D {
+		if dyn.Kind != DynList {
+			continue
+		}
+		if len(dyn.List) == 0 {
+			t.Fatalf("expected keyed list to include rows, got %+v", dyn.List)
+		}
+		row = dyn.List[0]
+		found = true
+		break
+	}
+	if !found {
+		t.Fatalf("expected keyed list dynamics, got %+v", structured.D)
+	}
+	if len(row.SlotPaths) == 0 {
+		t.Fatalf("expected keyed row to capture slot paths, got %+v", row.SlotPaths)
+	}
+	anchor := row.SlotPaths[0]
+	if anchor.ComponentID != "comp" {
+		t.Fatalf("expected row slot path to reference component 'comp', got %q", anchor.ComponentID)
+	}
+	if anchor.Slot < 0 {
+		t.Fatalf("expected slot path to reference a valid slot, got %d", anchor.Slot)
 	}
 }
 

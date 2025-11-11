@@ -3,21 +3,23 @@ package protocol
 import "github.com/eleven-am/pondlive/go/internal/diff"
 
 type Boot struct {
-	T        string                     `json:"t"`
-	SID      string                     `json:"sid"`
-	Ver      int                        `json:"ver"`
-	Seq      int                        `json:"seq"`
-	HTML     string                     `json:"html"`
-	S        []string                   `json:"s"`
-	D        []DynamicSlot              `json:"d"`
-	Slots    []SlotMeta                 `json:"slots"`
-	Handlers map[string]HandlerMeta     `json:"handlers"`
-	Bindings BindingTable               `json:"bindings,omitempty"`
-	Markers  map[string]ComponentMarker `json:"markers,omitempty"`
-	Refs     map[string]RefMeta         `json:"refs,omitempty"`
-	Location Location                   `json:"location"`
-	Client   *ClientConfig              `json:"client,omitempty"`
-	Errors   []ServerError              `json:"errors,omitempty"`
+	T              string                 `json:"t"`
+	SID            string                 `json:"sid"`
+	Ver            int                    `json:"ver"`
+	Seq            int                    `json:"seq"`
+	HTML           string                 `json:"html"`
+	S              []string               `json:"s"`
+	D              []DynamicSlot          `json:"d"`
+	Slots          []SlotMeta             `json:"slots"`
+	SlotPaths      []SlotPath             `json:"slotPaths,omitempty"`
+	ListPaths      []ListPath             `json:"listPaths,omitempty"`
+	ComponentPaths []ComponentPath        `json:"componentPaths,omitempty"`
+	Handlers       map[string]HandlerMeta `json:"handlers"`
+	Bindings       BindingTable           `json:"bindings,omitempty"`
+	Refs           map[string]RefMeta     `json:"refs,omitempty"`
+	Location       Location               `json:"location"`
+	Client         *ClientConfig          `json:"client,omitempty"`
+	Errors         []ServerError          `json:"errors,omitempty"`
 }
 
 type ClientConfig struct {
@@ -27,19 +29,21 @@ type ClientConfig struct {
 }
 
 type Init struct {
-	T        string                     `json:"t"`
-	SID      string                     `json:"sid"`
-	Ver      int                        `json:"ver"`
-	S        []string                   `json:"s"`
-	D        []DynamicSlot              `json:"d"`
-	Slots    []SlotMeta                 `json:"slots"`
-	Handlers map[string]HandlerMeta     `json:"handlers"`
-	Bindings BindingTable               `json:"bindings,omitempty"`
-	Markers  map[string]ComponentMarker `json:"markers,omitempty"`
-	Refs     map[string]RefMeta         `json:"refs,omitempty"`
-	Location Location                   `json:"location"`
-	Seq      int                        `json:"seq"`
-	Errors   []ServerError              `json:"errors,omitempty"`
+	T              string                 `json:"t"`
+	SID            string                 `json:"sid"`
+	Ver            int                    `json:"ver"`
+	S              []string               `json:"s"`
+	D              []DynamicSlot          `json:"d"`
+	Slots          []SlotMeta             `json:"slots"`
+	SlotPaths      []SlotPath             `json:"slotPaths,omitempty"`
+	ListPaths      []ListPath             `json:"listPaths,omitempty"`
+	ComponentPaths []ComponentPath        `json:"componentPaths,omitempty"`
+	Handlers       map[string]HandlerMeta `json:"handlers"`
+	Bindings       BindingTable           `json:"bindings,omitempty"`
+	Refs           map[string]RefMeta     `json:"refs,omitempty"`
+	Location       Location               `json:"location"`
+	Seq            int                    `json:"seq"`
+	Errors         []ServerError          `json:"errors,omitempty"`
 }
 
 type DynamicSlot struct {
@@ -50,23 +54,37 @@ type DynamicSlot struct {
 }
 
 type ListRow struct {
-	Key      string                     `json:"key"`
-	Slots    []SlotMeta                 `json:"slots,omitempty"`
-	Bindings BindingTable               `json:"bindings,omitempty"`
-	Markers  map[string]ComponentMarker `json:"markers,omitempty"`
+	Key            string          `json:"key"`
+	Slots          []int           `json:"slots,omitempty"`
+	Bindings       BindingTable    `json:"bindings,omitempty"`
+	SlotPaths      []SlotPath      `json:"slotPaths,omitempty"`
+	ListPaths      []ListPath      `json:"listPaths,omitempty"`
+	ComponentPaths []ComponentPath `json:"componentPaths,omitempty"`
 }
 
 type SlotMeta struct {
-	AnchorID  int         `json:"anchorId"`
-	Component string      `json:"component,omitempty"`
-	Path      []int       `json:"path,omitempty"`
-	TextIndex *int        `json:"text,omitempty"`
-	List      *ListAnchor `json:"list,omitempty"`
+	AnchorID int `json:"anchorId"`
 }
 
-type ListAnchor struct {
-	Component string `json:"component,omitempty"`
-	Path      []int  `json:"path,omitempty"`
+type SlotPath struct {
+	Slot           int    `json:"slot"`
+	ComponentID    string `json:"componentId"`
+	ElementPath    []int  `json:"elementPath,omitempty"`
+	TextChildIndex int    `json:"textChildIndex"`
+}
+
+type ListPath struct {
+	Slot        int    `json:"slot"`
+	ComponentID string `json:"componentId"`
+	ElementPath []int  `json:"elementPath,omitempty"`
+}
+
+type ComponentPath struct {
+	ComponentID string `json:"componentId"`
+	ParentID    string `json:"parentId,omitempty"`
+	ParentPath  []int  `json:"parentPath,omitempty"`
+	FirstChild  []int  `json:"firstChild,omitempty"`
+	LastChild   []int  `json:"lastChild,omitempty"`
 }
 
 type HandlerMeta struct {
@@ -83,13 +101,6 @@ type SlotBinding struct {
 }
 
 type BindingTable map[int][]SlotBinding
-
-type ComponentMarker struct {
-	Container []int `json:"container,omitempty"`
-	Start     int   `json:"start"`
-	End       int   `json:"end"`
-}
-
 type Join struct {
 	T   string   `json:"t"`
 	SID string   `json:"sid"`

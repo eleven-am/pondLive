@@ -4,6 +4,7 @@ import {
   getSlot,
   unregisterSlot,
   reset,
+  initLists,
   ensureList,
   registerList,
   getRow,
@@ -13,7 +14,7 @@ import {
 } from "../src/dom-index";
 import * as events from "../src/events";
 
-function createListContainer(_slot: number, rows: string[] = []): HTMLElement {
+function createListContainer(slot: number, rows: string[] = []): HTMLElement {
   const container = document.createElement("div");
   for (const key of rows) {
     const row = document.createElement("div");
@@ -84,7 +85,7 @@ describe("dom index", () => {
     registerSlot(1, nodeA);
     registerSlot(2, nodeB);
     const container = createListContainer(5, ["first"]);
-    registerList(5, container);
+    initLists([5], new Map([[5, container]]));
 
     reset();
     document.body.innerHTML = "";
@@ -99,10 +100,10 @@ describe("dom index", () => {
     expect(() => ensureList(404)).toThrowError(/list slot 404/);
   });
 
-  it("registers list containers and tracks rows", () => {
+  it("initializes list containers and tracks rows", () => {
     const container = createListContainer(6, ["alpha", "beta"]);
 
-    registerList(6, container);
+    initLists([6], new Map([[6, container]]));
 
     const alpha = getRow(6, "alpha");
     const beta = getRow(6, "beta");
@@ -124,6 +125,34 @@ describe("dom index", () => {
     expect(getRow(8, "sentinel")).toBe(sentinel);
   });
 
+  it("initLists does not overwrite custom row bookkeeping", () => {
+    const container = createListContainer(13, ["dom"]);
+    const rows = new Map<string, Element>();
+    const sentinel = document.createElement("span");
+    rows.set("preserve", sentinel);
+
+    registerList(13, container, rows);
+
+    initLists([13], new Map([[13, container]]));
+
+    expect(getRow(13, "preserve")).toBe(sentinel);
+    expect(getRow(13, "dom")).toBeNull();
+  });
+
+  it("initLists does not overwrite custom row bookkeeping", () => {
+    const container = createListContainer(13, ["dom"]);
+    const rows = new Map<string, Element>();
+    const sentinel = document.createElement("span");
+    rows.set("preserve", sentinel);
+
+    registerList(13, container, rows);
+
+    initLists([13], new Map([[13, container]]));
+
+    expect(getRow(13, "preserve")).toBe(sentinel);
+    expect(getRow(13, "dom")).toBeNull();
+  });
+
   it("updates row bookkeeping for set and delete operations", () => {
     const container = createListContainer(11);
 
@@ -140,8 +169,8 @@ describe("dom index", () => {
   });
 
   it("rebuilds list records after unregistering", () => {
-    const initial = createListContainer(12, ["first"]);
-    registerList(12, initial);
+    const container = createListContainer(12, ["first"]);
+    initLists([12], new Map([[12, container]]));
 
     unregisterList(12);
 

@@ -1180,6 +1180,7 @@ var LiveUIModule = (() => {
     ensureList: () => ensureList,
     getRow: () => getRow,
     getSlot: () => getSlot,
+    initLists: () => initLists,
     registerList: () => registerList,
     registerSlot: () => registerSlot,
     reset: () => reset,
@@ -1586,6 +1587,14 @@ var LiveUIModule = (() => {
   var DATA_EVENT_ATTR_PREFIX = "data-on";
   var DATA_ROUTER_ATTR_PREFIX = "data-router-";
   var ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
+  var CAPTURE_EVENTS = /* @__PURE__ */ new Set([
+    "blur",
+    "focus",
+    "mouseenter",
+    "mouseleave",
+    "pointerenter",
+    "pointerleave"
+  ]);
   function setRouterMetaValue(element, field, value) {
     let meta = routerBindings.get(element);
     if (value === null || value === void 0 || value === "") {
@@ -1916,9 +1925,12 @@ var LiveUIModule = (() => {
   function unregisterNavigationHandler() {
     navigationHandler = null;
   }
+  function shouldUseCapture(eventType) {
+    return CAPTURE_EVENTS.has(eventType);
+  }
   function installListener(eventType) {
     if (installedListeners.has(eventType)) return;
-    const useCapture = eventType === "blur" || eventType === "focus";
+    const useCapture = shouldUseCapture(eventType);
     const listener = (e) => {
       if (sendEventCallback) {
         handleEvent(e, eventType, sendEventCallback);
@@ -1930,7 +1942,7 @@ var LiveUIModule = (() => {
   function removeListener(eventType) {
     const listener = installedListeners.get(eventType);
     if (!listener) return;
-    const useCapture = eventType === "blur" || eventType === "focus";
+    const useCapture = shouldUseCapture(eventType);
     document.removeEventListener(eventType, listener, useCapture);
     installedListeners.delete(eventType);
   }
@@ -2239,11 +2251,36 @@ var LiveUIModule = (() => {
     slotMap.clear();
     listMap.clear();
   }
-  function ensureList(slotIndex) {
-    if (listMap.has(slotIndex)) {
-      return listMap.get(slotIndex);
+  function initLists(slotIndexes, containers) {
+    if (!Array.isArray(slotIndexes)) return;
+    const lookup = (slotIndex) => {
+      if (containers instanceof Map) {
+        const candidate = containers.get(slotIndex);
+        return candidate instanceof Element ? candidate : null;
+      }
+      if (containers && typeof containers === "object") {
+        const key = String(slotIndex);
+        const candidate = containers[key];
+        return candidate instanceof Element ? candidate : null;
+      }
+      return null;
+    };
+    for (const slotIndex of slotIndexes) {
+      if (listMap.has(slotIndex) && listMap.get(slotIndex)?.container instanceof Element) {
+        continue;
+      }
+      const container = lookup(slotIndex);
+      if (container) {
+        registerList(slotIndex, container);
+      }
     }
-    throw new Error(`liveui: list slot ${slotIndex} not registered`);
+  }
+  function ensureList(slotIndex) {
+    const record = listMap.get(slotIndex);
+    if (!record || !record.container) {
+      throw new Error(`liveui: list slot ${slotIndex} not registered`);
+    }
+    return record;
   }
   function registerList(slotIndex, container, rows) {
     if (!container) return;
@@ -2262,259 +2299,269 @@ var LiveUIModule = (() => {
     list.rows.delete(key);
   }
 
-  // src/componentMarkers.ts
-  var componentMarkerIndex = /* @__PURE__ */ new Map();
-  var hasDocumentConstructor = typeof Document !== "undefined";
-  function cloneDescriptors(descriptors) {
-    const out = {};
-    for (const [id, descriptor] of Object.entries(descriptors)) {
-      if (!id || !descriptor) continue;
-      const start = Number(descriptor.start);
-      const end = Number(descriptor.end);
-      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
-      const clone = {
-        start,
-        end
-      };
-      if ("container" in descriptor) {
-        const normalized = normalizePath(descriptor.container);
-        if (normalized === null) {
-          continue;
-        }
-        if (normalized.length > 0) {
-          clone.container = normalized;
-        }
-      }
-      out[id] = clone;
-    }
-    return out;
+  // src/componentRanges.ts
+  var rangeIndex = /* @__PURE__ */ new Map();
+  function resetComponentRanges() {
+    rangeIndex.clear();
   }
-  function normalizePath(path) {
-    if (path == null) {
-      return [];
-    }
-    if (!Array.isArray(path)) {
+  function registerComponentRange(id, range) {
+    if (!id || !range || !range.container) return null;
+    const { container } = range;
+    let { startIndex, endIndex } = range;
+    if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) {
       return null;
     }
-    const result = [];
-    for (const segment of path) {
-      const value = Number(segment);
-      if (!Number.isFinite(value)) {
-        return null;
-      }
-      result.push(Math.trunc(value));
-    }
-    return result;
-  }
-  function assignMarkers(descriptors, root, resetExisting) {
-    const target = root ?? (typeof document !== "undefined" ? document : null);
-    if (!target || !isParentNode(target)) {
-      return;
-    }
-    if (resetExisting) {
-      componentMarkerIndex.clear();
-    }
-    for (const [id, descriptor] of Object.entries(descriptors)) {
-      if (!id || !descriptor) continue;
-      const start = Number(descriptor.start);
-      const end = Number(descriptor.end);
-      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
-      if (end < start) continue;
-      const normalizedStart = Math.max(0, Math.trunc(start));
-      const normalizedEnd = Math.max(normalizedStart, Math.trunc(end));
-      const path = Array.isArray(descriptor.container) ? descriptor.container : [];
-      const container = resolveContainer(target, path);
-      if (!container) continue;
-      registerComponentMarker(id, container, normalizedStart, normalizedEnd);
-    }
-  }
-  function resolveContainer(root, path) {
-    if (path.length === 0) {
-      return root;
-    }
-    let current = root;
-    for (const index of path) {
-      current = getRenderableChild(current, index);
-      if (!current) {
-        return null;
-      }
-    }
-    return isParentNode(current) ? current : null;
-  }
-  function getRenderableChild(parent, targetIndex) {
-    if (!isParentNode(parent) || targetIndex < 0) {
+    const normalizedStart = Math.max(0, Math.trunc(startIndex));
+    let normalizedEnd = Math.trunc(endIndex);
+    if (!Number.isFinite(normalizedEnd)) {
       return null;
     }
-    let index = 0;
-    for (let child = parent.firstChild; child; child = child.nextSibling) {
-      if (!isRenderableNode(child)) {
-        continue;
-      }
-      if (index === targetIndex) {
-        return child;
-      }
-      index += 1;
+    if (normalizedEnd < normalizedStart) {
+      normalizedEnd = normalizedStart - 1;
     }
-    return null;
-  }
-  function isRenderableNode(node) {
-    return !!node && node.nodeType !== Node.COMMENT_NODE;
-  }
-  function isParentNode(node) {
-    if (!node) return false;
-    if (node instanceof Element || node instanceof DocumentFragment) {
-      return true;
-    }
-    if (hasDocumentConstructor && node instanceof Document) {
-      return true;
-    }
-    return false;
-  }
-  function resetComponentMarkers() {
-    componentMarkerIndex.clear();
-  }
-  function initializeComponentMarkers(descriptors, root) {
-    if (!descriptors) {
-      resetComponentMarkers();
-      return;
-    }
-    assignMarkers(cloneDescriptors(descriptors), root ?? null, true);
-  }
-  function registerComponentMarkers(descriptors, root) {
-    if (!descriptors) {
-      return;
-    }
-    assignMarkers(cloneDescriptors(descriptors), root, false);
-  }
-  function registerComponentMarker(id, container, start, end) {
-    if (!id || !container) return;
-    const normalizedStart = Math.max(0, Math.trunc(Number(start)));
-    const normalizedEnd = Math.max(normalizedStart, Math.trunc(Number(end)));
-    componentMarkerIndex.set(id, {
+    const normalized = {
       container,
-      start: normalizedStart,
-      end: normalizedEnd
-    });
-  }
-  function getComponentBounds(id) {
-    if (!id) return null;
-    const entry = componentMarkerIndex.get(id);
-    if (!entry || !isParentNode(entry.container)) {
-      return null;
-    }
-    return {
-      container: entry.container,
-      start: entry.start,
-      end: entry.end
+      startIndex: normalizedStart,
+      endIndex: normalizedEnd
     };
+    rangeIndex.set(id, normalized);
+    return normalized;
+  }
+  function registerComponentRanges(descriptors) {
+    if (!descriptors) return;
+    if (descriptors instanceof Map) {
+      for (const [id, range] of Array.from(descriptors.entries())) {
+        const normalized = registerComponentRange(id, range);
+        if (normalized) {
+          descriptors.set(id, normalized);
+        } else {
+          descriptors.delete(id);
+        }
+      }
+      return;
+    }
+    for (const [id, range] of Object.entries(descriptors)) {
+      const normalized = registerComponentRange(id, range);
+      if (normalized) {
+        descriptors[id] = normalized;
+      } else {
+        delete descriptors[id];
+      }
+    }
+  }
+  function getComponentRange(id) {
+    if (!id) return null;
+    return rangeIndex.get(id) ?? null;
   }
 
-  // src/slot-resolver.ts
-  function resolveSlotTarget(slot) {
-    if (!slot || typeof slot.anchorId !== "number") {
+  // src/manifest.ts
+  function ensureArray(path) {
+    if (!Array.isArray(path)) {
+      return [];
+    }
+    return path.filter((index) => Number.isInteger(index));
+  }
+  function getRootContainer(root) {
+    if (root && root instanceof Document) {
+      return root.body ?? root;
+    }
+    if (root && "childNodes" in root) {
+      return root;
+    }
+    if (typeof document !== "undefined") {
+      return document.body ?? document;
+    }
+    throw new Error("liveui: unable to resolve root container for manifest resolution");
+  }
+  function clampIndex(container, index) {
+    const maxIndex = container.childNodes.length - 1;
+    if (maxIndex < 0) {
+      return 0;
+    }
+    if (index < 0) {
+      return 0;
+    }
+    if (index > maxIndex) {
+      return maxIndex;
+    }
+    return index;
+  }
+  function computeBaseRange(root) {
+    const count = root.childNodes.length;
+    return {
+      container: root,
+      startIndex: 0,
+      endIndex: count > 0 ? count - 1 : -1
+    };
+  }
+  function deriveRangeFromDescriptor(descriptor, parentRange) {
+    if (!parentRange || parentRange.endIndex < parentRange.startIndex) {
       return null;
     }
-    const anchor = resolveSlotPath(slot.component, slot.path);
+    const anchorPath = ensureArray(descriptor.parentPath);
+    const anchor = resolveNodeInRange(parentRange, anchorPath);
     if (!anchor) {
       return null;
     }
-    if (typeof slot.text !== "number") {
-      return anchor;
-    }
-    if (!isParentNode2(anchor)) {
+    const container = anchor.parentNode ?? parentRange.container;
+    const startIndex = getNodeIndex(container, anchor);
+    if (startIndex < 0) {
       return null;
     }
-    return getRenderableChild2(anchor, slot.text);
+    return {
+      container,
+      startIndex,
+      endIndex: startIndex
+    };
   }
-  function resolveListContainer(slot) {
-    if (!slot || !slot.list) {
-      return null;
+  function getNodeIndex(container, target) {
+    if (!container || !target) {
+      return -1;
     }
-    const component = slot.list.component ?? slot.component;
-    const path = slot.list.path ?? slot.path;
-    const target = resolveSlotPath(component, path);
-    return target instanceof Element ? target : null;
-  }
-  function resolveSlotPath(componentId, path) {
-    const segments = Array.isArray(path) ? path : [];
-    if (typeof componentId === "string" && componentId.length > 0) {
-      const bounds = getComponentBounds(componentId);
-      if (!bounds) {
-        return null;
+    const nodes = container.childNodes;
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes.item(i) === target) {
+        return i;
       }
-      return resolveWithinComponent(bounds, segments);
     }
-    return resolveFromDocument(segments);
+    return -1;
   }
-  function resolveWithinComponent(bounds, path) {
-    const { container, start, end } = bounds;
-    if (!isParentNode2(container) || start < 0 || end < start) {
-      return null;
+  function computeComponentRanges(descriptors, options) {
+    const ranges = /* @__PURE__ */ new Map();
+    if (!Array.isArray(descriptors) || descriptors.length === 0) {
+      return ranges;
     }
-    if (path.length === 0) {
-      if (end <= start) {
-        return null;
+    const rootContainer = getRootContainer(options?.root ?? null);
+    const defaultRange = options?.baseRange ?? computeBaseRange(rootContainer);
+    const baseId = options?.baseId ?? "";
+    if (options?.baseRange && baseId) {
+      ranges.set(baseId, options.baseRange);
+    }
+    const pending = /* @__PURE__ */ new Map();
+    for (const descriptor of descriptors) {
+      if (!descriptor || typeof descriptor.componentId !== "string") continue;
+      pending.set(descriptor.componentId, descriptor);
+    }
+    let progressed = true;
+    while (pending.size > 0 && progressed) {
+      progressed = false;
+      for (const [id, descriptor] of Array.from(pending.entries())) {
+        const parentId = descriptor.parentId ?? "";
+        let parentRange = null;
+        if (parentId) {
+          parentRange = ranges.get(parentId) ?? getComponentRange(parentId);
+        } else {
+          parentRange = baseId ? ranges.get(baseId) ?? null : null;
+          if (!parentRange) {
+            parentRange = defaultRange;
+          }
+        }
+        if (!parentRange) {
+          continue;
+        }
+        const derived = deriveRangeFromDescriptor(descriptor, parentRange);
+        if (!derived) {
+          pending.delete(id);
+          continue;
+        }
+        ranges.set(id, derived);
+        pending.delete(id);
+        progressed = true;
       }
-      return getRenderableChild2(container, start);
     }
-    const headIndex = start + path[0];
-    if (headIndex < start || headIndex >= end) {
-      return null;
-    }
-    let current = getRenderableChild2(container, headIndex);
+    return ranges;
+  }
+  function resolveNodeInRange(range, path) {
+    if (!range || range.endIndex < range.startIndex) return null;
+    const steps = ensureArray(path);
+    const rootIndex = clampIndex(range.container, range.startIndex);
+    let current = range.container.childNodes.item(rootIndex) ?? null;
     if (!current) {
       return null;
     }
-    for (let i = 1; i < path.length; i += 1) {
-      current = getRenderableChildFromNode(current, path[i]);
+    if (steps.length === 0) {
+      return current;
+    }
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      if (!(current instanceof Element || current instanceof DocumentFragment)) {
+        return null;
+      }
+      current = current.childNodes.item(step) ?? null;
       if (!current) {
         return null;
       }
     }
     return current;
   }
-  function resolveFromDocument(path) {
-    if (typeof document === "undefined") {
-      return null;
+  function resolveSlotAnchors(descriptors, overrides) {
+    const anchors = /* @__PURE__ */ new Map();
+    if (!Array.isArray(descriptors)) {
+      return anchors;
     }
-    let current = document.body ?? document;
-    if (path.length === 0) {
-      const first = getRenderableChildFromNode(current, 0);
-      return first ?? null;
-    }
-    for (const index of path) {
-      const next = getRenderableChildFromNode(current, index);
-      if (!next) {
-        return null;
-      }
-      current = next;
-    }
-    return current;
-  }
-  function getRenderableChildFromNode(node, targetIndex) {
-    if (!isParentNode2(node) || targetIndex < 0) {
-      return null;
-    }
-    return getRenderableChild2(node, targetIndex);
-  }
-  function getRenderableChild2(parent, targetIndex) {
-    let index = 0;
-    for (let child = parent.firstChild; child; child = child.nextSibling) {
-      if (!isRenderableNode2(child)) {
+    for (const descriptor of descriptors) {
+      if (!descriptor) continue;
+      const slotId = Number(descriptor.slot);
+      if (!Number.isInteger(slotId) || slotId < 0 || anchors.has(slotId)) {
         continue;
       }
-      if (index === targetIndex) {
-        return child;
+      const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
+      if (!range) {
+        continue;
       }
-      index += 1;
+      const anchor = resolveNodeInRange(range, descriptor.elementPath);
+      if (!anchor) {
+        continue;
+      }
+      let target = anchor;
+      const textIndex = Number(descriptor.textChildIndex);
+      if (Number.isInteger(textIndex) && textIndex >= 0) {
+        if (anchor instanceof Element || anchor instanceof DocumentFragment) {
+          let textNode = anchor.childNodes.item(textIndex) ?? null;
+          if (!textNode && typeof document !== "undefined") {
+            textNode = document.createTextNode("");
+            const before = textIndex < anchor.childNodes.length ? anchor.childNodes.item(textIndex) : null;
+            anchor.insertBefore(textNode, before);
+          }
+          target = textNode;
+        } else {
+          target = null;
+        }
+      }
+      if (!target) {
+        continue;
+      }
+      anchors.set(slotId, target);
     }
-    return null;
+    return anchors;
   }
-  function isRenderableNode2(node) {
-    return !!node && node.nodeType !== Node.COMMENT_NODE;
+  function resolveListContainers(descriptors, overrides) {
+    const lists = /* @__PURE__ */ new Map();
+    if (!Array.isArray(descriptors)) {
+      return lists;
+    }
+    for (const descriptor of descriptors) {
+      if (!descriptor) continue;
+      const slotId = Number(descriptor.slot);
+      if (!Number.isInteger(slotId) || slotId < 0 || lists.has(slotId)) {
+        continue;
+      }
+      const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
+      if (!range) {
+        continue;
+      }
+      const node = resolveNodeInRange(range, descriptor.elementPath);
+      if (!(node instanceof Element)) {
+        continue;
+      }
+      lists.set(slotId, node);
+    }
+    return lists;
   }
-  function isParentNode2(node) {
-    return node instanceof Element || node instanceof Document || node instanceof DocumentFragment;
+  function applyComponentRanges(descriptors, options) {
+    const ranges = computeComponentRanges(descriptors, options);
+    registerComponentRanges(ranges);
+    return ranges;
   }
 
   // src/patcher.ts
@@ -2815,20 +2862,36 @@ var LiveUIModule = (() => {
       }
     }
   }
-  function registerRowSlots(slotMetas, _fragment) {
-    if (!Array.isArray(slotMetas) || slotMetas.length === 0) {
+  function registerRowSlots(row, fragment, overrides) {
+    if (!row) {
       return;
     }
-    for (const slot of slotMetas) {
-      if (!slot || typeof slot.anchorId !== "number") {
-        continue;
-      }
-      const target = resolveSlotTarget(slot);
-      if (target) {
-        registerSlot(slot.anchorId, target);
+    const requestedSlots = Array.isArray(row.slots) ? row.slots.filter((value) => Number.isInteger(value) && value >= 0) : [];
+    const pendingSlots = new Set(requestedSlots);
+    const slotAnchors = resolveSlotAnchors(row.slotPaths, overrides);
+    if (slotAnchors.size > 0) {
+      if (pendingSlots.size > 0) {
+        for (const slotId of Array.from(pendingSlots)) {
+          const node = slotAnchors.get(slotId);
+          if (node) {
+            registerSlot(slotId, node);
+            pendingSlots.delete(slotId);
+          }
+        }
       } else {
-        console.warn(`liveui: slot ${slot.anchorId} not resolved in inserted row`);
+        for (const [slotId, node] of slotAnchors.entries()) {
+          registerSlot(slotId, node);
+        }
       }
+    }
+    const listAnchors = resolveListContainers(row.listPaths, overrides);
+    for (const [slotId, element] of listAnchors.entries()) {
+      registerList(slotId, element);
+    }
+    if (pendingSlots.size > 0 && requestedSlots.length > 0) {
+      pendingSlots.forEach((idx) => {
+        console.warn(`liveui: slot ${idx} not resolved in inserted row`);
+      });
     }
   }
   function applyList(slotIndex, childOps) {
@@ -2882,9 +2945,6 @@ var LiveUIModule = (() => {
             }
           }
           primeHandlerBindings(fragment);
-          if (payload.markers) {
-            registerComponentMarkers(payload.markers, fragment);
-          }
           const nodes = Array.from(fragment.childNodes);
           if (nodes.length === 0) {
             console.warn("live: insertion payload missing nodes for key", payload.key);
@@ -2901,7 +2961,8 @@ var LiveUIModule = (() => {
             const root = nodes[0];
             if (root instanceof Element) {
               setRow(slotIndex, payload.key, root);
-              registerRowSlots(payload.slots || [], root);
+              const rangeOverrides = applyComponentRanges(payload.componentPaths);
+              registerRowSlots(payload, root, rangeOverrides);
               if (shouldVirtualize(slotIndex, itemCount)) {
                 const state = virtualScrollStates.get(slotIndex);
                 if (state && (pos < state.visibleRange.start || pos > state.visibleRange.end)) {
@@ -3490,7 +3551,8 @@ var LiveUIModule = (() => {
       registerRefs(boot.refs);
       if (typeof document !== "undefined") {
         bindRefsInTree(document);
-        initializeComponentMarkers(boot.markers ?? null, document);
+        resetComponentRanges();
+        applyComponentRanges(boot.componentPaths, { root: document });
       }
       this.registerInitialDom(boot);
       if (typeof window !== "undefined" && boot.location) {
@@ -3511,23 +3573,25 @@ var LiveUIModule = (() => {
         return;
       }
       reset();
-      if (!Array.isArray(boot.slots)) {
-        return;
+      const slotAnchors = resolveSlotAnchors(boot.slotPaths);
+      if (Array.isArray(boot.slots) && boot.slots.length > 0) {
+        for (const slot of boot.slots) {
+          if (!slot || typeof slot.anchorId !== "number") continue;
+          const node = slotAnchors.get(slot.anchorId);
+          if (node) {
+            registerSlot(slot.anchorId, node);
+          } else if (this.debug) {
+            console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
+          }
+        }
+      } else {
+        for (const [slotId, node] of slotAnchors.entries()) {
+          registerSlot(slotId, node);
+        }
       }
-      for (const slot of boot.slots) {
-        if (!slot || typeof slot.anchorId !== "number") continue;
-        const target = resolveSlotTarget(slot);
-        if (target) {
-          registerSlot(slot.anchorId, target);
-        } else if (this.debug) {
-          console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
-        }
-        const listContainer = resolveListContainer(slot);
-        if (listContainer) {
-          registerList(slot.anchorId, listContainer);
-        } else if (slot.list && this.debug) {
-          console.warn(`liveui: list slot ${slot.anchorId} container not found during boot`);
-        }
+      const listContainers = resolveListContainers(boot.listPaths);
+      for (const [slotId, element] of listContainers.entries()) {
+        registerList(slotId, element);
       }
     }
     /**
@@ -4072,7 +4136,7 @@ var LiveUIModule = (() => {
       if (typeof document !== "undefined") {
         bindRefsInTree(document);
         primeHandlerBindings(document);
-        initializeComponentMarkers(msg.markers ?? null, document);
+        applyComponentRanges(msg.componentPaths, { root: document });
       }
       if (msg.seq !== void 0) {
         this.lastAck = msg.seq;
@@ -4633,7 +4697,7 @@ var LiveUIModule = (() => {
       if (typeof document !== "undefined") {
         document.body.innerHTML = boot.html;
         primeHandlerBindings(document);
-        initializeComponentMarkers(boot.markers ?? null, document);
+        applyComponentRanges(boot.componentPaths, { root: document });
       }
       this.bootHandler.load(boot);
       syncEventListeners();
@@ -4641,22 +4705,18 @@ var LiveUIModule = (() => {
     applyComponentBootEffect(effect) {
       if (typeof document === "undefined") return;
       if (!effect || !effect.componentId) return;
-      const { componentId, html, slots, listSlots, bindings } = effect;
-      const bounds = this.findComponentBounds(componentId);
+      const { componentId, html, slots, listSlots, bindings, slotPaths, listPaths } = effect;
+      const bounds = this.findComponentRange(componentId);
       if (!bounds) {
         if (this.options.debug) {
           console.warn(`liveui: component ${componentId} bounds not found for componentBoot effect`);
         }
         return;
       }
-      const normalizedSlots = Array.isArray(slots) ? slots.map((entry) => {
-        if (typeof entry === "number") {
-          return { anchorId: entry };
+      if (Array.isArray(slots)) {
+        for (const slot of slots) {
+          unregisterSlot(slot);
         }
-        return entry && typeof entry.anchorId === "number" ? entry : null;
-      }).filter((entry) => !!entry) : [];
-      for (const slot of normalizedSlots) {
-        unregisterSlot(slot.anchorId);
       }
       if (Array.isArray(listSlots)) {
         for (const slot of listSlots) {
@@ -4668,21 +4728,43 @@ var LiveUIModule = (() => {
       template.innerHTML = html || "";
       const fragment = template.content.cloneNode(true);
       primeHandlerBindings(fragment);
-      if (effect.markers) {
-        registerComponentMarkers(effect.markers, fragment);
+      const insertedNodes = [];
+      for (let child = fragment.firstChild; child; child = child.nextSibling) {
+        insertedNodes.push(child);
       }
-      const range = document.createRange();
-      setRangeFromBounds(range, bounds);
-      range.deleteContents();
-      range.insertNode(fragment);
-      range.detach();
-      const refreshed = this.findComponentBounds(componentId);
-      if (!refreshed) {
-        if (this.options.debug) {
-          console.warn(`liveui: component ${componentId} bounds missing after componentBoot replacement`);
+      const container = bounds.container;
+      const afterIndex = bounds.endIndex + 1;
+      const referenceNode = afterIndex < container.childNodes.length ? container.childNodes.item(afterIndex) : null;
+      for (let index = bounds.endIndex; index >= bounds.startIndex; index--) {
+        const node = container.childNodes.item(index);
+        if (node) {
+          container.removeChild(node);
         }
-        return;
       }
+      container.insertBefore(fragment, referenceNode ?? null);
+      const insertedCount = insertedNodes.length;
+      let refreshed = null;
+      if (insertedCount > 0) {
+        const endIndex = bounds.startIndex + insertedCount - 1;
+        refreshed = registerComponentRange(componentId, {
+          container,
+          startIndex: bounds.startIndex,
+          endIndex
+        });
+      } else {
+        refreshed = registerComponentRange(componentId, {
+          container,
+          startIndex: bounds.startIndex,
+          endIndex: bounds.startIndex - 1
+        });
+      }
+      if (!refreshed) {
+        refreshed = { container, startIndex: bounds.startIndex, endIndex: bounds.startIndex - 1 };
+      }
+      const rangeOverrides = applyComponentRanges(effect.componentPaths, {
+        baseId: componentId,
+        baseRange: refreshed
+      });
       if (bindings && typeof bindings === "object") {
         for (const [slotKey, specs] of Object.entries(bindings)) {
           const slotId = Number(slotKey);
@@ -4692,23 +4774,57 @@ var LiveUIModule = (() => {
           registerBindingsForSlot(slotId, Array.isArray(specs) ? specs : []);
         }
       }
-      this.registerComponentAnchors(normalizedSlots);
+      this.registerComponentAnchors(
+        refreshed,
+        Array.isArray(slots) ? slots : [],
+        Array.isArray(listSlots) ? listSlots : [],
+        Array.isArray(slotPaths) ? slotPaths : void 0,
+        Array.isArray(listPaths) ? listPaths : void 0,
+        rangeOverrides
+      );
     }
-    findComponentBounds(id) {
+    findComponentRange(id) {
       if (typeof document === "undefined" || !id) return null;
-      return getComponentBounds(id);
+      return getComponentRange(id);
     }
-    registerComponentAnchors(slots) {
-      for (const slot of slots) {
-        const target = resolveSlotTarget(slot);
-        if (target) {
-          registerSlot(slot.anchorId, target);
-        } else if (this.options.debug) {
-          console.warn(`liveui: slot ${slot.anchorId} not registered during componentBoot`);
+    registerComponentAnchors(range, slots, listSlots, slotDescriptors, listDescriptors, overrides) {
+      if (!range || range.endIndex < range.startIndex) {
+        return;
+      }
+      const requestedSlots = Array.isArray(slots) ? slots.filter((value) => Number.isInteger(value) && value >= 0) : [];
+      const requestedLists = Array.isArray(listSlots) ? listSlots.filter((value) => Number.isInteger(value) && value >= 0) : [];
+      const pendingSlots = new Set(requestedSlots);
+      const pendingLists = new Set(requestedLists);
+      const slotAnchors = resolveSlotAnchors(slotDescriptors, overrides);
+      if (slotAnchors.size > 0) {
+        if (pendingSlots.size > 0) {
+          for (const slotId of Array.from(pendingSlots)) {
+            const node = slotAnchors.get(slotId);
+            if (node) {
+              registerSlot(slotId, node);
+              pendingSlots.delete(slotId);
+            }
+          }
+        } else {
+          for (const [slotId, node] of slotAnchors.entries()) {
+            registerSlot(slotId, node);
+          }
         }
-        const listContainer = resolveListContainer(slot);
-        if (listContainer) {
-          registerList(slot.anchorId, listContainer);
+      }
+      const listAnchors = resolveListContainers(listDescriptors, overrides);
+      if (listAnchors.size > 0) {
+        if (pendingLists.size > 0) {
+          for (const slotId of Array.from(pendingLists)) {
+            const element = listAnchors.get(slotId);
+            if (element) {
+              registerList(slotId, element);
+              pendingLists.delete(slotId);
+            }
+          }
+        } else {
+          for (const [slotId, element] of listAnchors.entries()) {
+            registerList(slotId, element);
+          }
         }
       }
     }
@@ -5337,67 +5453,6 @@ var LiveUIModule = (() => {
     }
   };
   var index_default = LiveUI;
-  function setRangeFromBounds(range, bounds) {
-    const { container, start, end } = bounds;
-    const startNode = getRenderableChildAt(container, start);
-    if (startNode) {
-      range.setStartBefore(startNode);
-    } else {
-      const offset2 = getRenderableChildOffset(container, start);
-      range.setStart(container, offset2);
-    }
-    if (end > start) {
-      const endNode = getRenderableChildAt(container, end - 1);
-      if (endNode) {
-        range.setEndAfter(endNode);
-        return;
-      }
-      const offset2 = getRenderableChildOffset(container, end);
-      range.setEnd(container, offset2);
-      return;
-    }
-    const offset = getRenderableChildOffset(container, start);
-    range.setEnd(container, offset);
-  }
-  function getRenderableChildAt(parent, index) {
-    if (index < 0) {
-      return null;
-    }
-    let seen = 0;
-    for (let child = parent.firstChild; child; child = child.nextSibling) {
-      if (!isRenderableNode3(child)) {
-        continue;
-      }
-      if (seen === index) {
-        return child;
-      }
-      seen += 1;
-    }
-    return null;
-  }
-  function getRenderableChildOffset(parent, index) {
-    if (index <= 0) {
-      return 0;
-    }
-    let offset = 0;
-    let seen = 0;
-    for (let child = parent.firstChild; child; child = child.nextSibling) {
-      if (seen >= index) {
-        break;
-      }
-      offset += 1;
-      if (isRenderableNode3(child)) {
-        seen += 1;
-      }
-    }
-    if (seen < index) {
-      return parent.childNodes.length;
-    }
-    return offset;
-  }
-  function isRenderableNode3(node) {
-    return !!node && node.nodeType !== Node.COMMENT_NODE;
-  }
 
   // src/entry.ts
   var bootPromise = null;

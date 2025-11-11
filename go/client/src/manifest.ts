@@ -1,0 +1,297 @@
+import type {
+  SlotPathDescriptor,
+  ListPathDescriptor,
+  ComponentPathDescriptor,
+} from './types';
+import {
+  ComponentRange,
+  getComponentRange,
+  registerComponentRanges,
+} from './componentRanges';
+
+function ensureArray(path?: number[] | null): number[] {
+  if (!Array.isArray(path)) {
+    return [];
+  }
+  return path.filter((index) => Number.isInteger(index));
+}
+
+function getRootContainer(root?: ParentNode | null): ParentNode {
+  if (root && root instanceof Document) {
+    return root.body ?? root;
+  }
+  if (root && 'childNodes' in root) {
+    return root;
+  }
+  if (typeof document !== 'undefined') {
+    return document.body ?? document;
+  }
+  throw new Error('liveui: unable to resolve root container for manifest resolution');
+}
+
+function clampIndex(container: ParentNode, index: number): number {
+  const maxIndex = container.childNodes.length - 1;
+  if (maxIndex < 0) {
+    return 0;
+  }
+  if (index < 0) {
+    return 0;
+  }
+  if (index > maxIndex) {
+    return maxIndex;
+  }
+  return index;
+}
+
+function computeBaseRange(root: ParentNode): ComponentRange {
+  const count = root.childNodes.length;
+  return {
+    container: root,
+    startIndex: 0,
+    endIndex: count > 0 ? count - 1 : -1,
+  };
+}
+
+function resolveContainerFromParent(
+  parentRange: ComponentRange,
+  parentPath: number[] | undefined,
+): ParentNode | null {
+  if (!parentRange || parentRange.endIndex < parentRange.startIndex) {
+    return null;
+  }
+  const steps = ensureArray(parentPath);
+  if (steps.length <= 1) {
+    return parentRange.container;
+  }
+  const containerSteps = steps.slice(0, -1);
+  let current: ParentNode = parentRange.container;
+  let node: Node | null = null;
+  for (let i = 0; i < containerSteps.length; i++) {
+    const step = containerSteps[i];
+    const targetIndex = i === 0 ? parentRange.startIndex + step : step;
+    node = current.childNodes.item(targetIndex) ?? null;
+    if (!(node instanceof Element || node instanceof DocumentFragment)) {
+      return null;
+    }
+    current = node;
+  }
+  return current;
+}
+
+function deriveRangeFromDescriptor(
+  descriptor: ComponentPathDescriptor,
+  parentRange: ComponentRange,
+): ComponentRange | null {
+  if (!parentRange || parentRange.endIndex < parentRange.startIndex) {
+    return null;
+  }
+  const anchorPath = ensureArray(descriptor.parentPath);
+  const anchor = resolveNodeInRange(parentRange, anchorPath);
+  if (!anchor) {
+    return null;
+  }
+  const container =
+    (anchor.parentNode as ParentNode | null) ?? parentRange.container;
+  const startIndex = getNodeIndex(container, anchor);
+  if (startIndex < 0) {
+    return null;
+  }
+  return {
+    container,
+    startIndex,
+    endIndex: startIndex,
+  };
+}
+
+function getNodeIndex(container: ParentNode, target: Node | null): number {
+  if (!container || !target) {
+    return -1;
+  }
+  const nodes = container.childNodes;
+  for (let i = 0; i < nodes.length; i++) {
+    if (nodes.item(i) === target) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+export function computeComponentRanges(
+  descriptors: ComponentPathDescriptor[] | undefined,
+  options?: {
+    root?: ParentNode | null;
+    baseId?: string | null;
+    baseRange?: ComponentRange | null;
+  },
+): Map<string, ComponentRange> {
+  const ranges = new Map<string, ComponentRange>();
+  if (!Array.isArray(descriptors) || descriptors.length === 0) {
+    return ranges;
+  }
+  const rootContainer = getRootContainer(options?.root ?? null);
+  const defaultRange = options?.baseRange ?? computeBaseRange(rootContainer);
+  const baseId = options?.baseId ?? '';
+  if (options?.baseRange && baseId) {
+    ranges.set(baseId, options.baseRange);
+  }
+  const pending = new Map<string, ComponentPathDescriptor>();
+  for (const descriptor of descriptors) {
+    if (!descriptor || typeof descriptor.componentId !== 'string') continue;
+    pending.set(descriptor.componentId, descriptor);
+  }
+  let progressed = true;
+  while (pending.size > 0 && progressed) {
+    progressed = false;
+    for (const [id, descriptor] of Array.from(pending.entries())) {
+      const parentId = descriptor.parentId ?? '';
+      let parentRange: ComponentRange | null = null;
+      if (parentId) {
+        parentRange = ranges.get(parentId) ?? getComponentRange(parentId);
+      } else {
+        parentRange = baseId ? ranges.get(baseId) ?? null : null;
+        if (!parentRange) {
+          parentRange = defaultRange;
+        }
+      }
+      if (!parentRange) {
+        continue;
+      }
+      const derived = deriveRangeFromDescriptor(descriptor, parentRange);
+      if (!derived) {
+        pending.delete(id);
+        continue;
+      }
+      ranges.set(id, derived);
+      pending.delete(id);
+      progressed = true;
+    }
+  }
+  return ranges;
+}
+
+export function resolveComponentRanges(
+  descriptors: ComponentPathDescriptor[] | undefined,
+  options?: {
+    root?: ParentNode | null;
+    baseId?: string | null;
+    baseRange?: ComponentRange | null;
+  },
+): void {
+  const ranges = computeComponentRanges(descriptors, options);
+  registerComponentRanges(ranges);
+}
+
+function resolveNodeInRange(
+  range: ComponentRange | null,
+  path: number[] | undefined,
+): Node | null {
+  if (!range || range.endIndex < range.startIndex) return null;
+  const steps = ensureArray(path);
+  const rootIndex = clampIndex(range.container, range.startIndex);
+  let current: Node | null = range.container.childNodes.item(rootIndex) ?? null;
+  if (!current) {
+    return null;
+  }
+  if (steps.length === 0) {
+    return current;
+  }
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    if (!(current instanceof Element || current instanceof DocumentFragment)) {
+      return null;
+    }
+    current = current.childNodes.item(step) ?? null;
+    if (!current) {
+      return null;
+    }
+  }
+  return current;
+}
+
+export function resolveSlotAnchors(
+  descriptors: SlotPathDescriptor[] | undefined,
+  overrides?: Map<string, ComponentRange>,
+): Map<number, Node> {
+  const anchors = new Map<number, Node>();
+  if (!Array.isArray(descriptors)) {
+    return anchors;
+  }
+  for (const descriptor of descriptors) {
+    if (!descriptor) continue;
+    const slotId = Number(descriptor.slot);
+    if (!Number.isInteger(slotId) || slotId < 0 || anchors.has(slotId)) {
+      continue;
+    }
+    const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
+    if (!range) {
+      continue;
+    }
+    const anchor = resolveNodeInRange(range, descriptor.elementPath);
+    if (!anchor) {
+      continue;
+    }
+    let target: Node | null = anchor;
+    const textIndex = Number(descriptor.textChildIndex);
+    if (Number.isInteger(textIndex) && textIndex >= 0) {
+      if (anchor instanceof Element || anchor instanceof DocumentFragment) {
+        let textNode = anchor.childNodes.item(textIndex) ?? null;
+        if (!textNode && typeof document !== 'undefined') {
+          textNode = document.createTextNode('');
+          const before =
+            textIndex < anchor.childNodes.length
+              ? anchor.childNodes.item(textIndex)
+              : null;
+          anchor.insertBefore(textNode, before);
+        }
+        target = textNode;
+      } else {
+        target = null;
+      }
+    }
+    if (!target) {
+      continue;
+    }
+    anchors.set(slotId, target);
+  }
+  return anchors;
+}
+
+export function resolveListContainers(
+  descriptors: ListPathDescriptor[] | undefined,
+  overrides?: Map<string, ComponentRange>,
+): Map<number, Element> {
+  const lists = new Map<number, Element>();
+  if (!Array.isArray(descriptors)) {
+    return lists;
+  }
+  for (const descriptor of descriptors) {
+    if (!descriptor) continue;
+    const slotId = Number(descriptor.slot);
+    if (!Number.isInteger(slotId) || slotId < 0 || lists.has(slotId)) {
+      continue;
+    }
+    const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
+    if (!range) {
+      continue;
+    }
+    const node = resolveNodeInRange(range, descriptor.elementPath);
+    if (!(node instanceof Element)) {
+      continue;
+    }
+    lists.set(slotId, node);
+  }
+  return lists;
+}
+
+export function applyComponentRanges(
+  descriptors: ComponentPathDescriptor[] | undefined,
+  options?: {
+    root?: ParentNode | null;
+    baseId?: string | null;
+    baseRange?: ComponentRange | null;
+  },
+): Map<string, ComponentRange> {
+  const ranges = computeComponentRanges(descriptors, options);
+  registerComponentRanges(ranges);
+  return ranges;
+}

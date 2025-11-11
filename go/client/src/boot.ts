@@ -6,10 +6,10 @@
 
 import * as dom from './dom-index';
 import { clearHandlers, primeSlotBindings, registerHandlers, syncEventListeners } from './events';
-import { initializeComponentMarkers } from './componentMarkers';
+import { applyComponentRanges, resolveListContainers, resolveSlotAnchors } from './manifest';
+import { resetComponentRanges } from './componentRanges';
 import { bindRefsInTree, clearRefs, registerRefs } from './refs';
 import type { BootPayload, Location } from './types';
-import { resolveListContainer, resolveSlotTarget } from './slot-resolver';
 
 export class BootHandler {
   private boot: BootPayload | null = null;
@@ -80,7 +80,8 @@ export class BootHandler {
     registerRefs(boot.refs);
     if (typeof document !== 'undefined') {
       bindRefsInTree(document);
-      initializeComponentMarkers(boot.markers ?? null, document);
+      resetComponentRanges();
+      applyComponentRanges(boot.componentPaths, { root: document });
     }
 
     // Register DOM slots
@@ -107,25 +108,27 @@ export class BootHandler {
     }
 
     dom.reset();
-    if (!Array.isArray(boot.slots)) {
-      return;
+
+    const slotAnchors = resolveSlotAnchors(boot.slotPaths);
+    if (Array.isArray(boot.slots) && boot.slots.length > 0) {
+      for (const slot of boot.slots) {
+        if (!slot || typeof slot.anchorId !== 'number') continue;
+        const node = slotAnchors.get(slot.anchorId);
+        if (node) {
+          dom.registerSlot(slot.anchorId, node);
+        } else if (this.debug) {
+          console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
+        }
+      }
+    } else {
+      for (const [slotId, node] of slotAnchors.entries()) {
+        dom.registerSlot(slotId, node);
+      }
     }
 
-    for (const slot of boot.slots) {
-      if (!slot || typeof slot.anchorId !== 'number') continue;
-      const target = resolveSlotTarget(slot);
-      if (target) {
-        dom.registerSlot(slot.anchorId, target);
-      } else if (this.debug) {
-        console.warn(`liveui: slot ${slot.anchorId} not registered during boot`);
-      }
-
-      const listContainer = resolveListContainer(slot);
-      if (listContainer) {
-        dom.registerList(slot.anchorId, listContainer);
-      } else if (slot.list && this.debug) {
-        console.warn(`liveui: list slot ${slot.anchorId} container not found during boot`);
-      }
+    const listContainers = resolveListContainers(boot.listPaths);
+    for (const [slotId, element] of listContainers.entries()) {
+      dom.registerList(slotId, element);
     }
   }
 

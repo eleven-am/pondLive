@@ -21,10 +21,9 @@ import {
   refreshHandlerBindings,
   registerBindingsForSlot,
 } from "./events";
-import { registerComponentMarkers } from "./componentMarkers";
+import { applyComponentRanges, resolveListContainers, resolveSlotAnchors } from "./manifest";
 import { bindRefsInTree, unbindRefsInTree, updateRefBinding } from "./refs";
-import type { DiffOp, ListChildOp, SlotBinding, SlotMeta } from "./types";
-import { resolveSlotTarget } from "./slot-resolver";
+import type { DiffOp, ListChildOp, ListRow, SlotBinding } from "./types";
 
 // ============================================================================
 // Configuration
@@ -479,21 +478,47 @@ export function morphElement(fromEl: Element, toEl: Element): void {
 // Slot Registration (optimized)
 // ============================================================================
 
-function registerRowSlots(slotMetas: SlotMeta[] | undefined, _fragment: DocumentFragment | Element): void {
-    if (!Array.isArray(slotMetas) || slotMetas.length === 0) {
+function registerRowSlots(
+    row: ListRow | undefined,
+    fragment: DocumentFragment | Element,
+    overrides?: Map<string, import('./componentRanges').ComponentRange>,
+): void {
+    if (!row) {
         return;
     }
 
-    for (const slot of slotMetas) {
-        if (!slot || typeof slot.anchorId !== "number") {
-            continue;
-        }
-        const target = resolveSlotTarget(slot);
-        if (target) {
-            dom.registerSlot(slot.anchorId, target);
+    const requestedSlots = Array.isArray(row.slots)
+        ? row.slots.filter((value) => Number.isInteger(value) && value >= 0)
+        : [];
+    const pendingSlots = new Set<number>(requestedSlots);
+
+    const slotAnchors = resolveSlotAnchors(row.slotPaths, overrides);
+    if (slotAnchors.size > 0) {
+        if (pendingSlots.size > 0) {
+            for (const slotId of Array.from(pendingSlots)) {
+                const node = slotAnchors.get(slotId);
+                if (node) {
+                    dom.registerSlot(slotId, node);
+                    pendingSlots.delete(slotId);
+                }
+            }
         } else {
-            console.warn(`liveui: slot ${slot.anchorId} not resolved in inserted row`);
+            for (const [slotId, node] of slotAnchors.entries()) {
+                dom.registerSlot(slotId, node);
+            }
         }
+    }
+
+    const listAnchors = resolveListContainers(row.listPaths, overrides);
+    for (const [slotId, element] of listAnchors.entries()) {
+        dom.registerList(slotId, element);
+    }
+
+    // If manifests failed to resolve anchors, log warnings in debug mode
+    if (pendingSlots.size > 0 && requestedSlots.length > 0) {
+        pendingSlots.forEach((idx) => {
+            console.warn(`liveui: slot ${idx} not resolved in inserted row`);
+        });
     }
 }
 
@@ -568,9 +593,6 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                 }
 
                 primeHandlerBindings(fragment);
-                if (payload.markers) {
-                    registerComponentMarkers(payload.markers, fragment);
-                }
 
                 const nodes = Array.from(fragment.childNodes);
                 if (nodes.length === 0) {
@@ -595,7 +617,8 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                     const root = nodes[0];
                     if (root instanceof Element) {
                         dom.setRow(slotIndex, payload.key, root);
-                        registerRowSlots(payload.slots || [], root);
+                        const rangeOverrides = applyComponentRanges(payload.componentPaths);
+                        registerRowSlots(payload, root, rangeOverrides);
 
                         // Virtual scrolling: hide items outside viewport
                         if (shouldVirtualize(slotIndex, itemCount)) {

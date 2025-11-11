@@ -1,6 +1,10 @@
 package render
 
-import "github.com/eleven-am/pondlive/go/pkg/live/html"
+import (
+	"strconv"
+
+	"github.com/eleven-am/pondlive/go/pkg/live/html"
+)
 
 func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []html.Node, parentAttrSlot int) bool {
 	rows := collectKeyedElements(children)
@@ -15,16 +19,17 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 		}
 		start := len(b.dynamics)
 		bindingStart := len(b.handlerBindings)
-		orderStart := len(b.componentOrder)
-		anchorStart := len(b.slotAnchors)
+		slotPathStart := len(b.slotPaths)
+		listPathStart := len(b.listPaths)
+		componentPathStart := len(b.componentPaths)
 		b.pushChildIndex(idx)
-		rowPath := append([]int(nil), b.nodePath...)
 		b.visit(row)
 		b.popChildIndex()
 		end := len(b.dynamics)
 		bindingEnd := len(b.handlerBindings)
-		orderEnd := len(b.componentOrder)
-		anchorEnd := len(b.slotAnchors)
+		slotPathEnd := len(b.slotPaths)
+		listPathEnd := len(b.listPaths)
+		componentPathEnd := len(b.componentPaths)
 		if end <= start {
 			rowEntries = append(rowEntries, Row{Key: row.Key})
 			continue
@@ -37,63 +42,46 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 		if bindingEnd > bindingStart {
 			bindings = append([]HandlerBinding(nil), b.handlerBindings[bindingStart:bindingEnd]...)
 		}
-		var markers map[string]ComponentMarker
-		if orderEnd > orderStart {
-			rowParent := append([]int(nil), rowPath...)
-			rowIndex := 0
-			if len(rowParent) > 0 {
-				rowIndex = rowParent[len(rowParent)-1]
-				rowParent = rowParent[:len(rowParent)-1]
-			}
-			markers = make(map[string]ComponentMarker, orderEnd-orderStart)
-			for _, id := range b.componentOrder[orderStart:orderEnd] {
-				span := b.components[id]
-				if len(span.ContainerPath) < len(rowParent)+1 {
-					continue
-				}
-				match := true
-				for i, v := range rowParent {
-					if span.ContainerPath[i] != v {
-						match = false
-						break
-					}
-				}
-				if !match {
-					continue
-				}
-				relative := append([]int(nil), span.ContainerPath[len(rowParent):]...)
-				if len(relative) == 0 {
-					continue
-				}
-				if relative[0] != rowIndex {
-					continue
-				}
-				relative[0] = 0
-				markers[id] = ComponentMarker{
-					ContainerPath: relative,
-					StartIndex:    span.StartIndex,
-					EndIndex:      span.EndIndex,
-				}
-			}
+		var slotPaths []SlotPath
+		if slotPathEnd > slotPathStart {
+			slotPaths = append([]SlotPath(nil), b.slotPaths[slotPathStart:slotPathEnd]...)
 		}
-		var anchors []SlotAnchor
-		if anchorEnd > anchorStart {
-			anchors = append([]SlotAnchor(nil), b.slotAnchors[anchorStart:anchorEnd]...)
+		var listPaths []ListPath
+		if listPathEnd > listPathStart {
+			listPaths = append([]ListPath(nil), b.listPaths[listPathStart:listPathEnd]...)
+		}
+		var componentPaths []ComponentPath
+		if componentPathEnd > componentPathStart {
+			componentPaths = append([]ComponentPath(nil), b.componentPaths[componentPathStart:componentPathEnd]...)
 		}
 		rowEntries = append(rowEntries, Row{
-			Key:      row.Key,
-			HTML:     renderFinalizedNode(row),
-			Slots:    slots,
-			Bindings: bindings,
-			Markers:  markers,
-			Anchors:  anchors,
+			Key:            row.Key,
+			HTML:           renderFinalizedNode(row),
+			Slots:          slots,
+			Bindings:       bindings,
+			SlotPaths:      slotPaths,
+			ListPaths:      listPaths,
+			ComponentPaths: componentPaths,
 		})
 	}
 	if listSlot >= 0 && listSlot < len(b.dynamics) {
 		b.dynamics[listSlot].List = rowEntries
 	}
-	b.recordListAnchor(listSlot)
+	if parent != nil && len(b.stack) > 0 {
+		frame := b.stack[len(b.stack)-1]
+		if frame.componentID != "" {
+			b.listPaths = append(b.listPaths, ListPath{
+				Slot:        listSlot,
+				ComponentID: frame.componentID,
+				ElementPath: append([]int(nil), frame.componentPath...),
+			})
+		}
+	}
 	return true
+}
+
+func intToString(i int) string {
+	return strconv.Itoa(i)
 }
 
 func collectKeyedElements(children []html.Node) []*html.Element {
