@@ -974,6 +974,17 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
    * Apply effects from server
    */
   private applyEffects(effects: Effect[]): void {
+    if (!effects || effects.length === 0) {
+      return;
+    }
+
+    if (this.patchQueue.length > 0 || this.batchScheduled) {
+      if (this.batchScheduled) {
+        this.cancelScheduledBatch();
+      }
+      this.flushBatch();
+    }
+
     for (const effect of effects) {
       try {
         this.log("Applying effect:", effect);

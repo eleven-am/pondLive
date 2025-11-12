@@ -1,4 +1,12 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  expect,
+  it,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 
 vi.mock('../src/patcher', () => ({
   applyOps: vi.fn(),
@@ -31,6 +39,7 @@ vi.mock('@eleven-am/pondsocket-client', () => {
 import { applyOps } from '../src/patcher';
 import LiveUI from '../src/index';
 import type { ConnectionState } from '../src/types';
+import { attachRefToElement, clearRefs, registerRefs } from '../src/refs';
 
 describe('LiveUI batching and state management', () => {
   const originalRAF = (globalThis as any).requestAnimationFrame;
@@ -100,6 +109,57 @@ describe('LiveUI batching and state management', () => {
 
     live.disconnect();
     expect(clearTimeoutSpy).toHaveBeenCalled();
+  });
+});
+
+describe('LiveUI DOM effects', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    clearRefs();
+  });
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+    clearRefs();
+    (applyOps as unknown as Mock).mockReset();
+  });
+
+  it('flushes pending patches before running DOM call effects', () => {
+    const live = new LiveUI({ autoConnect: false });
+
+    registerRefs({ btn: { tag: 'button' } });
+
+    const button = document.createElement('button');
+    const focusSpy = vi.fn();
+    (button as any).focus = focusSpy;
+
+    (live as any).patchQueue = [['noop']];
+    (live as any).batchScheduled = true;
+    (live as any).rafHandle = 1;
+    (live as any).rafUsesTimeoutFallback = false;
+
+    const originalCancel = (globalThis as any).cancelAnimationFrame;
+    const cancelSpy = vi.fn();
+    (globalThis as any).cancelAnimationFrame = cancelSpy;
+
+    (applyOps as unknown as Mock).mockImplementation(() => {
+      attachRefToElement('btn', button);
+    });
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    (live as any).applyEffects([
+      { type: 'dom', kind: 'dom.call', ref: 'btn', method: 'focus' } as any,
+    ]);
+
+    expect(cancelSpy).toHaveBeenCalled();
+    expect(applyOps).toHaveBeenCalled();
+    expect(focusSpy).toHaveBeenCalledTimes(1);
+    expect((live as any).patchQueue).toHaveLength(0);
+    expect(warnSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+    (globalThis as any).cancelAnimationFrame = originalCancel;
   });
 });
 

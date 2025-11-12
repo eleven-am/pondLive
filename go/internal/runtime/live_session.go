@@ -25,7 +25,7 @@ import (
 const (
 	defaultFrameHistory  = 64
 	defaultSessionTTL    = 90 * time.Second
-	defaultDOMGetTimeout = 5 * time.Second
+	defaultDOMGetTimeout = 15 * time.Second
 )
 
 var (

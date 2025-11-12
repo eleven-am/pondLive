@@ -1191,40 +1191,18 @@ var LiveUIModule = (() => {
 
   // src/refs.ts
   var registry = /* @__PURE__ */ new Map();
-  function escapeAttributeValue(value) {
-    if (typeof value !== "string") {
-      return "";
-    }
-    if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
-      return CSS.escape(value);
-    }
-    return value.replace(/["]|\\/g, "\\$&");
-  }
-  function queryRefElement(id) {
-    if (typeof document === "undefined" || !id) {
-      return null;
-    }
-    const selector = `[data-live-ref="${escapeAttributeValue(id)}"]`;
-    try {
-      return document.querySelector(selector);
-    } catch (_error) {
-      return document.querySelector(`[data-live-ref="${id}"]`);
-    }
-  }
+  var elementRefMap = /* @__PURE__ */ new WeakMap();
   function ensureRecord(id, meta) {
     let record = registry.get(id);
     if (!record) {
       record = {
         id,
         meta: meta ?? { tag: "" },
-        element: queryRefElement(id)
+        element: null
       };
       registry.set(id, record);
     } else if (meta) {
       record.meta = meta;
-      if (!record.element) {
-        record.element = queryRefElement(id);
-      }
     }
     return record;
   }
@@ -1266,7 +1244,7 @@ var LiveUIModule = (() => {
     if (!refElement) {
       return null;
     }
-    const id = refElement.getAttribute("data-live-ref");
+    const id = getPrimaryRefId(refElement);
     if (!id) {
       return null;
     }
@@ -1293,10 +1271,14 @@ var LiveUIModule = (() => {
       return;
     }
     const record = ensureRecord(id);
+    if (record.element && record.element !== element) {
+      removeRefFromElement(record.element, id);
+    }
     record.element = element;
     if (!record.meta.tag) {
       record.meta = { ...record.meta, tag: element.tagName.toLowerCase() };
     }
+    addRefToElement(element, id);
   }
   function detachRef(id, element) {
     const record = registry.get(id);
@@ -1304,26 +1286,46 @@ var LiveUIModule = (() => {
       return;
     }
     if (!element || record.element === element) {
+      if (record.element) {
+        removeRefFromElement(record.element, id);
+      }
       record.element = null;
     }
   }
-  function forEachRefElement(root, visit) {
-    if (root instanceof Element) {
-      visit(root);
+  function addRefToElement(element, id) {
+    let ids = elementRefMap.get(element);
+    if (!ids) {
+      ids = /* @__PURE__ */ new Set();
+      elementRefMap.set(element, ids);
     }
-    const selectorAll = root.querySelectorAll?.bind(root);
-    if (typeof selectorAll !== "function") {
+    ids.add(id);
+  }
+  function removeRefFromElement(element, id) {
+    const ids = elementRefMap.get(element);
+    if (!ids) {
       return;
     }
-    const matches = selectorAll("[data-live-ref]");
-    matches.forEach((node) => {
-      if (node instanceof Element) {
-        visit(node);
+    ids.delete(id);
+    if (ids.size === 0) {
+      elementRefMap.delete(element);
+    }
+  }
+  function getPrimaryRefId(element) {
+    if (!element) {
+      return null;
+    }
+    const ids = elementRefMap.get(element);
+    if (ids && ids.size > 0) {
+      const first = ids.values().next();
+      if (!first.done) {
+        return first.value ?? null;
       }
-    });
+    }
+    return null;
   }
   function clearRefs() {
     registry.clear();
+    elementRefMap = /* @__PURE__ */ new WeakMap();
   }
   function registerRefs(refs) {
     if (!refs) {
@@ -1347,36 +1349,22 @@ var LiveUIModule = (() => {
       registry.delete(id);
     }
   }
-  function bindRefsInTree(root) {
-    if (!root || typeof document === "undefined") {
-      return;
-    }
-    forEachRefElement(root, (el) => {
-      const id = el.getAttribute("data-live-ref");
-      if (id) {
-        attachRef(id, el);
-      }
-    });
-  }
   function unbindRefsInTree(root) {
     if (!root || typeof document === "undefined") {
       return;
     }
-    forEachRefElement(root, (el) => {
-      const id = el.getAttribute("data-live-ref");
-      if (id) {
-        detachRef(id, el);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+    let current = root;
+    while (current) {
+      if (current instanceof Element) {
+        const ids = elementRefMap.get(current);
+        if (ids && ids.size > 0) {
+          for (const id of Array.from(ids)) {
+            detachRef(id, current);
+          }
+        }
       }
-    });
-  }
-  function updateRefBinding(element, previousId, nextId) {
-    if (previousId && (!nextId || previousId !== nextId)) {
-      detachRef(previousId, element);
-    }
-    if (nextId) {
-      attachRef(nextId, element);
-    } else if (previousId && !nextId) {
-      detachRef(previousId, element);
+      current = walker.nextNode();
     }
   }
   function getRefElement(id) {
@@ -1387,14 +1375,21 @@ var LiveUIModule = (() => {
     const record = registry.get(id);
     return record?.meta ?? null;
   }
+  function attachRefToElement(refId, element) {
+    if (!refId) {
+      return;
+    }
+    if (!element) {
+      detachRef(refId, null);
+      return;
+    }
+    attachRef(refId, element);
+  }
   function findClosestRefElement(element) {
     let current = element;
     while (current) {
-      if (typeof current.getAttribute === "function") {
-        const id = current.getAttribute("data-live-ref");
-        if (id) {
-          return current;
-        }
+      if (getPrimaryRefId(current)) {
+        return current;
       }
       current = current.parentElement;
     }
@@ -1659,7 +1654,6 @@ var LiveUIModule = (() => {
   var slotBindingSpecs = /* @__PURE__ */ new Map();
   var slotElements = /* @__PURE__ */ new Map();
   var routerBindings = /* @__PURE__ */ new WeakMap();
-  var DATA_EVENT_ATTR_PREFIX = "data-on";
   var DATA_ROUTER_ATTR_PREFIX = "data-router-";
   var ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
   var CAPTURE_EVENTS = /* @__PURE__ */ new Set([
@@ -1870,106 +1864,6 @@ var LiveUIModule = (() => {
     eventUsageCounts.clear();
     syncEventListeners();
   }
-  function extractPrimaryEventName(attrName) {
-    if (!attrName || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX)) {
-      return null;
-    }
-    const suffix = attrName.slice(DATA_EVENT_ATTR_PREFIX.length);
-    if (suffix.length === 0) {
-      return null;
-    }
-    const normalized = suffix.startsWith("-") ? suffix.slice(1) : suffix;
-    if (normalized.length === 0) {
-      return null;
-    }
-    const separatorIndex = normalized.indexOf("-");
-    const eventName = separatorIndex === -1 ? normalized : normalized.slice(0, separatorIndex);
-    return eventName.length > 0 ? eventName : null;
-  }
-  function collectAttributeNames(element) {
-    if (!element) return [];
-    if (typeof element.getAttributeNames === "function") {
-      return element.getAttributeNames();
-    }
-    const out = [];
-    if (element.attributes) {
-      for (let i = 0; i < element.attributes.length; i++) {
-        const attr = element.attributes.item(i);
-        if (!attr) continue;
-        out.push(attr.name);
-      }
-    }
-    return out;
-  }
-  function refreshHandlerBindings(element) {
-    if (!element) {
-      return;
-    }
-    const attributeNames = collectAttributeNames(element);
-    if (attributeNames.length === 0) {
-      if (handlerBindings.has(element)) {
-        handlerBindings.delete(element);
-      }
-      if (routerBindings.has(element)) {
-        routerBindings.delete(element);
-      }
-      return;
-    }
-    let bindings = null;
-    let sawEventAttr = false;
-    for (const name of attributeNames) {
-      if (!name.startsWith(DATA_EVENT_ATTR_PREFIX)) {
-        if (name.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
-          const key = name.slice(DATA_ROUTER_ATTR_PREFIX.length);
-          const value2 = element.getAttribute(name);
-          element.removeAttribute(name);
-          applyRouterAttribute(element, key, value2 ?? "");
-        }
-        continue;
-      }
-      const remainder = name.slice(DATA_EVENT_ATTR_PREFIX.length);
-      const value = element.getAttribute(name);
-      element.removeAttribute(name);
-      const isMeta = remainder.includes("-");
-      if (isMeta) {
-        continue;
-      }
-      sawEventAttr = true;
-      const eventName = extractPrimaryEventName(name);
-      if (!eventName || !value) {
-        continue;
-      }
-      if (!bindings) {
-        bindings = /* @__PURE__ */ new Map();
-      }
-      bindings.set(eventName, value);
-    }
-    if (bindings && bindings.size > 0) {
-      handlerBindings.set(element, bindings);
-    } else if (sawEventAttr || handlerBindings.has(element)) {
-      handlerBindings.delete(element);
-    }
-  }
-  function primeHandlerBindings(root) {
-    if (!root) return;
-    const doc = root instanceof Document ? root : root.ownerDocument ?? (typeof document !== "undefined" ? document : null);
-    if (!doc) return;
-    const startNode = root instanceof Document ? doc.documentElement ?? null : root;
-    if (!startNode) {
-      return;
-    }
-    const walker = doc.createTreeWalker(startNode, NodeFilter.SHOW_ELEMENT);
-    if (startNode instanceof Element) {
-      refreshHandlerBindings(startNode);
-    }
-    let current = walker.nextNode();
-    while (current) {
-      if (current instanceof Element) {
-        refreshHandlerBindings(current);
-      }
-      current = walker.nextNode();
-    }
-  }
   var sendEventCallback = null;
   var navigationHandler = null;
   var uploadDelegate = null;
@@ -2129,14 +2023,7 @@ var LiveUIModule = (() => {
   function findHandlerInfo(element, eventType) {
     let current = element;
     while (current && current !== document.documentElement) {
-      let binding = handlerBindings.get(current);
-      if (!binding) {
-        const attributeNames = collectAttributeNames(current);
-        if (attributeNames.some((name) => name.startsWith(DATA_EVENT_ATTR_PREFIX))) {
-          refreshHandlerBindings(current);
-          binding = handlerBindings.get(current);
-        }
-      }
+      const binding = handlerBindings.get(current);
       if (binding && binding.size > 0) {
         const directId = binding.get(eventType);
         if (directId) {
@@ -2558,6 +2445,18 @@ var LiveUIModule = (() => {
     }
     return ranges;
   }
+  function resolveComponentPathNode(componentId, path, options) {
+    let range = null;
+    if (componentId && componentId.length > 0) {
+      range = options?.overrides?.get(componentId) ?? getComponentRange(componentId);
+    } else {
+      range = options?.fallbackRange ?? null;
+    }
+    if (!range) {
+      return null;
+    }
+    return resolveNodeInRange(range, path ?? void 0);
+  }
   function resolveNodeInRange(range, path) {
     if (!range || range.endIndex < range.startIndex) return null;
     const steps = ensureArray(path);
@@ -2682,550 +2581,65 @@ var LiveUIModule = (() => {
     return resolveNodeInRange(range, path);
   }
 
-  // src/patcher.ts
-  var config = {
-    enableDirtyChecking: true,
-    enableBatching: true,
-    enableFragmentPooling: true,
-    enableMemoization: true,
-    enableVirtualScrolling: true,
-    virtualScrollThreshold: 100,
-    // Start virtual scrolling after 100 items
-    memoizationCacheSize: 1e3
-  };
-  var DATA_EVENT_ATTR_PREFIX2 = "data-on";
-  var templateCache = document.createElement("template");
-  var htmlCache = /* @__PURE__ */ new Map();
-  function createFragment(html) {
-    if (config.enableFragmentPooling && htmlCache.has(html)) {
-      return htmlCache.get(html).cloneNode(true);
+  // src/bindings.ts
+  function resolveBindingTarget(componentId, path, options) {
+    const node = resolveComponentPathNode(componentId, path, {
+      overrides: options?.overrides,
+      fallbackRange: options?.fallbackRange ?? null
+    });
+    if (node instanceof Element) {
+      return node;
     }
-    templateCache.innerHTML = html;
-    const fragment = templateCache.content.cloneNode(true);
-    if (config.enableFragmentPooling && htmlCache.size < 50) {
-      htmlCache.set(html, fragment.cloneNode(true));
-    }
-    return fragment;
+    return null;
   }
-  var PatchMemoizer = class {
-    constructor(maxSize) {
-      this.cache = /* @__PURE__ */ new Map();
-      this.maxSize = maxSize;
-    }
-    key(op, slotIndex, value) {
-      return `${op}:${slotIndex}:${JSON.stringify(value)}`;
-    }
-    has(key) {
-      return this.cache.has(key);
-    }
-    get(key) {
-      return this.cache.get(key);
-    }
-    set(key, value) {
-      if (this.cache.size >= this.maxSize) {
-        const firstKey = this.cache.keys().next().value;
-        if (firstKey !== void 0) {
-          this.cache.delete(firstKey);
-        }
-      }
-      this.cache.set(key, value);
-    }
-    clear() {
-      this.cache.clear();
-    }
-  };
-  var memoizer = new PatchMemoizer(config.memoizationCacheSize);
-  var DOMBatcher = class {
-    constructor() {
-      this.batch = { reads: [], writes: [] };
-      this.scheduled = false;
-    }
-    scheduleRead(fn) {
-      this.batch.reads.push(fn);
-      this.schedule();
-    }
-    scheduleWrite(fn) {
-      this.batch.writes.push(fn);
-      this.schedule();
-    }
-    schedule() {
-      if (this.scheduled) return;
-      this.scheduled = true;
-      requestAnimationFrame(() => {
-        this.flush();
-      });
-    }
-    flush() {
-      this.batch.reads.forEach((fn) => fn());
-      this.batch.writes.forEach((fn) => fn());
-      this.batch = { reads: [], writes: [] };
-      this.scheduled = false;
-    }
-    immediate() {
-      if (this.scheduled) {
-        this.flush();
-      }
-    }
-  };
-  var batcher = new DOMBatcher();
-  var virtualScrollStates = /* @__PURE__ */ new Map();
-  function initVirtualScroll(slotIndex, container) {
-    if (!config.enableVirtualScrolling) return;
-    const state = {
-      container,
-      totalItems: 0,
-      visibleRange: { start: 0, end: 50 },
-      itemHeight: 0
-    };
-    state.observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const target = entry.target;
-            if (target instanceof HTMLElement || target instanceof SVGElement) {
-              target.style.display = "";
-            }
-          }
-        });
-      },
-      { root: container, threshold: 0.1 }
-    );
-    virtualScrollStates.set(slotIndex, state);
-  }
-  function shouldVirtualize(_slotIndex, itemCount) {
-    return config.enableVirtualScrolling && itemCount > config.virtualScrollThreshold;
-  }
-  function ensureTextNode(node, slotIndex) {
-    if (!node) {
-      throw new Error(`liveui: slot ${slotIndex} not registered`);
-    }
-    return node;
-  }
-  function applySetText(slotIndex, text) {
-    const node = ensureTextNode(getSlot(slotIndex), slotIndex);
-    if (config.enableDirtyChecking && node.textContent === text) {
+  function applyRouterBindings(bindings, options) {
+    if (!Array.isArray(bindings) || bindings.length === 0) {
       return;
     }
-    if (config.enableBatching) {
-      batcher.scheduleWrite(() => {
-        node.textContent = text;
-      });
-    } else {
-      node.textContent = text;
-    }
-  }
-  function applySetAttrs(slotIndex, upsert, remove) {
-    const node = getSlot(slotIndex);
-    if (!(node instanceof Element)) {
-      throw new Error(`liveui: slot ${slotIndex} is not an element`);
-    }
-    const existingBindings = getRegisteredSlotBindings(slotIndex) ?? [];
-    const bindingMap = /* @__PURE__ */ new Map();
-    for (const spec of existingBindings) {
-      if (!spec || typeof spec.event !== "string") continue;
-      bindingMap.set(spec.event, {
-        handler: spec.handler,
-        listen: spec.listen ? [...spec.listen] : void 0,
-        props: spec.props ? [...spec.props] : void 0
-      });
-    }
-    const parseTokens = (value) => {
-      if (typeof value !== "string") {
-        return void 0;
+    for (const binding of bindings) {
+      if (!binding) {
+        continue;
       }
-      const tokens = value.split(/\s+/).map((token) => token.trim()).filter((token) => token.length > 0);
-      return tokens.length > 0 ? tokens : void 0;
-    };
-    let bindingChanged = false;
-    if (upsert) {
-      for (const key of Object.keys(upsert)) {
-        if (typeof key === "string" && key.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
-          const routerKey = key.slice(DATA_ROUTER_ATTR_PREFIX.length);
-          applyRouterAttribute(node, routerKey, upsert[key]);
-          delete upsert[key];
-          continue;
-        }
-        if (typeof key !== "string" || !key.startsWith(DATA_EVENT_ATTR_PREFIX2)) {
-          continue;
-        }
-        bindingChanged = true;
-        const value = upsert[key];
-        delete upsert[key];
-        let remainder = key.slice(DATA_EVENT_ATTR_PREFIX2.length);
-        if (remainder.startsWith("-")) {
-          remainder = remainder.slice(1);
-        }
-        if (remainder.length === 0) {
-          continue;
-        }
-        let metaType = "";
-        const dashIndex = remainder.indexOf("-");
-        if (dashIndex !== -1) {
-          metaType = remainder.slice(dashIndex + 1);
-          remainder = remainder.slice(0, dashIndex);
-        }
-        const eventName = remainder.trim();
-        if (eventName.length === 0) {
-          continue;
-        }
-        const entry = bindingMap.get(eventName) ?? {};
-        if (metaType === "listen") {
-          entry.listen = parseTokens(value);
-        } else if (metaType === "props") {
-          entry.props = parseTokens(value);
-        } else {
-          entry.handler = typeof value === "string" ? value : value != null ? String(value) : "";
-        }
-        bindingMap.set(eventName, entry);
+      const element = resolveBindingTarget(
+        binding.componentId ?? "",
+        binding.path ?? void 0,
+        options
+      );
+      if (!element) {
+        continue;
       }
-    }
-    if (Array.isArray(remove) && remove.length > 0) {
-      for (let i = remove.length - 1; i >= 0; i--) {
-        const attrName = remove[i];
-        if (typeof attrName === "string" && attrName.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
-          const routerKey = attrName.slice(DATA_ROUTER_ATTR_PREFIX.length);
-          applyRouterAttribute(node, routerKey, void 0);
-          remove.splice(i, 1);
-          continue;
-        }
-        if (typeof attrName !== "string" || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX2)) {
-          continue;
-        }
-        bindingChanged = true;
-        remove.splice(i, 1);
-        let remainder = attrName.slice(DATA_EVENT_ATTR_PREFIX2.length);
-        if (remainder.startsWith("-")) {
-          remainder = remainder.slice(1);
-        }
-        if (remainder.length === 0) {
-          continue;
-        }
-        const dashIndex = remainder.indexOf("-");
-        if (dashIndex !== -1) {
-          remainder = remainder.slice(0, dashIndex);
-        }
-        const eventName = remainder.trim();
-        if (eventName.length === 0) {
-          continue;
-        }
-        bindingMap.delete(eventName);
+      if (binding.pathValue !== void 0) {
+        applyRouterAttribute(element, "path", binding.pathValue ?? "");
       }
-    }
-    if (bindingChanged) {
-      const specs = [];
-      bindingMap.forEach((info, eventName) => {
-        const handlerId = info.handler?.trim();
-        if (!handlerId) {
-          return;
-        }
-        const spec = { event: eventName, handler: handlerId };
-        if (info.listen && info.listen.length > 0) {
-          spec.listen = [...info.listen];
-        }
-        if (info.props && info.props.length > 0) {
-          spec.props = [...info.props];
-        }
-        specs.push(spec);
-      });
-      registerBindingsForSlot(slotIndex, specs);
-    }
-    const previousRef = node.getAttribute("data-live-ref");
-    const applyAttrs = () => {
-      if (upsert) {
-        for (const [k, v] of Object.entries(upsert)) {
-          if (v === void 0 || v === null) continue;
-          if (config.enableDirtyChecking && node.getAttribute(k) === String(v)) {
-            continue;
-          }
-          node.setAttribute(k, String(v));
-        }
+      if (binding.query !== void 0) {
+        applyRouterAttribute(element, "query", binding.query ?? "");
       }
-      if (remove) {
-        for (const key of remove) {
-          if (node.hasAttribute(key)) {
-            node.removeAttribute(key);
-          }
-        }
+      if (binding.hash !== void 0) {
+        applyRouterAttribute(element, "hash", binding.hash ?? "");
       }
-      const nextRef = node.getAttribute("data-live-ref");
-      updateRefBinding(node, previousRef, nextRef);
-      refreshHandlerBindings(node);
-    };
-    if (config.enableBatching) {
-      batcher.scheduleWrite(applyAttrs);
-    } else {
-      applyAttrs();
-    }
-  }
-  function morphElement(fromEl, toEl) {
-    const fromAttrs = fromEl.attributes;
-    const toAttrs = toEl.attributes;
-    for (let i = fromAttrs.length - 1; i >= 0; i--) {
-      const attr = fromAttrs[i];
-      if (!toEl.hasAttribute(attr.name)) {
-        fromEl.removeAttribute(attr.name);
-      }
-    }
-    for (let i = 0; i < toAttrs.length; i++) {
-      const attr = toAttrs[i];
-      if (fromEl.getAttribute(attr.name) !== attr.value) {
-        fromEl.setAttribute(attr.name, attr.value);
-      }
-    }
-    if (fromEl.childNodes.length === 1 && fromEl.firstChild?.nodeType === Node.TEXT_NODE) {
-      if (toEl.childNodes.length === 1 && toEl.firstChild?.nodeType === Node.TEXT_NODE) {
-        if (fromEl.firstChild.textContent !== toEl.firstChild.textContent) {
-          fromEl.firstChild.textContent = toEl.firstChild.textContent;
-        }
+      if (binding.replace !== void 0) {
+        applyRouterAttribute(element, "replace", binding.replace ?? "");
       }
     }
   }
-  function registerRowSlots(row, fragment, overrides) {
-    if (!row) {
+  function applyRefBindings(bindings, options) {
+    if (!Array.isArray(bindings) || bindings.length === 0) {
       return;
     }
-    const requestedSlots = Array.isArray(row.slots) ? row.slots.filter((value) => Number.isInteger(value) && value >= 0) : [];
-    const pendingSlots = new Set(requestedSlots);
-    const slotAnchors = resolveSlotAnchors(row.slotPaths, overrides);
-    if (slotAnchors.size > 0) {
-      if (pendingSlots.size > 0) {
-        for (const slotId of Array.from(pendingSlots)) {
-          const node = slotAnchors.get(slotId);
-          if (node) {
-            registerSlot(slotId, node);
-            pendingSlots.delete(slotId);
-          }
-        }
-      } else {
-        for (const [slotId, node] of slotAnchors.entries()) {
-          registerSlot(slotId, node);
-        }
+    for (const binding of bindings) {
+      if (!binding || typeof binding.refId !== "string" || binding.refId.length === 0) {
+        continue;
       }
-    }
-    const listAnchors = resolveListContainers(row.listPaths, overrides);
-    for (const [slotId, element] of listAnchors.entries()) {
-      registerList(slotId, element);
-    }
-    if (pendingSlots.size > 0 && requestedSlots.length > 0) {
-      pendingSlots.forEach((idx) => {
-        console.warn(`liveui: slot ${idx} not resolved in inserted row`);
-      });
-    }
-  }
-  function applyList(slotIndex, childOps) {
-    if (!Array.isArray(childOps) || childOps.length === 0) return;
-    const record = ensureList(slotIndex);
-    const container = record.container;
-    const children = config.enableBatching ? Array.from(container.children) : null;
-    let itemCount = record.rows.size;
-    for (const op of childOps) {
-      if (!op || !op.length) continue;
-      const kind = op[0];
-      switch (kind) {
-        case "del": {
-          const key = op[1];
-          const row = getRow(slotIndex, key);
-          if (row && row.parentNode === container) {
-            const removeNode = () => {
-              unbindRefsInTree(row);
-              container.removeChild(row);
-            };
-            if (config.enableBatching) {
-              batcher.scheduleWrite(removeNode);
-            } else {
-              removeNode();
-            }
-          }
-          deleteRow(slotIndex, key);
-          itemCount--;
-          break;
-        }
-        case "ins": {
-          const pos = op[1];
-          const payload = op[2] || { key: "", html: "" };
-          if (payload && typeof payload === "object" && payload.bindings) {
-            for (const [slotKey, specs] of Object.entries(payload.bindings)) {
-              const slotId = Number(slotKey);
-              if (Number.isNaN(slotId)) {
-                continue;
-              }
-              registerBindingsForSlot(slotId, specs ?? []);
-            }
-          }
-          const memoKey = memoizer.key("ins", slotIndex, payload.html);
-          let fragment;
-          if (config.enableMemoization && memoizer.has(memoKey)) {
-            fragment = memoizer.get(memoKey).cloneNode(true);
-          } else {
-            fragment = createFragment(payload.html || "");
-            if (config.enableMemoization) {
-              memoizer.set(memoKey, fragment.cloneNode(true));
-            }
-          }
-          primeHandlerBindings(fragment);
-          const nodes = Array.from(fragment.childNodes);
-          if (nodes.length === 0) {
-            console.warn("live: insertion payload missing nodes for key", payload.key);
-            break;
-          }
-          const insertNode = () => {
-            const refNode = config.enableBatching ? children[pos] || null : container.children[pos] || null;
-            container.insertBefore(fragment, refNode);
-            for (const inserted of nodes) {
-              if (inserted instanceof Element) {
-                bindRefsInTree(inserted);
-              }
-            }
-            const root = nodes[0];
-            if (root instanceof Element) {
-              setRow(slotIndex, payload.key, root);
-              const rangeOverrides = applyComponentRanges(payload.componentPaths);
-              registerRowSlots(payload, root, rangeOverrides);
-              if (shouldVirtualize(slotIndex, itemCount)) {
-                const state = virtualScrollStates.get(slotIndex);
-                if (state && (pos < state.visibleRange.start || pos > state.visibleRange.end)) {
-                  if (root instanceof HTMLElement || root instanceof SVGElement) {
-                    root.style.display = "none";
-                  }
-                }
-              }
-            } else {
-              console.warn("live: row root is not an element for key", payload.key);
-            }
-          };
-          if (config.enableBatching) {
-            batcher.scheduleWrite(insertNode);
-          } else {
-            insertNode();
-          }
-          itemCount++;
-          break;
-        }
-        case "mov": {
-          const from = op[1];
-          const to = op[2];
-          if (from === to) break;
-          const moveNode = () => {
-            const childArray = config.enableBatching ? children : Array.from(container.children);
-            const child = childArray[from];
-            if (child) {
-              const refNode = to < childArray.length ? childArray[to] : null;
-              container.insertBefore(child, refNode);
-            }
-          };
-          if (config.enableBatching) {
-            batcher.scheduleWrite(moveNode);
-          } else {
-            moveNode();
-          }
-          break;
-        }
-        default:
-          console.warn("live: unknown list child op", op);
+      const element = resolveBindingTarget(
+        binding.componentId ?? "",
+        binding.path ?? void 0,
+        options
+      );
+      if (!element) {
+        continue;
       }
+      attachRefToElement(binding.refId, element);
     }
-    if (shouldVirtualize(slotIndex, itemCount)) {
-      const state = virtualScrollStates.get(slotIndex);
-      if (state) {
-        state.totalItems = itemCount;
-      } else {
-        initVirtualScroll(slotIndex, container);
-      }
-    }
-  }
-  function applyOps(ops) {
-    if (!Array.isArray(ops)) return;
-    for (const op of ops) {
-      if (!op || op.length === 0) continue;
-      const kind = op[0];
-      switch (kind) {
-        case "setText":
-          applySetText(op[1], op[2]);
-          break;
-        case "setAttrs":
-          applySetAttrs(op[1], op[2] || {}, op[3] || []);
-          break;
-        case "list":
-          applyList(op[1], op.slice(2));
-          break;
-        default:
-          console.warn("live: unknown op", op);
-      }
-    }
-    if (config.enableBatching) {
-      batcher.immediate();
-    }
-  }
-  function configurePatcher(options) {
-    Object.assign(config, options);
-  }
-  function getPatcherConfig() {
-    return { ...config };
-  }
-  function clearPatcherCaches() {
-    htmlCache.clear();
-    memoizer.clear();
-    virtualScrollStates.clear();
-  }
-  function getPatcherStats() {
-    return {
-      htmlCacheSize: htmlCache.size,
-      memoizerCacheSize: memoizer["cache"].size,
-      virtualScrollCount: virtualScrollStates.size
-    };
-  }
-  function computeInverseOps(patches) {
-    const inverseOps = [];
-    for (const patch of patches) {
-      const [opType, slotId, ...args] = patch;
-      if (opType === "setText") {
-        const element = getSlot(slotId);
-        if (element) {
-          const currentText = element.textContent || "";
-          inverseOps.push(["setText", slotId, currentText]);
-        }
-      } else if (opType === "setAttrs") {
-        const element = getSlot(slotId);
-        if (element && element instanceof Element) {
-          const [newAttrs, removeKeys] = args;
-          const oldAttrs = {};
-          const keysToRemove = [];
-          for (const key of Object.keys(newAttrs)) {
-            const currentValue = element.getAttribute(key);
-            if (currentValue !== null) {
-              oldAttrs[key] = currentValue;
-            } else {
-              keysToRemove.push(key);
-            }
-          }
-          for (const key of removeKeys) {
-            const currentValue = element.getAttribute(key);
-            if (currentValue !== null) {
-              oldAttrs[key] = currentValue;
-            }
-          }
-          inverseOps.push(["setAttrs", slotId, oldAttrs, keysToRemove]);
-        }
-      } else if (opType === "list") {
-        const childOps = args;
-        const inverseChildOps = [];
-        for (const childOp of childOps) {
-          const [childOpType, ...childArgs] = childOp;
-          if (childOpType === "ins") {
-            const [, { key }] = childArgs;
-            inverseChildOps.push(["del", key]);
-          } else if (childOpType === "del") {
-          } else if (childOpType === "mov") {
-            const [fromIdx, toIdx] = childArgs;
-            inverseChildOps.push(["mov", toIdx, fromIdx]);
-          }
-        }
-        if (inverseChildOps.length > 0) {
-          inverseOps.push(["list", slotId, ...inverseChildOps.reverse()]);
-        }
-      }
-    }
-    return inverseOps.reverse();
   }
 
   // src/uploads.ts
@@ -3558,6 +2972,547 @@ var LiveUIModule = (() => {
     }
   };
 
+  // src/patcher.ts
+  var config = {
+    enableDirtyChecking: true,
+    enableBatching: true,
+    enableFragmentPooling: true,
+    enableMemoization: true,
+    enableVirtualScrolling: true,
+    virtualScrollThreshold: 100,
+    // Start virtual scrolling after 100 items
+    memoizationCacheSize: 1e3
+  };
+  var DATA_EVENT_ATTR_PREFIX = "data-on";
+  var templateCache = document.createElement("template");
+  var htmlCache = /* @__PURE__ */ new Map();
+  function createFragment(html) {
+    if (config.enableFragmentPooling && htmlCache.has(html)) {
+      return htmlCache.get(html).cloneNode(true);
+    }
+    templateCache.innerHTML = html;
+    const fragment = templateCache.content.cloneNode(true);
+    if (config.enableFragmentPooling && htmlCache.size < 50) {
+      htmlCache.set(html, fragment.cloneNode(true));
+    }
+    return fragment;
+  }
+  var PatchMemoizer = class {
+    constructor(maxSize) {
+      this.cache = /* @__PURE__ */ new Map();
+      this.maxSize = maxSize;
+    }
+    key(op, slotIndex, value) {
+      return `${op}:${slotIndex}:${JSON.stringify(value)}`;
+    }
+    has(key) {
+      return this.cache.has(key);
+    }
+    get(key) {
+      return this.cache.get(key);
+    }
+    set(key, value) {
+      if (this.cache.size >= this.maxSize) {
+        const firstKey = this.cache.keys().next().value;
+        if (firstKey !== void 0) {
+          this.cache.delete(firstKey);
+        }
+      }
+      this.cache.set(key, value);
+    }
+    clear() {
+      this.cache.clear();
+    }
+  };
+  var memoizer = new PatchMemoizer(config.memoizationCacheSize);
+  var DOMBatcher = class {
+    constructor() {
+      this.batch = { reads: [], writes: [] };
+      this.scheduled = false;
+    }
+    scheduleRead(fn) {
+      this.batch.reads.push(fn);
+      this.schedule();
+    }
+    scheduleWrite(fn) {
+      this.batch.writes.push(fn);
+      this.schedule();
+    }
+    schedule() {
+      if (this.scheduled) return;
+      this.scheduled = true;
+      requestAnimationFrame(() => {
+        this.flush();
+      });
+    }
+    flush() {
+      this.batch.reads.forEach((fn) => fn());
+      this.batch.writes.forEach((fn) => fn());
+      this.batch = { reads: [], writes: [] };
+      this.scheduled = false;
+    }
+    immediate() {
+      if (this.scheduled) {
+        this.flush();
+      }
+    }
+  };
+  var batcher = new DOMBatcher();
+  var virtualScrollStates = /* @__PURE__ */ new Map();
+  function initVirtualScroll(slotIndex, container) {
+    if (!config.enableVirtualScrolling) return;
+    const state = {
+      container,
+      totalItems: 0,
+      visibleRange: { start: 0, end: 50 },
+      itemHeight: 0
+    };
+    state.observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const target = entry.target;
+            if (target instanceof HTMLElement || target instanceof SVGElement) {
+              target.style.display = "";
+            }
+          }
+        });
+      },
+      { root: container, threshold: 0.1 }
+    );
+    virtualScrollStates.set(slotIndex, state);
+  }
+  function shouldVirtualize(_slotIndex, itemCount) {
+    return config.enableVirtualScrolling && itemCount > config.virtualScrollThreshold;
+  }
+  function ensureTextNode(node, slotIndex) {
+    if (!node) {
+      throw new Error(`liveui: slot ${slotIndex} not registered`);
+    }
+    return node;
+  }
+  function applySetText(slotIndex, text) {
+    const node = ensureTextNode(getSlot(slotIndex), slotIndex);
+    if (config.enableDirtyChecking && node.textContent === text) {
+      return;
+    }
+    if (config.enableBatching) {
+      batcher.scheduleWrite(() => {
+        node.textContent = text;
+      });
+    } else {
+      node.textContent = text;
+    }
+  }
+  function applySetAttrs(slotIndex, upsert, remove) {
+    const node = getSlot(slotIndex);
+    if (!(node instanceof Element)) {
+      throw new Error(`liveui: slot ${slotIndex} is not an element`);
+    }
+    const existingBindings = getRegisteredSlotBindings(slotIndex) ?? [];
+    const bindingMap = /* @__PURE__ */ new Map();
+    for (const spec of existingBindings) {
+      if (!spec || typeof spec.event !== "string") continue;
+      bindingMap.set(spec.event, {
+        handler: spec.handler,
+        listen: spec.listen ? [...spec.listen] : void 0,
+        props: spec.props ? [...spec.props] : void 0
+      });
+    }
+    const parseTokens = (value) => {
+      if (typeof value !== "string") {
+        return void 0;
+      }
+      const tokens = value.split(/\s+/).map((token) => token.trim()).filter((token) => token.length > 0);
+      return tokens.length > 0 ? tokens : void 0;
+    };
+    let bindingChanged = false;
+    if (upsert) {
+      for (const key of Object.keys(upsert)) {
+        if (typeof key === "string" && key.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
+          const routerKey = key.slice(DATA_ROUTER_ATTR_PREFIX.length);
+          applyRouterAttribute(node, routerKey, upsert[key]);
+          delete upsert[key];
+          continue;
+        }
+        if (typeof key !== "string" || !key.startsWith(DATA_EVENT_ATTR_PREFIX)) {
+          continue;
+        }
+        bindingChanged = true;
+        const value = upsert[key];
+        delete upsert[key];
+        let remainder = key.slice(DATA_EVENT_ATTR_PREFIX.length);
+        if (remainder.startsWith("-")) {
+          remainder = remainder.slice(1);
+        }
+        if (remainder.length === 0) {
+          continue;
+        }
+        let metaType = "";
+        const dashIndex = remainder.indexOf("-");
+        if (dashIndex !== -1) {
+          metaType = remainder.slice(dashIndex + 1);
+          remainder = remainder.slice(0, dashIndex);
+        }
+        const eventName = remainder.trim();
+        if (eventName.length === 0) {
+          continue;
+        }
+        const entry = bindingMap.get(eventName) ?? {};
+        if (metaType === "listen") {
+          entry.listen = parseTokens(value);
+        } else if (metaType === "props") {
+          entry.props = parseTokens(value);
+        } else {
+          entry.handler = typeof value === "string" ? value : value != null ? String(value) : "";
+        }
+        bindingMap.set(eventName, entry);
+      }
+    }
+    if (Array.isArray(remove) && remove.length > 0) {
+      for (let i = remove.length - 1; i >= 0; i--) {
+        const attrName = remove[i];
+        if (typeof attrName === "string" && attrName.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
+          const routerKey = attrName.slice(DATA_ROUTER_ATTR_PREFIX.length);
+          applyRouterAttribute(node, routerKey, void 0);
+          remove.splice(i, 1);
+          continue;
+        }
+        if (typeof attrName !== "string" || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX)) {
+          continue;
+        }
+        bindingChanged = true;
+        remove.splice(i, 1);
+        let remainder = attrName.slice(DATA_EVENT_ATTR_PREFIX.length);
+        if (remainder.startsWith("-")) {
+          remainder = remainder.slice(1);
+        }
+        if (remainder.length === 0) {
+          continue;
+        }
+        const dashIndex = remainder.indexOf("-");
+        if (dashIndex !== -1) {
+          remainder = remainder.slice(0, dashIndex);
+        }
+        const eventName = remainder.trim();
+        if (eventName.length === 0) {
+          continue;
+        }
+        bindingMap.delete(eventName);
+      }
+    }
+    if (bindingChanged) {
+      const specs = [];
+      bindingMap.forEach((info, eventName) => {
+        const handlerId = info.handler?.trim();
+        if (!handlerId) {
+          return;
+        }
+        const spec = { event: eventName, handler: handlerId };
+        if (info.listen && info.listen.length > 0) {
+          spec.listen = [...info.listen];
+        }
+        if (info.props && info.props.length > 0) {
+          spec.props = [...info.props];
+        }
+        specs.push(spec);
+      });
+      registerBindingsForSlot(slotIndex, specs);
+    }
+    const applyAttrs = () => {
+      if (upsert) {
+        for (const [k, v] of Object.entries(upsert)) {
+          if (v === void 0 || v === null) continue;
+          if (config.enableDirtyChecking && node.getAttribute(k) === String(v)) {
+            continue;
+          }
+          node.setAttribute(k, String(v));
+        }
+      }
+      if (remove) {
+        for (const key of remove) {
+          if (node.hasAttribute(key)) {
+            node.removeAttribute(key);
+          }
+        }
+      }
+    };
+    if (config.enableBatching) {
+      batcher.scheduleWrite(applyAttrs);
+    } else {
+      applyAttrs();
+    }
+  }
+  function morphElement(fromEl, toEl) {
+    const fromAttrs = fromEl.attributes;
+    const toAttrs = toEl.attributes;
+    for (let i = fromAttrs.length - 1; i >= 0; i--) {
+      const attr = fromAttrs[i];
+      if (!toEl.hasAttribute(attr.name)) {
+        fromEl.removeAttribute(attr.name);
+      }
+    }
+    for (let i = 0; i < toAttrs.length; i++) {
+      const attr = toAttrs[i];
+      if (fromEl.getAttribute(attr.name) !== attr.value) {
+        fromEl.setAttribute(attr.name, attr.value);
+      }
+    }
+    if (fromEl.childNodes.length === 1 && fromEl.firstChild?.nodeType === Node.TEXT_NODE) {
+      if (toEl.childNodes.length === 1 && toEl.firstChild?.nodeType === Node.TEXT_NODE) {
+        if (fromEl.firstChild.textContent !== toEl.firstChild.textContent) {
+          fromEl.firstChild.textContent = toEl.firstChild.textContent;
+        }
+      }
+    }
+  }
+  function registerRowSlots(row, fragment, overrides) {
+    if (!row) {
+      return;
+    }
+    const requestedSlots = Array.isArray(row.slots) ? row.slots.filter((value) => Number.isInteger(value) && value >= 0) : [];
+    const pendingSlots = new Set(requestedSlots);
+    const slotAnchors = resolveSlotAnchors(row.slotPaths, overrides);
+    if (slotAnchors.size > 0) {
+      if (pendingSlots.size > 0) {
+        for (const slotId of Array.from(pendingSlots)) {
+          const node = slotAnchors.get(slotId);
+          if (node) {
+            registerSlot(slotId, node);
+            pendingSlots.delete(slotId);
+          }
+        }
+      } else {
+        for (const [slotId, node] of slotAnchors.entries()) {
+          registerSlot(slotId, node);
+        }
+      }
+    }
+    const listAnchors = resolveListContainers(row.listPaths, overrides);
+    for (const [slotId, element] of listAnchors.entries()) {
+      registerList(slotId, element);
+    }
+    if (pendingSlots.size > 0 && requestedSlots.length > 0) {
+      pendingSlots.forEach((idx) => {
+        console.warn(`liveui: slot ${idx} not resolved in inserted row`);
+      });
+    }
+  }
+  function applyList(slotIndex, childOps) {
+    if (!Array.isArray(childOps) || childOps.length === 0) return;
+    const record = ensureList(slotIndex);
+    const container = record.container;
+    const children = config.enableBatching ? Array.from(container.children) : null;
+    let itemCount = record.rows.size;
+    for (const op of childOps) {
+      if (!op || !op.length) continue;
+      const kind = op[0];
+      switch (kind) {
+        case "del": {
+          const key = op[1];
+          const row = getRow(slotIndex, key);
+          if (row && row.parentNode === container) {
+            const removeNode = () => {
+              unbindRefsInTree(row);
+              container.removeChild(row);
+            };
+            if (config.enableBatching) {
+              batcher.scheduleWrite(removeNode);
+            } else {
+              removeNode();
+            }
+          }
+          deleteRow(slotIndex, key);
+          itemCount--;
+          break;
+        }
+        case "ins": {
+          const pos = op[1];
+          const payload = op[2] || { key: "", html: "" };
+          const rowBindings = payload && typeof payload === "object" ? payload.bindings ?? null : null;
+          if (rowBindings?.slots) {
+            for (const [slotKey, specs] of Object.entries(rowBindings.slots)) {
+              const slotId = Number(slotKey);
+              if (Number.isNaN(slotId)) {
+                continue;
+              }
+              registerBindingsForSlot(slotId, specs ?? []);
+            }
+          }
+          const memoKey = memoizer.key("ins", slotIndex, payload.html);
+          let fragment;
+          if (config.enableMemoization && memoizer.has(memoKey)) {
+            fragment = memoizer.get(memoKey).cloneNode(true);
+          } else {
+            fragment = createFragment(payload.html || "");
+            if (config.enableMemoization) {
+              memoizer.set(memoKey, fragment.cloneNode(true));
+            }
+          }
+          const nodes = Array.from(fragment.childNodes);
+          if (nodes.length === 0) {
+            console.warn("live: insertion payload missing nodes for key", payload.key);
+            break;
+          }
+          const insertNode = () => {
+            const refNode = config.enableBatching ? children[pos] || null : container.children[pos] || null;
+            container.insertBefore(fragment, refNode);
+            const root = nodes[0];
+            if (root instanceof Element) {
+              setRow(slotIndex, payload.key, root);
+              const rangeOverrides = applyComponentRanges(payload.componentPaths);
+              registerRowSlots(payload, root, rangeOverrides);
+              const bindingOptions = { overrides: rangeOverrides };
+              applyRouterBindings(rowBindings?.router ?? null, bindingOptions);
+              applyRefBindings(rowBindings?.refs ?? null, bindingOptions);
+              applyUploadBindings(rowBindings?.uploads ?? null, rangeOverrides);
+              if (shouldVirtualize(slotIndex, itemCount)) {
+                const state = virtualScrollStates.get(slotIndex);
+                if (state && (pos < state.visibleRange.start || pos > state.visibleRange.end)) {
+                  if (root instanceof HTMLElement || root instanceof SVGElement) {
+                    root.style.display = "none";
+                  }
+                }
+              }
+            } else {
+              console.warn("live: row root is not an element for key", payload.key);
+            }
+          };
+          if (config.enableBatching) {
+            batcher.scheduleWrite(insertNode);
+          } else {
+            insertNode();
+          }
+          itemCount++;
+          break;
+        }
+        case "mov": {
+          const from = op[1];
+          const to = op[2];
+          if (from === to) break;
+          const moveNode = () => {
+            const childArray = config.enableBatching ? children : Array.from(container.children);
+            const child = childArray[from];
+            if (child) {
+              const refNode = to < childArray.length ? childArray[to] : null;
+              container.insertBefore(child, refNode);
+            }
+          };
+          if (config.enableBatching) {
+            batcher.scheduleWrite(moveNode);
+          } else {
+            moveNode();
+          }
+          break;
+        }
+        default:
+          console.warn("live: unknown list child op", op);
+      }
+    }
+    if (shouldVirtualize(slotIndex, itemCount)) {
+      const state = virtualScrollStates.get(slotIndex);
+      if (state) {
+        state.totalItems = itemCount;
+      } else {
+        initVirtualScroll(slotIndex, container);
+      }
+    }
+  }
+  function applyOps(ops) {
+    if (!Array.isArray(ops)) return;
+    for (const op of ops) {
+      if (!op || op.length === 0) continue;
+      const kind = op[0];
+      switch (kind) {
+        case "setText":
+          applySetText(op[1], op[2]);
+          break;
+        case "setAttrs":
+          applySetAttrs(op[1], op[2] || {}, op[3] || []);
+          break;
+        case "list":
+          applyList(op[1], op.slice(2));
+          break;
+        default:
+          console.warn("live: unknown op", op);
+      }
+    }
+    if (config.enableBatching) {
+      batcher.immediate();
+    }
+  }
+  function configurePatcher(options) {
+    Object.assign(config, options);
+  }
+  function getPatcherConfig() {
+    return { ...config };
+  }
+  function clearPatcherCaches() {
+    htmlCache.clear();
+    memoizer.clear();
+    virtualScrollStates.clear();
+  }
+  function getPatcherStats() {
+    return {
+      htmlCacheSize: htmlCache.size,
+      memoizerCacheSize: memoizer["cache"].size,
+      virtualScrollCount: virtualScrollStates.size
+    };
+  }
+  function computeInverseOps(patches) {
+    const inverseOps = [];
+    for (const patch of patches) {
+      const [opType, slotId, ...args] = patch;
+      if (opType === "setText") {
+        const element = getSlot(slotId);
+        if (element) {
+          const currentText = element.textContent || "";
+          inverseOps.push(["setText", slotId, currentText]);
+        }
+      } else if (opType === "setAttrs") {
+        const element = getSlot(slotId);
+        if (element && element instanceof Element) {
+          const [newAttrs, removeKeys] = args;
+          const oldAttrs = {};
+          const keysToRemove = [];
+          for (const key of Object.keys(newAttrs)) {
+            const currentValue = element.getAttribute(key);
+            if (currentValue !== null) {
+              oldAttrs[key] = currentValue;
+            } else {
+              keysToRemove.push(key);
+            }
+          }
+          for (const key of removeKeys) {
+            const currentValue = element.getAttribute(key);
+            if (currentValue !== null) {
+              oldAttrs[key] = currentValue;
+            }
+          }
+          inverseOps.push(["setAttrs", slotId, oldAttrs, keysToRemove]);
+        }
+      } else if (opType === "list") {
+        const childOps = args;
+        const inverseChildOps = [];
+        for (const childOp of childOps) {
+          const [childOpType, ...childArgs] = childOp;
+          if (childOpType === "ins") {
+            const [, { key }] = childArgs;
+            inverseChildOps.push(["del", key]);
+          } else if (childOpType === "del") {
+          } else if (childOpType === "mov") {
+            const [fromIdx, toIdx] = childArgs;
+            inverseChildOps.push(["mov", toIdx, fromIdx]);
+          }
+        }
+        if (inverseChildOps.length > 0) {
+          inverseOps.push(["list", slotId, ...inverseChildOps.reverse()]);
+        }
+      }
+    }
+    return inverseOps.reverse();
+  }
+
   // src/reactive.ts
   var Signal = class {
     constructor(initial) {
@@ -3796,12 +3751,16 @@ var LiveUIModule = (() => {
       clearRefs();
       registerRefs(boot.refs?.add ?? null);
       let rangeOverrides;
+      let rootRange = null;
       if (typeof document !== "undefined") {
-        bindRefsInTree(document);
         resetComponentRanges();
         rangeOverrides = applyComponentRanges(boot.componentPaths, { root: document });
+        rootRange = this.computeRootRange();
       }
       this.registerInitialDom(boot);
+      const bindingOptions = { overrides: rangeOverrides, fallbackRange: rootRange };
+      applyRouterBindings(boot.bindings?.router ?? null, bindingOptions);
+      applyRefBindings(boot.bindings?.refs ?? null, bindingOptions);
       primeUploadBindings(boot.bindings?.uploads ?? null, rangeOverrides);
       if (typeof window !== "undefined" && boot.location) {
         const queryPart = boot.location.q ? `?${boot.location.q}` : "";
@@ -3856,6 +3815,18 @@ var LiveUIModule = (() => {
       for (const [slotId, element] of listContainers.entries()) {
         registerList(slotId, element);
       }
+    }
+    computeRootRange() {
+      if (typeof document === "undefined") {
+        return null;
+      }
+      const container = document.body ?? document;
+      const count = container.childNodes.length;
+      return {
+        container,
+        startIndex: 0,
+        endIndex: count > 0 ? count - 1 : -1
+      };
     }
     /**
      * Get current boot payload
@@ -4409,11 +4380,21 @@ var LiveUIModule = (() => {
         registerRefs(msg.refs.add);
       }
       let initOverrides;
+      let initRootRange = null;
       if (typeof document !== "undefined") {
-        bindRefsInTree(document);
-        primeHandlerBindings(document);
+        const rootContainer = document.body ?? document;
+        const childCount = rootContainer.childNodes.length;
+        initRootRange = {
+          container: rootContainer,
+          startIndex: 0,
+          endIndex: childCount > 0 ? childCount - 1 : -1
+        };
+        resetComponentRanges();
         initOverrides = applyComponentRanges(msg.componentPaths, { root: document });
       }
+      const initBindingOptions = { overrides: initOverrides, fallbackRange: initRootRange };
+      applyRouterBindings(msg.bindings?.router ?? null, initBindingOptions);
+      applyRefBindings(msg.bindings?.refs ?? null, initBindingOptions);
       primeUploadBindings(msg.bindings?.uploads ?? null, initOverrides);
       if (msg.seq !== void 0) {
         this.lastAck = msg.seq;
@@ -4506,6 +4487,15 @@ var LiveUIModule = (() => {
           }
         }
       }
+      if (msg.bindings?.uploads) {
+        applyUploadBindings(msg.bindings.uploads);
+      }
+      if (msg.bindings?.router) {
+        applyRouterBindings(msg.bindings.router);
+      }
+      if (msg.bindings?.refs) {
+        applyRefBindings(msg.bindings.refs);
+      }
       if (Array.isArray(msg.bindings?.uploads)) {
         if (this.batchScheduled || this.patchQueue.length > 0) {
           this.pendingUploadBindings.push(msg.bindings.uploads);
@@ -4591,6 +4581,15 @@ var LiveUIModule = (() => {
      * Apply effects from server
      */
     applyEffects(effects) {
+      if (!effects || effects.length === 0) {
+        return;
+      }
+      if (this.patchQueue.length > 0 || this.batchScheduled) {
+        if (this.batchScheduled) {
+          this.cancelScheduledBatch();
+        }
+        this.flushBatch();
+      }
       for (const effect of effects) {
         try {
           this.log("Applying effect:", effect);
@@ -4656,6 +4655,7 @@ var LiveUIModule = (() => {
       if (typeof document === "undefined") {
         return;
       }
+      clearRefs();
       const markup = this.getTemplateMarkup(payload, "__root__");
       clearPatcherCaches();
       reset();
@@ -4665,7 +4665,6 @@ var LiveUIModule = (() => {
         document.documentElement.innerHTML = markup;
       }
       const rootContainer = document.body ?? document;
-      primeHandlerBindings(rootContainer);
       clearHandlers();
       if (payload.handlers && Object.keys(payload.handlers).length > 0) {
         registerHandlers(payload.handlers);
@@ -4678,7 +4677,6 @@ var LiveUIModule = (() => {
       if (payload.refs?.add) {
         registerRefs(payload.refs.add);
       }
-      bindRefsInTree(document);
       resetComponentRanges();
       const childCount = rootContainer.childNodes.length;
       const range = {
@@ -4688,6 +4686,9 @@ var LiveUIModule = (() => {
       };
       const overrides = applyComponentRanges(payload.componentPaths, { root: document });
       this.registerTemplateAnchors(range, payload, overrides);
+      const bindingOptions = { overrides, fallbackRange: range };
+      applyRouterBindings(payload.bindings?.router ?? null, bindingOptions);
+      applyRefBindings(payload.bindings?.refs ?? null, bindingOptions);
       primeUploadBindings(payload.bindings?.uploads ?? null, overrides);
     }
     applyComponentTemplatePayload(payload, scope) {
@@ -4719,7 +4720,6 @@ var LiveUIModule = (() => {
       const markup = this.getTemplateMarkup(payload, scope.componentId);
       template.innerHTML = markup;
       const fragment = template.content.cloneNode(true);
-      primeHandlerBindings(fragment);
       const insertedNodes = [];
       for (let child = fragment.firstChild; child; child = child.nextSibling) {
         insertedNodes.push(child);
@@ -4731,6 +4731,9 @@ var LiveUIModule = (() => {
       for (let index = endIndex; index >= startIndex; index--) {
         const node = container.childNodes.item(index);
         if (node) {
+          if (node instanceof Element || node instanceof DocumentFragment) {
+            unbindRefsInTree(node);
+          }
           container.removeChild(node);
         }
       }
@@ -4753,6 +4756,9 @@ var LiveUIModule = (() => {
         baseRange: refreshed
       });
       this.registerTemplateAnchors(refreshed, payload, overrides);
+      const bindingOptions = { overrides, fallbackRange: refreshed };
+      applyRouterBindings(payload.bindings?.router ?? null, bindingOptions);
+      applyRefBindings(payload.bindings?.refs ?? null, bindingOptions);
       replaceUploadBindingsForComponent(scope.componentId, payload.bindings?.uploads ?? null, overrides);
       if (payload.handlers && Object.keys(payload.handlers).length > 0) {
         registerHandlers(payload.handlers);
@@ -4773,7 +4779,6 @@ var LiveUIModule = (() => {
       if (payload.refs?.add) {
         registerRefs(payload.refs.add);
       }
-      bindRefsInTree(container);
     }
     handleDOMRequest(msg) {
       if (!msg || !msg.id) {
@@ -5349,7 +5354,6 @@ var LiveUIModule = (() => {
       const template = document.createElement("template");
       template.innerHTML = html || "";
       const fragment = template.content.cloneNode(true);
-      primeHandlerBindings(fragment);
       const insertedNodes = [];
       for (let child = fragment.firstChild; child; child = child.nextSibling) {
         insertedNodes.push(child);
@@ -5719,16 +5723,46 @@ var LiveUIModule = (() => {
           this.log("Unknown pubsub op:", msg);
       }
     }
+    normalizeDiagnosticMessage(msg) {
+      if (!msg) {
+        return {
+          t: "diagnostic",
+          sid: this.sessionId.get() ?? "",
+          code: "runtime_panic",
+          message: "Runtime diagnostic"
+        };
+      }
+      if (msg.t === "diagnostic") {
+        return msg;
+      }
+      return {
+        t: "diagnostic",
+        sid: msg.sid,
+        code: msg.code,
+        message: msg.message,
+        details: msg.details
+      };
+    }
     recordDiagnostic(msg) {
+      const diagnostic = this.normalizeDiagnosticMessage(msg);
+      this.emit("diagnostic", { diagnostic });
+      if (msg.t === "diagnostic") {
+        console.warn(
+          "[LiveUI][diagnostic]",
+          diagnostic.code,
+          diagnostic.message,
+          diagnostic.details
+        );
+      }
       if (!this.options.debug) {
         return;
       }
-      const key = this.buildDiagnosticKey(msg);
+      const key = this.buildDiagnosticKey(diagnostic);
       const entry = {
         key,
-        code: msg.code ?? "runtime_panic",
-        message: msg.message ?? "Runtime panic recovered",
-        details: msg.details,
+        code: diagnostic.code ?? "runtime_panic",
+        message: diagnostic.message ?? "Runtime panic recovered",
+        details: diagnostic.details,
         timestamp: Date.now()
       };
       const existingIndex = this.diagnostics.findIndex(
@@ -6031,6 +6065,30 @@ var LiveUIModule = (() => {
           dl.appendChild(dd);
         }
         container.appendChild(dl);
+      }
+      const componentId = typeof details?.componentId === "string" ? details.componentId.trim() : "";
+      if (componentId) {
+        const actions = document.createElement("div");
+        actions.style.cssText = "display:flex;justify-content:flex-end;margin-top:4px;";
+        const resetButton = document.createElement("button");
+        resetButton.type = "button";
+        resetButton.textContent = "Reset component";
+        resetButton.title = `Request router reset for ${componentId}`;
+        resetButton.style.cssText = [
+          "padding:6px 12px",
+          "border-radius:6px",
+          "border:1px solid rgba(59,130,246,0.45)",
+          "background:rgba(37,99,235,0.2)",
+          "color:#dbeafe",
+          "font-size:12px",
+          "font-weight:600",
+          "cursor:pointer"
+        ].join(";");
+        resetButton.addEventListener("click", () => {
+          this.requestRouterReset(componentId);
+        });
+        actions.appendChild(resetButton);
+        container.appendChild(actions);
       }
       if (details?.stack) {
         const stack = document.createElement("pre");

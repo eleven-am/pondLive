@@ -86,6 +86,26 @@ func DOMScrollIntoView[T ElementDescriptor](ctx Dispatcher, ref *ElementRef[T], 
 	})
 }
 
+// DOMAsyncCall calls a method on the referenced element and returns the result.
+// This makes a synchronous call to the client and waits for the response.
+func DOMAsyncCall[T ElementDescriptor](ctx Dispatcher, ref *ElementRef[T], method string, args ...any) (any, error) {
+	if ctx == nil {
+		return nil, nil
+	}
+	if ref == nil {
+		return nil, nil
+	}
+	refID := strings.TrimSpace(ref.ID())
+	if refID == "" {
+		return nil, nil
+	}
+	method = strings.TrimSpace(method)
+	if method == "" {
+		return nil, nil
+	}
+	return ctx.DOMAsyncCall(refID, method, args...)
+}
+
 func enqueueDOMAction[T ElementDescriptor](ctx Dispatcher, ref *ElementRef[T], build func(*DOMActionEffect) bool) {
 	if ctx == nil {
 		return

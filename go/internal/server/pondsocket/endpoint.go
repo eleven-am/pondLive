@@ -185,10 +185,11 @@ func (e *Endpoint) onClientEvent(ctx *pond.EventContext) error {
 		return transport.SendServerError(serverError(session.ID(), "bad_payload", err))
 	}
 
-	if err := session.DispatchEvent(handlers.ID(envelope.HID), wire.ToEvent(), envelope.CSeq); err != nil {
-		_ = transport.SendServerError(serverError(session.ID(), "dispatch_failed", err))
-		return err
-	}
+	go func() {
+		if err := session.DispatchEvent(handlers.ID(envelope.HID), wire.ToEvent(), envelope.CSeq); err != nil {
+			_ = transport.SendServerError(serverError(session.ID(), "dispatch_failed", err))
+		}
+	}()
 
 	ack := protocol.EventAck{
 		SID:  string(session.ID()),
