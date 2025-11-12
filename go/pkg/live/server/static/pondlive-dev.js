@@ -2671,6 +2671,16 @@ var LiveUIModule = (() => {
     registerComponentRanges(ranges);
     return ranges;
   }
+  function resolveNodeInComponent(componentId, path, overrides) {
+    if (typeof componentId !== "string" || componentId.length === 0) {
+      return null;
+    }
+    const range = overrides?.get(componentId) ?? getComponentRange(componentId);
+    if (!range) {
+      return null;
+    }
+    return resolveNodeInRange(range, path);
+  }
 
   // src/patcher.ts
   var config = {
@@ -3219,6 +3229,133 @@ var LiveUIModule = (() => {
   }
 
   // src/uploads.ts
+  var elementBindings = /* @__PURE__ */ new WeakMap();
+  var idToElement = /* @__PURE__ */ new Map();
+  var componentUploadIds = /* @__PURE__ */ new Map();
+  function removeUploadIdFromComponents(uploadId) {
+    for (const [componentId, ids] of componentUploadIds.entries()) {
+      if (ids.delete(uploadId) && ids.size === 0) {
+        componentUploadIds.delete(componentId);
+      }
+    }
+  }
+  function detachUploadBinding(uploadId) {
+    if (typeof uploadId !== "string" || uploadId.length === 0) {
+      return;
+    }
+    const element = idToElement.get(uploadId);
+    if (element) {
+      elementBindings.delete(element);
+      idToElement.delete(uploadId);
+    }
+    removeUploadIdFromComponents(uploadId);
+  }
+  function setInputAttributes(input, descriptor) {
+    if (Array.isArray(descriptor.accept) && descriptor.accept.length > 0) {
+      input.setAttribute("accept", descriptor.accept.join(","));
+    } else {
+      input.removeAttribute("accept");
+    }
+    if (descriptor.multiple) {
+      input.setAttribute("multiple", "multiple");
+    } else {
+      input.removeAttribute("multiple");
+    }
+  }
+  function attachUploadDescriptor(descriptor, overrides) {
+    if (!descriptor || typeof descriptor.uploadId !== "string") {
+      return false;
+    }
+    const node = resolveNodeInComponent(
+      descriptor.componentId,
+      descriptor.path,
+      overrides
+    );
+    if (!(node instanceof HTMLInputElement)) {
+      return false;
+    }
+    if (node.type && node.type.toLowerCase() !== "file") {
+      node.type = "file";
+    }
+    detachUploadBinding(descriptor.uploadId);
+    setInputAttributes(node, descriptor);
+    const meta = {
+      id: descriptor.uploadId,
+      multiple: !!descriptor.multiple
+    };
+    if (Array.isArray(descriptor.accept) && descriptor.accept.length > 0) {
+      meta.accept = [...descriptor.accept];
+    }
+    if (typeof descriptor.maxSize === "number" && !Number.isNaN(descriptor.maxSize)) {
+      meta.maxSize = descriptor.maxSize;
+    }
+    elementBindings.set(node, meta);
+    idToElement.set(descriptor.uploadId, node);
+    return true;
+  }
+  function getUploadBinding(element) {
+    if (!element) {
+      return void 0;
+    }
+    return elementBindings.get(element) ?? void 0;
+  }
+  function replaceUploadBindingsForComponent(componentId, descriptors, overrides) {
+    if (typeof componentId !== "string" || componentId.length === 0) {
+      return;
+    }
+    const existing = componentUploadIds.get(componentId);
+    if (existing) {
+      existing.forEach((id) => detachUploadBinding(id));
+      componentUploadIds.delete(componentId);
+    }
+    if (!Array.isArray(descriptors) || descriptors.length === 0) {
+      return;
+    }
+    const next = /* @__PURE__ */ new Set();
+    for (const descriptor of descriptors) {
+      if (!descriptor || typeof descriptor.uploadId !== "string") {
+        continue;
+      }
+      const normalized = {
+        ...descriptor,
+        componentId
+      };
+      if (attachUploadDescriptor(normalized, overrides)) {
+        next.add(descriptor.uploadId);
+      }
+    }
+    if (next.size > 0) {
+      componentUploadIds.set(componentId, next);
+    }
+  }
+  function applyUploadBindings(descriptors, overrides) {
+    if (!Array.isArray(descriptors) || descriptors.length === 0) {
+      return;
+    }
+    const grouped = /* @__PURE__ */ new Map();
+    for (const descriptor of descriptors) {
+      if (!descriptor || typeof descriptor.componentId !== "string") {
+        continue;
+      }
+      const list = grouped.get(descriptor.componentId) ?? [];
+      list.push(descriptor);
+      grouped.set(descriptor.componentId, list);
+    }
+    for (const [componentId, list] of grouped.entries()) {
+      replaceUploadBindingsForComponent(componentId, list, overrides);
+    }
+  }
+  function primeUploadBindings(descriptors, overrides) {
+    componentUploadIds.forEach((ids) => {
+      ids.forEach((id) => detachUploadBinding(id));
+    });
+    componentUploadIds.clear();
+    idToElement.clear();
+    if (!Array.isArray(descriptors) || descriptors.length === 0) {
+      return;
+    }
+    applyUploadBindings(descriptors, overrides);
+  }
   var UploadManager = class {
     constructor(options) {
       this.uploads = /* @__PURE__ */ new Map();
@@ -3253,7 +3390,8 @@ var LiveUIModule = (() => {
       if (!input) {
         return;
       }
-      const uploadId = input.dataset?.pondUpload;
+      const binding = getUploadBinding(input);
+      const uploadId = binding?.id;
       if (!uploadId) {
         return;
       }
@@ -3657,12 +3795,14 @@ var LiveUIModule = (() => {
       primeSlotBindings(boot.bindings?.slots ?? null);
       clearRefs();
       registerRefs(boot.refs?.add ?? null);
+      let rangeOverrides;
       if (typeof document !== "undefined") {
         bindRefsInTree(document);
         resetComponentRanges();
-        applyComponentRanges(boot.componentPaths, { root: document });
+        rangeOverrides = applyComponentRanges(boot.componentPaths, { root: document });
       }
       this.registerInitialDom(boot);
+      primeUploadBindings(boot.bindings?.uploads ?? null, rangeOverrides);
       if (typeof window !== "undefined" && boot.location) {
         const queryPart = boot.location.q ? `?${boot.location.q}` : "";
         const hashPart = boot.location.hash ? `#${boot.location.hash}` : "";
@@ -3792,6 +3932,7 @@ var LiveUIModule = (() => {
       this.batchScheduled = false;
       this.rafHandle = null;
       this.rafUsesTimeoutFallback = false;
+      this.pendingUploadBindings = [];
       this.cookieRequests = /* @__PURE__ */ new Set();
       this.templateCache = /* @__PURE__ */ new Map();
       this.MAX_TEMPLATE_CACHE_SIZE = 100;
@@ -4003,6 +4144,7 @@ var LiveUIModule = (() => {
       this.isReconnecting = false;
       this.cancelScheduledBatch();
       this.patchQueue = [];
+      this.pendingUploadBindings = [];
       for (const entry of this.pubsubChannels.values()) {
         try {
           entry.dispose();
@@ -4266,11 +4408,13 @@ var LiveUIModule = (() => {
       if (msg.refs?.add) {
         registerRefs(msg.refs.add);
       }
+      let initOverrides;
       if (typeof document !== "undefined") {
         bindRefsInTree(document);
         primeHandlerBindings(document);
-        applyComponentRanges(msg.componentPaths, { root: document });
+        initOverrides = applyComponentRanges(msg.componentPaths, { root: document });
       }
+      primeUploadBindings(msg.bindings?.uploads ?? null, initOverrides);
       if (msg.seq !== void 0) {
         this.lastAck = msg.seq;
         this.sendAck(msg.seq);
@@ -4360,6 +4504,13 @@ var LiveUIModule = (() => {
           } else {
             registerBindingsForSlot(slotId, []);
           }
+        }
+      }
+      if (Array.isArray(msg.bindings?.uploads)) {
+        if (this.batchScheduled || this.patchQueue.length > 0) {
+          this.pendingUploadBindings.push(msg.bindings.uploads);
+        } else {
+          applyUploadBindings(msg.bindings.uploads);
         }
       }
       if (msg.refs) {
@@ -4537,6 +4688,7 @@ var LiveUIModule = (() => {
       };
       const overrides = applyComponentRanges(payload.componentPaths, { root: document });
       this.registerTemplateAnchors(range, payload, overrides);
+      primeUploadBindings(payload.bindings?.uploads ?? null, overrides);
     }
     applyComponentTemplatePayload(payload, scope) {
       if (typeof document === "undefined") {
@@ -4601,6 +4753,7 @@ var LiveUIModule = (() => {
         baseRange: refreshed
       });
       this.registerTemplateAnchors(refreshed, payload, overrides);
+      replaceUploadBindingsForComponent(scope.componentId, payload.bindings?.uploads ?? null, overrides);
       if (payload.handlers && Object.keys(payload.handlers).length > 0) {
         registerHandlers(payload.handlers);
         syncEventListeners();
@@ -4640,6 +4793,29 @@ var LiveUIModule = (() => {
         this.sendDOMResponse(response);
         return;
       }
+      if (msg.method) {
+        try {
+          const method = msg.method.trim();
+          if (!method) {
+            response.error = "empty_method";
+            this.sendDOMResponse(response);
+            return;
+          }
+          const fn = element[method];
+          if (typeof fn !== "function") {
+            response.error = "method_not_found";
+            this.sendDOMResponse(response);
+            return;
+          }
+          const args = Array.isArray(msg.args) ? msg.args : [];
+          const result = fn.apply(element, args);
+          response.result = result;
+        } catch (error) {
+          response.error = error instanceof Error ? error.message : String(error);
+          this.sendDOMResponse(response);
+          return;
+        }
+      }
       if (selectors.length > 0) {
         try {
           const values = domGetSync(selectors, {
@@ -4655,9 +4831,9 @@ var LiveUIModule = (() => {
           }
         } catch (error) {
           response.error = error instanceof Error ? error.message : String(error);
+          this.sendDOMResponse(response);
+          return;
         }
-      } else {
-        response.values = {};
       }
       this.sendDOMResponse(response);
     }
@@ -5229,6 +5405,8 @@ var LiveUIModule = (() => {
         Array.isArray(listPaths) ? listPaths : void 0,
         rangeOverrides
       );
+      const uploadBindings = bindings?.uploads ?? bindings?.uploads ?? null;
+      replaceUploadBindingsForComponent(componentId, uploadBindings, rangeOverrides);
       if (Array.isArray(slotPaths) && slotPaths.length > 0) {
         const anchors = resolveSlotAnchors(slotPaths, rangeOverrides);
         anchors.forEach((node, slotId) => registerSlot(slotId, node));
@@ -5411,6 +5589,9 @@ var LiveUIModule = (() => {
         this.batchScheduled = false;
         this.rafHandle = null;
         this.rafUsesTimeoutFallback = false;
+        if (this.pendingUploadBindings.length > 0) {
+          this.flushPendingUploadBindings();
+        }
         return;
       }
       const startTime = performance.now();
@@ -5421,6 +5602,7 @@ var LiveUIModule = (() => {
       this.rafHandle = null;
       this.rafUsesTimeoutFallback = false;
       applyOps(patches);
+      this.flushPendingUploadBindings();
       const duration = performance.now() - startTime;
       this.metrics.patchesApplied += patches.length;
       this.patchTimes.push(duration);
@@ -5448,6 +5630,23 @@ var LiveUIModule = (() => {
       this.rafHandle = null;
       this.batchScheduled = false;
       this.rafUsesTimeoutFallback = false;
+    }
+    flushPendingUploadBindings() {
+      if (this.pendingUploadBindings.length === 0) {
+        return;
+      }
+      const pending = this.pendingUploadBindings;
+      this.pendingUploadBindings = [];
+      const descriptors = [];
+      for (const group of pending) {
+        if (!Array.isArray(group) || group.length === 0) {
+          continue;
+        }
+        descriptors.push(...group);
+      }
+      if (descriptors.length > 0) {
+        applyUploadBindings(descriptors);
+      }
     }
     hasStateChanged(oldState, newState) {
       if (oldState.status !== newState.status) {
@@ -5961,6 +6160,25 @@ var LiveUIModule = (() => {
       window.history.pushState({}, "", `${path}${queryPart}${hashPart}`);
       this.lastOptimisticNavTime = Date.now();
       return true;
+    }
+    requestRouterReset(componentId) {
+      const sid = this.sessionId.get();
+      if (!sid || !this.channel) {
+        this.log("Cannot request router reset without active session/channel");
+        return;
+      }
+      const trimmed = typeof componentId === "string" ? componentId.trim() : "";
+      if (!trimmed) {
+        this.log("Cannot request router reset without component id");
+        return;
+      }
+      const payload = {
+        t: "routerReset",
+        sid,
+        componentId: trimmed
+      };
+      this.log("Requesting router reset:", payload);
+      this.channel.sendMessage("routerReset", payload);
     }
     /**
      * Send acknowledgement to the server

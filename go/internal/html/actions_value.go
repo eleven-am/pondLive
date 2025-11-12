@@ -8,28 +8,29 @@ import (
 // Embedded in refs for input, textarea, select, and other form controls.
 type ValueActions[T dom.ElementDescriptor] struct {
 	ref *dom.ElementRef[T]
+	ctx dom.ActionExecutor
 }
 
-func NewValueActions[T dom.ElementDescriptor](ref *dom.ElementRef[T]) *ValueActions[T] {
-	return &ValueActions[T]{ref: ref}
+func NewValueActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.ActionExecutor) *ValueActions[T] {
+	return &ValueActions[T]{ref: ref, ctx: ctx}
 }
 
 // SetValue sets the value property of the element.
-func (a *ValueActions[T]) SetValue(ctx dom.ActionExecutor, value string) {
-	dom.DOMSet[T](ctx, a.ref, "value", value)
+func (a *ValueActions[T]) SetValue(value string) {
+	dom.DOMSet[T](a.ctx, a.ref, "value", value)
 }
 
 // SetChecked sets the checked property of the element (for checkboxes and radio buttons).
-func (a *ValueActions[T]) SetChecked(ctx dom.ActionExecutor, checked bool) {
-	dom.DOMSet[T](ctx, a.ref, "checked", checked)
+func (a *ValueActions[T]) SetChecked(checked bool) {
+	dom.DOMSet[T](a.ctx, a.ref, "checked", checked)
 }
 
 // SetDisabled sets the disabled property of the element.
-func (a *ValueActions[T]) SetDisabled(ctx dom.ActionExecutor, disabled bool) {
-	dom.DOMSet[T](ctx, a.ref, "disabled", disabled)
+func (a *ValueActions[T]) SetDisabled(disabled bool) {
+	dom.DOMSet[T](a.ctx, a.ref, "disabled", disabled)
 }
 
 // SetSelectedIndex sets the selectedIndex property of a select element.
-func (a *ValueActions[T]) SetSelectedIndex(ctx dom.ActionExecutor, index int) {
-	dom.DOMSet[T](ctx, a.ref, "selectedIndex", index)
+func (a *ValueActions[T]) SetSelectedIndex(index int) {
+	dom.DOMSet[T](a.ctx, a.ref, "selectedIndex", index)
 }

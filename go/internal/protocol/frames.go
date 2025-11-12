@@ -243,16 +243,19 @@ type Diagnostic struct {
 }
 
 type DOMRequest struct {
-	T     string   `json:"t"`
-	ID    string   `json:"id"`
-	Ref   string   `json:"ref"`
-	Props []string `json:"props,omitempty"`
+	T      string   `json:"t"`
+	ID     string   `json:"id"`
+	Ref    string   `json:"ref"`
+	Props  []string `json:"props,omitempty"`
+	Method string   `json:"method,omitempty"`
+	Args   []any    `json:"args,omitempty"`
 }
 
 type DOMResponse struct {
 	T      string         `json:"t"`
 	ID     string         `json:"id"`
 	Values map[string]any `json:"values,omitempty"`
+	Result any            `json:"result,omitempty"`
 	Error  string         `json:"error,omitempty"`
 }
 

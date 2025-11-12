@@ -64,6 +64,7 @@ func counter(ctx ui.Ctx) h.Node {
 	buttonRef := ui.UseElement[*h.ButtonRef](ctx)
 	buttonRef.OnClick(func(evt h.ClickEvent) h.Updates {
 		setCount(count() - 1)
+		buttonRef.Focus()
 		return nil
 	})
 

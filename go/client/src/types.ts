@@ -351,12 +351,15 @@ export interface DOMRequestMessage {
   id: string;
   ref: string;
   props?: string[];
+  method?: string;
+  args?: any[];
 }
 
 export interface DOMResponseMessage {
   t: "domres";
   id: string;
   values?: Record<string, any>;
+  result?: any;
   error?: string;
 }
 

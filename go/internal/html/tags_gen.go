@@ -615,12 +615,12 @@ func generateElementRefs(specs []tagSpec) {
 		b.WriteString("}\n\n")
 
 		constructor := "New" + refName
-		fmt.Fprintf(&b, "func %s(ref *ElementRef[%s]) *%s {\n", constructor, descriptor, refName)
+		fmt.Fprintf(&b, "func %s(ref *ElementRef[%s], ctx dom.ActionExecutor) *%s {\n", constructor, descriptor, refName)
 		b.WriteString("\tif ref == nil {\n\t\treturn nil\n\t}\n")
 		fmt.Fprintf(&b, "\treturn &%s{\n", refName)
 		b.WriteString("\t\tElementRef: ref,\n")
 		for _, action := range actions {
-			fmt.Fprintf(&b, "\t\t%s: %s[%s](ref.DOMElementRef()),\n", action.FieldName, action.Constructor, descriptor)
+			fmt.Fprintf(&b, "\t\t%s: %s[%s](ref.DOMElementRef(), ctx),\n", action.FieldName, action.Constructor, descriptor)
 		}
 		for _, handler := range handlers {
 			fmt.Fprintf(&b, "\t\t%s: %s(ref),\n", handler.FieldName, handler.Constructor)
@@ -661,7 +661,7 @@ func generateHookProvider(specs []tagSpec) {
 		refName := spec.Name + "Ref"
 		fmt.Fprintf(&b, "\t\tcase internalhtml.%s:\n", descriptor)
 		fmt.Fprintf(&b, "\t\t\tref := runtime.UseElement[internalhtml.%s](liveCtx)\n", descriptor)
-		fmt.Fprintf(&b, "\t\t\treturn internalhtml.New%s(ref)\n", refName)
+		fmt.Fprintf(&b, "\t\t\treturn internalhtml.New%s(ref, liveCtx)\n", refName)
 	}
 	b.WriteString("\t\tdefault:\n")
 	b.WriteString("\t\t\tpanic(fmt.Sprintf(\"live: unsupported element descriptor %T\", descriptor))\n")

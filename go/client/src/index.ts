@@ -1195,6 +1195,36 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       return;
     }
 
+    // Handle method call if specified
+    if (msg.method) {
+      try {
+        const method = msg.method.trim();
+        if (!method) {
+          response.error = "empty_method";
+          this.sendDOMResponse(response);
+          return;
+        }
+
+        // Get the method from the element
+        const fn = (element as any)[method];
+        if (typeof fn !== "function") {
+          response.error = "method_not_found";
+          this.sendDOMResponse(response);
+          return;
+        }
+
+        // Call the method with provided arguments
+        const args = Array.isArray(msg.args) ? msg.args : [];
+        const result = fn.apply(element, args);
+        response.result = result;
+      } catch (error) {
+        response.error = error instanceof Error ? error.message : String(error);
+        this.sendDOMResponse(response);
+        return;
+      }
+    }
+
+    // Handle property selectors if specified
     if (selectors.length > 0) {
       try {
         const values = domGetSync(selectors, {
@@ -1210,9 +1240,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
         }
       } catch (error) {
         response.error = error instanceof Error ? error.message : String(error);
+        this.sendDOMResponse(response);
+        return;
       }
-    } else {
-      response.values = {};
     }
 
     this.sendDOMResponse(response);

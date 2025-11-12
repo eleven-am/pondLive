@@ -17,418 +17,418 @@ func init() {
 		switch descriptor.(type) {
 		case internalhtml.HTMLAElement:
 			ref := runtime.UseElement[internalhtml.HTMLAElement](liveCtx)
-			return internalhtml.NewARef(ref)
+			return internalhtml.NewARef(ref, liveCtx)
 		case internalhtml.HTMLAbbrElement:
 			ref := runtime.UseElement[internalhtml.HTMLAbbrElement](liveCtx)
-			return internalhtml.NewAbbrRef(ref)
+			return internalhtml.NewAbbrRef(ref, liveCtx)
 		case internalhtml.HTMLAddressElement:
 			ref := runtime.UseElement[internalhtml.HTMLAddressElement](liveCtx)
-			return internalhtml.NewAddressRef(ref)
+			return internalhtml.NewAddressRef(ref, liveCtx)
 		case internalhtml.HTMLAreaElement:
 			ref := runtime.UseElement[internalhtml.HTMLAreaElement](liveCtx)
-			return internalhtml.NewAreaRef(ref)
+			return internalhtml.NewAreaRef(ref, liveCtx)
 		case internalhtml.HTMLArticleElement:
 			ref := runtime.UseElement[internalhtml.HTMLArticleElement](liveCtx)
-			return internalhtml.NewArticleRef(ref)
+			return internalhtml.NewArticleRef(ref, liveCtx)
 		case internalhtml.HTMLAsideElement:
 			ref := runtime.UseElement[internalhtml.HTMLAsideElement](liveCtx)
-			return internalhtml.NewAsideRef(ref)
+			return internalhtml.NewAsideRef(ref, liveCtx)
 		case internalhtml.HTMLAudioElement:
 			ref := runtime.UseElement[internalhtml.HTMLAudioElement](liveCtx)
-			return internalhtml.NewAudioRef(ref)
+			return internalhtml.NewAudioRef(ref, liveCtx)
 		case internalhtml.HTMLBElement:
 			ref := runtime.UseElement[internalhtml.HTMLBElement](liveCtx)
-			return internalhtml.NewBRef(ref)
+			return internalhtml.NewBRef(ref, liveCtx)
 		case internalhtml.HTMLBaseElement:
 			ref := runtime.UseElement[internalhtml.HTMLBaseElement](liveCtx)
-			return internalhtml.NewBaseRef(ref)
+			return internalhtml.NewBaseRef(ref, liveCtx)
 		case internalhtml.HTMLBdiElement:
 			ref := runtime.UseElement[internalhtml.HTMLBdiElement](liveCtx)
-			return internalhtml.NewBdiRef(ref)
+			return internalhtml.NewBdiRef(ref, liveCtx)
 		case internalhtml.HTMLBdoElement:
 			ref := runtime.UseElement[internalhtml.HTMLBdoElement](liveCtx)
-			return internalhtml.NewBdoRef(ref)
+			return internalhtml.NewBdoRef(ref, liveCtx)
 		case internalhtml.HTMLBlockquoteElement:
 			ref := runtime.UseElement[internalhtml.HTMLBlockquoteElement](liveCtx)
-			return internalhtml.NewBlockquoteRef(ref)
+			return internalhtml.NewBlockquoteRef(ref, liveCtx)
 		case internalhtml.HTMLBodyElement:
 			ref := runtime.UseElement[internalhtml.HTMLBodyElement](liveCtx)
-			return internalhtml.NewBodyRef(ref)
+			return internalhtml.NewBodyRef(ref, liveCtx)
 		case internalhtml.HTMLBrElement:
 			ref := runtime.UseElement[internalhtml.HTMLBrElement](liveCtx)
-			return internalhtml.NewBrRef(ref)
+			return internalhtml.NewBrRef(ref, liveCtx)
 		case internalhtml.HTMLButtonElement:
 			ref := runtime.UseElement[internalhtml.HTMLButtonElement](liveCtx)
-			return internalhtml.NewButtonRef(ref)
+			return internalhtml.NewButtonRef(ref, liveCtx)
 		case internalhtml.HTMLCanvasElement:
 			ref := runtime.UseElement[internalhtml.HTMLCanvasElement](liveCtx)
-			return internalhtml.NewCanvasRef(ref)
+			return internalhtml.NewCanvasRef(ref, liveCtx)
 		case internalhtml.HTMLCaptionElement:
 			ref := runtime.UseElement[internalhtml.HTMLCaptionElement](liveCtx)
-			return internalhtml.NewCaptionRef(ref)
+			return internalhtml.NewCaptionRef(ref, liveCtx)
 		case internalhtml.SVGCircleElement:
 			ref := runtime.UseElement[internalhtml.SVGCircleElement](liveCtx)
-			return internalhtml.NewCircleRef(ref)
+			return internalhtml.NewCircleRef(ref, liveCtx)
 		case internalhtml.HTMLCiteElement:
 			ref := runtime.UseElement[internalhtml.HTMLCiteElement](liveCtx)
-			return internalhtml.NewCiteRef(ref)
+			return internalhtml.NewCiteRef(ref, liveCtx)
 		case internalhtml.SVGClipPathElement:
 			ref := runtime.UseElement[internalhtml.SVGClipPathElement](liveCtx)
-			return internalhtml.NewClipPathRef(ref)
+			return internalhtml.NewClipPathRef(ref, liveCtx)
 		case internalhtml.HTMLCodeElement:
 			ref := runtime.UseElement[internalhtml.HTMLCodeElement](liveCtx)
-			return internalhtml.NewCodeRef(ref)
+			return internalhtml.NewCodeRef(ref, liveCtx)
 		case internalhtml.HTMLColElement:
 			ref := runtime.UseElement[internalhtml.HTMLColElement](liveCtx)
-			return internalhtml.NewColRef(ref)
+			return internalhtml.NewColRef(ref, liveCtx)
 		case internalhtml.HTMLColgroupElement:
 			ref := runtime.UseElement[internalhtml.HTMLColgroupElement](liveCtx)
-			return internalhtml.NewColgroupRef(ref)
+			return internalhtml.NewColgroupRef(ref, liveCtx)
 		case internalhtml.HTMLDataElement:
 			ref := runtime.UseElement[internalhtml.HTMLDataElement](liveCtx)
-			return internalhtml.NewDataElRef(ref)
+			return internalhtml.NewDataElRef(ref, liveCtx)
 		case internalhtml.HTMLDatalistElement:
 			ref := runtime.UseElement[internalhtml.HTMLDatalistElement](liveCtx)
-			return internalhtml.NewDatalistRef(ref)
+			return internalhtml.NewDatalistRef(ref, liveCtx)
 		case internalhtml.HTMLDdElement:
 			ref := runtime.UseElement[internalhtml.HTMLDdElement](liveCtx)
-			return internalhtml.NewDdRef(ref)
+			return internalhtml.NewDdRef(ref, liveCtx)
 		case internalhtml.SVGDefsElement:
 			ref := runtime.UseElement[internalhtml.SVGDefsElement](liveCtx)
-			return internalhtml.NewDefsRef(ref)
+			return internalhtml.NewDefsRef(ref, liveCtx)
 		case internalhtml.HTMLDelElement:
 			ref := runtime.UseElement[internalhtml.HTMLDelElement](liveCtx)
-			return internalhtml.NewDelElRef(ref)
+			return internalhtml.NewDelElRef(ref, liveCtx)
 		case internalhtml.HTMLDetailsElement:
 			ref := runtime.UseElement[internalhtml.HTMLDetailsElement](liveCtx)
-			return internalhtml.NewDetailsRef(ref)
+			return internalhtml.NewDetailsRef(ref, liveCtx)
 		case internalhtml.HTMLDfnElement:
 			ref := runtime.UseElement[internalhtml.HTMLDfnElement](liveCtx)
-			return internalhtml.NewDfnRef(ref)
+			return internalhtml.NewDfnRef(ref, liveCtx)
 		case internalhtml.HTMLDialogElement:
 			ref := runtime.UseElement[internalhtml.HTMLDialogElement](liveCtx)
-			return internalhtml.NewDialogRef(ref)
+			return internalhtml.NewDialogRef(ref, liveCtx)
 		case internalhtml.HTMLDivElement:
 			ref := runtime.UseElement[internalhtml.HTMLDivElement](liveCtx)
-			return internalhtml.NewDivRef(ref)
+			return internalhtml.NewDivRef(ref, liveCtx)
 		case internalhtml.HTMLDlElement:
 			ref := runtime.UseElement[internalhtml.HTMLDlElement](liveCtx)
-			return internalhtml.NewDlRef(ref)
+			return internalhtml.NewDlRef(ref, liveCtx)
 		case internalhtml.HTMLDtElement:
 			ref := runtime.UseElement[internalhtml.HTMLDtElement](liveCtx)
-			return internalhtml.NewDtRef(ref)
+			return internalhtml.NewDtRef(ref, liveCtx)
 		case internalhtml.SVGEllipseElement:
 			ref := runtime.UseElement[internalhtml.SVGEllipseElement](liveCtx)
-			return internalhtml.NewEllipseRef(ref)
+			return internalhtml.NewEllipseRef(ref, liveCtx)
 		case internalhtml.HTMLEmElement:
 			ref := runtime.UseElement[internalhtml.HTMLEmElement](liveCtx)
-			return internalhtml.NewEmRef(ref)
+			return internalhtml.NewEmRef(ref, liveCtx)
 		case internalhtml.HTMLEmbedElement:
 			ref := runtime.UseElement[internalhtml.HTMLEmbedElement](liveCtx)
-			return internalhtml.NewEmbedRef(ref)
+			return internalhtml.NewEmbedRef(ref, liveCtx)
 		case internalhtml.HTMLFieldsetElement:
 			ref := runtime.UseElement[internalhtml.HTMLFieldsetElement](liveCtx)
-			return internalhtml.NewFieldsetRef(ref)
+			return internalhtml.NewFieldsetRef(ref, liveCtx)
 		case internalhtml.HTMLFigcaptionElement:
 			ref := runtime.UseElement[internalhtml.HTMLFigcaptionElement](liveCtx)
-			return internalhtml.NewFigcaptionRef(ref)
+			return internalhtml.NewFigcaptionRef(ref, liveCtx)
 		case internalhtml.HTMLFigureElement:
 			ref := runtime.UseElement[internalhtml.HTMLFigureElement](liveCtx)
-			return internalhtml.NewFigureRef(ref)
+			return internalhtml.NewFigureRef(ref, liveCtx)
 		case internalhtml.HTMLFooterElement:
 			ref := runtime.UseElement[internalhtml.HTMLFooterElement](liveCtx)
-			return internalhtml.NewFooterRef(ref)
+			return internalhtml.NewFooterRef(ref, liveCtx)
 		case internalhtml.SVGForeignObjectElement:
 			ref := runtime.UseElement[internalhtml.SVGForeignObjectElement](liveCtx)
-			return internalhtml.NewForeignObjectRef(ref)
+			return internalhtml.NewForeignObjectRef(ref, liveCtx)
 		case internalhtml.HTMLFormElement:
 			ref := runtime.UseElement[internalhtml.HTMLFormElement](liveCtx)
-			return internalhtml.NewFormRef(ref)
+			return internalhtml.NewFormRef(ref, liveCtx)
 		case internalhtml.SVGGElement:
 			ref := runtime.UseElement[internalhtml.SVGGElement](liveCtx)
-			return internalhtml.NewGRef(ref)
+			return internalhtml.NewGRef(ref, liveCtx)
 		case internalhtml.HTMLH1Element:
 			ref := runtime.UseElement[internalhtml.HTMLH1Element](liveCtx)
-			return internalhtml.NewH1Ref(ref)
+			return internalhtml.NewH1Ref(ref, liveCtx)
 		case internalhtml.HTMLH2Element:
 			ref := runtime.UseElement[internalhtml.HTMLH2Element](liveCtx)
-			return internalhtml.NewH2Ref(ref)
+			return internalhtml.NewH2Ref(ref, liveCtx)
 		case internalhtml.HTMLH3Element:
 			ref := runtime.UseElement[internalhtml.HTMLH3Element](liveCtx)
-			return internalhtml.NewH3Ref(ref)
+			return internalhtml.NewH3Ref(ref, liveCtx)
 		case internalhtml.HTMLH4Element:
 			ref := runtime.UseElement[internalhtml.HTMLH4Element](liveCtx)
-			return internalhtml.NewH4Ref(ref)
+			return internalhtml.NewH4Ref(ref, liveCtx)
 		case internalhtml.HTMLH5Element:
 			ref := runtime.UseElement[internalhtml.HTMLH5Element](liveCtx)
-			return internalhtml.NewH5Ref(ref)
+			return internalhtml.NewH5Ref(ref, liveCtx)
 		case internalhtml.HTMLH6Element:
 			ref := runtime.UseElement[internalhtml.HTMLH6Element](liveCtx)
-			return internalhtml.NewH6Ref(ref)
+			return internalhtml.NewH6Ref(ref, liveCtx)
 		case internalhtml.HTMLHeadElement:
 			ref := runtime.UseElement[internalhtml.HTMLHeadElement](liveCtx)
-			return internalhtml.NewHeadRef(ref)
+			return internalhtml.NewHeadRef(ref, liveCtx)
 		case internalhtml.HTMLHeaderElement:
 			ref := runtime.UseElement[internalhtml.HTMLHeaderElement](liveCtx)
-			return internalhtml.NewHeaderRef(ref)
+			return internalhtml.NewHeaderRef(ref, liveCtx)
 		case internalhtml.HTMLHgroupElement:
 			ref := runtime.UseElement[internalhtml.HTMLHgroupElement](liveCtx)
-			return internalhtml.NewHgroupRef(ref)
+			return internalhtml.NewHgroupRef(ref, liveCtx)
 		case internalhtml.HTMLHrElement:
 			ref := runtime.UseElement[internalhtml.HTMLHrElement](liveCtx)
-			return internalhtml.NewHrRef(ref)
+			return internalhtml.NewHrRef(ref, liveCtx)
 		case internalhtml.HTMLHtmlElement:
 			ref := runtime.UseElement[internalhtml.HTMLHtmlElement](liveCtx)
-			return internalhtml.NewHtmlRef(ref)
+			return internalhtml.NewHtmlRef(ref, liveCtx)
 		case internalhtml.HTMLIElement:
 			ref := runtime.UseElement[internalhtml.HTMLIElement](liveCtx)
-			return internalhtml.NewIRef(ref)
+			return internalhtml.NewIRef(ref, liveCtx)
 		case internalhtml.HTMLIframeElement:
 			ref := runtime.UseElement[internalhtml.HTMLIframeElement](liveCtx)
-			return internalhtml.NewIframeRef(ref)
+			return internalhtml.NewIframeRef(ref, liveCtx)
 		case internalhtml.SVGImageElement:
 			ref := runtime.UseElement[internalhtml.SVGImageElement](liveCtx)
-			return internalhtml.NewImageRef(ref)
+			return internalhtml.NewImageRef(ref, liveCtx)
 		case internalhtml.HTMLImgElement:
 			ref := runtime.UseElement[internalhtml.HTMLImgElement](liveCtx)
-			return internalhtml.NewImgRef(ref)
+			return internalhtml.NewImgRef(ref, liveCtx)
 		case internalhtml.HTMLInputElement:
 			ref := runtime.UseElement[internalhtml.HTMLInputElement](liveCtx)
-			return internalhtml.NewInputRef(ref)
+			return internalhtml.NewInputRef(ref, liveCtx)
 		case internalhtml.HTMLInsElement:
 			ref := runtime.UseElement[internalhtml.HTMLInsElement](liveCtx)
-			return internalhtml.NewInsElRef(ref)
+			return internalhtml.NewInsElRef(ref, liveCtx)
 		case internalhtml.HTMLKbdElement:
 			ref := runtime.UseElement[internalhtml.HTMLKbdElement](liveCtx)
-			return internalhtml.NewKbdRef(ref)
+			return internalhtml.NewKbdRef(ref, liveCtx)
 		case internalhtml.HTMLLabelElement:
 			ref := runtime.UseElement[internalhtml.HTMLLabelElement](liveCtx)
-			return internalhtml.NewLabelRef(ref)
+			return internalhtml.NewLabelRef(ref, liveCtx)
 		case internalhtml.HTMLLegendElement:
 			ref := runtime.UseElement[internalhtml.HTMLLegendElement](liveCtx)
-			return internalhtml.NewLegendRef(ref)
+			return internalhtml.NewLegendRef(ref, liveCtx)
 		case internalhtml.HTMLLiElement:
 			ref := runtime.UseElement[internalhtml.HTMLLiElement](liveCtx)
-			return internalhtml.NewLiRef(ref)
+			return internalhtml.NewLiRef(ref, liveCtx)
 		case internalhtml.SVGLineElement:
 			ref := runtime.UseElement[internalhtml.SVGLineElement](liveCtx)
-			return internalhtml.NewLineRef(ref)
+			return internalhtml.NewLineRef(ref, liveCtx)
 		case internalhtml.SVGLinearGradientElement:
 			ref := runtime.UseElement[internalhtml.SVGLinearGradientElement](liveCtx)
-			return internalhtml.NewLinearGradientRef(ref)
+			return internalhtml.NewLinearGradientRef(ref, liveCtx)
 		case internalhtml.HTMLLinkElement:
 			ref := runtime.UseElement[internalhtml.HTMLLinkElement](liveCtx)
-			return internalhtml.NewLinkRef(ref)
+			return internalhtml.NewLinkRef(ref, liveCtx)
 		case internalhtml.HTMLMainElement:
 			ref := runtime.UseElement[internalhtml.HTMLMainElement](liveCtx)
-			return internalhtml.NewMainRef(ref)
+			return internalhtml.NewMainRef(ref, liveCtx)
 		case internalhtml.HTMLMapElement:
 			ref := runtime.UseElement[internalhtml.HTMLMapElement](liveCtx)
-			return internalhtml.NewMapElRef(ref)
+			return internalhtml.NewMapElRef(ref, liveCtx)
 		case internalhtml.HTMLMarkElement:
 			ref := runtime.UseElement[internalhtml.HTMLMarkElement](liveCtx)
-			return internalhtml.NewMarkRef(ref)
+			return internalhtml.NewMarkRef(ref, liveCtx)
 		case internalhtml.SVGMarkerElement:
 			ref := runtime.UseElement[internalhtml.SVGMarkerElement](liveCtx)
-			return internalhtml.NewMarkerRef(ref)
+			return internalhtml.NewMarkerRef(ref, liveCtx)
 		case internalhtml.SVGMaskElement:
 			ref := runtime.UseElement[internalhtml.SVGMaskElement](liveCtx)
-			return internalhtml.NewMaskRef(ref)
+			return internalhtml.NewMaskRef(ref, liveCtx)
 		case internalhtml.HTMLMenuElement:
 			ref := runtime.UseElement[internalhtml.HTMLMenuElement](liveCtx)
-			return internalhtml.NewMenuRef(ref)
+			return internalhtml.NewMenuRef(ref, liveCtx)
 		case internalhtml.HTMLMenuItemElement:
 			ref := runtime.UseElement[internalhtml.HTMLMenuItemElement](liveCtx)
-			return internalhtml.NewMenuItemRef(ref)
+			return internalhtml.NewMenuItemRef(ref, liveCtx)
 		case internalhtml.HTMLMetaElement:
 			ref := runtime.UseElement[internalhtml.HTMLMetaElement](liveCtx)
-			return internalhtml.NewMetaRef(ref)
+			return internalhtml.NewMetaRef(ref, liveCtx)
 		case internalhtml.HTMLMeterElement:
 			ref := runtime.UseElement[internalhtml.HTMLMeterElement](liveCtx)
-			return internalhtml.NewMeterRef(ref)
+			return internalhtml.NewMeterRef(ref, liveCtx)
 		case internalhtml.HTMLNavElement:
 			ref := runtime.UseElement[internalhtml.HTMLNavElement](liveCtx)
-			return internalhtml.NewNavRef(ref)
+			return internalhtml.NewNavRef(ref, liveCtx)
 		case internalhtml.HTMLNoscriptElement:
 			ref := runtime.UseElement[internalhtml.HTMLNoscriptElement](liveCtx)
-			return internalhtml.NewNoscriptRef(ref)
+			return internalhtml.NewNoscriptRef(ref, liveCtx)
 		case internalhtml.HTMLObjectElement:
 			ref := runtime.UseElement[internalhtml.HTMLObjectElement](liveCtx)
-			return internalhtml.NewObjectRef(ref)
+			return internalhtml.NewObjectRef(ref, liveCtx)
 		case internalhtml.HTMLOlElement:
 			ref := runtime.UseElement[internalhtml.HTMLOlElement](liveCtx)
-			return internalhtml.NewOlRef(ref)
+			return internalhtml.NewOlRef(ref, liveCtx)
 		case internalhtml.HTMLOptgroupElement:
 			ref := runtime.UseElement[internalhtml.HTMLOptgroupElement](liveCtx)
-			return internalhtml.NewOptgroupRef(ref)
+			return internalhtml.NewOptgroupRef(ref, liveCtx)
 		case internalhtml.HTMLOptionElement:
 			ref := runtime.UseElement[internalhtml.HTMLOptionElement](liveCtx)
-			return internalhtml.NewOptionRef(ref)
+			return internalhtml.NewOptionRef(ref, liveCtx)
 		case internalhtml.HTMLOutputElement:
 			ref := runtime.UseElement[internalhtml.HTMLOutputElement](liveCtx)
-			return internalhtml.NewOutputRef(ref)
+			return internalhtml.NewOutputRef(ref, liveCtx)
 		case internalhtml.HTMLPElement:
 			ref := runtime.UseElement[internalhtml.HTMLPElement](liveCtx)
-			return internalhtml.NewPRef(ref)
+			return internalhtml.NewPRef(ref, liveCtx)
 		case internalhtml.HTMLParamElement:
 			ref := runtime.UseElement[internalhtml.HTMLParamElement](liveCtx)
-			return internalhtml.NewParamRef(ref)
+			return internalhtml.NewParamRef(ref, liveCtx)
 		case internalhtml.SVGPathElement:
 			ref := runtime.UseElement[internalhtml.SVGPathElement](liveCtx)
-			return internalhtml.NewPathRef(ref)
+			return internalhtml.NewPathRef(ref, liveCtx)
 		case internalhtml.SVGPatternElement:
 			ref := runtime.UseElement[internalhtml.SVGPatternElement](liveCtx)
-			return internalhtml.NewPatternRef(ref)
+			return internalhtml.NewPatternRef(ref, liveCtx)
 		case internalhtml.HTMLPictureElement:
 			ref := runtime.UseElement[internalhtml.HTMLPictureElement](liveCtx)
-			return internalhtml.NewPictureRef(ref)
+			return internalhtml.NewPictureRef(ref, liveCtx)
 		case internalhtml.SVGPolygonElement:
 			ref := runtime.UseElement[internalhtml.SVGPolygonElement](liveCtx)
-			return internalhtml.NewPolygonRef(ref)
+			return internalhtml.NewPolygonRef(ref, liveCtx)
 		case internalhtml.SVGPolylineElement:
 			ref := runtime.UseElement[internalhtml.SVGPolylineElement](liveCtx)
-			return internalhtml.NewPolylineRef(ref)
+			return internalhtml.NewPolylineRef(ref, liveCtx)
 		case internalhtml.HTMLPortalElement:
 			ref := runtime.UseElement[internalhtml.HTMLPortalElement](liveCtx)
-			return internalhtml.NewPortalRef(ref)
+			return internalhtml.NewPortalRef(ref, liveCtx)
 		case internalhtml.HTMLPreElement:
 			ref := runtime.UseElement[internalhtml.HTMLPreElement](liveCtx)
-			return internalhtml.NewPreRef(ref)
+			return internalhtml.NewPreRef(ref, liveCtx)
 		case internalhtml.HTMLProgressElement:
 			ref := runtime.UseElement[internalhtml.HTMLProgressElement](liveCtx)
-			return internalhtml.NewProgressRef(ref)
+			return internalhtml.NewProgressRef(ref, liveCtx)
 		case internalhtml.HTMLQElement:
 			ref := runtime.UseElement[internalhtml.HTMLQElement](liveCtx)
-			return internalhtml.NewQRef(ref)
+			return internalhtml.NewQRef(ref, liveCtx)
 		case internalhtml.SVGRadialGradientElement:
 			ref := runtime.UseElement[internalhtml.SVGRadialGradientElement](liveCtx)
-			return internalhtml.NewRadialGradientRef(ref)
+			return internalhtml.NewRadialGradientRef(ref, liveCtx)
 		case internalhtml.HTMLRbElement:
 			ref := runtime.UseElement[internalhtml.HTMLRbElement](liveCtx)
-			return internalhtml.NewRbRef(ref)
+			return internalhtml.NewRbRef(ref, liveCtx)
 		case internalhtml.SVGRectElement:
 			ref := runtime.UseElement[internalhtml.SVGRectElement](liveCtx)
-			return internalhtml.NewRectRef(ref)
+			return internalhtml.NewRectRef(ref, liveCtx)
 		case internalhtml.HTMLRpElement:
 			ref := runtime.UseElement[internalhtml.HTMLRpElement](liveCtx)
-			return internalhtml.NewRpRef(ref)
+			return internalhtml.NewRpRef(ref, liveCtx)
 		case internalhtml.HTMLRtElement:
 			ref := runtime.UseElement[internalhtml.HTMLRtElement](liveCtx)
-			return internalhtml.NewRtRef(ref)
+			return internalhtml.NewRtRef(ref, liveCtx)
 		case internalhtml.HTMLRtcElement:
 			ref := runtime.UseElement[internalhtml.HTMLRtcElement](liveCtx)
-			return internalhtml.NewRtcRef(ref)
+			return internalhtml.NewRtcRef(ref, liveCtx)
 		case internalhtml.HTMLRubyElement:
 			ref := runtime.UseElement[internalhtml.HTMLRubyElement](liveCtx)
-			return internalhtml.NewRubyRef(ref)
+			return internalhtml.NewRubyRef(ref, liveCtx)
 		case internalhtml.HTMLSElement:
 			ref := runtime.UseElement[internalhtml.HTMLSElement](liveCtx)
-			return internalhtml.NewSRef(ref)
+			return internalhtml.NewSRef(ref, liveCtx)
 		case internalhtml.HTMLSampElement:
 			ref := runtime.UseElement[internalhtml.HTMLSampElement](liveCtx)
-			return internalhtml.NewSampRef(ref)
+			return internalhtml.NewSampRef(ref, liveCtx)
 		case internalhtml.HTMLScriptElement:
 			ref := runtime.UseElement[internalhtml.HTMLScriptElement](liveCtx)
-			return internalhtml.NewScriptRef(ref)
+			return internalhtml.NewScriptRef(ref, liveCtx)
 		case internalhtml.HTMLSectionElement:
 			ref := runtime.UseElement[internalhtml.HTMLSectionElement](liveCtx)
-			return internalhtml.NewSectionRef(ref)
+			return internalhtml.NewSectionRef(ref, liveCtx)
 		case internalhtml.HTMLSelectElement:
 			ref := runtime.UseElement[internalhtml.HTMLSelectElement](liveCtx)
-			return internalhtml.NewSelectRef(ref)
+			return internalhtml.NewSelectRef(ref, liveCtx)
 		case internalhtml.HTMLSlotElement:
 			ref := runtime.UseElement[internalhtml.HTMLSlotElement](liveCtx)
-			return internalhtml.NewSlotRef(ref)
+			return internalhtml.NewSlotRef(ref, liveCtx)
 		case internalhtml.HTMLSmallElement:
 			ref := runtime.UseElement[internalhtml.HTMLSmallElement](liveCtx)
-			return internalhtml.NewSmallRef(ref)
+			return internalhtml.NewSmallRef(ref, liveCtx)
 		case internalhtml.HTMLSourceElement:
 			ref := runtime.UseElement[internalhtml.HTMLSourceElement](liveCtx)
-			return internalhtml.NewSourceRef(ref)
+			return internalhtml.NewSourceRef(ref, liveCtx)
 		case internalhtml.HTMLSpanElement:
 			ref := runtime.UseElement[internalhtml.HTMLSpanElement](liveCtx)
-			return internalhtml.NewSpanRef(ref)
+			return internalhtml.NewSpanRef(ref, liveCtx)
 		case internalhtml.SVGStopElement:
 			ref := runtime.UseElement[internalhtml.SVGStopElement](liveCtx)
-			return internalhtml.NewStopRef(ref)
+			return internalhtml.NewStopRef(ref, liveCtx)
 		case internalhtml.HTMLStrongElement:
 			ref := runtime.UseElement[internalhtml.HTMLStrongElement](liveCtx)
-			return internalhtml.NewStrongRef(ref)
+			return internalhtml.NewStrongRef(ref, liveCtx)
 		case internalhtml.HTMLStyleElement:
 			ref := runtime.UseElement[internalhtml.HTMLStyleElement](liveCtx)
-			return internalhtml.NewStyleElRef(ref)
+			return internalhtml.NewStyleElRef(ref, liveCtx)
 		case internalhtml.HTMLSubElement:
 			ref := runtime.UseElement[internalhtml.HTMLSubElement](liveCtx)
-			return internalhtml.NewSubRef(ref)
+			return internalhtml.NewSubRef(ref, liveCtx)
 		case internalhtml.HTMLSummaryElement:
 			ref := runtime.UseElement[internalhtml.HTMLSummaryElement](liveCtx)
-			return internalhtml.NewSummaryRef(ref)
+			return internalhtml.NewSummaryRef(ref, liveCtx)
 		case internalhtml.HTMLSupElement:
 			ref := runtime.UseElement[internalhtml.HTMLSupElement](liveCtx)
-			return internalhtml.NewSupRef(ref)
+			return internalhtml.NewSupRef(ref, liveCtx)
 		case internalhtml.SVGSvgElement:
 			ref := runtime.UseElement[internalhtml.SVGSvgElement](liveCtx)
-			return internalhtml.NewSvgRef(ref)
+			return internalhtml.NewSvgRef(ref, liveCtx)
 		case internalhtml.SVGSvgTextElement:
 			ref := runtime.UseElement[internalhtml.SVGSvgTextElement](liveCtx)
-			return internalhtml.NewSvgTextRef(ref)
+			return internalhtml.NewSvgTextRef(ref, liveCtx)
 		case internalhtml.SVGTSpanElement:
 			ref := runtime.UseElement[internalhtml.SVGTSpanElement](liveCtx)
-			return internalhtml.NewTSpanRef(ref)
+			return internalhtml.NewTSpanRef(ref, liveCtx)
 		case internalhtml.HTMLTableElement:
 			ref := runtime.UseElement[internalhtml.HTMLTableElement](liveCtx)
-			return internalhtml.NewTableRef(ref)
+			return internalhtml.NewTableRef(ref, liveCtx)
 		case internalhtml.HTMLTbodyElement:
 			ref := runtime.UseElement[internalhtml.HTMLTbodyElement](liveCtx)
-			return internalhtml.NewTbodyRef(ref)
+			return internalhtml.NewTbodyRef(ref, liveCtx)
 		case internalhtml.HTMLTdElement:
 			ref := runtime.UseElement[internalhtml.HTMLTdElement](liveCtx)
-			return internalhtml.NewTdRef(ref)
+			return internalhtml.NewTdRef(ref, liveCtx)
 		case internalhtml.HTMLTemplateElement:
 			ref := runtime.UseElement[internalhtml.HTMLTemplateElement](liveCtx)
-			return internalhtml.NewTemplateRef(ref)
+			return internalhtml.NewTemplateRef(ref, liveCtx)
 		case internalhtml.HTMLTextareaElement:
 			ref := runtime.UseElement[internalhtml.HTMLTextareaElement](liveCtx)
-			return internalhtml.NewTextareaRef(ref)
+			return internalhtml.NewTextareaRef(ref, liveCtx)
 		case internalhtml.HTMLTfootElement:
 			ref := runtime.UseElement[internalhtml.HTMLTfootElement](liveCtx)
-			return internalhtml.NewTfootRef(ref)
+			return internalhtml.NewTfootRef(ref, liveCtx)
 		case internalhtml.HTMLThElement:
 			ref := runtime.UseElement[internalhtml.HTMLThElement](liveCtx)
-			return internalhtml.NewThRef(ref)
+			return internalhtml.NewThRef(ref, liveCtx)
 		case internalhtml.HTMLTheadElement:
 			ref := runtime.UseElement[internalhtml.HTMLTheadElement](liveCtx)
-			return internalhtml.NewTheadRef(ref)
+			return internalhtml.NewTheadRef(ref, liveCtx)
 		case internalhtml.HTMLTimeElement:
 			ref := runtime.UseElement[internalhtml.HTMLTimeElement](liveCtx)
-			return internalhtml.NewTimeRef(ref)
+			return internalhtml.NewTimeRef(ref, liveCtx)
 		case internalhtml.HTMLTitleElement:
 			ref := runtime.UseElement[internalhtml.HTMLTitleElement](liveCtx)
-			return internalhtml.NewTitleElRef(ref)
+			return internalhtml.NewTitleElRef(ref, liveCtx)
 		case internalhtml.HTMLTrElement:
 			ref := runtime.UseElement[internalhtml.HTMLTrElement](liveCtx)
-			return internalhtml.NewTrRef(ref)
+			return internalhtml.NewTrRef(ref, liveCtx)
 		case internalhtml.HTMLTrackElement:
 			ref := runtime.UseElement[internalhtml.HTMLTrackElement](liveCtx)
-			return internalhtml.NewTrackRef(ref)
+			return internalhtml.NewTrackRef(ref, liveCtx)
 		case internalhtml.HTMLUElement:
 			ref := runtime.UseElement[internalhtml.HTMLUElement](liveCtx)
-			return internalhtml.NewURef(ref)
+			return internalhtml.NewURef(ref, liveCtx)
 		case internalhtml.HTMLUlElement:
 			ref := runtime.UseElement[internalhtml.HTMLUlElement](liveCtx)
-			return internalhtml.NewUlRef(ref)
+			return internalhtml.NewUlRef(ref, liveCtx)
 		case internalhtml.SVGUseElement:
 			ref := runtime.UseElement[internalhtml.SVGUseElement](liveCtx)
-			return internalhtml.NewUseRef(ref)
+			return internalhtml.NewUseRef(ref, liveCtx)
 		case internalhtml.HTMLVarElement:
 			ref := runtime.UseElement[internalhtml.HTMLVarElement](liveCtx)
-			return internalhtml.NewVarRef(ref)
+			return internalhtml.NewVarRef(ref, liveCtx)
 		case internalhtml.HTMLVideoElement:
 			ref := runtime.UseElement[internalhtml.HTMLVideoElement](liveCtx)
-			return internalhtml.NewVideoRef(ref)
+			return internalhtml.NewVideoRef(ref, liveCtx)
 		case internalhtml.HTMLWbrElement:
 			ref := runtime.UseElement[internalhtml.HTMLWbrElement](liveCtx)
-			return internalhtml.NewWbrRef(ref)
+			return internalhtml.NewWbrRef(ref, liveCtx)
 		default:
 			panic(fmt.Sprintf("live: unsupported element descriptor %T", descriptor))
 		}

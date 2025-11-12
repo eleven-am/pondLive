@@ -26,14 +26,14 @@ type ARef struct {
 	*WheelHandler
 }
 
-func NewARef(ref *ElementRef[HTMLAElement]) *ARef {
+func NewARef(ref *ElementRef[HTMLAElement], ctx dom.ActionExecutor) *ARef {
 	if ref == nil {
 		return nil
 	}
 	return &ARef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLAElement](ref.DOMElementRef()),
-		FocusActions:       NewFocusActions[HTMLAElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLAElement](ref.DOMElementRef(), ctx),
+		FocusActions:       NewFocusActions[HTMLAElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -76,13 +76,13 @@ type AbbrRef struct {
 	*WheelHandler
 }
 
-func NewAbbrRef(ref *ElementRef[HTMLAbbrElement]) *AbbrRef {
+func NewAbbrRef(ref *ElementRef[HTMLAbbrElement], ctx dom.ActionExecutor) *AbbrRef {
 	if ref == nil {
 		return nil
 	}
 	return &AbbrRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLAbbrElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLAbbrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -125,13 +125,13 @@ type AddressRef struct {
 	*WheelHandler
 }
 
-func NewAddressRef(ref *ElementRef[HTMLAddressElement]) *AddressRef {
+func NewAddressRef(ref *ElementRef[HTMLAddressElement], ctx dom.ActionExecutor) *AddressRef {
 	if ref == nil {
 		return nil
 	}
 	return &AddressRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLAddressElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLAddressElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -174,13 +174,13 @@ type AreaRef struct {
 	*WheelHandler
 }
 
-func NewAreaRef(ref *ElementRef[HTMLAreaElement]) *AreaRef {
+func NewAreaRef(ref *ElementRef[HTMLAreaElement], ctx dom.ActionExecutor) *AreaRef {
 	if ref == nil {
 		return nil
 	}
 	return &AreaRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLAreaElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLAreaElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -223,13 +223,13 @@ type ArticleRef struct {
 	*WheelHandler
 }
 
-func NewArticleRef(ref *ElementRef[HTMLArticleElement]) *ArticleRef {
+func NewArticleRef(ref *ElementRef[HTMLArticleElement], ctx dom.ActionExecutor) *ArticleRef {
 	if ref == nil {
 		return nil
 	}
 	return &ArticleRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLArticleElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLArticleElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -272,13 +272,13 @@ type AsideRef struct {
 	*WheelHandler
 }
 
-func NewAsideRef(ref *ElementRef[HTMLAsideElement]) *AsideRef {
+func NewAsideRef(ref *ElementRef[HTMLAsideElement], ctx dom.ActionExecutor) *AsideRef {
 	if ref == nil {
 		return nil
 	}
 	return &AsideRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLAsideElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLAsideElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -324,15 +324,15 @@ type AudioRef struct {
 	*MediaHandler
 }
 
-func NewAudioRef(ref *ElementRef[HTMLAudioElement]) *AudioRef {
+func NewAudioRef(ref *ElementRef[HTMLAudioElement], ctx dom.ActionExecutor) *AudioRef {
 	if ref == nil {
 		return nil
 	}
 	return &AudioRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLAudioElement](ref.DOMElementRef()),
-		FocusActions:       NewFocusActions[HTMLAudioElement](ref.DOMElementRef()),
-		MediaActions:       NewMediaActions[HTMLAudioElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLAudioElement](ref.DOMElementRef(), ctx),
+		FocusActions:       NewFocusActions[HTMLAudioElement](ref.DOMElementRef(), ctx),
+		MediaActions:       NewMediaActions[HTMLAudioElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -376,13 +376,13 @@ type BRef struct {
 	*WheelHandler
 }
 
-func NewBRef(ref *ElementRef[HTMLBElement]) *BRef {
+func NewBRef(ref *ElementRef[HTMLBElement], ctx dom.ActionExecutor) *BRef {
 	if ref == nil {
 		return nil
 	}
 	return &BRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLBElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLBElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -425,13 +425,13 @@ type BaseRef struct {
 	*WheelHandler
 }
 
-func NewBaseRef(ref *ElementRef[HTMLBaseElement]) *BaseRef {
+func NewBaseRef(ref *ElementRef[HTMLBaseElement], ctx dom.ActionExecutor) *BaseRef {
 	if ref == nil {
 		return nil
 	}
 	return &BaseRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLBaseElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLBaseElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -474,13 +474,13 @@ type BdiRef struct {
 	*WheelHandler
 }
 
-func NewBdiRef(ref *ElementRef[HTMLBdiElement]) *BdiRef {
+func NewBdiRef(ref *ElementRef[HTMLBdiElement], ctx dom.ActionExecutor) *BdiRef {
 	if ref == nil {
 		return nil
 	}
 	return &BdiRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLBdiElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLBdiElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -523,13 +523,13 @@ type BdoRef struct {
 	*WheelHandler
 }
 
-func NewBdoRef(ref *ElementRef[HTMLBdoElement]) *BdoRef {
+func NewBdoRef(ref *ElementRef[HTMLBdoElement], ctx dom.ActionExecutor) *BdoRef {
 	if ref == nil {
 		return nil
 	}
 	return &BdoRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLBdoElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLBdoElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -572,13 +572,13 @@ type BlockquoteRef struct {
 	*WheelHandler
 }
 
-func NewBlockquoteRef(ref *ElementRef[HTMLBlockquoteElement]) *BlockquoteRef {
+func NewBlockquoteRef(ref *ElementRef[HTMLBlockquoteElement], ctx dom.ActionExecutor) *BlockquoteRef {
 	if ref == nil {
 		return nil
 	}
 	return &BlockquoteRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLBlockquoteElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLBlockquoteElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -621,13 +621,13 @@ type BodyRef struct {
 	*WheelHandler
 }
 
-func NewBodyRef(ref *ElementRef[HTMLBodyElement]) *BodyRef {
+func NewBodyRef(ref *ElementRef[HTMLBodyElement], ctx dom.ActionExecutor) *BodyRef {
 	if ref == nil {
 		return nil
 	}
 	return &BodyRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLBodyElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLBodyElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -670,13 +670,13 @@ type BrRef struct {
 	*WheelHandler
 }
 
-func NewBrRef(ref *ElementRef[HTMLBrElement]) *BrRef {
+func NewBrRef(ref *ElementRef[HTMLBrElement], ctx dom.ActionExecutor) *BrRef {
 	if ref == nil {
 		return nil
 	}
 	return &BrRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLBrElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLBrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -720,14 +720,14 @@ type ButtonRef struct {
 	*WheelHandler
 }
 
-func NewButtonRef(ref *ElementRef[HTMLButtonElement]) *ButtonRef {
+func NewButtonRef(ref *ElementRef[HTMLButtonElement], ctx dom.ActionExecutor) *ButtonRef {
 	if ref == nil {
 		return nil
 	}
 	return &ButtonRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLButtonElement](ref.DOMElementRef()),
-		FocusActions:       NewFocusActions[HTMLButtonElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLButtonElement](ref.DOMElementRef(), ctx),
+		FocusActions:       NewFocusActions[HTMLButtonElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -770,13 +770,13 @@ type CanvasRef struct {
 	*WheelHandler
 }
 
-func NewCanvasRef(ref *ElementRef[HTMLCanvasElement]) *CanvasRef {
+func NewCanvasRef(ref *ElementRef[HTMLCanvasElement], ctx dom.ActionExecutor) *CanvasRef {
 	if ref == nil {
 		return nil
 	}
 	return &CanvasRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLCanvasElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLCanvasElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -819,13 +819,13 @@ type CaptionRef struct {
 	*WheelHandler
 }
 
-func NewCaptionRef(ref *ElementRef[HTMLCaptionElement]) *CaptionRef {
+func NewCaptionRef(ref *ElementRef[HTMLCaptionElement], ctx dom.ActionExecutor) *CaptionRef {
 	if ref == nil {
 		return nil
 	}
 	return &CaptionRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLCaptionElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLCaptionElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -868,13 +868,13 @@ type CircleRef struct {
 	*WheelHandler
 }
 
-func NewCircleRef(ref *ElementRef[SVGCircleElement]) *CircleRef {
+func NewCircleRef(ref *ElementRef[SVGCircleElement], ctx dom.ActionExecutor) *CircleRef {
 	if ref == nil {
 		return nil
 	}
 	return &CircleRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGCircleElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGCircleElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -917,13 +917,13 @@ type CiteRef struct {
 	*WheelHandler
 }
 
-func NewCiteRef(ref *ElementRef[HTMLCiteElement]) *CiteRef {
+func NewCiteRef(ref *ElementRef[HTMLCiteElement], ctx dom.ActionExecutor) *CiteRef {
 	if ref == nil {
 		return nil
 	}
 	return &CiteRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLCiteElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLCiteElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -966,13 +966,13 @@ type ClipPathRef struct {
 	*WheelHandler
 }
 
-func NewClipPathRef(ref *ElementRef[SVGClipPathElement]) *ClipPathRef {
+func NewClipPathRef(ref *ElementRef[SVGClipPathElement], ctx dom.ActionExecutor) *ClipPathRef {
 	if ref == nil {
 		return nil
 	}
 	return &ClipPathRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGClipPathElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGClipPathElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1015,13 +1015,13 @@ type CodeRef struct {
 	*WheelHandler
 }
 
-func NewCodeRef(ref *ElementRef[HTMLCodeElement]) *CodeRef {
+func NewCodeRef(ref *ElementRef[HTMLCodeElement], ctx dom.ActionExecutor) *CodeRef {
 	if ref == nil {
 		return nil
 	}
 	return &CodeRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLCodeElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLCodeElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1064,13 +1064,13 @@ type ColRef struct {
 	*WheelHandler
 }
 
-func NewColRef(ref *ElementRef[HTMLColElement]) *ColRef {
+func NewColRef(ref *ElementRef[HTMLColElement], ctx dom.ActionExecutor) *ColRef {
 	if ref == nil {
 		return nil
 	}
 	return &ColRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLColElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLColElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1113,13 +1113,13 @@ type ColgroupRef struct {
 	*WheelHandler
 }
 
-func NewColgroupRef(ref *ElementRef[HTMLColgroupElement]) *ColgroupRef {
+func NewColgroupRef(ref *ElementRef[HTMLColgroupElement], ctx dom.ActionExecutor) *ColgroupRef {
 	if ref == nil {
 		return nil
 	}
 	return &ColgroupRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLColgroupElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLColgroupElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1162,13 +1162,13 @@ type DataElRef struct {
 	*WheelHandler
 }
 
-func NewDataElRef(ref *ElementRef[HTMLDataElement]) *DataElRef {
+func NewDataElRef(ref *ElementRef[HTMLDataElement], ctx dom.ActionExecutor) *DataElRef {
 	if ref == nil {
 		return nil
 	}
 	return &DataElRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDataElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDataElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1211,13 +1211,13 @@ type DatalistRef struct {
 	*WheelHandler
 }
 
-func NewDatalistRef(ref *ElementRef[HTMLDatalistElement]) *DatalistRef {
+func NewDatalistRef(ref *ElementRef[HTMLDatalistElement], ctx dom.ActionExecutor) *DatalistRef {
 	if ref == nil {
 		return nil
 	}
 	return &DatalistRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDatalistElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDatalistElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1260,13 +1260,13 @@ type DdRef struct {
 	*WheelHandler
 }
 
-func NewDdRef(ref *ElementRef[HTMLDdElement]) *DdRef {
+func NewDdRef(ref *ElementRef[HTMLDdElement], ctx dom.ActionExecutor) *DdRef {
 	if ref == nil {
 		return nil
 	}
 	return &DdRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDdElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDdElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1309,13 +1309,13 @@ type DefsRef struct {
 	*WheelHandler
 }
 
-func NewDefsRef(ref *ElementRef[SVGDefsElement]) *DefsRef {
+func NewDefsRef(ref *ElementRef[SVGDefsElement], ctx dom.ActionExecutor) *DefsRef {
 	if ref == nil {
 		return nil
 	}
 	return &DefsRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGDefsElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGDefsElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1358,13 +1358,13 @@ type DelElRef struct {
 	*WheelHandler
 }
 
-func NewDelElRef(ref *ElementRef[HTMLDelElement]) *DelElRef {
+func NewDelElRef(ref *ElementRef[HTMLDelElement], ctx dom.ActionExecutor) *DelElRef {
 	if ref == nil {
 		return nil
 	}
 	return &DelElRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDelElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDelElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1409,14 +1409,14 @@ type DetailsRef struct {
 	*ToggleHandler
 }
 
-func NewDetailsRef(ref *ElementRef[HTMLDetailsElement]) *DetailsRef {
+func NewDetailsRef(ref *ElementRef[HTMLDetailsElement], ctx dom.ActionExecutor) *DetailsRef {
 	if ref == nil {
 		return nil
 	}
 	return &DetailsRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDetailsElement](ref.DOMElementRef()),
-		FocusActions:       NewFocusActions[HTMLDetailsElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDetailsElement](ref.DOMElementRef(), ctx),
+		FocusActions:       NewFocusActions[HTMLDetailsElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1460,13 +1460,13 @@ type DfnRef struct {
 	*WheelHandler
 }
 
-func NewDfnRef(ref *ElementRef[HTMLDfnElement]) *DfnRef {
+func NewDfnRef(ref *ElementRef[HTMLDfnElement], ctx dom.ActionExecutor) *DfnRef {
 	if ref == nil {
 		return nil
 	}
 	return &DfnRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDfnElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDfnElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1511,14 +1511,14 @@ type DialogRef struct {
 	*DialogHandler
 }
 
-func NewDialogRef(ref *ElementRef[HTMLDialogElement]) *DialogRef {
+func NewDialogRef(ref *ElementRef[HTMLDialogElement], ctx dom.ActionExecutor) *DialogRef {
 	if ref == nil {
 		return nil
 	}
 	return &DialogRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDialogElement](ref.DOMElementRef()),
-		DialogActions:      NewDialogActions[HTMLDialogElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDialogElement](ref.DOMElementRef(), ctx),
+		DialogActions:      NewDialogActions[HTMLDialogElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1562,13 +1562,13 @@ type DivRef struct {
 	*WheelHandler
 }
 
-func NewDivRef(ref *ElementRef[HTMLDivElement]) *DivRef {
+func NewDivRef(ref *ElementRef[HTMLDivElement], ctx dom.ActionExecutor) *DivRef {
 	if ref == nil {
 		return nil
 	}
 	return &DivRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDivElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDivElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1611,13 +1611,13 @@ type DlRef struct {
 	*WheelHandler
 }
 
-func NewDlRef(ref *ElementRef[HTMLDlElement]) *DlRef {
+func NewDlRef(ref *ElementRef[HTMLDlElement], ctx dom.ActionExecutor) *DlRef {
 	if ref == nil {
 		return nil
 	}
 	return &DlRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDlElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDlElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1660,13 +1660,13 @@ type DtRef struct {
 	*WheelHandler
 }
 
-func NewDtRef(ref *ElementRef[HTMLDtElement]) *DtRef {
+func NewDtRef(ref *ElementRef[HTMLDtElement], ctx dom.ActionExecutor) *DtRef {
 	if ref == nil {
 		return nil
 	}
 	return &DtRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLDtElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLDtElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1709,13 +1709,13 @@ type EllipseRef struct {
 	*WheelHandler
 }
 
-func NewEllipseRef(ref *ElementRef[SVGEllipseElement]) *EllipseRef {
+func NewEllipseRef(ref *ElementRef[SVGEllipseElement], ctx dom.ActionExecutor) *EllipseRef {
 	if ref == nil {
 		return nil
 	}
 	return &EllipseRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGEllipseElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGEllipseElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1758,13 +1758,13 @@ type EmRef struct {
 	*WheelHandler
 }
 
-func NewEmRef(ref *ElementRef[HTMLEmElement]) *EmRef {
+func NewEmRef(ref *ElementRef[HTMLEmElement], ctx dom.ActionExecutor) *EmRef {
 	if ref == nil {
 		return nil
 	}
 	return &EmRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLEmElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLEmElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1807,13 +1807,13 @@ type EmbedRef struct {
 	*WheelHandler
 }
 
-func NewEmbedRef(ref *ElementRef[HTMLEmbedElement]) *EmbedRef {
+func NewEmbedRef(ref *ElementRef[HTMLEmbedElement], ctx dom.ActionExecutor) *EmbedRef {
 	if ref == nil {
 		return nil
 	}
 	return &EmbedRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLEmbedElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLEmbedElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1856,13 +1856,13 @@ type FieldsetRef struct {
 	*WheelHandler
 }
 
-func NewFieldsetRef(ref *ElementRef[HTMLFieldsetElement]) *FieldsetRef {
+func NewFieldsetRef(ref *ElementRef[HTMLFieldsetElement], ctx dom.ActionExecutor) *FieldsetRef {
 	if ref == nil {
 		return nil
 	}
 	return &FieldsetRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLFieldsetElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLFieldsetElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1905,13 +1905,13 @@ type FigcaptionRef struct {
 	*WheelHandler
 }
 
-func NewFigcaptionRef(ref *ElementRef[HTMLFigcaptionElement]) *FigcaptionRef {
+func NewFigcaptionRef(ref *ElementRef[HTMLFigcaptionElement], ctx dom.ActionExecutor) *FigcaptionRef {
 	if ref == nil {
 		return nil
 	}
 	return &FigcaptionRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLFigcaptionElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLFigcaptionElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -1954,13 +1954,13 @@ type FigureRef struct {
 	*WheelHandler
 }
 
-func NewFigureRef(ref *ElementRef[HTMLFigureElement]) *FigureRef {
+func NewFigureRef(ref *ElementRef[HTMLFigureElement], ctx dom.ActionExecutor) *FigureRef {
 	if ref == nil {
 		return nil
 	}
 	return &FigureRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLFigureElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLFigureElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2003,13 +2003,13 @@ type FooterRef struct {
 	*WheelHandler
 }
 
-func NewFooterRef(ref *ElementRef[HTMLFooterElement]) *FooterRef {
+func NewFooterRef(ref *ElementRef[HTMLFooterElement], ctx dom.ActionExecutor) *FooterRef {
 	if ref == nil {
 		return nil
 	}
 	return &FooterRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLFooterElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLFooterElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2052,13 +2052,13 @@ type ForeignObjectRef struct {
 	*WheelHandler
 }
 
-func NewForeignObjectRef(ref *ElementRef[SVGForeignObjectElement]) *ForeignObjectRef {
+func NewForeignObjectRef(ref *ElementRef[SVGForeignObjectElement], ctx dom.ActionExecutor) *ForeignObjectRef {
 	if ref == nil {
 		return nil
 	}
 	return &ForeignObjectRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGForeignObjectElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGForeignObjectElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2103,14 +2103,14 @@ type FormRef struct {
 	*FormHandler
 }
 
-func NewFormRef(ref *ElementRef[HTMLFormElement]) *FormRef {
+func NewFormRef(ref *ElementRef[HTMLFormElement], ctx dom.ActionExecutor) *FormRef {
 	if ref == nil {
 		return nil
 	}
 	return &FormRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLFormElement](ref.DOMElementRef()),
-		FormActions:        NewFormActions[HTMLFormElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLFormElement](ref.DOMElementRef(), ctx),
+		FormActions:        NewFormActions[HTMLFormElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2154,13 +2154,13 @@ type GRef struct {
 	*WheelHandler
 }
 
-func NewGRef(ref *ElementRef[SVGGElement]) *GRef {
+func NewGRef(ref *ElementRef[SVGGElement], ctx dom.ActionExecutor) *GRef {
 	if ref == nil {
 		return nil
 	}
 	return &GRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGGElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGGElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2203,13 +2203,13 @@ type H1Ref struct {
 	*WheelHandler
 }
 
-func NewH1Ref(ref *ElementRef[HTMLH1Element]) *H1Ref {
+func NewH1Ref(ref *ElementRef[HTMLH1Element], ctx dom.ActionExecutor) *H1Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H1Ref{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLH1Element](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLH1Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2252,13 +2252,13 @@ type H2Ref struct {
 	*WheelHandler
 }
 
-func NewH2Ref(ref *ElementRef[HTMLH2Element]) *H2Ref {
+func NewH2Ref(ref *ElementRef[HTMLH2Element], ctx dom.ActionExecutor) *H2Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H2Ref{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLH2Element](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLH2Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2301,13 +2301,13 @@ type H3Ref struct {
 	*WheelHandler
 }
 
-func NewH3Ref(ref *ElementRef[HTMLH3Element]) *H3Ref {
+func NewH3Ref(ref *ElementRef[HTMLH3Element], ctx dom.ActionExecutor) *H3Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H3Ref{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLH3Element](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLH3Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2350,13 +2350,13 @@ type H4Ref struct {
 	*WheelHandler
 }
 
-func NewH4Ref(ref *ElementRef[HTMLH4Element]) *H4Ref {
+func NewH4Ref(ref *ElementRef[HTMLH4Element], ctx dom.ActionExecutor) *H4Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H4Ref{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLH4Element](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLH4Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2399,13 +2399,13 @@ type H5Ref struct {
 	*WheelHandler
 }
 
-func NewH5Ref(ref *ElementRef[HTMLH5Element]) *H5Ref {
+func NewH5Ref(ref *ElementRef[HTMLH5Element], ctx dom.ActionExecutor) *H5Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H5Ref{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLH5Element](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLH5Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2448,13 +2448,13 @@ type H6Ref struct {
 	*WheelHandler
 }
 
-func NewH6Ref(ref *ElementRef[HTMLH6Element]) *H6Ref {
+func NewH6Ref(ref *ElementRef[HTMLH6Element], ctx dom.ActionExecutor) *H6Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H6Ref{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLH6Element](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLH6Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2497,13 +2497,13 @@ type HeadRef struct {
 	*WheelHandler
 }
 
-func NewHeadRef(ref *ElementRef[HTMLHeadElement]) *HeadRef {
+func NewHeadRef(ref *ElementRef[HTMLHeadElement], ctx dom.ActionExecutor) *HeadRef {
 	if ref == nil {
 		return nil
 	}
 	return &HeadRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLHeadElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLHeadElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2546,13 +2546,13 @@ type HeaderRef struct {
 	*WheelHandler
 }
 
-func NewHeaderRef(ref *ElementRef[HTMLHeaderElement]) *HeaderRef {
+func NewHeaderRef(ref *ElementRef[HTMLHeaderElement], ctx dom.ActionExecutor) *HeaderRef {
 	if ref == nil {
 		return nil
 	}
 	return &HeaderRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLHeaderElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLHeaderElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2595,13 +2595,13 @@ type HgroupRef struct {
 	*WheelHandler
 }
 
-func NewHgroupRef(ref *ElementRef[HTMLHgroupElement]) *HgroupRef {
+func NewHgroupRef(ref *ElementRef[HTMLHgroupElement], ctx dom.ActionExecutor) *HgroupRef {
 	if ref == nil {
 		return nil
 	}
 	return &HgroupRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLHgroupElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLHgroupElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2644,13 +2644,13 @@ type HrRef struct {
 	*WheelHandler
 }
 
-func NewHrRef(ref *ElementRef[HTMLHrElement]) *HrRef {
+func NewHrRef(ref *ElementRef[HTMLHrElement], ctx dom.ActionExecutor) *HrRef {
 	if ref == nil {
 		return nil
 	}
 	return &HrRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLHrElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLHrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2693,13 +2693,13 @@ type HtmlRef struct {
 	*WheelHandler
 }
 
-func NewHtmlRef(ref *ElementRef[HTMLHtmlElement]) *HtmlRef {
+func NewHtmlRef(ref *ElementRef[HTMLHtmlElement], ctx dom.ActionExecutor) *HtmlRef {
 	if ref == nil {
 		return nil
 	}
 	return &HtmlRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLHtmlElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLHtmlElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2742,13 +2742,13 @@ type IRef struct {
 	*WheelHandler
 }
 
-func NewIRef(ref *ElementRef[HTMLIElement]) *IRef {
+func NewIRef(ref *ElementRef[HTMLIElement], ctx dom.ActionExecutor) *IRef {
 	if ref == nil {
 		return nil
 	}
 	return &IRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLIElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLIElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2791,13 +2791,13 @@ type IframeRef struct {
 	*WheelHandler
 }
 
-func NewIframeRef(ref *ElementRef[HTMLIframeElement]) *IframeRef {
+func NewIframeRef(ref *ElementRef[HTMLIframeElement], ctx dom.ActionExecutor) *IframeRef {
 	if ref == nil {
 		return nil
 	}
 	return &IframeRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLIframeElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLIframeElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2840,13 +2840,13 @@ type ImageRef struct {
 	*WheelHandler
 }
 
-func NewImageRef(ref *ElementRef[SVGImageElement]) *ImageRef {
+func NewImageRef(ref *ElementRef[SVGImageElement], ctx dom.ActionExecutor) *ImageRef {
 	if ref == nil {
 		return nil
 	}
 	return &ImageRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGImageElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGImageElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2889,13 +2889,13 @@ type ImgRef struct {
 	*WheelHandler
 }
 
-func NewImgRef(ref *ElementRef[HTMLImgElement]) *ImgRef {
+func NewImgRef(ref *ElementRef[HTMLImgElement], ctx dom.ActionExecutor) *ImgRef {
 	if ref == nil {
 		return nil
 	}
 	return &ImgRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLImgElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLImgElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2943,16 +2943,16 @@ type InputRef struct {
 	*InputHandler
 }
 
-func NewInputRef(ref *ElementRef[HTMLInputElement]) *InputRef {
+func NewInputRef(ref *ElementRef[HTMLInputElement], ctx dom.ActionExecutor) *InputRef {
 	if ref == nil {
 		return nil
 	}
 	return &InputRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLInputElement](ref.DOMElementRef()),
-		FocusActions:       NewFocusActions[HTMLInputElement](ref.DOMElementRef()),
-		SelectionActions:   NewSelectionActions[HTMLInputElement](ref.DOMElementRef()),
-		ValueActions:       NewValueActions[HTMLInputElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLInputElement](ref.DOMElementRef(), ctx),
+		FocusActions:       NewFocusActions[HTMLInputElement](ref.DOMElementRef(), ctx),
+		SelectionActions:   NewSelectionActions[HTMLInputElement](ref.DOMElementRef(), ctx),
+		ValueActions:       NewValueActions[HTMLInputElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -2997,13 +2997,13 @@ type InsElRef struct {
 	*WheelHandler
 }
 
-func NewInsElRef(ref *ElementRef[HTMLInsElement]) *InsElRef {
+func NewInsElRef(ref *ElementRef[HTMLInsElement], ctx dom.ActionExecutor) *InsElRef {
 	if ref == nil {
 		return nil
 	}
 	return &InsElRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLInsElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLInsElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3046,13 +3046,13 @@ type KbdRef struct {
 	*WheelHandler
 }
 
-func NewKbdRef(ref *ElementRef[HTMLKbdElement]) *KbdRef {
+func NewKbdRef(ref *ElementRef[HTMLKbdElement], ctx dom.ActionExecutor) *KbdRef {
 	if ref == nil {
 		return nil
 	}
 	return &KbdRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLKbdElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLKbdElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3095,13 +3095,13 @@ type LabelRef struct {
 	*WheelHandler
 }
 
-func NewLabelRef(ref *ElementRef[HTMLLabelElement]) *LabelRef {
+func NewLabelRef(ref *ElementRef[HTMLLabelElement], ctx dom.ActionExecutor) *LabelRef {
 	if ref == nil {
 		return nil
 	}
 	return &LabelRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLLabelElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLLabelElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3144,13 +3144,13 @@ type LegendRef struct {
 	*WheelHandler
 }
 
-func NewLegendRef(ref *ElementRef[HTMLLegendElement]) *LegendRef {
+func NewLegendRef(ref *ElementRef[HTMLLegendElement], ctx dom.ActionExecutor) *LegendRef {
 	if ref == nil {
 		return nil
 	}
 	return &LegendRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLLegendElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLLegendElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3193,13 +3193,13 @@ type LiRef struct {
 	*WheelHandler
 }
 
-func NewLiRef(ref *ElementRef[HTMLLiElement]) *LiRef {
+func NewLiRef(ref *ElementRef[HTMLLiElement], ctx dom.ActionExecutor) *LiRef {
 	if ref == nil {
 		return nil
 	}
 	return &LiRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLLiElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLLiElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3242,13 +3242,13 @@ type LineRef struct {
 	*WheelHandler
 }
 
-func NewLineRef(ref *ElementRef[SVGLineElement]) *LineRef {
+func NewLineRef(ref *ElementRef[SVGLineElement], ctx dom.ActionExecutor) *LineRef {
 	if ref == nil {
 		return nil
 	}
 	return &LineRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGLineElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGLineElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3291,13 +3291,13 @@ type LinearGradientRef struct {
 	*WheelHandler
 }
 
-func NewLinearGradientRef(ref *ElementRef[SVGLinearGradientElement]) *LinearGradientRef {
+func NewLinearGradientRef(ref *ElementRef[SVGLinearGradientElement], ctx dom.ActionExecutor) *LinearGradientRef {
 	if ref == nil {
 		return nil
 	}
 	return &LinearGradientRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGLinearGradientElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGLinearGradientElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3340,13 +3340,13 @@ type LinkRef struct {
 	*WheelHandler
 }
 
-func NewLinkRef(ref *ElementRef[HTMLLinkElement]) *LinkRef {
+func NewLinkRef(ref *ElementRef[HTMLLinkElement], ctx dom.ActionExecutor) *LinkRef {
 	if ref == nil {
 		return nil
 	}
 	return &LinkRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLLinkElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLLinkElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3389,13 +3389,13 @@ type MainRef struct {
 	*WheelHandler
 }
 
-func NewMainRef(ref *ElementRef[HTMLMainElement]) *MainRef {
+func NewMainRef(ref *ElementRef[HTMLMainElement], ctx dom.ActionExecutor) *MainRef {
 	if ref == nil {
 		return nil
 	}
 	return &MainRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLMainElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLMainElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3438,13 +3438,13 @@ type MapElRef struct {
 	*WheelHandler
 }
 
-func NewMapElRef(ref *ElementRef[HTMLMapElement]) *MapElRef {
+func NewMapElRef(ref *ElementRef[HTMLMapElement], ctx dom.ActionExecutor) *MapElRef {
 	if ref == nil {
 		return nil
 	}
 	return &MapElRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLMapElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLMapElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3487,13 +3487,13 @@ type MarkRef struct {
 	*WheelHandler
 }
 
-func NewMarkRef(ref *ElementRef[HTMLMarkElement]) *MarkRef {
+func NewMarkRef(ref *ElementRef[HTMLMarkElement], ctx dom.ActionExecutor) *MarkRef {
 	if ref == nil {
 		return nil
 	}
 	return &MarkRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLMarkElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLMarkElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3536,13 +3536,13 @@ type MarkerRef struct {
 	*WheelHandler
 }
 
-func NewMarkerRef(ref *ElementRef[SVGMarkerElement]) *MarkerRef {
+func NewMarkerRef(ref *ElementRef[SVGMarkerElement], ctx dom.ActionExecutor) *MarkerRef {
 	if ref == nil {
 		return nil
 	}
 	return &MarkerRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGMarkerElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGMarkerElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3585,13 +3585,13 @@ type MaskRef struct {
 	*WheelHandler
 }
 
-func NewMaskRef(ref *ElementRef[SVGMaskElement]) *MaskRef {
+func NewMaskRef(ref *ElementRef[SVGMaskElement], ctx dom.ActionExecutor) *MaskRef {
 	if ref == nil {
 		return nil
 	}
 	return &MaskRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGMaskElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGMaskElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3634,13 +3634,13 @@ type MenuRef struct {
 	*WheelHandler
 }
 
-func NewMenuRef(ref *ElementRef[HTMLMenuElement]) *MenuRef {
+func NewMenuRef(ref *ElementRef[HTMLMenuElement], ctx dom.ActionExecutor) *MenuRef {
 	if ref == nil {
 		return nil
 	}
 	return &MenuRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLMenuElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLMenuElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3683,13 +3683,13 @@ type MenuItemRef struct {
 	*WheelHandler
 }
 
-func NewMenuItemRef(ref *ElementRef[HTMLMenuItemElement]) *MenuItemRef {
+func NewMenuItemRef(ref *ElementRef[HTMLMenuItemElement], ctx dom.ActionExecutor) *MenuItemRef {
 	if ref == nil {
 		return nil
 	}
 	return &MenuItemRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLMenuItemElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLMenuItemElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3732,13 +3732,13 @@ type MetaRef struct {
 	*WheelHandler
 }
 
-func NewMetaRef(ref *ElementRef[HTMLMetaElement]) *MetaRef {
+func NewMetaRef(ref *ElementRef[HTMLMetaElement], ctx dom.ActionExecutor) *MetaRef {
 	if ref == nil {
 		return nil
 	}
 	return &MetaRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLMetaElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLMetaElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3784,14 +3784,14 @@ type MeterRef struct {
 	*InputHandler
 }
 
-func NewMeterRef(ref *ElementRef[HTMLMeterElement]) *MeterRef {
+func NewMeterRef(ref *ElementRef[HTMLMeterElement], ctx dom.ActionExecutor) *MeterRef {
 	if ref == nil {
 		return nil
 	}
 	return &MeterRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLMeterElement](ref.DOMElementRef()),
-		ValueActions:       NewValueActions[HTMLMeterElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLMeterElement](ref.DOMElementRef(), ctx),
+		ValueActions:       NewValueActions[HTMLMeterElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3836,13 +3836,13 @@ type NavRef struct {
 	*WheelHandler
 }
 
-func NewNavRef(ref *ElementRef[HTMLNavElement]) *NavRef {
+func NewNavRef(ref *ElementRef[HTMLNavElement], ctx dom.ActionExecutor) *NavRef {
 	if ref == nil {
 		return nil
 	}
 	return &NavRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLNavElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLNavElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3885,13 +3885,13 @@ type NoscriptRef struct {
 	*WheelHandler
 }
 
-func NewNoscriptRef(ref *ElementRef[HTMLNoscriptElement]) *NoscriptRef {
+func NewNoscriptRef(ref *ElementRef[HTMLNoscriptElement], ctx dom.ActionExecutor) *NoscriptRef {
 	if ref == nil {
 		return nil
 	}
 	return &NoscriptRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLNoscriptElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLNoscriptElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3934,13 +3934,13 @@ type ObjectRef struct {
 	*WheelHandler
 }
 
-func NewObjectRef(ref *ElementRef[HTMLObjectElement]) *ObjectRef {
+func NewObjectRef(ref *ElementRef[HTMLObjectElement], ctx dom.ActionExecutor) *ObjectRef {
 	if ref == nil {
 		return nil
 	}
 	return &ObjectRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLObjectElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLObjectElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -3983,13 +3983,13 @@ type OlRef struct {
 	*WheelHandler
 }
 
-func NewOlRef(ref *ElementRef[HTMLOlElement]) *OlRef {
+func NewOlRef(ref *ElementRef[HTMLOlElement], ctx dom.ActionExecutor) *OlRef {
 	if ref == nil {
 		return nil
 	}
 	return &OlRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLOlElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLOlElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4032,13 +4032,13 @@ type OptgroupRef struct {
 	*WheelHandler
 }
 
-func NewOptgroupRef(ref *ElementRef[HTMLOptgroupElement]) *OptgroupRef {
+func NewOptgroupRef(ref *ElementRef[HTMLOptgroupElement], ctx dom.ActionExecutor) *OptgroupRef {
 	if ref == nil {
 		return nil
 	}
 	return &OptgroupRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLOptgroupElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLOptgroupElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4081,13 +4081,13 @@ type OptionRef struct {
 	*WheelHandler
 }
 
-func NewOptionRef(ref *ElementRef[HTMLOptionElement]) *OptionRef {
+func NewOptionRef(ref *ElementRef[HTMLOptionElement], ctx dom.ActionExecutor) *OptionRef {
 	if ref == nil {
 		return nil
 	}
 	return &OptionRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLOptionElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLOptionElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4130,13 +4130,13 @@ type OutputRef struct {
 	*WheelHandler
 }
 
-func NewOutputRef(ref *ElementRef[HTMLOutputElement]) *OutputRef {
+func NewOutputRef(ref *ElementRef[HTMLOutputElement], ctx dom.ActionExecutor) *OutputRef {
 	if ref == nil {
 		return nil
 	}
 	return &OutputRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLOutputElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLOutputElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4179,13 +4179,13 @@ type PRef struct {
 	*WheelHandler
 }
 
-func NewPRef(ref *ElementRef[HTMLPElement]) *PRef {
+func NewPRef(ref *ElementRef[HTMLPElement], ctx dom.ActionExecutor) *PRef {
 	if ref == nil {
 		return nil
 	}
 	return &PRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLPElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLPElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4228,13 +4228,13 @@ type ParamRef struct {
 	*WheelHandler
 }
 
-func NewParamRef(ref *ElementRef[HTMLParamElement]) *ParamRef {
+func NewParamRef(ref *ElementRef[HTMLParamElement], ctx dom.ActionExecutor) *ParamRef {
 	if ref == nil {
 		return nil
 	}
 	return &ParamRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLParamElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLParamElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4277,13 +4277,13 @@ type PathRef struct {
 	*WheelHandler
 }
 
-func NewPathRef(ref *ElementRef[SVGPathElement]) *PathRef {
+func NewPathRef(ref *ElementRef[SVGPathElement], ctx dom.ActionExecutor) *PathRef {
 	if ref == nil {
 		return nil
 	}
 	return &PathRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGPathElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGPathElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4326,13 +4326,13 @@ type PatternRef struct {
 	*WheelHandler
 }
 
-func NewPatternRef(ref *ElementRef[SVGPatternElement]) *PatternRef {
+func NewPatternRef(ref *ElementRef[SVGPatternElement], ctx dom.ActionExecutor) *PatternRef {
 	if ref == nil {
 		return nil
 	}
 	return &PatternRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGPatternElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGPatternElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4375,13 +4375,13 @@ type PictureRef struct {
 	*WheelHandler
 }
 
-func NewPictureRef(ref *ElementRef[HTMLPictureElement]) *PictureRef {
+func NewPictureRef(ref *ElementRef[HTMLPictureElement], ctx dom.ActionExecutor) *PictureRef {
 	if ref == nil {
 		return nil
 	}
 	return &PictureRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLPictureElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLPictureElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4424,13 +4424,13 @@ type PolygonRef struct {
 	*WheelHandler
 }
 
-func NewPolygonRef(ref *ElementRef[SVGPolygonElement]) *PolygonRef {
+func NewPolygonRef(ref *ElementRef[SVGPolygonElement], ctx dom.ActionExecutor) *PolygonRef {
 	if ref == nil {
 		return nil
 	}
 	return &PolygonRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGPolygonElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGPolygonElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4473,13 +4473,13 @@ type PolylineRef struct {
 	*WheelHandler
 }
 
-func NewPolylineRef(ref *ElementRef[SVGPolylineElement]) *PolylineRef {
+func NewPolylineRef(ref *ElementRef[SVGPolylineElement], ctx dom.ActionExecutor) *PolylineRef {
 	if ref == nil {
 		return nil
 	}
 	return &PolylineRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGPolylineElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGPolylineElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4522,13 +4522,13 @@ type PortalRef struct {
 	*WheelHandler
 }
 
-func NewPortalRef(ref *ElementRef[HTMLPortalElement]) *PortalRef {
+func NewPortalRef(ref *ElementRef[HTMLPortalElement], ctx dom.ActionExecutor) *PortalRef {
 	if ref == nil {
 		return nil
 	}
 	return &PortalRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLPortalElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLPortalElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4571,13 +4571,13 @@ type PreRef struct {
 	*WheelHandler
 }
 
-func NewPreRef(ref *ElementRef[HTMLPreElement]) *PreRef {
+func NewPreRef(ref *ElementRef[HTMLPreElement], ctx dom.ActionExecutor) *PreRef {
 	if ref == nil {
 		return nil
 	}
 	return &PreRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLPreElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLPreElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4623,14 +4623,14 @@ type ProgressRef struct {
 	*InputHandler
 }
 
-func NewProgressRef(ref *ElementRef[HTMLProgressElement]) *ProgressRef {
+func NewProgressRef(ref *ElementRef[HTMLProgressElement], ctx dom.ActionExecutor) *ProgressRef {
 	if ref == nil {
 		return nil
 	}
 	return &ProgressRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLProgressElement](ref.DOMElementRef()),
-		ValueActions:       NewValueActions[HTMLProgressElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLProgressElement](ref.DOMElementRef(), ctx),
+		ValueActions:       NewValueActions[HTMLProgressElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4675,13 +4675,13 @@ type QRef struct {
 	*WheelHandler
 }
 
-func NewQRef(ref *ElementRef[HTMLQElement]) *QRef {
+func NewQRef(ref *ElementRef[HTMLQElement], ctx dom.ActionExecutor) *QRef {
 	if ref == nil {
 		return nil
 	}
 	return &QRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLQElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLQElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4724,13 +4724,13 @@ type RadialGradientRef struct {
 	*WheelHandler
 }
 
-func NewRadialGradientRef(ref *ElementRef[SVGRadialGradientElement]) *RadialGradientRef {
+func NewRadialGradientRef(ref *ElementRef[SVGRadialGradientElement], ctx dom.ActionExecutor) *RadialGradientRef {
 	if ref == nil {
 		return nil
 	}
 	return &RadialGradientRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGRadialGradientElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGRadialGradientElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4773,13 +4773,13 @@ type RbRef struct {
 	*WheelHandler
 }
 
-func NewRbRef(ref *ElementRef[HTMLRbElement]) *RbRef {
+func NewRbRef(ref *ElementRef[HTMLRbElement], ctx dom.ActionExecutor) *RbRef {
 	if ref == nil {
 		return nil
 	}
 	return &RbRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLRbElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLRbElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4822,13 +4822,13 @@ type RectRef struct {
 	*WheelHandler
 }
 
-func NewRectRef(ref *ElementRef[SVGRectElement]) *RectRef {
+func NewRectRef(ref *ElementRef[SVGRectElement], ctx dom.ActionExecutor) *RectRef {
 	if ref == nil {
 		return nil
 	}
 	return &RectRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGRectElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGRectElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4871,13 +4871,13 @@ type RpRef struct {
 	*WheelHandler
 }
 
-func NewRpRef(ref *ElementRef[HTMLRpElement]) *RpRef {
+func NewRpRef(ref *ElementRef[HTMLRpElement], ctx dom.ActionExecutor) *RpRef {
 	if ref == nil {
 		return nil
 	}
 	return &RpRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLRpElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLRpElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4920,13 +4920,13 @@ type RtRef struct {
 	*WheelHandler
 }
 
-func NewRtRef(ref *ElementRef[HTMLRtElement]) *RtRef {
+func NewRtRef(ref *ElementRef[HTMLRtElement], ctx dom.ActionExecutor) *RtRef {
 	if ref == nil {
 		return nil
 	}
 	return &RtRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLRtElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLRtElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -4969,13 +4969,13 @@ type RtcRef struct {
 	*WheelHandler
 }
 
-func NewRtcRef(ref *ElementRef[HTMLRtcElement]) *RtcRef {
+func NewRtcRef(ref *ElementRef[HTMLRtcElement], ctx dom.ActionExecutor) *RtcRef {
 	if ref == nil {
 		return nil
 	}
 	return &RtcRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLRtcElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLRtcElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5018,13 +5018,13 @@ type RubyRef struct {
 	*WheelHandler
 }
 
-func NewRubyRef(ref *ElementRef[HTMLRubyElement]) *RubyRef {
+func NewRubyRef(ref *ElementRef[HTMLRubyElement], ctx dom.ActionExecutor) *RubyRef {
 	if ref == nil {
 		return nil
 	}
 	return &RubyRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLRubyElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLRubyElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5067,13 +5067,13 @@ type SRef struct {
 	*WheelHandler
 }
 
-func NewSRef(ref *ElementRef[HTMLSElement]) *SRef {
+func NewSRef(ref *ElementRef[HTMLSElement], ctx dom.ActionExecutor) *SRef {
 	if ref == nil {
 		return nil
 	}
 	return &SRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5116,13 +5116,13 @@ type SampRef struct {
 	*WheelHandler
 }
 
-func NewSampRef(ref *ElementRef[HTMLSampElement]) *SampRef {
+func NewSampRef(ref *ElementRef[HTMLSampElement], ctx dom.ActionExecutor) *SampRef {
 	if ref == nil {
 		return nil
 	}
 	return &SampRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSampElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSampElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5165,13 +5165,13 @@ type ScriptRef struct {
 	*WheelHandler
 }
 
-func NewScriptRef(ref *ElementRef[HTMLScriptElement]) *ScriptRef {
+func NewScriptRef(ref *ElementRef[HTMLScriptElement], ctx dom.ActionExecutor) *ScriptRef {
 	if ref == nil {
 		return nil
 	}
 	return &ScriptRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLScriptElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLScriptElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5214,13 +5214,13 @@ type SectionRef struct {
 	*WheelHandler
 }
 
-func NewSectionRef(ref *ElementRef[HTMLSectionElement]) *SectionRef {
+func NewSectionRef(ref *ElementRef[HTMLSectionElement], ctx dom.ActionExecutor) *SectionRef {
 	if ref == nil {
 		return nil
 	}
 	return &SectionRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSectionElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSectionElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5267,15 +5267,15 @@ type SelectRef struct {
 	*InputHandler
 }
 
-func NewSelectRef(ref *ElementRef[HTMLSelectElement]) *SelectRef {
+func NewSelectRef(ref *ElementRef[HTMLSelectElement], ctx dom.ActionExecutor) *SelectRef {
 	if ref == nil {
 		return nil
 	}
 	return &SelectRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSelectElement](ref.DOMElementRef()),
-		FocusActions:       NewFocusActions[HTMLSelectElement](ref.DOMElementRef()),
-		ValueActions:       NewValueActions[HTMLSelectElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSelectElement](ref.DOMElementRef(), ctx),
+		FocusActions:       NewFocusActions[HTMLSelectElement](ref.DOMElementRef(), ctx),
+		ValueActions:       NewValueActions[HTMLSelectElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5320,13 +5320,13 @@ type SlotRef struct {
 	*WheelHandler
 }
 
-func NewSlotRef(ref *ElementRef[HTMLSlotElement]) *SlotRef {
+func NewSlotRef(ref *ElementRef[HTMLSlotElement], ctx dom.ActionExecutor) *SlotRef {
 	if ref == nil {
 		return nil
 	}
 	return &SlotRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSlotElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSlotElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5369,13 +5369,13 @@ type SmallRef struct {
 	*WheelHandler
 }
 
-func NewSmallRef(ref *ElementRef[HTMLSmallElement]) *SmallRef {
+func NewSmallRef(ref *ElementRef[HTMLSmallElement], ctx dom.ActionExecutor) *SmallRef {
 	if ref == nil {
 		return nil
 	}
 	return &SmallRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSmallElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSmallElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5418,13 +5418,13 @@ type SourceRef struct {
 	*WheelHandler
 }
 
-func NewSourceRef(ref *ElementRef[HTMLSourceElement]) *SourceRef {
+func NewSourceRef(ref *ElementRef[HTMLSourceElement], ctx dom.ActionExecutor) *SourceRef {
 	if ref == nil {
 		return nil
 	}
 	return &SourceRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSourceElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSourceElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5467,13 +5467,13 @@ type SpanRef struct {
 	*WheelHandler
 }
 
-func NewSpanRef(ref *ElementRef[HTMLSpanElement]) *SpanRef {
+func NewSpanRef(ref *ElementRef[HTMLSpanElement], ctx dom.ActionExecutor) *SpanRef {
 	if ref == nil {
 		return nil
 	}
 	return &SpanRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSpanElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSpanElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5516,13 +5516,13 @@ type StopRef struct {
 	*WheelHandler
 }
 
-func NewStopRef(ref *ElementRef[SVGStopElement]) *StopRef {
+func NewStopRef(ref *ElementRef[SVGStopElement], ctx dom.ActionExecutor) *StopRef {
 	if ref == nil {
 		return nil
 	}
 	return &StopRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGStopElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGStopElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5565,13 +5565,13 @@ type StrongRef struct {
 	*WheelHandler
 }
 
-func NewStrongRef(ref *ElementRef[HTMLStrongElement]) *StrongRef {
+func NewStrongRef(ref *ElementRef[HTMLStrongElement], ctx dom.ActionExecutor) *StrongRef {
 	if ref == nil {
 		return nil
 	}
 	return &StrongRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLStrongElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLStrongElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5614,13 +5614,13 @@ type StyleElRef struct {
 	*WheelHandler
 }
 
-func NewStyleElRef(ref *ElementRef[HTMLStyleElement]) *StyleElRef {
+func NewStyleElRef(ref *ElementRef[HTMLStyleElement], ctx dom.ActionExecutor) *StyleElRef {
 	if ref == nil {
 		return nil
 	}
 	return &StyleElRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLStyleElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLStyleElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5663,13 +5663,13 @@ type SubRef struct {
 	*WheelHandler
 }
 
-func NewSubRef(ref *ElementRef[HTMLSubElement]) *SubRef {
+func NewSubRef(ref *ElementRef[HTMLSubElement], ctx dom.ActionExecutor) *SubRef {
 	if ref == nil {
 		return nil
 	}
 	return &SubRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSubElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSubElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5713,14 +5713,14 @@ type SummaryRef struct {
 	*WheelHandler
 }
 
-func NewSummaryRef(ref *ElementRef[HTMLSummaryElement]) *SummaryRef {
+func NewSummaryRef(ref *ElementRef[HTMLSummaryElement], ctx dom.ActionExecutor) *SummaryRef {
 	if ref == nil {
 		return nil
 	}
 	return &SummaryRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSummaryElement](ref.DOMElementRef()),
-		FocusActions:       NewFocusActions[HTMLSummaryElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSummaryElement](ref.DOMElementRef(), ctx),
+		FocusActions:       NewFocusActions[HTMLSummaryElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5763,13 +5763,13 @@ type SupRef struct {
 	*WheelHandler
 }
 
-func NewSupRef(ref *ElementRef[HTMLSupElement]) *SupRef {
+func NewSupRef(ref *ElementRef[HTMLSupElement], ctx dom.ActionExecutor) *SupRef {
 	if ref == nil {
 		return nil
 	}
 	return &SupRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLSupElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLSupElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5812,13 +5812,13 @@ type SvgRef struct {
 	*WheelHandler
 }
 
-func NewSvgRef(ref *ElementRef[SVGSvgElement]) *SvgRef {
+func NewSvgRef(ref *ElementRef[SVGSvgElement], ctx dom.ActionExecutor) *SvgRef {
 	if ref == nil {
 		return nil
 	}
 	return &SvgRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGSvgElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGSvgElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5861,13 +5861,13 @@ type SvgTextRef struct {
 	*WheelHandler
 }
 
-func NewSvgTextRef(ref *ElementRef[SVGSvgTextElement]) *SvgTextRef {
+func NewSvgTextRef(ref *ElementRef[SVGSvgTextElement], ctx dom.ActionExecutor) *SvgTextRef {
 	if ref == nil {
 		return nil
 	}
 	return &SvgTextRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGSvgTextElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGSvgTextElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5910,13 +5910,13 @@ type TSpanRef struct {
 	*WheelHandler
 }
 
-func NewTSpanRef(ref *ElementRef[SVGTSpanElement]) *TSpanRef {
+func NewTSpanRef(ref *ElementRef[SVGTSpanElement], ctx dom.ActionExecutor) *TSpanRef {
 	if ref == nil {
 		return nil
 	}
 	return &TSpanRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGTSpanElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGTSpanElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -5959,13 +5959,13 @@ type TableRef struct {
 	*WheelHandler
 }
 
-func NewTableRef(ref *ElementRef[HTMLTableElement]) *TableRef {
+func NewTableRef(ref *ElementRef[HTMLTableElement], ctx dom.ActionExecutor) *TableRef {
 	if ref == nil {
 		return nil
 	}
 	return &TableRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTableElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTableElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6008,13 +6008,13 @@ type TbodyRef struct {
 	*WheelHandler
 }
 
-func NewTbodyRef(ref *ElementRef[HTMLTbodyElement]) *TbodyRef {
+func NewTbodyRef(ref *ElementRef[HTMLTbodyElement], ctx dom.ActionExecutor) *TbodyRef {
 	if ref == nil {
 		return nil
 	}
 	return &TbodyRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTbodyElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTbodyElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6057,13 +6057,13 @@ type TdRef struct {
 	*WheelHandler
 }
 
-func NewTdRef(ref *ElementRef[HTMLTdElement]) *TdRef {
+func NewTdRef(ref *ElementRef[HTMLTdElement], ctx dom.ActionExecutor) *TdRef {
 	if ref == nil {
 		return nil
 	}
 	return &TdRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTdElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTdElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6106,13 +6106,13 @@ type TemplateRef struct {
 	*WheelHandler
 }
 
-func NewTemplateRef(ref *ElementRef[HTMLTemplateElement]) *TemplateRef {
+func NewTemplateRef(ref *ElementRef[HTMLTemplateElement], ctx dom.ActionExecutor) *TemplateRef {
 	if ref == nil {
 		return nil
 	}
 	return &TemplateRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTemplateElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTemplateElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6160,16 +6160,16 @@ type TextareaRef struct {
 	*InputHandler
 }
 
-func NewTextareaRef(ref *ElementRef[HTMLTextareaElement]) *TextareaRef {
+func NewTextareaRef(ref *ElementRef[HTMLTextareaElement], ctx dom.ActionExecutor) *TextareaRef {
 	if ref == nil {
 		return nil
 	}
 	return &TextareaRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTextareaElement](ref.DOMElementRef()),
-		FocusActions:       NewFocusActions[HTMLTextareaElement](ref.DOMElementRef()),
-		SelectionActions:   NewSelectionActions[HTMLTextareaElement](ref.DOMElementRef()),
-		ValueActions:       NewValueActions[HTMLTextareaElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTextareaElement](ref.DOMElementRef(), ctx),
+		FocusActions:       NewFocusActions[HTMLTextareaElement](ref.DOMElementRef(), ctx),
+		SelectionActions:   NewSelectionActions[HTMLTextareaElement](ref.DOMElementRef(), ctx),
+		ValueActions:       NewValueActions[HTMLTextareaElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6214,13 +6214,13 @@ type TfootRef struct {
 	*WheelHandler
 }
 
-func NewTfootRef(ref *ElementRef[HTMLTfootElement]) *TfootRef {
+func NewTfootRef(ref *ElementRef[HTMLTfootElement], ctx dom.ActionExecutor) *TfootRef {
 	if ref == nil {
 		return nil
 	}
 	return &TfootRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTfootElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTfootElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6263,13 +6263,13 @@ type ThRef struct {
 	*WheelHandler
 }
 
-func NewThRef(ref *ElementRef[HTMLThElement]) *ThRef {
+func NewThRef(ref *ElementRef[HTMLThElement], ctx dom.ActionExecutor) *ThRef {
 	if ref == nil {
 		return nil
 	}
 	return &ThRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLThElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLThElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6312,13 +6312,13 @@ type TheadRef struct {
 	*WheelHandler
 }
 
-func NewTheadRef(ref *ElementRef[HTMLTheadElement]) *TheadRef {
+func NewTheadRef(ref *ElementRef[HTMLTheadElement], ctx dom.ActionExecutor) *TheadRef {
 	if ref == nil {
 		return nil
 	}
 	return &TheadRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTheadElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTheadElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6361,13 +6361,13 @@ type TimeRef struct {
 	*WheelHandler
 }
 
-func NewTimeRef(ref *ElementRef[HTMLTimeElement]) *TimeRef {
+func NewTimeRef(ref *ElementRef[HTMLTimeElement], ctx dom.ActionExecutor) *TimeRef {
 	if ref == nil {
 		return nil
 	}
 	return &TimeRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTimeElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTimeElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6410,13 +6410,13 @@ type TitleElRef struct {
 	*WheelHandler
 }
 
-func NewTitleElRef(ref *ElementRef[HTMLTitleElement]) *TitleElRef {
+func NewTitleElRef(ref *ElementRef[HTMLTitleElement], ctx dom.ActionExecutor) *TitleElRef {
 	if ref == nil {
 		return nil
 	}
 	return &TitleElRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTitleElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTitleElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6459,13 +6459,13 @@ type TrRef struct {
 	*WheelHandler
 }
 
-func NewTrRef(ref *ElementRef[HTMLTrElement]) *TrRef {
+func NewTrRef(ref *ElementRef[HTMLTrElement], ctx dom.ActionExecutor) *TrRef {
 	if ref == nil {
 		return nil
 	}
 	return &TrRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTrElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6508,13 +6508,13 @@ type TrackRef struct {
 	*WheelHandler
 }
 
-func NewTrackRef(ref *ElementRef[HTMLTrackElement]) *TrackRef {
+func NewTrackRef(ref *ElementRef[HTMLTrackElement], ctx dom.ActionExecutor) *TrackRef {
 	if ref == nil {
 		return nil
 	}
 	return &TrackRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLTrackElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLTrackElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6557,13 +6557,13 @@ type URef struct {
 	*WheelHandler
 }
 
-func NewURef(ref *ElementRef[HTMLUElement]) *URef {
+func NewURef(ref *ElementRef[HTMLUElement], ctx dom.ActionExecutor) *URef {
 	if ref == nil {
 		return nil
 	}
 	return &URef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLUElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLUElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6606,13 +6606,13 @@ type UlRef struct {
 	*WheelHandler
 }
 
-func NewUlRef(ref *ElementRef[HTMLUlElement]) *UlRef {
+func NewUlRef(ref *ElementRef[HTMLUlElement], ctx dom.ActionExecutor) *UlRef {
 	if ref == nil {
 		return nil
 	}
 	return &UlRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLUlElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLUlElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6655,13 +6655,13 @@ type UseRef struct {
 	*WheelHandler
 }
 
-func NewUseRef(ref *ElementRef[SVGUseElement]) *UseRef {
+func NewUseRef(ref *ElementRef[SVGUseElement], ctx dom.ActionExecutor) *UseRef {
 	if ref == nil {
 		return nil
 	}
 	return &UseRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[SVGUseElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[SVGUseElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6704,13 +6704,13 @@ type VarRef struct {
 	*WheelHandler
 }
 
-func NewVarRef(ref *ElementRef[HTMLVarElement]) *VarRef {
+func NewVarRef(ref *ElementRef[HTMLVarElement], ctx dom.ActionExecutor) *VarRef {
 	if ref == nil {
 		return nil
 	}
 	return &VarRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLVarElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLVarElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6756,15 +6756,15 @@ type VideoRef struct {
 	*MediaHandler
 }
 
-func NewVideoRef(ref *ElementRef[HTMLVideoElement]) *VideoRef {
+func NewVideoRef(ref *ElementRef[HTMLVideoElement], ctx dom.ActionExecutor) *VideoRef {
 	if ref == nil {
 		return nil
 	}
 	return &VideoRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLVideoElement](ref.DOMElementRef()),
-		FocusActions:       NewFocusActions[HTMLVideoElement](ref.DOMElementRef()),
-		MediaActions:       NewMediaActions[HTMLVideoElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLVideoElement](ref.DOMElementRef(), ctx),
+		FocusActions:       NewFocusActions[HTMLVideoElement](ref.DOMElementRef(), ctx),
+		MediaActions:       NewMediaActions[HTMLVideoElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
@@ -6808,13 +6808,13 @@ type WbrRef struct {
 	*WheelHandler
 }
 
-func NewWbrRef(ref *ElementRef[HTMLWbrElement]) *WbrRef {
+func NewWbrRef(ref *ElementRef[HTMLWbrElement], ctx dom.ActionExecutor) *WbrRef {
 	if ref == nil {
 		return nil
 	}
 	return &WbrRef{
 		ElementRef:         ref,
-		ElementActions:     NewElementActions[HTMLWbrElement](ref.DOMElementRef()),
+		ElementActions:     NewElementActions[HTMLWbrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
