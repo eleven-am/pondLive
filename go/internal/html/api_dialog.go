@@ -34,17 +34,40 @@ func NewDialogAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispa
 // Actions
 // ============================================================================
 
-// Show displays the dialog non-modally.
+// Show displays the dialog non-modally (without blocking interaction with other page content).
+//
+// Example:
+//
+//	dialogRef := ui.UseElement[*h.DialogRef](ctx)
+//	dialogRef.Show()
+//
+//	return h.Dialog(h.Attach(dialogRef), h.Text("Non-modal dialog"))
 func (a *DialogAPI[T]) Show() {
 	dom.DOMCall[T](a.ctx, a.ref, "show")
 }
 
-// ShowModal displays the dialog modally (with backdrop and focus trap).
+// ShowModal displays the dialog modally with backdrop and focus trap.
+// This blocks interaction with other page content until the dialog is closed.
+//
+// Example:
+//
+//	dialogRef := ui.UseElement[*h.DialogRef](ctx)
+//	dialogRef.ShowModal()
+//
+//	return h.Dialog(h.Attach(dialogRef), h.Text("Modal dialog"))
 func (a *DialogAPI[T]) ShowModal() {
 	dom.DOMCall[T](a.ctx, a.ref, "showModal")
 }
 
 // Close closes the dialog with an optional return value.
+// The return value can be accessed in the OnClose event handler.
+//
+// Example:
+//
+//	dialogRef := ui.UseElement[*h.DialogRef](ctx)
+//	dialogRef.Close("confirmed")  // Close with return value
+//
+//	return h.Dialog(h.Attach(dialogRef), h.Text("Dialog content"))
 func (a *DialogAPI[T]) Close(returnValue string) {
 	if returnValue == "" {
 		dom.DOMCall[T](a.ctx, a.ref, "close")
@@ -57,7 +80,17 @@ func (a *DialogAPI[T]) Close(returnValue string) {
 // Events
 // ============================================================================
 
-// OnClose registers a handler for the "close" event.
+// OnClose registers a handler for the "close" event, fired when the dialog is closed.
+//
+// Example:
+//
+//	dialogRef := ui.UseElement[*h.DialogRef](ctx)
+//	dialogRef.OnClose(func(evt h.DialogEvent) h.Updates {
+//	    handleDialogClose()
+//	    return nil
+//	})
+//
+//	return h.Dialog(h.Attach(dialogRef), h.Text("Dialog content"))
 func (a *DialogAPI[T]) OnClose(handler func(DialogEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return
@@ -66,7 +99,21 @@ func (a *DialogAPI[T]) OnClose(handler func(DialogEvent) Updates) {
 	a.ref.AddListener("close", wrapped, DialogEvent{}.props())
 }
 
-// OnCancel registers a handler for the "cancel" event.
+// OnCancel registers a handler for the "cancel" event, fired when user presses Escape key.
+// Call evt.PreventDefault() to prevent the dialog from closing.
+//
+// Example:
+//
+//	dialogRef := ui.UseElement[*h.DialogRef](ctx)
+//	dialogRef.OnCancel(func(evt h.DialogEvent) h.Updates {
+//	    if hasUnsavedChanges() {
+//	        evt.PreventDefault()  // Prevent closing
+//	        showConfirmation()
+//	    }
+//	    return nil
+//	})
+//
+//	return h.Dialog(h.Attach(dialogRef), h.Text("Dialog content"))
 func (a *DialogAPI[T]) OnCancel(handler func(DialogEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return

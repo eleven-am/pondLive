@@ -51,18 +51,19 @@ func buildMediaEvent(evt Event) MediaEvent {
 //
 // Example:
 //
-//	video := html.NewElementRef[html.VideoDescriptor]("player", html.VideoDescriptor{})
-//	media := html.NewMediaAPI(video.DOMElementRef(), ctx)
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	videoRef.Play()
+//	videoRef.SetVolume(0.8)
 //
-//	// Control playback
-//	media.Play()
-//	media.SetVolume(0.8)
-//
-//	// Listen for events
-//	media.OnTimeUpdate(func(evt html.MediaEvent) html.Updates {
-//	    updateProgressBar(evt.CurrentTime, evt.Duration)
+//	videoRef.OnTimeUpdate(func(evt h.MediaEvent) h.Updates {
+//	    // Update progress bar
 //	    return nil
 //	})
+//
+//	return h.Video(
+//	    h.Attach(videoRef),
+//	    h.Src("/movie.mp4"),
+//	)
 type MediaAPI[T dom.ElementDescriptor] struct {
 	ref *dom.ElementRef[T]
 	ctx dom.Dispatcher
@@ -223,6 +224,17 @@ func (a *MediaAPI[T]) SetPlaybackRate(rate float64) {
 // ============================================================================
 
 // CurrentTime gets the current playback time in seconds.
+// This makes a synchronous call to the client (~1-2ms latency).
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	currentTime, err := videoRef.CurrentTime()
+//	if err == nil {
+//	    updateProgressDisplay(currentTime)
+//	}
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) CurrentTime() (float64, error) {
 	values, err := a.ctx.DOMGet(a.ref.ID(), "element.currentTime")
 	if err != nil {
@@ -235,6 +247,17 @@ func (a *MediaAPI[T]) CurrentTime() (float64, error) {
 }
 
 // Duration gets the total duration of the media in seconds.
+// Returns NaN if duration is not yet known. This makes a synchronous call to the client.
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	duration, err := videoRef.Duration()
+//	if err == nil {
+//	    displayTotalTime(duration)
+//	}
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) Duration() (float64, error) {
 	values, err := a.ctx.DOMGet(a.ref.ID(), "element.duration")
 	if err != nil {
@@ -247,6 +270,15 @@ func (a *MediaAPI[T]) Duration() (float64, error) {
 }
 
 // Volume gets the current volume level (0.0 to 1.0).
+// This makes a synchronous call to the client (~1-2ms latency).
+//
+// Example:
+//
+//	audioRef := ui.UseElement[*h.AudioRef](ctx)
+//	volume, _ := audioRef.Volume()
+//	updateVolumeSlider(volume)
+//
+//	return h.Audio(h.Attach(audioRef), h.Src("/music.mp3"))
 func (a *MediaAPI[T]) Volume() (float64, error) {
 	values, err := a.ctx.DOMGet(a.ref.ID(), "element.volume")
 	if err != nil {
@@ -259,6 +291,15 @@ func (a *MediaAPI[T]) Volume() (float64, error) {
 }
 
 // Muted gets the muted state of the media element.
+// This makes a synchronous call to the client (~1-2ms latency).
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	isMuted, _ := videoRef.Muted()
+//	updateMuteButton(isMuted)
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) Muted() (bool, error) {
 	values, err := a.ctx.DOMGet(a.ref.ID(), "element.muted")
 	if err != nil {
@@ -271,6 +312,15 @@ func (a *MediaAPI[T]) Muted() (bool, error) {
 }
 
 // Paused gets whether the media is currently paused.
+// This makes a synchronous call to the client (~1-2ms latency).
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	isPaused, _ := videoRef.Paused()
+//	updatePlayPauseButton(isPaused)
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) Paused() (bool, error) {
 	values, err := a.ctx.DOMGet(a.ref.ID(), "element.paused")
 	if err != nil {
@@ -283,6 +333,15 @@ func (a *MediaAPI[T]) Paused() (bool, error) {
 }
 
 // PlaybackRate gets the current playback speed (1.0 is normal speed).
+// This makes a synchronous call to the client (~1-2ms latency).
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	rate, _ := videoRef.PlaybackRate()
+//	updateSpeedDisplay(rate)
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) PlaybackRate() (float64, error) {
 	values, err := a.ctx.DOMGet(a.ref.ID(), "element.playbackRate")
 	if err != nil {
@@ -298,7 +357,17 @@ func (a *MediaAPI[T]) PlaybackRate() (float64, error) {
 // Events
 // ============================================================================
 
-// OnPlay registers a handler for the "play" event.
+// OnPlay registers a handler for the "play" event, fired when playback starts or resumes.
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	videoRef.OnPlay(func(evt h.MediaEvent) h.Updates {
+//	    showPauseButton()
+//	    return nil
+//	})
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) OnPlay(handler func(MediaEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return
@@ -307,7 +376,17 @@ func (a *MediaAPI[T]) OnPlay(handler func(MediaEvent) Updates) {
 	a.ref.AddListener("play", wrapped, MediaEvent{}.props())
 }
 
-// OnPause registers a handler for the "pause" event.
+// OnPause registers a handler for the "pause" event, fired when playback is paused.
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	videoRef.OnPause(func(evt h.MediaEvent) h.Updates {
+//	    showPlayButton()
+//	    return nil
+//	})
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) OnPause(handler func(MediaEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return
@@ -316,7 +395,17 @@ func (a *MediaAPI[T]) OnPause(handler func(MediaEvent) Updates) {
 	a.ref.AddListener("pause", wrapped, MediaEvent{}.props())
 }
 
-// OnEnded registers a handler for the "ended" event.
+// OnEnded registers a handler for the "ended" event, fired when playback reaches the end of the media.
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	videoRef.OnEnded(func(evt h.MediaEvent) h.Updates {
+//	    showReplayButton()
+//	    return nil
+//	})
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) OnEnded(handler func(MediaEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return
@@ -325,7 +414,17 @@ func (a *MediaAPI[T]) OnEnded(handler func(MediaEvent) Updates) {
 	a.ref.AddListener("ended", wrapped, MediaEvent{}.props())
 }
 
-// OnSeeking registers a handler for the "seeking" event.
+// OnSeeking registers a handler for the "seeking" event, fired when a seek operation begins.
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	videoRef.OnSeeking(func(evt h.MediaEvent) h.Updates {
+//	    showLoadingSpinner()
+//	    return nil
+//	})
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) OnSeeking(handler func(MediaEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return
@@ -334,7 +433,17 @@ func (a *MediaAPI[T]) OnSeeking(handler func(MediaEvent) Updates) {
 	a.ref.AddListener("seeking", wrapped, MediaEvent{}.props())
 }
 
-// OnSeeked registers a handler for the "seeked" event.
+// OnSeeked registers a handler for the "seeked" event, fired when a seek operation completes.
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	videoRef.OnSeeked(func(evt h.MediaEvent) h.Updates {
+//	    hideLoadingSpinner()
+//	    return nil
+//	})
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) OnSeeked(handler func(MediaEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return
@@ -343,7 +452,17 @@ func (a *MediaAPI[T]) OnSeeked(handler func(MediaEvent) Updates) {
 	a.ref.AddListener("seeked", wrapped, MediaEvent{}.props())
 }
 
-// OnRateChange registers a handler for the "ratechange" event.
+// OnRateChange registers a handler for the "ratechange" event, fired when playback rate changes.
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	videoRef.OnRateChange(func(evt h.MediaEvent) h.Updates {
+//	    updateSpeedIndicator(evt.PlaybackRate)
+//	    return nil
+//	})
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) OnRateChange(handler func(MediaEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return
@@ -352,7 +471,18 @@ func (a *MediaAPI[T]) OnRateChange(handler func(MediaEvent) Updates) {
 	a.ref.AddListener("ratechange", wrapped, MediaEvent{}.props())
 }
 
-// OnTimeUpdate registers a handler for the "timeupdate" event.
+// OnTimeUpdate registers a handler for the "timeupdate" event, fired periodically during playback.
+// This event fires approximately every 250ms during playback and is commonly used for progress tracking.
+//
+// Example:
+//
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
+//	videoRef.OnTimeUpdate(func(evt h.MediaEvent) h.Updates {
+//	    updateProgressBar(evt.CurrentTime, evt.Duration)
+//	    return nil
+//	})
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 func (a *MediaAPI[T]) OnTimeUpdate(handler func(MediaEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return
@@ -361,7 +491,17 @@ func (a *MediaAPI[T]) OnTimeUpdate(handler func(MediaEvent) Updates) {
 	a.ref.AddListener("timeupdate", wrapped, MediaEvent{}.props())
 }
 
-// OnVolumeChange registers a handler for the "volumechange" event.
+// OnVolumeChange registers a handler for the "volumechange" event, fired when volume or muted state changes.
+//
+// Example:
+//
+//	audioRef := ui.UseElement[*h.AudioRef](ctx)
+//	audioRef.OnVolumeChange(func(evt h.MediaEvent) h.Updates {
+//	    updateVolumeIndicator(evt.Volume, evt.Muted)
+//	    return nil
+//	})
+//
+//	return h.Audio(h.Attach(audioRef), h.Src("/music.mp3"))
 func (a *MediaAPI[T]) OnVolumeChange(handler func(MediaEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return

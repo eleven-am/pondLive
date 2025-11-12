@@ -16,11 +16,25 @@ func NewDisableableAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.
 }
 
 // SetDisabled sets the disabled property of the element.
+//
+// Example:
+//
+//	buttonRef := ui.UseElement[*h.ButtonRef](ctx)
+//	buttonRef.SetDisabled(true)  // Disable the button
+//
+//	return h.Button(h.Attach(buttonRef), h.Text("Submit"))
 func (a *DisableableAPI[T]) SetDisabled(disabled bool) {
 	dom.DOMSet[T](a.ctx, a.ref, "disabled", disabled)
 }
 
 // SetEnabled is a convenience method that sets disabled to false.
+//
+// Example:
+//
+//	inputRef := ui.UseElement[*h.InputRef](ctx)
+//	inputRef.SetEnabled(true)  // Enable the input field
+//
+//	return h.Input(h.Attach(inputRef), h.Type("text"))
 func (a *DisableableAPI[T]) SetEnabled(enabled bool) {
 	dom.DOMSet[T](a.ctx, a.ref, "disabled", !enabled)
 }

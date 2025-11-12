@@ -22,6 +22,18 @@ func NewCanvasAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispa
 // Format can be "image/png", "image/jpeg", or "image/webp".
 // Quality is a number between 0.0 and 1.0 for lossy formats (jpeg, webp).
 // This makes a synchronous call to the client and waits for the response.
+//
+// Example:
+//
+//	canvasRef := ui.UseElement[*h.CanvasRef](ctx)
+//
+//	// Export as PNG (lossless)
+//	dataURL, err := canvasRef.ToDataURL("image/png", 0)
+//
+//	// Export as JPEG with 90% quality
+//	dataURL, err := canvasRef.ToDataURL("image/jpeg", 0.9)
+//
+//	return h.Canvas(h.Attach(canvasRef), h.Width("800"), h.Height("600"))
 func (a *CanvasAPI[T]) ToDataURL(format string, quality float64) (string, error) {
 	if format == "" {
 		format = "image/png"
@@ -47,6 +59,18 @@ func (a *CanvasAPI[T]) ToDataURL(format string, quality float64) (string, error)
 
 // GetContext returns information about the canvas rendering context.
 // This makes multiple synchronous calls to the client to gather canvas info.
+//
+// Example:
+//
+//	canvasRef := ui.UseElement[*h.CanvasRef](ctx)
+//
+//	// Get 2D context info (default)
+//	info, err := canvasRef.GetContext("2d")
+//	if err == nil {
+//	    initializeDrawing(info.Width, info.Height)
+//	}
+//
+//	return h.Canvas(h.Attach(canvasRef), h.Width("800"), h.Height("600"))
 func (a *CanvasAPI[T]) GetContext(contextType string) (*CanvasContextInfo, error) {
 	if contextType == "" {
 		contextType = "2d"

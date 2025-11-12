@@ -16,6 +16,16 @@ func NewDetailsActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.
 }
 
 // SetOpen sets the open state of the details element.
+//
+// Example:
+//
+//	detailsRef := ui.UseElement[*h.DetailsRef](ctx)
+//	detailsRef.SetOpen(true)  // Expand the details element
+//
+//	return h.Details(h.Attach(detailsRef), h.Children(
+//	    h.Summary(h.Text("Click to expand")),
+//	    h.P(h.Text("Hidden content")),
+//	))
 func (a *DetailsActions[T]) SetOpen(open bool) {
 	dom.DOMSet[T](a.ctx, a.ref, "open", open)
 }

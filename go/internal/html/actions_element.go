@@ -44,12 +44,13 @@ type WindowMetrics struct {
 //
 // Example:
 //
-//	div := html.NewElementRef[html.DivDescriptor]("container", html.DivDescriptor{})
-//	actions := html.NewElementActions(div.DOMElementRef(), ctx)
+//	divRef := ui.UseElement[*h.DivRef](ctx)
 //
 //	// Query element dimensions
-//	rect, _ := actions.GetBoundingClientRect()
+//	rect, _ := divRef.GetBoundingClientRect()
 //	fmt.Printf("Element at (%f, %f) with size %fx%f\n", rect.X, rect.Y, rect.Width, rect.Height)
+//
+//	return h.Div(h.Attach(divRef), h.Text("Container"))
 type ElementActions[T dom.ElementDescriptor] struct {
 	ref *dom.ElementRef[T]
 	ctx dom.Dispatcher
@@ -64,14 +65,15 @@ func NewElementActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.
 //
 // Example:
 //
-//	video := html.NewElementRef[html.VideoDescriptor]("player", html.VideoDescriptor{})
-//	actions := html.NewElementActions(video.DOMElementRef(), ctx)
+//	videoRef := ui.UseElement[*h.VideoRef](ctx)
 //
 //	// Call a method not available in MediaAPI
-//	actions.Call("requestPictureInPicture")
+//	videoRef.Call("requestPictureInPicture")
 //
 //	// Call with arguments
-//	actions.Call("scrollTo", 0, 100)
+//	videoRef.Call("scrollTo", 0, 100)
+//
+//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
 //
 // Note: This method provides no type safety. Use typed API methods when available.
 // Arguments are serialized to JSON and sent to the client, so ensure they're JSON-serializable.
@@ -89,16 +91,17 @@ func (a *ElementActions[T]) Call(method string, args ...any) {
 //
 // Example:
 //
-//	tooltip := html.NewElementRef[html.DivDescriptor]("tooltip", html.DivDescriptor{})
-//	actions := html.NewElementActions(tooltip.DOMElementRef(), ctx)
+//	tooltipRef := ui.UseElement[*h.DivRef](ctx)
 //
 //	// Position tooltip relative to trigger element
-//	triggerRect, err := actions.GetBoundingClientRect()
+//	triggerRect, err := tooltipRef.GetBoundingClientRect()
 //	if err == nil {
 //	    tooltipX := triggerRect.Right + 10 // 10px to the right
 //	    tooltipY := triggerRect.Top
 //	    positionTooltip(tooltipX, tooltipY)
 //	}
+//
+//	return h.Div(h.Attach(tooltipRef), h.Text("Tooltip"))
 //
 // Use Cases:
 //   - Positioning popups, tooltips, or dropdowns
@@ -144,11 +147,10 @@ func (a *ElementActions[T]) GetBoundingClientRect() (*DOMRect, error) {
 //
 // Example:
 //
-//	chatWindow := html.NewElementRef[html.DivDescriptor]("chat", html.DivDescriptor{})
-//	actions := html.NewElementActions(chatWindow.DOMElementRef(), ctx)
+//	chatRef := ui.UseElement[*h.DivRef](ctx)
 //
 //	// Check if user has scrolled to bottom
-//	metrics, err := actions.GetScrollMetrics()
+//	metrics, err := chatRef.GetScrollMetrics()
 //	if err == nil {
 //	    atBottom := metrics.ScrollTop + metrics.ClientHeight >= metrics.ScrollHeight - 10
 //	    if atBottom {
@@ -158,6 +160,8 @@ func (a *ElementActions[T]) GetBoundingClientRect() (*DOMRect, error) {
 //	    // Calculate scroll percentage
 //	    scrollPercent := (metrics.ScrollTop / (metrics.ScrollHeight - metrics.ClientHeight)) * 100
 //	}
+//
+//	return h.Div(h.Attach(chatRef), h.Text("Chat window"))
 //
 // Use Cases:
 //   - Implementing infinite scroll (detect when near bottom)
@@ -222,11 +226,10 @@ func payloadFloatDirect(value any, defaultValue float64) float64 {
 //
 // Example:
 //
-//	button := html.NewElementRef[html.ButtonDescriptor]("btn", html.ButtonDescriptor{})
-//	actions := html.NewElementActions(button.DOMElementRef(), ctx)
+//	buttonRef := ui.UseElement[*h.ButtonRef](ctx)
 //
 //	// Get specific styles
-//	styles, err := actions.GetComputedStyle("color", "backgroundColor", "fontSize")
+//	styles, err := buttonRef.GetComputedStyle("color", "backgroundColor", "fontSize")
 //	if err == nil {
 //	    textColor := styles["color"]          // e.g., "rgb(255, 255, 255)"
 //	    bgColor := styles["backgroundColor"]  // e.g., "rgb(0, 123, 255)"
@@ -234,7 +237,9 @@ func payloadFloatDirect(value any, defaultValue float64) float64 {
 //	}
 //
 //	// Get all common styles (when no properties specified)
-//	allStyles, _ := actions.GetComputedStyle()
+//	allStyles, _ := buttonRef.GetComputedStyle()
+//
+//	return h.Button(h.Attach(buttonRef), h.Text("Click me"))
 //
 // Use Cases:
 //   - Reading theme colors or dimensions set by CSS
@@ -272,14 +277,15 @@ func (a *ElementActions[T]) GetComputedStyle(properties ...string) (map[string]s
 //
 // Example:
 //
-//	modal := html.NewElementRef[html.DivDescriptor]("modal", html.DivDescriptor{})
-//	actions := html.NewElementActions(modal.DOMElementRef(), ctx)
+//	modalRef := ui.UseElement[*h.DivRef](ctx)
 //
 //	// Check if modal is visible before showing toast
-//	visible, err := actions.CheckVisibility()
+//	visible, err := modalRef.CheckVisibility()
 //	if err == nil && !visible {
 //	    showToastNotification()
 //	}
+//
+//	return h.Div(h.Attach(modalRef), h.Text("Modal"))
 //
 // Use Cases:
 //   - Conditional logic based on visibility state
@@ -312,19 +318,20 @@ func (a *ElementActions[T]) CheckVisibility() (bool, error) {
 //
 // Example:
 //
-//	listItem := html.NewElementRef[html.LiDescriptor]("item", html.LiDescriptor{})
-//	actions := html.NewElementActions(listItem.DOMElementRef(), ctx)
+//	listItemRef := ui.UseElement[*h.LiRef](ctx)
 //
 //	// Check if element has specific class or pseudo-class
-//	isActive, _ := actions.Matches(".active")
-//	isFirst, _ := actions.Matches(":first-child")
-//	isChecked, _ := actions.Matches(":checked")
+//	isActive, _ := listItemRef.Matches(".active")
+//	isFirst, _ := listItemRef.Matches(":first-child")
+//	isChecked, _ := listItemRef.Matches(":checked")
 //
 //	// Complex selectors work too
-//	matches, _ := actions.Matches("li.item[data-status='completed']:not(.archived)")
+//	matches, _ := listItemRef.Matches("li.item[data-status='completed']:not(.archived)")
 //	if matches {
 //	    // Element matches all criteria
 //	}
+//
+//	return h.Li(h.Attach(listItemRef), h.Text("Item"))
 //
 // Use Cases:
 //   - Checking if element has specific classes or attributes

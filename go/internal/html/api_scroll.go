@@ -54,16 +54,37 @@ func NewScrollAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispa
 // ============================================================================
 
 // ScrollIntoView scrolls the element into view with the provided options.
+//
+// Example:
+//
+//	divRef := ui.UseElement[*h.DivRef](ctx)
+//	divRef.ScrollIntoView(dom.ScrollOptions{Behavior: "smooth", Block: "center"})
+//
+//	return h.Div(h.Attach(divRef), h.Text("Scroll to me"))
 func (a *ScrollAPI[T]) ScrollIntoView(opts dom.ScrollOptions) {
 	dom.DOMScrollIntoView[T](a.ctx, a.ref, opts)
 }
 
-// SetScrollTop sets the scrollTop property of the element.
+// SetScrollTop sets the vertical scroll position of the element.
+//
+// Example:
+//
+//	divRef := ui.UseElement[*h.DivRef](ctx)
+//	divRef.SetScrollTop(100.0)  // Scroll down 100 pixels
+//
+//	return h.Div(h.Attach(divRef), h.Text("Scrollable content"))
 func (a *ScrollAPI[T]) SetScrollTop(value float64) {
 	dom.DOMSet[T](a.ctx, a.ref, "scrollTop", value)
 }
 
-// SetScrollLeft sets the scrollLeft property of the element.
+// SetScrollLeft sets the horizontal scroll position of the element.
+//
+// Example:
+//
+//	divRef := ui.UseElement[*h.DivRef](ctx)
+//	divRef.SetScrollLeft(50.0)  // Scroll right 50 pixels
+//
+//	return h.Div(h.Attach(divRef), h.Text("Scrollable content"))
 func (a *ScrollAPI[T]) SetScrollLeft(value float64) {
 	dom.DOMSet[T](a.ctx, a.ref, "scrollLeft", value)
 }
@@ -72,7 +93,17 @@ func (a *ScrollAPI[T]) SetScrollLeft(value float64) {
 // Events
 // ============================================================================
 
-// OnScroll registers a handler for the "scroll" event.
+// OnScroll registers a handler for the "scroll" event, fired when the element is scrolled.
+//
+// Example:
+//
+//	divRef := ui.UseElement[*h.DivRef](ctx)
+//	divRef.OnScroll(func(evt h.ScrollEvent) h.Updates {
+//	    updateScrollIndicator(evt.ScrollTop, evt.ScrollHeight, evt.ClientHeight)
+//	    return nil
+//	})
+//
+//	return h.Div(h.Attach(divRef), h.Text("Scrollable content"))
 func (a *ScrollAPI[T]) OnScroll(handler func(ScrollEvent) Updates) {
 	if a.ref == nil || handler == nil {
 		return
