@@ -84,23 +84,7 @@ func asItem(node h.Node) h.Item {
 }
 
 func findClickHandlerID(structured render.Structured) handlers.ID {
-	for _, dyn := range structured.D {
-		if dyn.Kind != render.DynAttrs {
-			continue
-		}
-		if id := strings.TrimSpace(dyn.Attrs["data-onclick"]); id != "" {
-			return handlers.ID(id)
-		}
-	}
-	combined := strings.Join(structured.S, "")
-	needle := "data-onclick=\""
-	if idx := strings.Index(combined, needle); idx >= 0 {
-		start := idx + len(needle)
-		if end := strings.Index(combined[start:], "\""); end >= 0 {
-			return handlers.ID(combined[start : start+end])
-		}
-	}
-	return ""
+	return findHandlerAttr(structured, "data-onclick")
 }
 
 func TestRouterOutletRerender(t *testing.T) {

@@ -115,17 +115,17 @@ func findClickHandler(structured render.Structured) handlers.ID {
 }
 
 func findHandlerAttr(structured render.Structured, attr string) handlers.ID {
-	for _, dyn := range structured.D {
-		if dyn.Kind != render.DynAttrs {
-			continue
-		}
-		if id := strings.TrimSpace(dyn.Attrs[attr]); id != "" {
-			return handlers.ID(id)
-		}
+	event := strings.TrimPrefix(attr, "data-on")
+	if idx := strings.IndexByte(event, '-'); idx != -1 {
+		event = event[:idx]
 	}
-	for _, attrs := range staticAttrMaps(structured.S) {
-		if id := strings.TrimSpace(attrs[attr]); id != "" {
-			return handlers.ID(id)
+	event = strings.TrimSpace(event)
+	if event == "" {
+		return ""
+	}
+	for _, binding := range structured.Bindings {
+		if binding.Event == event && binding.Handler != "" {
+			return handlers.ID(binding.Handler)
 		}
 	}
 	return ""
@@ -424,6 +424,44 @@ func TestLiveSessionStreamsDiagnostics(t *testing.T) {
 	}
 }
 
+func TestDiagnosticsIncludeComponentScopeMetadata(t *testing.T) {
+	transport := &stubTransport{}
+	sess := NewLiveSession("diag-scope", 1, counterComponent, struct{}{}, &LiveSessionConfig{Transport: transport, DevMode: boolPtr(true)})
+
+	root := sess.ComponentSession().root
+	if root == nil {
+		t.Fatal("expected root component to exist")
+	}
+
+	sess.ReportDiagnostic(Diagnostic{
+		Code:        "comp_failure",
+		Message:     "component panic",
+		ComponentID: root.id,
+	})
+
+	if len(transport.diagnostics) != 1 {
+		t.Fatalf("expected diagnostic frame, got %d", len(transport.diagnostics))
+	}
+	details := transport.diagnostics[0].Details
+	if details == nil {
+		t.Fatalf("expected diagnostic details to be populated")
+	}
+	if details.Metadata == nil {
+		t.Fatalf("expected diagnostic metadata to include component scope")
+	}
+	scopeVal, ok := details.Metadata["componentScope"]
+	if !ok {
+		t.Fatalf("expected componentScope metadata, got %v", details.Metadata)
+	}
+	scope, ok := scopeVal.(map[string]any)
+	if !ok {
+		t.Fatalf("componentScope metadata should be map, got %T", scopeVal)
+	}
+	if scope["componentId"] != root.id {
+		t.Fatalf("expected componentScope componentId %q, got %v", root.id, scope["componentId"])
+	}
+}
+
 func TestEnsureSnapshotStaticsOwnedCopiesOnWrite(t *testing.T) {
 	transport := &stubTransport{}
 	sess := NewLiveSession("sid-copy", 1, counterComponent, struct{}{}, &LiveSessionConfig{Transport: transport})
@@ -476,10 +514,10 @@ func TestLiveSessionRefDeltaRemovesRef(t *testing.T) {
 		t.Fatalf("flush: %v", err)
 	}
 
-	if len(transport.templates) == 0 {
-		t.Fatalf("expected template frame to carry ref delta")
-	}
-	var refTemplate *protocol.TemplateFrame
+	var (
+		refTemplate *protocol.TemplateFrame
+		refFrame    *protocol.Frame
+	)
 	for i := len(transport.templates) - 1; i >= 0; i-- {
 		tpl := transport.templates[i]
 		if len(tpl.TemplatePayload.Refs.Del) > 0 {
@@ -488,10 +526,25 @@ func TestLiveSessionRefDeltaRemovesRef(t *testing.T) {
 		}
 	}
 	if refTemplate == nil {
-		t.Fatalf("expected ref delta to be present in template frames, got %+v", transport.templates)
+		for i := len(transport.frames) - 1; i >= 0; i-- {
+			frame := transport.frames[i]
+			if len(frame.Refs.Del) > 0 {
+				refFrame = &frame
+				break
+			}
+		}
 	}
-	if len(refTemplate.TemplatePayload.Refs.Del) != 1 || refTemplate.TemplatePayload.Refs.Del[0] != id {
-		t.Fatalf("expected ref deletion for %q, got %v", id, refTemplate.TemplatePayload.Refs.Del)
+	switch {
+	case refTemplate != nil:
+		if len(refTemplate.TemplatePayload.Refs.Del) != 1 || refTemplate.TemplatePayload.Refs.Del[0] != id {
+			t.Fatalf("expected ref deletion for %q, got %v", id, refTemplate.TemplatePayload.Refs.Del)
+		}
+	case refFrame != nil:
+		if len(refFrame.Refs.Del) != 1 || refFrame.Refs.Del[0] != id {
+			t.Fatalf("expected ref deletion for %q, got %v", id, refFrame.Refs.Del)
+		}
+	default:
+		t.Fatalf("expected ref delta to be present in template or patch frames (templates=%+v, frames=%+v)", transport.templates, transport.frames)
 	}
 	if _, ok := sess.snapshot.Refs[id]; ok {
 		t.Fatalf("expected ref %q removed from snapshot", id)

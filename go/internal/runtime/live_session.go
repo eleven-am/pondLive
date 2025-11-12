@@ -439,6 +439,7 @@ func (s *LiveSession) ReportDiagnostic(diag Diagnostic) {
 		send      bool
 	)
 	s.mu.Lock()
+	diag = s.enrichDiagnosticLocked(diag)
 	s.diagnostics = append(s.diagnostics, diag)
 	if len(s.diagnostics) > defaultDiagnosticHistory {
 		s.diagnostics = s.diagnostics[len(s.diagnostics)-defaultDiagnosticHistory:]
@@ -455,6 +456,27 @@ func (s *LiveSession) ReportDiagnostic(diag Diagnostic) {
 		_ = transport.SendDiagnostic(diagMsg)
 		_ = transport.SendServerError(errMsg)
 	}
+}
+
+func (s *LiveSession) enrichDiagnosticLocked(diag Diagnostic) Diagnostic {
+	if s == nil {
+		return diag
+	}
+
+	if diag.ComponentID != "" {
+		if diag.Metadata == nil {
+			diag.Metadata = make(map[string]any)
+		}
+		if _, exists := diag.Metadata["componentId"]; !exists {
+			diag.Metadata["componentId"] = diag.ComponentID
+		}
+		if _, scoped := diag.Metadata["componentScope"]; !scoped {
+			if scope := s.snapshotComponentPathLocked(diag.ComponentID); scope != nil {
+				diag.Metadata["componentScope"] = buildComponentScopeMetadata(*scope)
+			}
+		}
+	}
+	return diag
 }
 
 // SendFrame records and delivers a frame to the client transport.
@@ -1043,6 +1065,13 @@ func (s *LiveSession) snapshotComponentPath(id string) *protocol.ComponentPath {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.snapshotComponentPathLocked(id)
+}
+
+func (s *LiveSession) snapshotComponentPathLocked(id string) *protocol.ComponentPath {
+	if s == nil || id == "" {
+		return nil
+	}
 	for _, path := range s.snapshot.ComponentPaths {
 		if path.ComponentID != id {
 			continue
@@ -1060,6 +1089,25 @@ func (s *LiveSession) snapshotComponentPath(id string) *protocol.ComponentPath {
 		return &copy
 	}
 	return nil
+}
+
+func buildComponentScopeMetadata(path protocol.ComponentPath) map[string]any {
+	scope := map[string]any{
+		"componentId": path.ComponentID,
+	}
+	if path.ParentID != "" {
+		scope["parentId"] = path.ParentID
+	}
+	if len(path.ParentPath) > 0 {
+		scope["parentPath"] = append([]int(nil), path.ParentPath...)
+	}
+	if len(path.FirstChild) > 0 {
+		scope["firstChild"] = append([]int(nil), path.FirstChild...)
+	}
+	if len(path.LastChild) > 0 {
+		scope["lastChild"] = append([]int(nil), path.LastChild...)
+	}
+	return scope
 }
 
 // CancelUpload requests the client abort an in-flight upload and updates local state.

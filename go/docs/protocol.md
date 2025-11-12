@@ -256,12 +256,22 @@ Useful for dev tooling; clients can surface these values in dashboards.
       "componentId": "c123",
       "componentName": "users.RouterOutlet",
       "phase": "template_hydrate",
-      "metadata": { "path": [1,0], "binding": "router" },
+      "metadata": {
+        "path": [1, 0],
+        "binding": "router",
+        "componentScope": {
+          "componentId": "c123",
+          "parentId": "c045",
+          "parentPath": [1, 0]
+        }
+      },
       "stack": "",
       "capturedAt": "2024-04-05T12:34:56Z"
     }
   }
   ```
+  `metadata.componentScope` mirrors the template scope for the failing component
+  so the client can highlight and reset only that subtree.
 
 ## 12. Compatibility Contracts
 

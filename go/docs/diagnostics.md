@@ -45,6 +45,10 @@ type Diagnostic struct {
   1. Append diagnostics to a rolling buffer (`defaultDiagnosticHistory` = 32).
   2. When `devMode` is true, stream each diagnostic immediately via a
      `{"t":"diagnostic"}` frame so dev tools/overlays can react in real time.
+     The runtime augments diagnostics with `metadata.componentScope`
+     (`componentId`, `parentId`, `parentPath`, `firstChild`, `lastChild`) so
+     clients know exactly which subtree failed and can offer scoped recovery
+     actions (router reset, boundary retry, etc.).
   3. For fatal diagnostics, send a `ServerError` (`transport.SendServerError`)
      so existing clients handle them consistently.
   4. Include buffered diagnostics in future `init`/`resume` frames so clients
@@ -61,8 +65,11 @@ type Diagnostic struct {
 ## 2. Client-Side Handling (Dev Mode)
 
 1. **`handleDiagnostic`** consumes `{t:"diagnostic"}` frames in dev builds:
-   - Logs via `console.warn` (can be silenced in production).
-   - Emits a `"diagnostic"` event so apps/devtools can respond.
+   - Logs via `console.warn` with the human-readable message emitted by the
+     server.
+   - Emits a `"diagnostic"` event (`live.on("diagnostic", handler)`) that
+     carries a normalized `DiagnosticMessage`, allowing overlays and devtools to
+     respond without poking at internal state.
    - Calls `recordDiagnostic`.
 2. **`handleError`** still processes fatal `ServerError` frames:
    - Logs via `console.error`.
@@ -72,9 +79,14 @@ type Diagnostic struct {
    etc.). Each entry includes timestamp, severity (info/warn/error), message,
    and `ErrorDetails`.
 4. **Overlay** – When `options.debug` is true, `recordDiagnostic` triggers
-   `renderErrorOverlay`, which highlights diagnostics by severity and can show
-   extra context (component ID/path) so devs can click through to the failing
-   component.
+   `renderErrorOverlay`, which highlights diagnostics by severity and uses the
+   streamed metadata (component IDs, scope, suggestion) to offer contextual
+   actions:
+   - View metadata/stack traces to understand the failure.
+   - Click **Reset component** (visible when `componentId` is present) to send a
+     `{t:"routerReset", componentId}` control message that refreshes only the
+     affected outlet subtree.
+   - Use **Retry render** / **Clear** / **Close** controls for broader recovery.
 5. **Resume handshake** – On reconnect, buffered diagnostics from
    `defaultDiagnosticHistory` are replayed so developers see what happened
    while disconnected.
@@ -118,7 +130,8 @@ type Diagnostic struct {
 3. Use the overlay to drill into component metadata (phase/component/hook) or
    click through to DOM highlights when available.
 4. On the server, monitor diagnostic streams (`ReportDiagnostic` logs) or wire
-   `DiagnosticReporter` into observability pipelines.
+   `DiagnosticReporter` into observability pipelines; the metadata now always
+   includes the failing component scope for easier filtering.
 
 ## 6. Improvement Ideas
 

@@ -2325,16 +2325,49 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     }
   }
 
+  private normalizeDiagnosticMessage(
+    msg: ErrorMessage | DiagnosticMessage,
+  ): DiagnosticMessage {
+    if (!msg) {
+      return {
+        t: "diagnostic",
+        sid: this.sessionId.get() ?? "",
+        code: "runtime_panic",
+        message: "Runtime diagnostic",
+      };
+    }
+    if (msg.t === "diagnostic") {
+      return msg as DiagnosticMessage;
+    }
+    return {
+      t: "diagnostic",
+      sid: msg.sid,
+      code: msg.code,
+      message: msg.message,
+      details: msg.details,
+    };
+  }
+
   private recordDiagnostic(msg: ErrorMessage | DiagnosticMessage): void {
+    const diagnostic = this.normalizeDiagnosticMessage(msg);
+    this.emit("diagnostic", { diagnostic });
+    if (msg.t === "diagnostic") {
+      console.warn(
+        "[LiveUI][diagnostic]",
+        diagnostic.code,
+        diagnostic.message,
+        diagnostic.details,
+      );
+    }
     if (!this.options.debug) {
       return;
     }
-    const key = this.buildDiagnosticKey(msg);
+    const key = this.buildDiagnosticKey(diagnostic);
     const entry: RuntimeDiagnosticEntry = {
       key,
-      code: msg.code ?? "runtime_panic",
-      message: msg.message ?? "Runtime panic recovered",
-      details: msg.details,
+      code: diagnostic.code ?? "runtime_panic",
+      message: diagnostic.message ?? "Runtime panic recovered",
+      details: diagnostic.details,
       timestamp: Date.now(),
     };
     const existingIndex = this.diagnostics.findIndex(
@@ -2689,6 +2722,35 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
         dl.appendChild(dd);
       }
       container.appendChild(dl);
+    }
+
+    const componentId =
+      typeof details?.componentId === "string"
+        ? details.componentId.trim()
+        : "";
+    if (componentId) {
+      const actions = document.createElement("div");
+      actions.style.cssText =
+        "display:flex;justify-content:flex-end;margin-top:4px;";
+      const resetButton = document.createElement("button");
+      resetButton.type = "button";
+      resetButton.textContent = "Reset component";
+      resetButton.title = `Request router reset for ${componentId}`;
+      resetButton.style.cssText = [
+        "padding:6px 12px",
+        "border-radius:6px",
+        "border:1px solid rgba(59,130,246,0.45)",
+        "background:rgba(37,99,235,0.2)",
+        "color:#dbeafe",
+        "font-size:12px",
+        "font-weight:600",
+        "cursor:pointer",
+      ].join(";");
+      resetButton.addEventListener("click", () => {
+        this.requestRouterReset(componentId);
+      });
+      actions.appendChild(resetButton);
+      container.appendChild(actions);
     }
 
     if (details?.stack) {

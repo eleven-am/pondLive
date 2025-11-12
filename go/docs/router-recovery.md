@@ -66,7 +66,9 @@ action when these diagnostics appear.
 
 ## 3. Client Behaviour
 
-1. Diagnostic logged (component/path). Overlay shows “Reset component” button.
+1. Diagnostic logged (component/path). When the diagnostic payload includes
+   `details.componentId` (and therefore `metadata.componentScope`), the dev-mode
+   overlay surfaces a “Reset component” button linked to that ID.
 2. Button sends `{t:"routerReset", componentId}`. While waiting, the overlay can
    show “Resetting…” state.
 3. When the template frame arrives, hydrate it. On success, clear the diagnostic

@@ -15,29 +15,7 @@ interface RefRecord {
 }
 
 const registry = new Map<string, RefRecord>();
-const elementRefMap = new WeakMap<Element, Set<string>>();
-
-function escapeAttributeValue(value: string): string {
-  if (typeof value !== "string") {
-    return "";
-  }
-  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
-    return CSS.escape(value);
-  }
-  return value.replace(/["]|\\/g, "\\$&");
-}
-
-function queryRefElement(id: string): Element | null {
-  if (typeof document === "undefined" || !id) {
-    return null;
-  }
-  const selector = `[data-live-ref="${escapeAttributeValue(id)}"]`;
-  try {
-    return document.querySelector(selector);
-  } catch (_error) {
-    return document.querySelector(`[data-live-ref="${id}"]`);
-  }
-}
+let elementRefMap = new WeakMap<Element, Set<string>>();
 
 function ensureRecord(id: string, meta?: RefMeta): RefRecord {
   let record = registry.get(id);
@@ -45,14 +23,11 @@ function ensureRecord(id: string, meta?: RefMeta): RefRecord {
     record = {
       id,
       meta: meta ?? { tag: "" },
-      element: queryRefElement(id),
+      element: null,
     };
     registry.set(id, record);
   } else if (meta) {
     record.meta = meta;
-    if (!record.element) {
-      record.element = queryRefElement(id);
-    }
   }
   return record;
 }
@@ -193,13 +168,12 @@ function getPrimaryRefId(element: Element | null): string | null {
       return first.value ?? null;
     }
   }
-  const attr = element.getAttribute?.("data-live-ref") ?? null;
-  return attr && attr.length > 0 ? attr : null;
+  return null;
 }
 
 export function clearRefs(): void {
   registry.clear();
-  elementRefMap.clear();
+  elementRefMap = new WeakMap<Element, Set<string>>();
 }
 
 export function registerRefs(refs?: RefMap | null): void {
@@ -241,10 +215,6 @@ export function unbindRefsInTree(
         for (const id of Array.from(ids)) {
           detachRef(id, current);
         }
-      }
-      const attrId = current.getAttribute?.("data-live-ref");
-      if (attrId) {
-        detachRef(attrId, current);
       }
     }
     current = walker.nextNode();

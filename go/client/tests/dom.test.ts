@@ -7,10 +7,10 @@ import {
   toggleElementClass,
 } from "../src/dom";
 import {
+  attachRefToElement,
   clearRefs,
-  registerRefs,
-  bindRefsInTree,
   getRefElement,
+  registerRefs,
 } from "../src/refs";
 import LiveUI from "../src/index";
 
@@ -41,13 +41,13 @@ describe("dom utilities", () => {
   });
 
   it("invokes element methods via callElementMethod", () => {
-    document.body.innerHTML = '<button data-live-ref="btn"></button>';
-    const button = document.querySelector("[data-live-ref]") as HTMLButtonElement;
+    const button = document.createElement("button");
+    document.body.appendChild(button);
     const handler = vi.fn();
     (button as any).focus = handler;
 
     registerRefs({ btn: { tag: "button" } });
-    bindRefsInTree(document.body);
+    attachRefToElement("btn", button);
 
     expect(getRefElement("btn")).toBe(button);
     const result = callElementMethod("btn", "focus");
@@ -56,11 +56,11 @@ describe("dom utilities", () => {
   });
 
   it("sets element properties via setElementProperty", () => {
-    document.body.innerHTML = '<input data-live-ref="field" />';
-    const input = document.querySelector("[data-live-ref]") as HTMLInputElement;
+    const input = document.createElement("input");
+    document.body.appendChild(input);
 
     registerRefs({ field: { tag: "input" } });
-    bindRefsInTree(document.body);
+    attachRefToElement("field", input);
 
     const result = setElementProperty("field", "value", "hello");
     expect(result.ok).toBe(true);
@@ -68,27 +68,29 @@ describe("dom utilities", () => {
   });
 
   it("toggles classes via toggleElementClass", () => {
-    document.body.innerHTML = '<div data-live-ref="box" class="foo"></div>';
+    const div = document.createElement("div");
+    div.className = "foo";
+    document.body.appendChild(div);
 
     registerRefs({ box: { tag: "div" } });
-    bindRefsInTree(document.body);
+    attachRefToElement("box", div);
 
     const initial = toggleElementClass("box", "active", true);
     expect(initial.ok).toBe(true);
-    expect(document.querySelector("[data-live-ref]")?.classList.contains("active")).toBe(true);
+    expect(div.classList.contains("active")).toBe(true);
 
     const second = toggleElementClass("box", "active", false);
     expect(second.ok).toBe(true);
-    expect(document.querySelector("[data-live-ref]")?.classList.contains("active")).toBe(false);
+    expect(div.classList.contains("active")).toBe(false);
   });
 
   it("scrolls elements into view via scrollElementIntoView", () => {
-    document.body.innerHTML = '<div data-live-ref="panel"></div>';
-    const element = document.querySelector("[data-live-ref]") as HTMLElement;
+    const element = document.createElement("div");
+    document.body.appendChild(element);
     (element as any).scrollIntoView = vi.fn();
 
     registerRefs({ panel: { tag: "div" } });
-    bindRefsInTree(document.body);
+    attachRefToElement("panel", element);
 
     const result = scrollElementIntoView("panel", { behavior: "smooth" });
     expect(result.ok).toBe(true);
@@ -111,9 +113,11 @@ describe("dom utilities", () => {
   });
 
   it("responds to dom requests with captured values", () => {
-    document.body.innerHTML = '<div data-live-ref="foo" id="alpha"></div>';
+    const div = document.createElement("div");
+    div.id = "alpha";
+    document.body.appendChild(div);
     registerRefs({ foo: { tag: "div" } });
-    bindRefsInTree(document.body);
+    attachRefToElement("foo", div);
 
     const live = new LiveUI({ autoConnect: false });
     const sendMessage = vi.fn();

@@ -4,6 +4,7 @@ import * as dom from '../src/dom-index';
 import * as events from '../src/events';
 import * as refs from '../src/refs';
 import * as manifest from '../src/manifest';
+import * as bindingUtils from '../src/bindings';
 import { registerComponentRange, resetComponentRanges } from '../src/componentRanges';
 import type { FrameMessage, TemplateMessage } from '../src/types';
 
@@ -29,7 +30,7 @@ describe('LiveUI template hydration', () => {
     const primeSlotsSpy = vi.spyOn(events, 'primeSlotBindings');
     const unregisterRefsSpy = vi.spyOn(refs, 'unregisterRefs');
     const registerRefsSpy = vi.spyOn(refs, 'registerRefs');
-    const bindRefsSpy = vi.spyOn(refs, 'bindRefsInTree');
+    const applyRefBindingsSpy = vi.spyOn(bindingUtils, 'applyRefBindings');
     const registerSlotSpy = vi.spyOn(dom, 'registerSlot');
     const applyComponentRangesSpy = vi
       .spyOn(manifest, 'applyComponentRanges')
@@ -43,7 +44,7 @@ describe('LiveUI template hydration', () => {
       t: 'template',
       sid: 'root-session',
       ver: 2,
-      html: '<main><span data-live-ref="foo">hi</span></main>',
+      html: '<main><span>hi</span></main>',
       s: [],
       d: [],
       slots: [{ anchorId: 1 }],
@@ -51,7 +52,10 @@ describe('LiveUI template hydration', () => {
       listPaths: [],
       componentPaths: [],
       handlers: { h1: { event: 'click' } },
-      bindings: { slots: { 1: [{ event: 'click', handler: 'h1' }] } },
+      bindings: {
+        slots: { 1: [{ event: 'click', handler: 'h1' }] },
+        refs: [{ componentId: '__root__', path: [], refId: 'foo' }],
+      },
       refs: { add: { foo: { tag: 'span' } }, del: ['bar'] },
     };
 
@@ -65,7 +69,7 @@ describe('LiveUI template hydration', () => {
     expect(primeSlotsSpy).toHaveBeenCalledWith(msg.bindings?.slots ?? null);
     expect(unregisterRefsSpy).toHaveBeenCalledWith(msg.refs?.del);
     expect(registerRefsSpy).toHaveBeenCalledWith(msg.refs?.add);
-    expect(bindRefsSpy).toHaveBeenCalled();
+    expect(applyRefBindingsSpy).toHaveBeenCalled();
     expect(registerSlotSpy).toHaveBeenCalledWith(1, slotNode);
     expect(applyComponentRangesSpy).toHaveBeenCalled();
   });
@@ -83,7 +87,7 @@ describe('LiveUI template hydration', () => {
     const registerBindingsSpy = vi.spyOn(events, 'registerBindingsForSlot');
     const registerHandlersSpy = vi.spyOn(events, 'registerHandlers');
     const registerRefsSpy = vi.spyOn(refs, 'registerRefs');
-    const bindRefsSpy = vi.spyOn(refs, 'bindRefsInTree');
+    const applyRefBindingsSpy = vi.spyOn(bindingUtils, 'applyRefBindings');
 
     vi.spyOn(manifest, 'applyComponentRanges').mockReturnValue(new Map());
     vi.spyOn(manifest, 'resolveSlotAnchors').mockImplementation(() => {
@@ -100,7 +104,7 @@ describe('LiveUI template hydration', () => {
       t: 'template',
       sid: 'root-session',
       ver: 3,
-      html: '<span data-live-ref="comp-ref">updated</span>',
+      html: '<span>updated</span>',
       s: [],
       d: [],
       slots: [{ anchorId: 7 }],
@@ -108,7 +112,10 @@ describe('LiveUI template hydration', () => {
       listPaths: [],
       componentPaths: [],
       handlers: { h2: { event: 'input' } },
-      bindings: { slots: { 7: [{ event: 'input', handler: 'h2' }] } },
+      bindings: {
+        slots: { 7: [{ event: 'input', handler: 'h2' }] },
+        refs: [{ componentId: 'cmp', path: [], refId: 'comp-ref' }],
+      },
       refs: { add: { 'comp-ref': { tag: 'span' } } },
       scope: { componentId: 'cmp' },
     };
@@ -121,7 +128,7 @@ describe('LiveUI template hydration', () => {
     expect(registerBindingsSpy).toHaveBeenCalledWith(7, expect.any(Array));
     expect(registerHandlersSpy).toHaveBeenCalledWith(msg.handlers);
     expect(registerRefsSpy).toHaveBeenCalledWith(msg.refs?.add);
-    expect(bindRefsSpy).toHaveBeenCalledWith(container);
+    expect(applyRefBindingsSpy).toHaveBeenCalled();
   });
 
   it('reuses cached markup when template hash is provided for root payloads', () => {

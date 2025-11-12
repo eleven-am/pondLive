@@ -1,7 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import {
   registerHandlers,
-  primeHandlerBindings,
   getHandlerBindingSnapshot,
   unregisterHandlers,
   syncEventListeners,
@@ -16,7 +15,8 @@ import {
   onSlotRegistered,
   onSlotUnregistered,
 } from '../src/events';
-import { registerRefs, clearRefs, getRegistrySnapshot } from '../src/refs';
+import { registerRefs, clearRefs, getRegistrySnapshot, attachRefToElement } from '../src/refs';
+import { registerSlot, unregisterSlot } from '../src/dom-index';
 
 describe('event delegation management', () => {
   let originalAdd: typeof document.addEventListener;
@@ -87,6 +87,15 @@ describe('event delegation management', () => {
   });
 });
 
+let nextSlotId = 1;
+
+function attachHandler(element: Element, handlerId: string, event: string): number {
+  const slotId = nextSlotId++;
+  registerSlot(slotId, element);
+  registerBindingsForSlot(slotId, [{ event, handler: handlerId }]);
+  return slotId;
+}
+
 describe('ref metadata payload capture', () => {
   let send: ReturnType<typeof vi.fn>;
 
@@ -107,11 +116,12 @@ describe('ref metadata payload capture', () => {
   });
 
   it('collects ref props for handler events', () => {
-    document.body.innerHTML = `
-      <div data-live-ref="r1" data-onclick="h1" data-state="ready">
-        <button id="btn">Click</button>
-      </div>
-    `;
+    const wrapper = document.createElement('div');
+    wrapper.dataset.state = 'ready';
+    const button = document.createElement('button');
+    button.id = 'btn';
+    wrapper.appendChild(button);
+    document.body.appendChild(wrapper);
 
     registerRefs({
       r1: {
@@ -121,15 +131,14 @@ describe('ref metadata payload capture', () => {
         },
       },
     });
+    attachRefToElement('r1', wrapper);
 
     registerHandlers({ h1: { event: 'click' } });
     syncEventListeners();
-    primeHandlerBindings(document);
 
-    const button = document.getElementById('btn');
-    expect(button).not.toBeNull();
+    const slotId = attachHandler(wrapper, 'h1', 'click');
 
-    button!.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 12, clientY: 8 }));
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 12, clientY: 8 }));
 
     expect(send).toHaveBeenCalledTimes(1);
     expect(send).toHaveBeenCalledWith({
@@ -141,6 +150,7 @@ describe('ref metadata payload capture', () => {
       }),
     });
 
+    unregisterSlot(slotId);
     const record = getRegistrySnapshot().get('r1');
     expect(record?.lastPayloads?.click).toEqual(
       expect.objectContaining({
@@ -151,30 +161,26 @@ describe('ref metadata payload capture', () => {
     );
   });
 
-  it('removes handler annotations after priming', () => {
-    document.body.innerHTML = `
-      <button id="btn" data-onclick="h1" data-onclick-listen="focus"></button>
-    `;
+  it('dispatches events using registered slot bindings', () => {
+    const button = document.createElement('button');
+    button.id = 'btn';
+    document.body.appendChild(button);
 
     registerHandlers({ h1: { event: 'click' } });
     syncEventListeners();
-    primeHandlerBindings(document);
+    const slotId = attachHandler(button, 'h1', 'click');
 
-    const button = document.getElementById('btn');
-    expect(button).not.toBeNull();
-    const snapshot = getHandlerBindingSnapshot(button!);
+    const snapshot = getHandlerBindingSnapshot(button);
     expect(snapshot?.get('click')).toBe('h1');
-    expect(button!.hasAttribute('data-onclick')).toBe(false);
-    if (typeof button!.getAttributeNames === 'function') {
-      expect(button!.getAttributeNames().some((name) => name.startsWith('data-on'))).toBe(false);
-    }
 
-    button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     expect(send).toHaveBeenCalledWith({
       hid: 'h1',
       payload: expect.objectContaining({ type: 'click' }),
     });
+
+    unregisterSlot(slotId);
   });
 });
 
@@ -198,18 +204,16 @@ describe('router metadata propagation', () => {
   });
 
   it('includes router metadata on dispatched payloads', () => {
-    document.body.innerHTML = `
-      <a id="link" data-onclick="nav" href="/start"></a>
-    `;
+    const link = document.createElement('a');
+    link.id = 'link';
+    link.href = '/start';
+    document.body.appendChild(link);
 
     registerHandlers({
       nav: { event: 'click' },
     });
     syncEventListeners();
-    primeHandlerBindings(document);
-
-    const link = document.getElementById('link');
-    expect(link).not.toBeNull();
+    const slotId = attachHandler(link, 'nav', 'click');
 
     applyRouterAttribute(link, 'path', '/dest');
     applyRouterAttribute(link, 'query', 'page=1');
@@ -217,7 +221,7 @@ describe('router metadata propagation', () => {
     applyRouterAttribute(link, 'replace', 'true');
     applyRouterAttribute(link, 'ignored', 'nope');
 
-    link!.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
 
     expect(send).toHaveBeenCalledWith({
       hid: 'nav',
@@ -229,24 +233,23 @@ describe('router metadata propagation', () => {
         'currentTarget.dataset.routerReplace': 'true',
       }),
     });
+    unregisterSlot(slotId);
   });
 
   it('clears router metadata when attributes are removed', () => {
-    document.body.innerHTML = `
-      <a id="link" data-onclick="nav" href="/start"></a>
-    `;
+    const link = document.createElement('a');
+    link.id = 'link';
+    link.href = '/start';
+    document.body.appendChild(link);
 
     registerHandlers({ nav: { event: 'click' } });
     syncEventListeners();
-    primeHandlerBindings(document);
-
-    const link = document.getElementById('link');
-    expect(link).not.toBeNull();
+    const slotId = attachHandler(link, 'nav', 'click');
 
     applyRouterAttribute(link, 'path', '/dest');
     clearRouterAttributes(link);
 
-    link!.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
 
     expect(send).toHaveBeenCalledWith({
       hid: 'nav',
@@ -254,19 +257,17 @@ describe('router metadata propagation', () => {
         'currentTarget.dataset.routerPath': expect.anything(),
       }),
     });
+    unregisterSlot(slotId);
   });
 
   it('ignores invalid router metadata updates', () => {
-    document.body.innerHTML = `
-      <a id="link" data-onclick="nav"></a>
-    `;
+    const link = document.createElement('a');
+    link.id = 'link';
+    document.body.appendChild(link);
 
     registerHandlers({ nav: { event: 'click' } });
     syncEventListeners();
-    primeHandlerBindings(document);
-
-    const link = document.getElementById('link');
-    expect(link).not.toBeNull();
+    const slotId = attachHandler(link, 'nav', 'click');
 
     applyRouterAttribute(null, 'path', '/ignored');
     applyRouterAttribute(link, '', '/ignored');
@@ -275,7 +276,7 @@ describe('router metadata propagation', () => {
     applyRouterAttribute(link, 'path', '');
     applyRouterAttribute(link, 'query', undefined);
 
-    link!.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
 
     expect(send).toHaveBeenCalledWith({
       hid: 'nav',
@@ -284,6 +285,7 @@ describe('router metadata propagation', () => {
         'currentTarget.dataset.routerQuery': expect.anything(),
       }),
     });
+    unregisterSlot(slotId);
   });
 });
 

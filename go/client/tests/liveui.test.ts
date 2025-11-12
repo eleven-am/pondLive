@@ -102,3 +102,34 @@ describe('LiveUI batching and state management', () => {
     expect(clearTimeoutSpy).toHaveBeenCalled();
   });
 });
+
+describe('LiveUI diagnostics handling', () => {
+  it('emits diagnostic events even when debug mode is disabled', () => {
+    const live = new LiveUI({ autoConnect: false, debug: false });
+    const handler = vi.fn();
+    live.on('diagnostic', handler);
+
+    (live as any).recordDiagnostic({
+      t: 'diagnostic',
+      sid: 'sid',
+      code: 'test_scope',
+      message: 'boom',
+    });
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler.mock.calls[0][0].diagnostic.code).toBe('test_scope');
+    expect((live as any).diagnostics.length).toBe(0);
+  });
+
+  it('stores diagnostics when debug mode is enabled', () => {
+    const live = new LiveUI({ autoConnect: false, debug: true });
+    (live as any).recordDiagnostic({
+      t: 'diagnostic',
+      sid: 'sid',
+      code: 'test_scope',
+      message: 'boom',
+    });
+
+    expect((live as any).diagnostics).toHaveLength(1);
+  });
+});
