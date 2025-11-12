@@ -23,7 +23,6 @@ const slotBindingSpecs = new Map<number, SlotBinding[]>();
 const slotElements = new Map<number, Element>();
 const routerBindings = new WeakMap<Element, RouterMeta>();
 
-const DATA_EVENT_ATTR_PREFIX = "data-on";
 export const DATA_ROUTER_ATTR_PREFIX = "data-router-";
 
 const ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
@@ -315,133 +314,6 @@ export function getHandlerBindingSnapshot(
   return bindings ? new Map(bindings) : undefined;
 }
 
-function extractPrimaryEventName(attrName: string): string | null {
-  if (!attrName || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX)) {
-    return null;
-  }
-  const suffix = attrName.slice(DATA_EVENT_ATTR_PREFIX.length);
-  if (suffix.length === 0) {
-    return null;
-  }
-  const normalized = suffix.startsWith("-") ? suffix.slice(1) : suffix;
-  if (normalized.length === 0) {
-    return null;
-  }
-  const separatorIndex = normalized.indexOf("-");
-  const eventName =
-    separatorIndex === -1 ? normalized : normalized.slice(0, separatorIndex);
-  return eventName.length > 0 ? eventName : null;
-}
-
-function collectAttributeNames(element: Element): string[] {
-  if (!element) return [];
-  if (typeof element.getAttributeNames === "function") {
-    return element.getAttributeNames();
-  }
-  const out: string[] = [];
-  if (element.attributes) {
-    for (let i = 0; i < element.attributes.length; i++) {
-      const attr = element.attributes.item(i);
-      if (!attr) continue;
-      out.push(attr.name);
-    }
-  }
-  return out;
-}
-
-/**
- * Refresh handler bindings for a single element based on its data attributes.
- * Removes the inline metadata from the DOM while caching the binding map.
- */
-export function refreshHandlerBindings(element: Element | null | undefined): void {
-  if (!element) {
-    return;
-  }
-
-  const attributeNames = collectAttributeNames(element);
-  if (attributeNames.length === 0) {
-    if (handlerBindings.has(element)) {
-      handlerBindings.delete(element);
-    }
-    if (routerBindings.has(element)) {
-      routerBindings.delete(element);
-    }
-    return;
-  }
-
-  let bindings: Map<string, string> | null = null;
-  let sawEventAttr = false;
-  for (const name of attributeNames) {
-    if (!name.startsWith(DATA_EVENT_ATTR_PREFIX)) {
-      if (name.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
-        const key = name.slice(DATA_ROUTER_ATTR_PREFIX.length);
-        const value = element.getAttribute(name);
-        element.removeAttribute(name);
-        applyRouterAttribute(element, key, value ?? "");
-      }
-      continue;
-    }
-    const remainder = name.slice(DATA_EVENT_ATTR_PREFIX.length);
-    const value = element.getAttribute(name);
-    element.removeAttribute(name);
-    const isMeta = remainder.includes("-");
-    if (isMeta) {
-      continue;
-    }
-    sawEventAttr = true;
-    const eventName = extractPrimaryEventName(name);
-    if (!eventName || !value) {
-      continue;
-    }
-    if (!bindings) {
-      bindings = new Map<string, string>();
-    }
-    bindings.set(eventName, value);
-  }
-
-  if (bindings && bindings.size > 0) {
-    handlerBindings.set(element, bindings);
-  } else if (sawEventAttr || handlerBindings.has(element)) {
-    handlerBindings.delete(element);
-  }
-}
-
-/**
- * Prime handler bindings for every element in a tree, removing inline metadata.
- */
-export function primeHandlerBindings(root: ParentNode | null | undefined): void {
-  if (!root) return;
-
-  const doc =
-    root instanceof Document
-      ? root
-      : root.ownerDocument ?? (typeof document !== "undefined" ? document : null);
-
-  if (!doc) return;
-
-  const startNode: Node | null =
-    root instanceof Document
-      ? doc.documentElement ?? null
-      : (root as unknown as Node);
-
-  if (!startNode) {
-    return;
-  }
-
-  const walker = doc.createTreeWalker(startNode, NodeFilter.SHOW_ELEMENT);
-
-  if (startNode instanceof Element) {
-    refreshHandlerBindings(startNode);
-  }
-
-  let current = walker.nextNode();
-  while (current) {
-    if (current instanceof Element) {
-      refreshHandlerBindings(current);
-    }
-    current = walker.nextNode();
-  }
-}
 
 /**
  * Event sender callback type
@@ -725,15 +597,7 @@ function findHandlerInfo(
   let current: Element | null = element;
 
   while (current && current !== document.documentElement) {
-    let binding = handlerBindings.get(current);
-
-    if (!binding) {
-      const attributeNames = collectAttributeNames(current);
-      if (attributeNames.some((name) => name.startsWith(DATA_EVENT_ATTR_PREFIX))) {
-        refreshHandlerBindings(current);
-        binding = handlerBindings.get(current);
-      }
-    }
+    const binding = handlerBindings.get(current);
 
     if (binding && binding.size > 0) {
       const directId = binding.get(eventType);

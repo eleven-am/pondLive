@@ -56,14 +56,33 @@ type actionSpec struct {
 	FieldName   string
 }
 
+type apiSpec struct {
+	Type        string
+	Constructor string
+	FieldName   string
+}
+
+var apiSpecs = []apiSpec{
+	{"InteractionAPI", "NewInteractionAPI", "InteractionAPI"},
+	{"ScrollAPI", "NewScrollAPI", "ScrollAPI"},
+	{"DisableableAPI", "NewDisableableAPI", "DisableableAPI"},
+	{"MediaAPI", "NewMediaAPI", "MediaAPI"},
+	{"DialogAPI", "NewDialogAPI", "DialogAPI"},
+	{"FormAPI", "NewFormAPI", "FormAPI"},
+	{"SelectionAPI", "NewSelectionAPI", "SelectionAPI"},
+}
+
+var apiSpecByType = func() map[string]apiSpec {
+	m := make(map[string]apiSpec, len(apiSpecs))
+	for _, spec := range apiSpecs {
+		m[spec.Type] = spec
+	}
+	return m
+}()
+
 var actionSpecs = []actionSpec{
 	{"ElementActions", "NewElementActions", "ElementActions"},
-	{"FocusActions", "NewFocusActions", "FocusActions"},
-	{"SelectionActions", "NewSelectionActions", "SelectionActions"},
 	{"ValueActions", "NewValueActions", "ValueActions"},
-	{"MediaActions", "NewMediaActions", "MediaActions"},
-	{"FormActions", "NewFormActions", "FormActions"},
-	{"DialogActions", "NewDialogActions", "DialogActions"},
 	{"DetailsActions", "NewDetailsActions", "DetailsActions"},
 }
 
@@ -77,29 +96,17 @@ var actionSpecByType = func() map[string]actionSpec {
 
 var handlerSpecs = []handlerSpec{
 	{"AnimationHandler", "NewAnimationHandler", "AnimationHandler"},
-	{"ClickHandler", "NewClickHandler", "ClickHandler"},
 	{"ClipboardHandler", "NewClipboardHandler", "ClipboardHandler"},
 	{"CompositionHandler", "NewCompositionHandler", "CompositionHandler"},
-	{"DialogHandler", "NewDialogHandler", "DialogHandler"},
-	{"DragHandler", "NewDragHandler", "DragHandler"},
-	{"FocusHandler", "NewFocusHandler", "FocusHandler"},
-	{"FormHandler", "NewFormHandler", "FormHandler"},
 	{"FullscreenHandler", "NewFullscreenHandler", "FullscreenHandler"},
 	{"HashChangeHandler", "NewHashChangeHandler", "HashChangeHandler"},
 	{"InputHandler", "NewInputHandler", "InputHandler"},
-	{"KeyboardHandler", "NewKeyboardHandler", "KeyboardHandler"},
 	{"LifecycleHandler", "NewLifecycleHandler", "LifecycleHandler"},
 	{"LoadHandler", "NewLoadHandler", "LoadHandler"},
-	{"MediaHandler", "NewMediaHandler", "MediaHandler"},
-	{"MouseHandler", "NewMouseHandler", "MouseHandler"},
-	{"PointerHandler", "NewPointerHandler", "PointerHandler"},
 	{"PrintHandler", "NewPrintHandler", "PrintHandler"},
 	{"ResizeHandler", "NewResizeHandler", "ResizeHandler"},
-	{"ScrollHandler", "NewScrollHandler", "ScrollHandler"},
-	{"SelectionHandler", "NewSelectionHandler", "SelectionHandler"},
 	{"StorageHandler", "NewStorageHandler", "StorageHandler"},
 	{"ToggleHandler", "NewToggleHandler", "ToggleHandler"},
-	{"TouchHandler", "NewTouchHandler", "TouchHandler"},
 	{"TransitionHandler", "NewTransitionHandler", "TransitionHandler"},
 	{"VisibilityHandler", "NewVisibilityHandler", "VisibilityHandler"},
 	{"WheelHandler", "NewWheelHandler", "WheelHandler"},
@@ -116,39 +123,35 @@ var handlerSpecByType = func() map[string]handlerSpec {
 var handlerMixins = map[string][]string{
 	"base": {
 		"AnimationHandler",
-		"ClickHandler",
 		"ClipboardHandler",
 		"CompositionHandler",
-		"DragHandler",
-		"FocusHandler",
 		"FullscreenHandler",
-		"KeyboardHandler",
 		"LifecycleHandler",
 		"LoadHandler",
-		"MouseHandler",
-		"PointerHandler",
-		"ScrollHandler",
-		"SelectionHandler",
-		"TouchHandler",
+		"PrintHandler",
+		"ResizeHandler",
+		"StorageHandler",
 		"TransitionHandler",
+		"VisibilityHandler",
 		"WheelHandler",
 	},
-	"dialog":      {"DialogHandler"},
-	"formControl": {"FormHandler", "InputHandler"},
-	"formElement": {"FormHandler"},
-	"media":       {"MediaHandler"},
+	"formControl": {"InputHandler"},
 	"toggle":      {"ToggleHandler"},
 }
 
 var actionMixins = map[string][]string{
 	"base":        {"ElementActions"},
-	"focusable":   {"FocusActions"},
-	"textInput":   {"SelectionActions"},
 	"formControl": {"ValueActions"},
-	"media":       {"MediaActions"},
-	"formElement": {"FormActions"},
-	"dialog":      {"DialogActions"},
 	"details":     {"DetailsActions"},
+}
+
+var apiMixins = map[string][]string{
+	"base":        {"InteractionAPI", "ScrollAPI"},
+	"disableable": {"DisableableAPI"},
+	"textInput":   {"SelectionAPI"},
+	"media":       {"MediaAPI"},
+	"formElement": {"FormAPI"},
+	"dialog":      {"DialogAPI"},
 }
 
 func handlersForTag(spec tagSpec) []handlerSpec {
@@ -156,10 +159,10 @@ func handlersForTag(spec tagSpec) []handlerSpec {
 	if spec.Ref != nil {
 		for _, mixin := range spec.Ref.Mixins {
 			names, ok := handlerMixins[mixin]
-			if !ok {
-				panic(fmt.Sprintf("unknown handler mixin %q", mixin))
+			if ok {
+				desired = append(desired, names...)
 			}
-			desired = append(desired, names...)
+
 		}
 	}
 
@@ -182,23 +185,6 @@ func handlersForTag(spec tagSpec) []handlerSpec {
 func actionsForTag(spec tagSpec) []actionSpec {
 	desired := append([]string{}, actionMixins["base"]...)
 
-	// Determine focusable elements
-	focusableTags := map[string]bool{
-		"a": true, "button": true, "input": true, "select": true,
-		"textarea": true, "details": true, "summary": true,
-		"audio": true, "video": true,
-	}
-	if focusableTags[spec.Tag] {
-		desired = append(desired, actionMixins["focusable"]...)
-	}
-
-	// Determine text input elements
-	textInputTags := map[string]bool{"input": true, "textarea": true}
-	if textInputTags[spec.Tag] {
-		desired = append(desired, actionMixins["textInput"]...)
-	}
-
-	// Use existing Ref.Mixins to determine corresponding action mixins
 	if spec.Ref != nil {
 		for _, mixin := range spec.Ref.Mixins {
 			names, ok := actionMixins[mixin]
@@ -217,6 +203,48 @@ func actionsForTag(spec tagSpec) []actionSpec {
 		spec, ok := actionSpecByType[name]
 		if !ok {
 			panic(fmt.Sprintf("missing action spec for %q", name))
+		}
+		seen[name] = struct{}{}
+		resolved = append(resolved, spec)
+	}
+	return resolved
+}
+
+func apisForTag(spec tagSpec) []apiSpec {
+
+	desired := append([]string{}, apiMixins["base"]...)
+
+	disableableTags := map[string]bool{
+		"button": true, "input": true, "select": true,
+		"textarea": true, "fieldset": true,
+	}
+	if disableableTags[spec.Tag] {
+		desired = append(desired, apiMixins["disableable"]...)
+	}
+
+	textInputTags := map[string]bool{"input": true, "textarea": true}
+	if textInputTags[spec.Tag] {
+		desired = append(desired, apiMixins["textInput"]...)
+	}
+
+	if spec.Ref != nil {
+		for _, mixin := range spec.Ref.Mixins {
+			names, ok := apiMixins[mixin]
+			if ok {
+				desired = append(desired, names...)
+			}
+		}
+	}
+
+	seen := make(map[string]struct{}, len(desired))
+	var resolved []apiSpec
+	for _, name := range desired {
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		spec, ok := apiSpecByType[name]
+		if !ok {
+			panic(fmt.Sprintf("missing api spec for %q", name))
 		}
 		seen[name] = struct{}{}
 		resolved = append(resolved, spec)
@@ -604,8 +632,12 @@ func generateElementRefs(specs []tagSpec) {
 		descriptor := descriptorName(spec)
 		handlers := handlersForTag(spec)
 		actions := actionsForTag(spec)
+		apis := apisForTag(spec)
 		fmt.Fprintf(&b, "type %s struct {\n", refName)
 		fmt.Fprintf(&b, "\t*ElementRef[%s]\n", descriptor)
+		for _, api := range apis {
+			fmt.Fprintf(&b, "\t*%s[%s]\n", api.Type, descriptor)
+		}
 		for _, action := range actions {
 			fmt.Fprintf(&b, "\t*%s[%s]\n", action.Type, descriptor)
 		}
@@ -615,10 +647,13 @@ func generateElementRefs(specs []tagSpec) {
 		b.WriteString("}\n\n")
 
 		constructor := "New" + refName
-		fmt.Fprintf(&b, "func %s(ref *ElementRef[%s], ctx dom.ActionExecutor) *%s {\n", constructor, descriptor, refName)
+		fmt.Fprintf(&b, "func %s(ref *ElementRef[%s], ctx dom.Dispatcher) *%s {\n", constructor, descriptor, refName)
 		b.WriteString("\tif ref == nil {\n\t\treturn nil\n\t}\n")
 		fmt.Fprintf(&b, "\treturn &%s{\n", refName)
 		b.WriteString("\t\tElementRef: ref,\n")
+		for _, api := range apis {
+			fmt.Fprintf(&b, "\t\t%s: %s[%s](ref.DOMElementRef(), ctx),\n", api.FieldName, api.Constructor, descriptor)
+		}
 		for _, action := range actions {
 			fmt.Fprintf(&b, "\t\t%s: %s[%s](ref.DOMElementRef(), ctx),\n", action.FieldName, action.Constructor, descriptor)
 		}

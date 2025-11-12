@@ -15,6 +15,7 @@ interface RefRecord {
 }
 
 const registry = new Map<string, RefRecord>();
+const elementRefMap = new WeakMap<Element, Set<string>>();
 
 function escapeAttributeValue(value: string): string {
   if (typeof value !== "string") {
@@ -106,7 +107,7 @@ export function resolveRefEventContext(
     return null;
   }
 
-  const id = refElement.getAttribute("data-live-ref");
+  const id = getPrimaryRefId(refElement);
   if (!id) {
     return null;
   }
@@ -138,10 +139,14 @@ function attachRef(id: string, element: Element): void {
     return;
   }
   const record = ensureRecord(id);
+  if (record.element && record.element !== element) {
+    removeRefFromElement(record.element, id);
+  }
   record.element = element;
   if (!record.meta.tag) {
     record.meta = { ...record.meta, tag: element.tagName.toLowerCase() };
   }
+  addRefToElement(element, id);
 }
 
 function detachRef(id: string, element: Element | null): void {
@@ -150,33 +155,51 @@ function detachRef(id: string, element: Element | null): void {
     return;
   }
   if (!element || record.element === element) {
+    if (record.element) {
+      removeRefFromElement(record.element, id);
+    }
     record.element = null;
   }
 }
 
-function forEachRefElement(
-  root: ParentNode | Element | DocumentFragment,
-  visit: (el: Element) => void,
-): void {
-  if (root instanceof Element) {
-    visit(root);
+function addRefToElement(element: Element, id: string): void {
+  let ids = elementRefMap.get(element);
+  if (!ids) {
+    ids = new Set<string>();
+    elementRefMap.set(element, ids);
   }
+  ids.add(id);
+}
 
-  const selectorAll = (root as ParentNode).querySelectorAll?.bind(root as ParentNode);
-  if (typeof selectorAll !== "function") {
+function removeRefFromElement(element: Element, id: string): void {
+  const ids = elementRefMap.get(element);
+  if (!ids) {
     return;
   }
+  ids.delete(id);
+  if (ids.size === 0) {
+    elementRefMap.delete(element);
+  }
+}
 
-  const matches = selectorAll("[data-live-ref]");
-  matches.forEach((node) => {
-    if (node instanceof Element) {
-      visit(node);
+function getPrimaryRefId(element: Element | null): string | null {
+  if (!element) {
+    return null;
+  }
+  const ids = elementRefMap.get(element);
+  if (ids && ids.size > 0) {
+    const first = ids.values().next();
+    if (!first.done) {
+      return first.value ?? null;
     }
-  });
+  }
+  const attr = element.getAttribute?.("data-live-ref") ?? null;
+  return attr && attr.length > 0 ? attr : null;
 }
 
 export function clearRefs(): void {
   registry.clear();
+  elementRefMap.clear();
 }
 
 export function registerRefs(refs?: RefMap | null): void {
@@ -203,46 +226,28 @@ export function unregisterRefs(ids?: string[] | null): void {
   }
 }
 
-export function bindRefsInTree(
-  root: ParentNode | Element | DocumentFragment | Document | null | undefined,
-): void {
-  if (!root || typeof document === "undefined") {
-    return;
-  }
-  forEachRefElement(root as ParentNode, (el) => {
-    const id = el.getAttribute("data-live-ref");
-    if (id) {
-      attachRef(id, el);
-    }
-  });
-}
-
 export function unbindRefsInTree(
   root: ParentNode | Element | DocumentFragment | Document | null | undefined,
 ): void {
   if (!root || typeof document === "undefined") {
     return;
   }
-  forEachRefElement(root as ParentNode, (el) => {
-    const id = el.getAttribute("data-live-ref");
-    if (id) {
-      detachRef(id, el);
+  const walker = document.createTreeWalker(root as Node, NodeFilter.SHOW_ELEMENT);
+  let current: Node | null = root as Node;
+  while (current) {
+    if (current instanceof Element) {
+      const ids = elementRefMap.get(current);
+      if (ids && ids.size > 0) {
+        for (const id of Array.from(ids)) {
+          detachRef(id, current);
+        }
+      }
+      const attrId = current.getAttribute?.("data-live-ref");
+      if (attrId) {
+        detachRef(attrId, current);
+      }
     }
-  });
-}
-
-export function updateRefBinding(
-  element: Element,
-  previousId: string | null,
-  nextId: string | null,
-): void {
-  if (previousId && (!nextId || previousId !== nextId)) {
-    detachRef(previousId, element);
-  }
-  if (nextId) {
-    attachRef(nextId, element);
-  } else if (previousId && !nextId) {
-    detachRef(previousId, element);
+    current = walker.nextNode();
   }
 }
 
@@ -260,14 +265,25 @@ export function getRegistrySnapshot(): Map<string, RefRecord> {
   return new Map(registry);
 }
 
+export function attachRefToElement(
+  refId: string,
+  element: Element | null,
+): void {
+  if (!refId) {
+    return;
+  }
+  if (!element) {
+    detachRef(refId, null);
+    return;
+  }
+  attachRef(refId, element);
+}
+
 function findClosestRefElement(element: Element | null): Element | null {
   let current: Element | null = element;
   while (current) {
-    if (typeof current.getAttribute === "function") {
-      const id = current.getAttribute("data-live-ref");
-      if (id) {
-        return current;
-      }
+    if (getPrimaryRefId(current)) {
+      return current;
     }
     current = current.parentElement;
   }

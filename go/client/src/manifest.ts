@@ -195,6 +195,26 @@ export function resolveComponentRanges(
   registerComponentRanges(ranges);
 }
 
+export function resolveComponentPathNode(
+  componentId: string,
+  path?: number[] | null,
+  options?: {
+    overrides?: Map<string, ComponentRange>;
+    fallbackRange?: ComponentRange | null;
+  },
+): Node | null {
+  let range: ComponentRange | null = null;
+  if (componentId && componentId.length > 0) {
+    range = options?.overrides?.get(componentId) ?? getComponentRange(componentId);
+  } else {
+    range = options?.fallbackRange ?? null;
+  }
+  if (!range) {
+    return null;
+  }
+  return resolveNodeInRange(range, path ?? undefined);
+}
+
 function resolveNodeInRange(
   range: ComponentRange | null,
   path: number[] | undefined,

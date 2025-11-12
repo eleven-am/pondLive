@@ -2,7 +2,9 @@ package runtime
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -81,6 +83,10 @@ type LiveSession struct {
 	domGetPending map[string]chan domGetResult
 	domGetTimeout time.Duration
 
+	domCallCounter atomic.Uint64
+	domCallMu      sync.Mutex
+	domCallPending map[string]chan domCallResult
+
 	transport Transport
 	devMode   bool
 
@@ -100,6 +106,11 @@ type queuedTemplateFrame struct {
 
 type domGetResult struct {
 	values map[string]any
+	err    error
+}
+
+type domCallResult struct {
+	result any
 	err    error
 }
 
@@ -556,20 +567,35 @@ func (s *LiveSession) failDOMRequests(err error) {
 		return
 	}
 	s.domGetMu.Lock()
-	pending := s.domGetPending
-	if len(pending) > 0 {
+	pendingGet := s.domGetPending
+	if len(pendingGet) > 0 {
 		s.domGetPending = nil
 	}
 	s.domGetMu.Unlock()
-	if len(pending) == 0 {
-		return
+
+	s.domCallMu.Lock()
+	pendingCall := s.domCallPending
+	if len(pendingCall) > 0 {
+		s.domCallPending = nil
 	}
-	for _, ch := range pending {
+	s.domCallMu.Unlock()
+
+	for _, ch := range pendingGet {
 		if ch == nil {
 			continue
 		}
 		select {
 		case ch <- domGetResult{err: err}:
+		default:
+		}
+	}
+
+	for _, ch := range pendingCall {
+		if ch == nil {
+			continue
+		}
+		select {
+		case ch <- domCallResult{err: err}:
 		default:
 		}
 	}
@@ -667,7 +693,75 @@ func (s *LiveSession) DOMGet(ref string, selectors ...string) (map[string]any, e
 	}
 }
 
-// HandleDOMResponse resolves a pending DOMGet request with data from the client.
+// DOMAsyncCall calls a method on the given element ref with the provided arguments
+// and returns the result from the client.
+func (s *LiveSession) DOMAsyncCall(ref string, method string, args ...any) (any, error) {
+	if s == nil {
+		return nil, errors.New("runtime: session is nil")
+	}
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return nil, errors.New("runtime: domcall requires element ref")
+	}
+	method = strings.TrimSpace(method)
+	if method == "" {
+		return nil, errors.New("runtime: domcall requires method name")
+	}
+
+	s.mu.Lock()
+	transport := s.transport
+	timeout := s.domGetTimeout
+	if timeout <= 0 {
+		timeout = defaultDOMGetTimeout
+	}
+	s.mu.Unlock()
+
+	if transport == nil {
+		return nil, errDOMGetNoTransport
+	}
+
+	id := fmt.Sprintf("domcall:%d", s.domCallCounter.Add(1))
+	ch := make(chan domCallResult, 1)
+
+	s.domCallMu.Lock()
+	if s.domCallPending == nil {
+		s.domCallPending = make(map[string]chan domCallResult)
+	}
+	s.domCallPending[id] = ch
+	s.domCallMu.Unlock()
+
+	req := protocol.DOMRequest{
+		ID:     id,
+		Ref:    ref,
+		Method: method,
+		Args:   args,
+	}
+
+	if err := transport.SendDOMRequest(req); err != nil {
+		s.domCallMu.Lock()
+		delete(s.domCallPending, id)
+		s.domCallMu.Unlock()
+		return nil, err
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case result := <-ch:
+		if result.err != nil {
+			return nil, result.err
+		}
+		return result.result, nil
+	case <-timer.C:
+		s.domCallMu.Lock()
+		delete(s.domCallPending, id)
+		s.domCallMu.Unlock()
+		return nil, errDOMGetTimeout
+	}
+}
+
+// HandleDOMResponse resolves a pending DOMGet or DOMAsyncCall request with data from the client.
 func (s *LiveSession) HandleDOMResponse(resp protocol.DOMResponse) {
 	if s == nil {
 		return
@@ -676,35 +770,64 @@ func (s *LiveSession) HandleDOMResponse(resp protocol.DOMResponse) {
 		return
 	}
 
-	s.domGetMu.Lock()
-	ch, ok := s.domGetPending[resp.ID]
-	if ok {
-		delete(s.domGetPending, resp.ID)
-	}
-	s.domGetMu.Unlock()
+	if strings.HasPrefix(resp.ID, "domget:") {
+		s.domGetMu.Lock()
+		ch, ok := s.domGetPending[resp.ID]
+		if ok {
+			delete(s.domGetPending, resp.ID)
+		}
+		s.domGetMu.Unlock()
 
-	if !ok || ch == nil {
+		if !ok || ch == nil {
+			return
+		}
+
+		result := domGetResult{}
+		if resp.Error != "" {
+			result.err = errors.New(resp.Error)
+		} else {
+			if len(resp.Values) > 0 {
+				clone := make(map[string]any, len(resp.Values))
+				for k, v := range resp.Values {
+					clone[k] = v
+				}
+				result.values = clone
+			} else {
+				result.values = map[string]any{}
+			}
+		}
+
+		select {
+		case ch <- result:
+		default:
+		}
 		return
 	}
 
-	result := domGetResult{}
-	if resp.Error != "" {
-		result.err = errors.New(resp.Error)
-	} else {
-		if len(resp.Values) > 0 {
-			clone := make(map[string]any, len(resp.Values))
-			for k, v := range resp.Values {
-				clone[k] = v
-			}
-			result.values = clone
-		} else {
-			result.values = map[string]any{}
+	if strings.HasPrefix(resp.ID, "domcall:") {
+		s.domCallMu.Lock()
+		ch, ok := s.domCallPending[resp.ID]
+		if ok {
+			delete(s.domCallPending, resp.ID)
 		}
-	}
+		s.domCallMu.Unlock()
 
-	select {
-	case ch <- result:
-	default:
+		if !ok || ch == nil {
+			return
+		}
+
+		result := domCallResult{}
+		if resp.Error != "" {
+			result.err = errors.New(resp.Error)
+		} else {
+			result.result = resp.Result
+		}
+
+		select {
+		case ch <- result:
+		default:
+		}
+		return
 	}
 }
 
@@ -1633,7 +1756,7 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 		ListPaths:      listPaths,
 		ComponentPaths: componentPaths,
 		Handlers:       handlers,
-		Bindings:       encodeTemplateBindings(structured.Bindings, structured.UploadBindings),
+		Bindings:       encodeTemplateBindings(structured.Bindings, structured.UploadBindings, structured.RefBindings, structured.RouterBindings),
 		Refs:           refs,
 		Location:       protoLoc,
 		Metadata:       CloneMeta(meta),
@@ -1655,6 +1778,7 @@ func (s *LiveSession) templatePayloadFromSnapshot(snap snapshot) protocol.Templa
 	if len(snap.Refs) > 0 {
 		payload.Refs = protocol.RefDelta{Add: cloneRefs(snap.Refs)}
 	}
+	payload.TemplateHash = computeTemplateHash(payload)
 	return payload
 }
 
@@ -1676,6 +1800,7 @@ func templatePayloadFromComponentUpdate(update componentTemplateUpdate) protocol
 		}
 		payload.Slots = slots
 	}
+	payload.TemplateHash = computeTemplateHash(payload)
 	return payload
 }
 
@@ -1740,7 +1865,8 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 					if len(row.Slots) > 0 {
 						rows[j].Slots = append([]int(nil), row.Slots...)
 					}
-					if bindings := encodeRowBindingTable(row.Bindings); len(bindings) > 0 {
+					bindings := encodeTemplateBindings(row.Bindings, row.UploadBindings, row.RefBindings, row.RouterBindings)
+					if hasTemplateBindings(bindings) {
 						rows[j].Bindings = bindings
 					}
 					if encoded := encodeSlotPaths(row.SlotPaths); len(encoded) > 0 {
@@ -1763,13 +1889,24 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 	return out
 }
 
-func encodeTemplateBindings(handlerBindings []render.HandlerBinding, uploadBindings []render.UploadBinding) protocol.TemplateBindings {
+func encodeTemplateBindings(
+	handlerBindings []render.HandlerBinding,
+	uploadBindings []render.UploadBinding,
+	refBindings []render.RefBinding,
+	routerBindings []render.RouterBinding,
+) protocol.TemplateBindings {
 	table := encodeBindingTable(handlerBindings)
 	uploads := encodeUploadBindings(uploadBindings)
-	if len(table) == 0 && len(uploads) == 0 {
+	refs := encodeRefBindings(refBindings)
+	routers := encodeRouterBindings(routerBindings)
+	if len(table) == 0 && len(uploads) == 0 && len(refs) == 0 && len(routers) == 0 {
 		return protocol.TemplateBindings{}
 	}
-	return protocol.TemplateBindings{Slots: table, Uploads: uploads}
+	return protocol.TemplateBindings{Slots: table, Uploads: uploads, Refs: refs, Router: routers}
+}
+
+func hasTemplateBindings(bindings protocol.TemplateBindings) bool {
+	return len(bindings.Slots) > 0 || len(bindings.Uploads) > 0 || len(bindings.Refs) > 0 || len(bindings.Router) > 0
 }
 
 func encodeBindingTable(bindings []render.HandlerBinding) protocol.BindingTable {
@@ -1819,6 +1956,57 @@ func encodeUploadBindings(bindings []render.UploadBinding) []protocol.UploadBind
 		}
 		if len(binding.Accept) > 0 {
 			encoded.Accept = append([]string(nil), binding.Accept...)
+		}
+		out = append(out, encoded)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func encodeRefBindings(bindings []render.RefBinding) []protocol.RefBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.RefBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.RefID == "" {
+			continue
+		}
+		encoded := protocol.RefBinding{
+			ComponentID: binding.ComponentID,
+			RefID:       binding.RefID,
+		}
+		if len(binding.Path) > 0 {
+			encoded.Path = append([]int(nil), binding.Path...)
+		}
+		out = append(out, encoded)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func encodeRouterBindings(bindings []render.RouterBinding) []protocol.RouterBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.RouterBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.PathValue == "" && binding.Query == "" && binding.Hash == "" && binding.Replace == "" {
+			continue
+		}
+		encoded := protocol.RouterBinding{
+			ComponentID: binding.ComponentID,
+			PathValue:   binding.PathValue,
+			Query:       binding.Query,
+			Hash:        binding.Hash,
+			Replace:     binding.Replace,
+		}
+		if len(binding.Path) > 0 {
+			encoded.Path = append([]int(nil), binding.Path...)
 		}
 		out = append(out, encoded)
 	}
@@ -1976,21 +2164,8 @@ func cloneServerErrors(src []protocol.ServerError) []protocol.ServerError {
 
 func extractRefIDs(structured render.Structured) []string {
 	refs := map[string]struct{}{}
-	for _, dyn := range structured.D {
-		if dyn.Kind != render.DynAttrs {
-			continue
-		}
-		if dyn.Attrs == nil {
-			continue
-		}
-		id := strings.TrimSpace(dyn.Attrs["data-live-ref"])
-		if id == "" {
-			continue
-		}
-		refs[id] = struct{}{}
-	}
-	for _, attrs := range staticAttrMaps(structured.S) {
-		id := strings.TrimSpace(attrs["data-live-ref"])
+	for _, binding := range structured.RefBindings {
+		id := strings.TrimSpace(binding.RefID)
 		if id == "" {
 			continue
 		}
@@ -2246,14 +2421,8 @@ func cloneDynamics(dynamics []protocol.DynamicSlot) []protocol.DynamicSlot {
 				if len(row.Slots) > 0 {
 					rows[j].Slots = append([]int(nil), row.Slots...)
 				}
-				if len(row.Bindings) > 0 {
-					copied := make(protocol.BindingTable, len(row.Bindings))
-					for slot, bindings := range row.Bindings {
-						copied[slot] = copySlotBindings(bindings)
-					}
-					if len(copied) > 0 {
-						rows[j].Bindings = copied
-					}
+				if hasTemplateBindings(row.Bindings) {
+					rows[j].Bindings = cloneTemplateBindings(row.Bindings)
 				}
 				if len(row.SlotPaths) > 0 {
 					rows[j].SlotPaths = cloneSlotPaths(row.SlotPaths)
@@ -2493,12 +2662,14 @@ func cloneTemplateScope(scope *protocol.TemplateScope) *protocol.TemplateScope {
 }
 
 func cloneTemplateBindings(bindings protocol.TemplateBindings) protocol.TemplateBindings {
-	if len(bindings.Slots) == 0 && len(bindings.Uploads) == 0 {
+	if len(bindings.Slots) == 0 && len(bindings.Uploads) == 0 && len(bindings.Refs) == 0 && len(bindings.Router) == 0 {
 		return protocol.TemplateBindings{}
 	}
 	return protocol.TemplateBindings{
 		Slots:   cloneBindingTable(bindings.Slots),
 		Uploads: cloneUploadBindings(bindings.Uploads),
+		Refs:    cloneRefBindings(bindings.Refs),
+		Router:  cloneRouterBindings(bindings.Router),
 	}
 }
 
@@ -2514,6 +2685,425 @@ func cloneBindingTable(bindings protocol.BindingTable) protocol.BindingTable {
 		return nil
 	}
 	return out
+}
+
+func cloneRefBindings(bindings []protocol.RefBinding) []protocol.RefBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.RefBinding, len(bindings))
+	for i, binding := range bindings {
+		clone := protocol.RefBinding{
+			ComponentID: binding.ComponentID,
+			RefID:       binding.RefID,
+		}
+		if len(binding.Path) > 0 {
+			clone.Path = append([]int(nil), binding.Path...)
+		}
+		out[i] = clone
+	}
+	return out
+}
+
+func cloneRouterBindings(bindings []protocol.RouterBinding) []protocol.RouterBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.RouterBinding, len(bindings))
+	for i, binding := range bindings {
+		clone := protocol.RouterBinding{
+			ComponentID: binding.ComponentID,
+			PathValue:   binding.PathValue,
+			Query:       binding.Query,
+			Hash:        binding.Hash,
+			Replace:     binding.Replace,
+		}
+		if len(binding.Path) > 0 {
+			clone.Path = append([]int(nil), binding.Path...)
+		}
+		out[i] = clone
+	}
+	return out
+}
+
+type hashTemplateData struct {
+	S              []string                 `json:"s,omitempty"`
+	D              []hashDynamicSlot        `json:"d,omitempty"`
+	Slots          []protocol.SlotMeta      `json:"slots,omitempty"`
+	SlotPaths      []protocol.SlotPath      `json:"slotPaths,omitempty"`
+	ListPaths      []protocol.ListPath      `json:"listPaths,omitempty"`
+	ComponentPaths []protocol.ComponentPath `json:"componentPaths,omitempty"`
+	Handlers       []hashHandlerEntry       `json:"handlers,omitempty"`
+	Bindings       hashTemplateBindings     `json:"bindings,omitempty"`
+	Refs           hashRefDelta             `json:"refs,omitempty"`
+}
+
+type hashDynamicSlot struct {
+	Kind  string        `json:"k"`
+	Text  string        `json:"t,omitempty"`
+	Attrs []hashAttr    `json:"a,omitempty"`
+	List  []hashListRow `json:"l,omitempty"`
+}
+
+type hashAttr struct {
+	Key   string `json:"k"`
+	Value string `json:"v"`
+}
+
+type hashListRow struct {
+	Key            string                   `json:"k"`
+	Slots          []int                    `json:"s,omitempty"`
+	SlotPaths      []protocol.SlotPath      `json:"sp,omitempty"`
+	ListPaths      []protocol.ListPath      `json:"lp,omitempty"`
+	ComponentPaths []protocol.ComponentPath `json:"cp,omitempty"`
+	Bindings       hashTemplateBindings     `json:"b,omitempty"`
+}
+
+type hashHandlerEntry struct {
+	ID   string               `json:"id"`
+	Meta protocol.HandlerMeta `json:"meta"`
+}
+
+type hashTemplateBindings struct {
+	Slots   []hashSlotBindingEntry `json:"slots,omitempty"`
+	Uploads []hashUploadBinding    `json:"uploads,omitempty"`
+	Refs    []hashRefBinding       `json:"refs,omitempty"`
+	Router  []hashRouterBinding    `json:"router,omitempty"`
+}
+
+type hashSlotBindingEntry struct {
+	Slot     int                    `json:"slot"`
+	Bindings []protocol.SlotBinding `json:"bindings,omitempty"`
+}
+
+type hashUploadBinding struct {
+	ComponentID string   `json:"componentId"`
+	Path        []int    `json:"path,omitempty"`
+	UploadID    string   `json:"uploadId"`
+	Accept      []string `json:"accept,omitempty"`
+	Multiple    bool     `json:"multiple,omitempty"`
+	MaxSize     int64    `json:"maxSize,omitempty"`
+}
+
+type hashRefBinding struct {
+	ComponentID string `json:"componentId"`
+	Path        []int  `json:"path,omitempty"`
+	RefID       string `json:"refId"`
+}
+
+type hashRouterBinding struct {
+	ComponentID string `json:"componentId"`
+	Path        []int  `json:"path,omitempty"`
+	PathValue   string `json:"pathValue,omitempty"`
+	Query       string `json:"query,omitempty"`
+	Hash        string `json:"hash,omitempty"`
+	Replace     string `json:"replace,omitempty"`
+}
+
+type hashRefDelta struct {
+	Add []hashRefAddEntry `json:"add,omitempty"`
+	Del []string          `json:"del,omitempty"`
+}
+
+type hashRefAddEntry struct {
+	ID   string      `json:"id"`
+	Meta hashRefMeta `json:"meta"`
+}
+
+type hashRefMeta struct {
+	Tag    string         `json:"tag"`
+	Events []hashRefEvent `json:"events,omitempty"`
+}
+
+type hashRefEvent struct {
+	Name   string   `json:"name"`
+	Listen []string `json:"listen,omitempty"`
+	Props  []string `json:"props,omitempty"`
+}
+
+func computeTemplateHash(payload protocol.TemplatePayload) string {
+	data := hashTemplateData{
+		S:              append([]string(nil), payload.S...),
+		D:              buildHashDynamicSlots(payload.D),
+		Slots:          cloneSlots(payload.Slots),
+		SlotPaths:      cloneSlotPaths(payload.SlotPaths),
+		ListPaths:      cloneListPaths(payload.ListPaths),
+		ComponentPaths: cloneComponentPaths(payload.ComponentPaths),
+		Handlers:       buildHashHandlers(payload.Handlers),
+		Bindings:       buildHashTemplateBindings(payload.Bindings),
+		Refs:           buildHashRefDelta(payload.Refs),
+	}
+	encoded, err := json.Marshal(data)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(encoded)
+	return fmt.Sprintf("sha256:%x", sum[:])
+}
+
+func buildHashDynamicSlots(slots []protocol.DynamicSlot) []hashDynamicSlot {
+	if len(slots) == 0 {
+		return nil
+	}
+	out := make([]hashDynamicSlot, len(slots))
+	for i, slot := range slots {
+		hashSlot := hashDynamicSlot{Kind: slot.Kind}
+		if slot.Text != "" {
+			hashSlot.Text = slot.Text
+		}
+		if len(slot.Attrs) > 0 {
+			keys := make([]string, 0, len(slot.Attrs))
+			for key := range slot.Attrs {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			attrs := make([]hashAttr, len(keys))
+			for idx, key := range keys {
+				attrs[idx] = hashAttr{Key: key, Value: slot.Attrs[key]}
+			}
+			hashSlot.Attrs = attrs
+		}
+		if len(slot.List) > 0 {
+			hashSlot.List = buildHashListRows(slot.List)
+		}
+		out[i] = hashSlot
+	}
+	return out
+}
+
+func buildHashListRows(rows []protocol.ListRow) []hashListRow {
+	if len(rows) == 0 {
+		return nil
+	}
+	out := make([]hashListRow, len(rows))
+	for i, row := range rows {
+		hashRow := hashListRow{Key: row.Key}
+		if len(row.Slots) > 0 {
+			hashRow.Slots = append([]int(nil), row.Slots...)
+		}
+		if len(row.SlotPaths) > 0 {
+			hashRow.SlotPaths = cloneSlotPaths(row.SlotPaths)
+		}
+		if len(row.ListPaths) > 0 {
+			hashRow.ListPaths = cloneListPaths(row.ListPaths)
+		}
+		if len(row.ComponentPaths) > 0 {
+			hashRow.ComponentPaths = cloneComponentPaths(row.ComponentPaths)
+		}
+		hashRow.Bindings = buildHashTemplateBindings(row.Bindings)
+		out[i] = hashRow
+	}
+	return out
+}
+
+func buildHashHandlers(handlers map[string]protocol.HandlerMeta) []hashHandlerEntry {
+	if len(handlers) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(handlers))
+	for id := range handlers {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	out := make([]hashHandlerEntry, len(ids))
+	for i, id := range ids {
+		out[i] = hashHandlerEntry{ID: id, Meta: handlers[id]}
+	}
+	return out
+}
+
+func buildHashTemplateBindings(bindings protocol.TemplateBindings) hashTemplateBindings {
+	return hashTemplateBindings{
+		Slots:   buildHashSlotBindingEntries(bindings.Slots),
+		Uploads: buildHashUploadBindings(bindings.Uploads),
+		Refs:    buildHashRefBindings(bindings.Refs),
+		Router:  buildHashRouterBindings(bindings.Router),
+	}
+}
+
+func buildHashSlotBindingEntries(table protocol.BindingTable) []hashSlotBindingEntry {
+	if len(table) == 0 {
+		return nil
+	}
+	slots := make([]int, 0, len(table))
+	for slot := range table {
+		slots = append(slots, slot)
+	}
+	sort.Ints(slots)
+	out := make([]hashSlotBindingEntry, 0, len(slots))
+	for _, slot := range slots {
+		bindings := table[slot]
+		entry := hashSlotBindingEntry{Slot: slot}
+		if len(bindings) > 0 {
+			cloned := copySlotBindings(bindings)
+			sort.Slice(cloned, func(i, j int) bool {
+				if cloned[i].Event != cloned[j].Event {
+					return cloned[i].Event < cloned[j].Event
+				}
+				return cloned[i].Handler < cloned[j].Handler
+			})
+			entry.Bindings = cloned
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func buildHashUploadBindings(bindings []protocol.UploadBinding) []hashUploadBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]hashUploadBinding, len(bindings))
+	for i, binding := range bindings {
+		out[i] = hashUploadBinding{
+			ComponentID: binding.ComponentID,
+			Path:        append([]int(nil), binding.Path...),
+			UploadID:    binding.UploadID,
+			Accept:      append([]string(nil), binding.Accept...),
+			Multiple:    binding.Multiple,
+			MaxSize:     binding.MaxSize,
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ComponentID != out[j].ComponentID {
+			return out[i].ComponentID < out[j].ComponentID
+		}
+		if cmp := compareIntSlices(out[i].Path, out[j].Path); cmp != 0 {
+			return cmp < 0
+		}
+		return out[i].UploadID < out[j].UploadID
+	})
+	return out
+}
+
+func buildHashRefBindings(bindings []protocol.RefBinding) []hashRefBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]hashRefBinding, len(bindings))
+	for i, binding := range bindings {
+		out[i] = hashRefBinding{
+			ComponentID: binding.ComponentID,
+			Path:        append([]int(nil), binding.Path...),
+			RefID:       binding.RefID,
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ComponentID != out[j].ComponentID {
+			return out[i].ComponentID < out[j].ComponentID
+		}
+		if cmp := compareIntSlices(out[i].Path, out[j].Path); cmp != 0 {
+			return cmp < 0
+		}
+		return out[i].RefID < out[j].RefID
+	})
+	return out
+}
+
+func buildHashRouterBindings(bindings []protocol.RouterBinding) []hashRouterBinding {
+	if len(bindings) == 0 {
+		return nil
+	}
+	out := make([]hashRouterBinding, len(bindings))
+	for i, binding := range bindings {
+		out[i] = hashRouterBinding{
+			ComponentID: binding.ComponentID,
+			Path:        append([]int(nil), binding.Path...),
+			PathValue:   binding.PathValue,
+			Query:       binding.Query,
+			Hash:        binding.Hash,
+			Replace:     binding.Replace,
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ComponentID != out[j].ComponentID {
+			return out[i].ComponentID < out[j].ComponentID
+		}
+		if cmp := compareIntSlices(out[i].Path, out[j].Path); cmp != 0 {
+			return cmp < 0
+		}
+		if out[i].PathValue != out[j].PathValue {
+			return out[i].PathValue < out[j].PathValue
+		}
+		if out[i].Query != out[j].Query {
+			return out[i].Query < out[j].Query
+		}
+		if out[i].Hash != out[j].Hash {
+			return out[i].Hash < out[j].Hash
+		}
+		return out[i].Replace < out[j].Replace
+	})
+	return out
+}
+
+func buildHashRefDelta(refs protocol.RefDelta) hashRefDelta {
+	var result hashRefDelta
+	if len(refs.Add) > 0 {
+		entries := make([]hashRefAddEntry, 0, len(refs.Add))
+		ids := make([]string, 0, len(refs.Add))
+		for id := range refs.Add {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		for _, id := range ids {
+			entries = append(entries, hashRefAddEntry{ID: id, Meta: buildHashRefMeta(refs.Add[id])})
+		}
+		result.Add = entries
+	}
+	if len(refs.Del) > 0 {
+		del := append([]string(nil), refs.Del...)
+		sort.Strings(del)
+		result.Del = del
+	}
+	return result
+}
+
+func buildHashRefMeta(meta protocol.RefMeta) hashRefMeta {
+	result := hashRefMeta{Tag: meta.Tag}
+	if len(meta.Events) > 0 {
+		names := make([]string, 0, len(meta.Events))
+		for name := range meta.Events {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		events := make([]hashRefEvent, len(names))
+		for i, name := range names {
+			entry := hashRefEvent{Name: name}
+			if listeners := meta.Events[name].Listen; len(listeners) > 0 {
+				entry.Listen = append([]string(nil), listeners...)
+			}
+			if props := meta.Events[name].Props; len(props) > 0 {
+				entry.Props = append([]string(nil), props...)
+			}
+			events[i] = entry
+		}
+		result.Events = events
+	}
+	return result
+}
+
+func compareIntSlices(a, b []int) int {
+	lenA := len(a)
+	lenB := len(b)
+	min := lenA
+	if lenB < min {
+		min = lenB
+	}
+	for i := 0; i < min; i++ {
+		if a[i] < b[i] {
+			return -1
+		}
+		if a[i] > b[i] {
+			return 1
+		}
+	}
+	if lenA < lenB {
+		return -1
+	}
+	if lenA > lenB {
+		return 1
+	}
+	return 0
 }
 
 func cloneUploadBindings(bindings []protocol.UploadBinding) []protocol.UploadBinding {

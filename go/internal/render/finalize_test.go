@@ -35,8 +35,9 @@ func TestFinalizeWithHandlersMergesMetadata(t *testing.T) {
 	if got := el.Attrs["data-extra"]; got != "value" {
 		t.Fatalf("expected data attribute, got %q", got)
 	}
-	if id := el.Attrs["data-onclick"]; id == "" {
-		t.Fatal("expected data-onclick attribute to be set")
+	assignment, ok := el.HandlerAssignments["click"]
+	if !ok || assignment.ID == "" {
+		t.Fatal("expected click handler assignment to be recorded")
 	}
 	if clicked {
 		t.Fatal("handler should not have been executed during finalize")
@@ -79,13 +80,14 @@ func TestFinalizeWithHandlersAppliesEventMetadata(t *testing.T) {
 
 	FinalizeWithHandlers(node, reg)
 
-	if got := node.Attrs["data-ontimeupdate"]; got == "" {
-		t.Fatal("expected handler id for primary event")
+	assignment, ok := node.HandlerAssignments["timeupdate"]
+	if !ok || assignment.ID == "" {
+		t.Fatal("expected handler assignment for primary event")
 	}
-	if got := node.Attrs["data-ontimeupdate-listen"]; got != "play pause" {
+	if got := strings.Join(assignment.Listen, " "); got != "play pause" {
 		t.Fatalf("unexpected listen metadata: %q", got)
 	}
-	if got := node.Attrs["data-ontimeupdate-props"]; got != "target.currentTime target.duration target.paused" {
+	if got := strings.Join(assignment.Props, " "); got != "target.currentTime target.duration target.paused" {
 		t.Fatalf("unexpected props metadata: %q", got)
 	}
 }

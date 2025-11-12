@@ -2,554 +2,691 @@
 package html
 
 type HTMLAElement struct{}
+
 func (HTMLAElement) elementDescriptor() {}
-func (HTMLAElement) TagName() string { return "a" }
+func (HTMLAElement) TagName() string    { return "a" }
 
 type HTMLAbbrElement struct{}
+
 func (HTMLAbbrElement) elementDescriptor() {}
-func (HTMLAbbrElement) TagName() string { return "abbr" }
+func (HTMLAbbrElement) TagName() string    { return "abbr" }
 
 type HTMLAddressElement struct{}
+
 func (HTMLAddressElement) elementDescriptor() {}
-func (HTMLAddressElement) TagName() string { return "address" }
+func (HTMLAddressElement) TagName() string    { return "address" }
 
 type HTMLAreaElement struct{}
+
 func (HTMLAreaElement) elementDescriptor() {}
-func (HTMLAreaElement) TagName() string { return "area" }
+func (HTMLAreaElement) TagName() string    { return "area" }
 
 type HTMLArticleElement struct{}
+
 func (HTMLArticleElement) elementDescriptor() {}
-func (HTMLArticleElement) TagName() string { return "article" }
+func (HTMLArticleElement) TagName() string    { return "article" }
 
 type HTMLAsideElement struct{}
+
 func (HTMLAsideElement) elementDescriptor() {}
-func (HTMLAsideElement) TagName() string { return "aside" }
+func (HTMLAsideElement) TagName() string    { return "aside" }
 
 type HTMLAudioElement struct{}
+
 func (HTMLAudioElement) elementDescriptor() {}
-func (HTMLAudioElement) TagName() string { return "audio" }
+func (HTMLAudioElement) TagName() string    { return "audio" }
 
 type HTMLBElement struct{}
+
 func (HTMLBElement) elementDescriptor() {}
-func (HTMLBElement) TagName() string { return "b" }
+func (HTMLBElement) TagName() string    { return "b" }
 
 type HTMLBaseElement struct{}
+
 func (HTMLBaseElement) elementDescriptor() {}
-func (HTMLBaseElement) TagName() string { return "base" }
+func (HTMLBaseElement) TagName() string    { return "base" }
 
 type HTMLBdiElement struct{}
+
 func (HTMLBdiElement) elementDescriptor() {}
-func (HTMLBdiElement) TagName() string { return "bdi" }
+func (HTMLBdiElement) TagName() string    { return "bdi" }
 
 type HTMLBdoElement struct{}
+
 func (HTMLBdoElement) elementDescriptor() {}
-func (HTMLBdoElement) TagName() string { return "bdo" }
+func (HTMLBdoElement) TagName() string    { return "bdo" }
 
 type HTMLBlockquoteElement struct{}
+
 func (HTMLBlockquoteElement) elementDescriptor() {}
-func (HTMLBlockquoteElement) TagName() string { return "blockquote" }
+func (HTMLBlockquoteElement) TagName() string    { return "blockquote" }
 
 type HTMLBodyElement struct{}
+
 func (HTMLBodyElement) elementDescriptor() {}
-func (HTMLBodyElement) TagName() string { return "body" }
+func (HTMLBodyElement) TagName() string    { return "body" }
 
 type HTMLBrElement struct{}
+
 func (HTMLBrElement) elementDescriptor() {}
-func (HTMLBrElement) TagName() string { return "br" }
+func (HTMLBrElement) TagName() string    { return "br" }
 
 type HTMLButtonElement struct{}
+
 func (HTMLButtonElement) elementDescriptor() {}
-func (HTMLButtonElement) TagName() string { return "button" }
+func (HTMLButtonElement) TagName() string    { return "button" }
 
 type HTMLCanvasElement struct{}
+
 func (HTMLCanvasElement) elementDescriptor() {}
-func (HTMLCanvasElement) TagName() string { return "canvas" }
+func (HTMLCanvasElement) TagName() string    { return "canvas" }
 
 type HTMLCaptionElement struct{}
+
 func (HTMLCaptionElement) elementDescriptor() {}
-func (HTMLCaptionElement) TagName() string { return "caption" }
+func (HTMLCaptionElement) TagName() string    { return "caption" }
 
 type SVGCircleElement struct{}
+
 func (SVGCircleElement) elementDescriptor() {}
-func (SVGCircleElement) TagName() string { return "circle" }
+func (SVGCircleElement) TagName() string    { return "circle" }
 
 type HTMLCiteElement struct{}
+
 func (HTMLCiteElement) elementDescriptor() {}
-func (HTMLCiteElement) TagName() string { return "cite" }
+func (HTMLCiteElement) TagName() string    { return "cite" }
 
 type SVGClipPathElement struct{}
+
 func (SVGClipPathElement) elementDescriptor() {}
-func (SVGClipPathElement) TagName() string { return "clipPath" }
+func (SVGClipPathElement) TagName() string    { return "clipPath" }
 
 type HTMLCodeElement struct{}
+
 func (HTMLCodeElement) elementDescriptor() {}
-func (HTMLCodeElement) TagName() string { return "code" }
+func (HTMLCodeElement) TagName() string    { return "code" }
 
 type HTMLColElement struct{}
+
 func (HTMLColElement) elementDescriptor() {}
-func (HTMLColElement) TagName() string { return "col" }
+func (HTMLColElement) TagName() string    { return "col" }
 
 type HTMLColgroupElement struct{}
+
 func (HTMLColgroupElement) elementDescriptor() {}
-func (HTMLColgroupElement) TagName() string { return "colgroup" }
+func (HTMLColgroupElement) TagName() string    { return "colgroup" }
 
 type HTMLDataElement struct{}
+
 func (HTMLDataElement) elementDescriptor() {}
-func (HTMLDataElement) TagName() string { return "data" }
+func (HTMLDataElement) TagName() string    { return "data" }
 
 type HTMLDatalistElement struct{}
+
 func (HTMLDatalistElement) elementDescriptor() {}
-func (HTMLDatalistElement) TagName() string { return "datalist" }
+func (HTMLDatalistElement) TagName() string    { return "datalist" }
 
 type HTMLDdElement struct{}
+
 func (HTMLDdElement) elementDescriptor() {}
-func (HTMLDdElement) TagName() string { return "dd" }
+func (HTMLDdElement) TagName() string    { return "dd" }
 
 type SVGDefsElement struct{}
+
 func (SVGDefsElement) elementDescriptor() {}
-func (SVGDefsElement) TagName() string { return "defs" }
+func (SVGDefsElement) TagName() string    { return "defs" }
 
 type HTMLDelElement struct{}
+
 func (HTMLDelElement) elementDescriptor() {}
-func (HTMLDelElement) TagName() string { return "del" }
+func (HTMLDelElement) TagName() string    { return "del" }
 
 type HTMLDetailsElement struct{}
+
 func (HTMLDetailsElement) elementDescriptor() {}
-func (HTMLDetailsElement) TagName() string { return "details" }
+func (HTMLDetailsElement) TagName() string    { return "details" }
 
 type HTMLDfnElement struct{}
+
 func (HTMLDfnElement) elementDescriptor() {}
-func (HTMLDfnElement) TagName() string { return "dfn" }
+func (HTMLDfnElement) TagName() string    { return "dfn" }
 
 type HTMLDialogElement struct{}
+
 func (HTMLDialogElement) elementDescriptor() {}
-func (HTMLDialogElement) TagName() string { return "dialog" }
+func (HTMLDialogElement) TagName() string    { return "dialog" }
 
 type HTMLDivElement struct{}
+
 func (HTMLDivElement) elementDescriptor() {}
-func (HTMLDivElement) TagName() string { return "div" }
+func (HTMLDivElement) TagName() string    { return "div" }
 
 type HTMLDlElement struct{}
+
 func (HTMLDlElement) elementDescriptor() {}
-func (HTMLDlElement) TagName() string { return "dl" }
+func (HTMLDlElement) TagName() string    { return "dl" }
 
 type HTMLDtElement struct{}
+
 func (HTMLDtElement) elementDescriptor() {}
-func (HTMLDtElement) TagName() string { return "dt" }
+func (HTMLDtElement) TagName() string    { return "dt" }
 
 type SVGEllipseElement struct{}
+
 func (SVGEllipseElement) elementDescriptor() {}
-func (SVGEllipseElement) TagName() string { return "ellipse" }
+func (SVGEllipseElement) TagName() string    { return "ellipse" }
 
 type HTMLEmElement struct{}
+
 func (HTMLEmElement) elementDescriptor() {}
-func (HTMLEmElement) TagName() string { return "em" }
+func (HTMLEmElement) TagName() string    { return "em" }
 
 type HTMLEmbedElement struct{}
+
 func (HTMLEmbedElement) elementDescriptor() {}
-func (HTMLEmbedElement) TagName() string { return "embed" }
+func (HTMLEmbedElement) TagName() string    { return "embed" }
 
 type HTMLFieldsetElement struct{}
+
 func (HTMLFieldsetElement) elementDescriptor() {}
-func (HTMLFieldsetElement) TagName() string { return "fieldset" }
+func (HTMLFieldsetElement) TagName() string    { return "fieldset" }
 
 type HTMLFigcaptionElement struct{}
+
 func (HTMLFigcaptionElement) elementDescriptor() {}
-func (HTMLFigcaptionElement) TagName() string { return "figcaption" }
+func (HTMLFigcaptionElement) TagName() string    { return "figcaption" }
 
 type HTMLFigureElement struct{}
+
 func (HTMLFigureElement) elementDescriptor() {}
-func (HTMLFigureElement) TagName() string { return "figure" }
+func (HTMLFigureElement) TagName() string    { return "figure" }
 
 type HTMLFooterElement struct{}
+
 func (HTMLFooterElement) elementDescriptor() {}
-func (HTMLFooterElement) TagName() string { return "footer" }
+func (HTMLFooterElement) TagName() string    { return "footer" }
 
 type SVGForeignObjectElement struct{}
+
 func (SVGForeignObjectElement) elementDescriptor() {}
-func (SVGForeignObjectElement) TagName() string { return "foreignObject" }
+func (SVGForeignObjectElement) TagName() string    { return "foreignObject" }
 
 type HTMLFormElement struct{}
+
 func (HTMLFormElement) elementDescriptor() {}
-func (HTMLFormElement) TagName() string { return "form" }
+func (HTMLFormElement) TagName() string    { return "form" }
 
 type SVGGElement struct{}
+
 func (SVGGElement) elementDescriptor() {}
-func (SVGGElement) TagName() string { return "g" }
+func (SVGGElement) TagName() string    { return "g" }
 
 type HTMLH1Element struct{}
+
 func (HTMLH1Element) elementDescriptor() {}
-func (HTMLH1Element) TagName() string { return "h1" }
+func (HTMLH1Element) TagName() string    { return "h1" }
 
 type HTMLH2Element struct{}
+
 func (HTMLH2Element) elementDescriptor() {}
-func (HTMLH2Element) TagName() string { return "h2" }
+func (HTMLH2Element) TagName() string    { return "h2" }
 
 type HTMLH3Element struct{}
+
 func (HTMLH3Element) elementDescriptor() {}
-func (HTMLH3Element) TagName() string { return "h3" }
+func (HTMLH3Element) TagName() string    { return "h3" }
 
 type HTMLH4Element struct{}
+
 func (HTMLH4Element) elementDescriptor() {}
-func (HTMLH4Element) TagName() string { return "h4" }
+func (HTMLH4Element) TagName() string    { return "h4" }
 
 type HTMLH5Element struct{}
+
 func (HTMLH5Element) elementDescriptor() {}
-func (HTMLH5Element) TagName() string { return "h5" }
+func (HTMLH5Element) TagName() string    { return "h5" }
 
 type HTMLH6Element struct{}
+
 func (HTMLH6Element) elementDescriptor() {}
-func (HTMLH6Element) TagName() string { return "h6" }
+func (HTMLH6Element) TagName() string    { return "h6" }
 
 type HTMLHeadElement struct{}
+
 func (HTMLHeadElement) elementDescriptor() {}
-func (HTMLHeadElement) TagName() string { return "head" }
+func (HTMLHeadElement) TagName() string    { return "head" }
 
 type HTMLHeaderElement struct{}
+
 func (HTMLHeaderElement) elementDescriptor() {}
-func (HTMLHeaderElement) TagName() string { return "header" }
+func (HTMLHeaderElement) TagName() string    { return "header" }
 
 type HTMLHgroupElement struct{}
+
 func (HTMLHgroupElement) elementDescriptor() {}
-func (HTMLHgroupElement) TagName() string { return "hgroup" }
+func (HTMLHgroupElement) TagName() string    { return "hgroup" }
 
 type HTMLHrElement struct{}
+
 func (HTMLHrElement) elementDescriptor() {}
-func (HTMLHrElement) TagName() string { return "hr" }
+func (HTMLHrElement) TagName() string    { return "hr" }
 
 type HTMLHtmlElement struct{}
+
 func (HTMLHtmlElement) elementDescriptor() {}
-func (HTMLHtmlElement) TagName() string { return "html" }
+func (HTMLHtmlElement) TagName() string    { return "html" }
 
 type HTMLIElement struct{}
+
 func (HTMLIElement) elementDescriptor() {}
-func (HTMLIElement) TagName() string { return "i" }
+func (HTMLIElement) TagName() string    { return "i" }
 
 type HTMLIframeElement struct{}
+
 func (HTMLIframeElement) elementDescriptor() {}
-func (HTMLIframeElement) TagName() string { return "iframe" }
+func (HTMLIframeElement) TagName() string    { return "iframe" }
 
 type SVGImageElement struct{}
+
 func (SVGImageElement) elementDescriptor() {}
-func (SVGImageElement) TagName() string { return "image" }
+func (SVGImageElement) TagName() string    { return "image" }
 
 type HTMLImgElement struct{}
+
 func (HTMLImgElement) elementDescriptor() {}
-func (HTMLImgElement) TagName() string { return "img" }
+func (HTMLImgElement) TagName() string    { return "img" }
 
 type HTMLInputElement struct{}
+
 func (HTMLInputElement) elementDescriptor() {}
-func (HTMLInputElement) TagName() string { return "input" }
+func (HTMLInputElement) TagName() string    { return "input" }
 
 type HTMLInsElement struct{}
+
 func (HTMLInsElement) elementDescriptor() {}
-func (HTMLInsElement) TagName() string { return "ins" }
+func (HTMLInsElement) TagName() string    { return "ins" }
 
 type HTMLKbdElement struct{}
+
 func (HTMLKbdElement) elementDescriptor() {}
-func (HTMLKbdElement) TagName() string { return "kbd" }
+func (HTMLKbdElement) TagName() string    { return "kbd" }
 
 type HTMLLabelElement struct{}
+
 func (HTMLLabelElement) elementDescriptor() {}
-func (HTMLLabelElement) TagName() string { return "label" }
+func (HTMLLabelElement) TagName() string    { return "label" }
 
 type HTMLLegendElement struct{}
+
 func (HTMLLegendElement) elementDescriptor() {}
-func (HTMLLegendElement) TagName() string { return "legend" }
+func (HTMLLegendElement) TagName() string    { return "legend" }
 
 type HTMLLiElement struct{}
+
 func (HTMLLiElement) elementDescriptor() {}
-func (HTMLLiElement) TagName() string { return "li" }
+func (HTMLLiElement) TagName() string    { return "li" }
 
 type SVGLineElement struct{}
+
 func (SVGLineElement) elementDescriptor() {}
-func (SVGLineElement) TagName() string { return "line" }
+func (SVGLineElement) TagName() string    { return "line" }
 
 type SVGLinearGradientElement struct{}
+
 func (SVGLinearGradientElement) elementDescriptor() {}
-func (SVGLinearGradientElement) TagName() string { return "linearGradient" }
+func (SVGLinearGradientElement) TagName() string    { return "linearGradient" }
 
 type HTMLLinkElement struct{}
+
 func (HTMLLinkElement) elementDescriptor() {}
-func (HTMLLinkElement) TagName() string { return "link" }
+func (HTMLLinkElement) TagName() string    { return "link" }
 
 type HTMLMainElement struct{}
+
 func (HTMLMainElement) elementDescriptor() {}
-func (HTMLMainElement) TagName() string { return "main" }
+func (HTMLMainElement) TagName() string    { return "main" }
 
 type HTMLMapElement struct{}
+
 func (HTMLMapElement) elementDescriptor() {}
-func (HTMLMapElement) TagName() string { return "map" }
+func (HTMLMapElement) TagName() string    { return "map" }
 
 type HTMLMarkElement struct{}
+
 func (HTMLMarkElement) elementDescriptor() {}
-func (HTMLMarkElement) TagName() string { return "mark" }
+func (HTMLMarkElement) TagName() string    { return "mark" }
 
 type SVGMarkerElement struct{}
+
 func (SVGMarkerElement) elementDescriptor() {}
-func (SVGMarkerElement) TagName() string { return "marker" }
+func (SVGMarkerElement) TagName() string    { return "marker" }
 
 type SVGMaskElement struct{}
+
 func (SVGMaskElement) elementDescriptor() {}
-func (SVGMaskElement) TagName() string { return "mask" }
+func (SVGMaskElement) TagName() string    { return "mask" }
 
 type HTMLMenuElement struct{}
+
 func (HTMLMenuElement) elementDescriptor() {}
-func (HTMLMenuElement) TagName() string { return "menu" }
+func (HTMLMenuElement) TagName() string    { return "menu" }
 
 type HTMLMenuItemElement struct{}
+
 func (HTMLMenuItemElement) elementDescriptor() {}
-func (HTMLMenuItemElement) TagName() string { return "menuitem" }
+func (HTMLMenuItemElement) TagName() string    { return "menuitem" }
 
 type HTMLMetaElement struct{}
+
 func (HTMLMetaElement) elementDescriptor() {}
-func (HTMLMetaElement) TagName() string { return "meta" }
+func (HTMLMetaElement) TagName() string    { return "meta" }
 
 type HTMLMeterElement struct{}
+
 func (HTMLMeterElement) elementDescriptor() {}
-func (HTMLMeterElement) TagName() string { return "meter" }
+func (HTMLMeterElement) TagName() string    { return "meter" }
 
 type HTMLNavElement struct{}
+
 func (HTMLNavElement) elementDescriptor() {}
-func (HTMLNavElement) TagName() string { return "nav" }
+func (HTMLNavElement) TagName() string    { return "nav" }
 
 type HTMLNoscriptElement struct{}
+
 func (HTMLNoscriptElement) elementDescriptor() {}
-func (HTMLNoscriptElement) TagName() string { return "noscript" }
+func (HTMLNoscriptElement) TagName() string    { return "noscript" }
 
 type HTMLObjectElement struct{}
+
 func (HTMLObjectElement) elementDescriptor() {}
-func (HTMLObjectElement) TagName() string { return "object" }
+func (HTMLObjectElement) TagName() string    { return "object" }
 
 type HTMLOlElement struct{}
+
 func (HTMLOlElement) elementDescriptor() {}
-func (HTMLOlElement) TagName() string { return "ol" }
+func (HTMLOlElement) TagName() string    { return "ol" }
 
 type HTMLOptgroupElement struct{}
+
 func (HTMLOptgroupElement) elementDescriptor() {}
-func (HTMLOptgroupElement) TagName() string { return "optgroup" }
+func (HTMLOptgroupElement) TagName() string    { return "optgroup" }
 
 type HTMLOptionElement struct{}
+
 func (HTMLOptionElement) elementDescriptor() {}
-func (HTMLOptionElement) TagName() string { return "option" }
+func (HTMLOptionElement) TagName() string    { return "option" }
 
 type HTMLOutputElement struct{}
+
 func (HTMLOutputElement) elementDescriptor() {}
-func (HTMLOutputElement) TagName() string { return "output" }
+func (HTMLOutputElement) TagName() string    { return "output" }
 
 type HTMLPElement struct{}
+
 func (HTMLPElement) elementDescriptor() {}
-func (HTMLPElement) TagName() string { return "p" }
+func (HTMLPElement) TagName() string    { return "p" }
 
 type HTMLParamElement struct{}
+
 func (HTMLParamElement) elementDescriptor() {}
-func (HTMLParamElement) TagName() string { return "param" }
+func (HTMLParamElement) TagName() string    { return "param" }
 
 type SVGPathElement struct{}
+
 func (SVGPathElement) elementDescriptor() {}
-func (SVGPathElement) TagName() string { return "path" }
+func (SVGPathElement) TagName() string    { return "path" }
 
 type SVGPatternElement struct{}
+
 func (SVGPatternElement) elementDescriptor() {}
-func (SVGPatternElement) TagName() string { return "pattern" }
+func (SVGPatternElement) TagName() string    { return "pattern" }
 
 type HTMLPictureElement struct{}
+
 func (HTMLPictureElement) elementDescriptor() {}
-func (HTMLPictureElement) TagName() string { return "picture" }
+func (HTMLPictureElement) TagName() string    { return "picture" }
 
 type SVGPolygonElement struct{}
+
 func (SVGPolygonElement) elementDescriptor() {}
-func (SVGPolygonElement) TagName() string { return "polygon" }
+func (SVGPolygonElement) TagName() string    { return "polygon" }
 
 type SVGPolylineElement struct{}
+
 func (SVGPolylineElement) elementDescriptor() {}
-func (SVGPolylineElement) TagName() string { return "polyline" }
+func (SVGPolylineElement) TagName() string    { return "polyline" }
 
 type HTMLPortalElement struct{}
+
 func (HTMLPortalElement) elementDescriptor() {}
-func (HTMLPortalElement) TagName() string { return "portal" }
+func (HTMLPortalElement) TagName() string    { return "portal" }
 
 type HTMLPreElement struct{}
+
 func (HTMLPreElement) elementDescriptor() {}
-func (HTMLPreElement) TagName() string { return "pre" }
+func (HTMLPreElement) TagName() string    { return "pre" }
 
 type HTMLProgressElement struct{}
+
 func (HTMLProgressElement) elementDescriptor() {}
-func (HTMLProgressElement) TagName() string { return "progress" }
+func (HTMLProgressElement) TagName() string    { return "progress" }
 
 type HTMLQElement struct{}
+
 func (HTMLQElement) elementDescriptor() {}
-func (HTMLQElement) TagName() string { return "q" }
+func (HTMLQElement) TagName() string    { return "q" }
 
 type SVGRadialGradientElement struct{}
+
 func (SVGRadialGradientElement) elementDescriptor() {}
-func (SVGRadialGradientElement) TagName() string { return "radialGradient" }
+func (SVGRadialGradientElement) TagName() string    { return "radialGradient" }
 
 type HTMLRbElement struct{}
+
 func (HTMLRbElement) elementDescriptor() {}
-func (HTMLRbElement) TagName() string { return "rb" }
+func (HTMLRbElement) TagName() string    { return "rb" }
 
 type SVGRectElement struct{}
+
 func (SVGRectElement) elementDescriptor() {}
-func (SVGRectElement) TagName() string { return "rect" }
+func (SVGRectElement) TagName() string    { return "rect" }
 
 type HTMLRpElement struct{}
+
 func (HTMLRpElement) elementDescriptor() {}
-func (HTMLRpElement) TagName() string { return "rp" }
+func (HTMLRpElement) TagName() string    { return "rp" }
 
 type HTMLRtElement struct{}
+
 func (HTMLRtElement) elementDescriptor() {}
-func (HTMLRtElement) TagName() string { return "rt" }
+func (HTMLRtElement) TagName() string    { return "rt" }
 
 type HTMLRtcElement struct{}
+
 func (HTMLRtcElement) elementDescriptor() {}
-func (HTMLRtcElement) TagName() string { return "rtc" }
+func (HTMLRtcElement) TagName() string    { return "rtc" }
 
 type HTMLRubyElement struct{}
+
 func (HTMLRubyElement) elementDescriptor() {}
-func (HTMLRubyElement) TagName() string { return "ruby" }
+func (HTMLRubyElement) TagName() string    { return "ruby" }
 
 type HTMLSElement struct{}
+
 func (HTMLSElement) elementDescriptor() {}
-func (HTMLSElement) TagName() string { return "s" }
+func (HTMLSElement) TagName() string    { return "s" }
 
 type HTMLSampElement struct{}
+
 func (HTMLSampElement) elementDescriptor() {}
-func (HTMLSampElement) TagName() string { return "samp" }
+func (HTMLSampElement) TagName() string    { return "samp" }
 
 type HTMLScriptElement struct{}
+
 func (HTMLScriptElement) elementDescriptor() {}
-func (HTMLScriptElement) TagName() string { return "script" }
+func (HTMLScriptElement) TagName() string    { return "script" }
 
 type HTMLSectionElement struct{}
+
 func (HTMLSectionElement) elementDescriptor() {}
-func (HTMLSectionElement) TagName() string { return "section" }
+func (HTMLSectionElement) TagName() string    { return "section" }
 
 type HTMLSelectElement struct{}
+
 func (HTMLSelectElement) elementDescriptor() {}
-func (HTMLSelectElement) TagName() string { return "select" }
+func (HTMLSelectElement) TagName() string    { return "select" }
 
 type HTMLSlotElement struct{}
+
 func (HTMLSlotElement) elementDescriptor() {}
-func (HTMLSlotElement) TagName() string { return "slot" }
+func (HTMLSlotElement) TagName() string    { return "slot" }
 
 type HTMLSmallElement struct{}
+
 func (HTMLSmallElement) elementDescriptor() {}
-func (HTMLSmallElement) TagName() string { return "small" }
+func (HTMLSmallElement) TagName() string    { return "small" }
 
 type HTMLSourceElement struct{}
+
 func (HTMLSourceElement) elementDescriptor() {}
-func (HTMLSourceElement) TagName() string { return "source" }
+func (HTMLSourceElement) TagName() string    { return "source" }
 
 type HTMLSpanElement struct{}
+
 func (HTMLSpanElement) elementDescriptor() {}
-func (HTMLSpanElement) TagName() string { return "span" }
+func (HTMLSpanElement) TagName() string    { return "span" }
 
 type SVGStopElement struct{}
+
 func (SVGStopElement) elementDescriptor() {}
-func (SVGStopElement) TagName() string { return "stop" }
+func (SVGStopElement) TagName() string    { return "stop" }
 
 type HTMLStrongElement struct{}
+
 func (HTMLStrongElement) elementDescriptor() {}
-func (HTMLStrongElement) TagName() string { return "strong" }
+func (HTMLStrongElement) TagName() string    { return "strong" }
 
 type HTMLStyleElement struct{}
+
 func (HTMLStyleElement) elementDescriptor() {}
-func (HTMLStyleElement) TagName() string { return "style" }
+func (HTMLStyleElement) TagName() string    { return "style" }
 
 type HTMLSubElement struct{}
+
 func (HTMLSubElement) elementDescriptor() {}
-func (HTMLSubElement) TagName() string { return "sub" }
+func (HTMLSubElement) TagName() string    { return "sub" }
 
 type HTMLSummaryElement struct{}
+
 func (HTMLSummaryElement) elementDescriptor() {}
-func (HTMLSummaryElement) TagName() string { return "summary" }
+func (HTMLSummaryElement) TagName() string    { return "summary" }
 
 type HTMLSupElement struct{}
+
 func (HTMLSupElement) elementDescriptor() {}
-func (HTMLSupElement) TagName() string { return "sup" }
+func (HTMLSupElement) TagName() string    { return "sup" }
 
 type SVGSvgElement struct{}
+
 func (SVGSvgElement) elementDescriptor() {}
-func (SVGSvgElement) TagName() string { return "svg" }
+func (SVGSvgElement) TagName() string    { return "svg" }
 
 type SVGSvgTextElement struct{}
+
 func (SVGSvgTextElement) elementDescriptor() {}
-func (SVGSvgTextElement) TagName() string { return "text" }
+func (SVGSvgTextElement) TagName() string    { return "text" }
 
 type SVGTSpanElement struct{}
+
 func (SVGTSpanElement) elementDescriptor() {}
-func (SVGTSpanElement) TagName() string { return "tspan" }
+func (SVGTSpanElement) TagName() string    { return "tspan" }
 
 type HTMLTableElement struct{}
+
 func (HTMLTableElement) elementDescriptor() {}
-func (HTMLTableElement) TagName() string { return "table" }
+func (HTMLTableElement) TagName() string    { return "table" }
 
 type HTMLTbodyElement struct{}
+
 func (HTMLTbodyElement) elementDescriptor() {}
-func (HTMLTbodyElement) TagName() string { return "tbody" }
+func (HTMLTbodyElement) TagName() string    { return "tbody" }
 
 type HTMLTdElement struct{}
+
 func (HTMLTdElement) elementDescriptor() {}
-func (HTMLTdElement) TagName() string { return "td" }
+func (HTMLTdElement) TagName() string    { return "td" }
 
 type HTMLTemplateElement struct{}
+
 func (HTMLTemplateElement) elementDescriptor() {}
-func (HTMLTemplateElement) TagName() string { return "template" }
+func (HTMLTemplateElement) TagName() string    { return "template" }
 
 type HTMLTextareaElement struct{}
+
 func (HTMLTextareaElement) elementDescriptor() {}
-func (HTMLTextareaElement) TagName() string { return "textarea" }
+func (HTMLTextareaElement) TagName() string    { return "textarea" }
 
 type HTMLTfootElement struct{}
+
 func (HTMLTfootElement) elementDescriptor() {}
-func (HTMLTfootElement) TagName() string { return "tfoot" }
+func (HTMLTfootElement) TagName() string    { return "tfoot" }
 
 type HTMLThElement struct{}
+
 func (HTMLThElement) elementDescriptor() {}
-func (HTMLThElement) TagName() string { return "th" }
+func (HTMLThElement) TagName() string    { return "th" }
 
 type HTMLTheadElement struct{}
+
 func (HTMLTheadElement) elementDescriptor() {}
-func (HTMLTheadElement) TagName() string { return "thead" }
+func (HTMLTheadElement) TagName() string    { return "thead" }
 
 type HTMLTimeElement struct{}
+
 func (HTMLTimeElement) elementDescriptor() {}
-func (HTMLTimeElement) TagName() string { return "time" }
+func (HTMLTimeElement) TagName() string    { return "time" }
 
 type HTMLTitleElement struct{}
+
 func (HTMLTitleElement) elementDescriptor() {}
-func (HTMLTitleElement) TagName() string { return "title" }
+func (HTMLTitleElement) TagName() string    { return "title" }
 
 type HTMLTrElement struct{}
+
 func (HTMLTrElement) elementDescriptor() {}
-func (HTMLTrElement) TagName() string { return "tr" }
+func (HTMLTrElement) TagName() string    { return "tr" }
 
 type HTMLTrackElement struct{}
+
 func (HTMLTrackElement) elementDescriptor() {}
-func (HTMLTrackElement) TagName() string { return "track" }
+func (HTMLTrackElement) TagName() string    { return "track" }
 
 type HTMLUElement struct{}
+
 func (HTMLUElement) elementDescriptor() {}
-func (HTMLUElement) TagName() string { return "u" }
+func (HTMLUElement) TagName() string    { return "u" }
 
 type HTMLUlElement struct{}
+
 func (HTMLUlElement) elementDescriptor() {}
-func (HTMLUlElement) TagName() string { return "ul" }
+func (HTMLUlElement) TagName() string    { return "ul" }
 
 type SVGUseElement struct{}
+
 func (SVGUseElement) elementDescriptor() {}
-func (SVGUseElement) TagName() string { return "use" }
+func (SVGUseElement) TagName() string    { return "use" }
 
 type HTMLVarElement struct{}
+
 func (HTMLVarElement) elementDescriptor() {}
-func (HTMLVarElement) TagName() string { return "var" }
+func (HTMLVarElement) TagName() string    { return "var" }
 
 type HTMLVideoElement struct{}
+
 func (HTMLVideoElement) elementDescriptor() {}
-func (HTMLVideoElement) TagName() string { return "video" }
+func (HTMLVideoElement) TagName() string    { return "video" }
 
 type HTMLWbrElement struct{}
-func (HTMLWbrElement) elementDescriptor() {}
-func (HTMLWbrElement) TagName() string { return "wbr" }
 
+func (HTMLWbrElement) elementDescriptor() {}
+func (HTMLWbrElement) TagName() string    { return "wbr" }

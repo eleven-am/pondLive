@@ -31,7 +31,6 @@ import {
 } from "./uploads";
 import {
   clearHandlers,
-  primeHandlerBindings,
   primeSlotBindings,
   registerBindingsForSlot,
   registerHandlers,
@@ -43,10 +42,10 @@ import {
   unregisterNavigationHandler,
 } from "./events";
 import {
-  bindRefsInTree,
   clearRefs as clearRefRegistry,
   getRefElement,
   registerRefs as registerRefMetadata,
+  unbindRefsInTree,
   unregisterRefs as unregisterRefMetadata,
 } from "./refs";
 import { ComputedSignal, Signal } from "./reactive";
@@ -55,6 +54,7 @@ import { OptimisticUpdateManager } from "./optimistic";
 import { BootHandler } from "./boot";
 import { resolveListContainers, resolveSlotAnchors, applyComponentRanges } from "./manifest";
 import { getComponentRange, registerComponentRange, resetComponentRanges } from "./componentRanges";
+import { applyRefBindings, applyRouterBindings } from "./bindings";
 import type {
   AlertEffect,
   ComponentBootEffect,
@@ -720,11 +720,22 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       registerRefMetadata(msg.refs.add);
     }
     let initOverrides: Map<string, import("./componentRanges").ComponentRange> | undefined;
+    let initRootRange: import("./componentRanges").ComponentRange | null = null;
     if (typeof document !== "undefined") {
-      bindRefsInTree(document);
-      primeHandlerBindings(document);
+      const rootContainer: ParentNode = (document.body ?? document) as ParentNode;
+      const childCount = rootContainer.childNodes.length;
+      initRootRange = {
+        container: rootContainer,
+        startIndex: 0,
+        endIndex: childCount > 0 ? childCount - 1 : -1,
+      };
+      resetComponentRanges();
       initOverrides = applyComponentRanges(msg.componentPaths, { root: document });
     }
+
+    const initBindingOptions = { overrides: initOverrides, fallbackRange: initRootRange };
+    applyRouterBindings(msg.bindings?.router ?? null, initBindingOptions);
+    applyRefBindings(msg.bindings?.refs ?? null, initBindingOptions);
 
     primeUploadBindings(msg.bindings?.uploads ?? null, initOverrides);
 
@@ -843,6 +854,18 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
           registerBindingsForSlot(slotId, []);
         }
       }
+    }
+
+    if (msg.bindings?.uploads) {
+      applyUploadBindings(msg.bindings.uploads);
+    }
+
+    if (msg.bindings?.router) {
+      applyRouterBindings(msg.bindings.router);
+    }
+
+    if (msg.bindings?.refs) {
+      applyRefBindings(msg.bindings.refs);
     }
 
     if (Array.isArray(msg.bindings?.uploads)) {
@@ -1022,6 +1045,8 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       return;
     }
 
+    clearRefRegistry();
+
     const markup = this.getTemplateMarkup(payload, "__root__");
 
     clearPatcherCaches();
@@ -1034,8 +1059,6 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     }
 
     const rootContainer: ParentNode = (document.body ?? document) as ParentNode;
-    primeHandlerBindings(rootContainer);
-
     clearHandlers();
     if (payload.handlers && Object.keys(payload.handlers).length > 0) {
       registerHandlers(payload.handlers);
@@ -1051,8 +1074,6 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       registerRefMetadata(payload.refs.add);
     }
 
-    bindRefsInTree(document);
-
     resetComponentRanges();
     const childCount = rootContainer.childNodes.length;
     const range: import("./componentRanges").ComponentRange = {
@@ -1062,6 +1083,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     };
     const overrides = applyComponentRanges(payload.componentPaths, { root: document });
     this.registerTemplateAnchors(range, payload, overrides);
+    const bindingOptions = { overrides, fallbackRange: range };
+    applyRouterBindings(payload.bindings?.router ?? null, bindingOptions);
+    applyRefBindings(payload.bindings?.refs ?? null, bindingOptions);
     primeUploadBindings(payload.bindings?.uploads ?? null, overrides);
   }
 
@@ -1102,7 +1126,6 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     const markup = this.getTemplateMarkup(payload, scope.componentId);
     template.innerHTML = markup;
     const fragment = template.content.cloneNode(true);
-    primeHandlerBindings(fragment);
 
     const insertedNodes: Node[] = [];
     for (let child = fragment.firstChild; child; child = child.nextSibling) {
@@ -1120,6 +1143,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     for (let index = endIndex; index >= startIndex; index--) {
       const node = container.childNodes.item(index);
       if (node) {
+        if (node instanceof Element || node instanceof DocumentFragment) {
+          unbindRefsInTree(node);
+        }
         container.removeChild(node);
       }
     }
@@ -1146,6 +1172,9 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     });
 
     this.registerTemplateAnchors(refreshed, payload, overrides);
+    const bindingOptions = { overrides, fallbackRange: refreshed };
+    applyRouterBindings(payload.bindings?.router ?? null, bindingOptions);
+    applyRefBindings(payload.bindings?.refs ?? null, bindingOptions);
     replaceUploadBindingsForComponent(scope.componentId, payload.bindings?.uploads ?? null, overrides);
 
     if (payload.handlers && Object.keys(payload.handlers).length > 0) {
@@ -1170,7 +1199,6 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
       registerRefMetadata(payload.refs.add);
     }
 
-    bindRefsInTree(container);
   }
 
   private handleDOMRequest(msg: DOMRequestMessage): void {
@@ -1842,7 +1870,6 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
     const template = document.createElement("template");
     template.innerHTML = html || "";
     const fragment = template.content.cloneNode(true);
-    primeHandlerBindings(fragment);
 
     const insertedNodes: Node[] = [];
     for (let child = fragment.firstChild; child; child = child.nextSibling) {

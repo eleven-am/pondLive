@@ -12,7 +12,7 @@ const (
 )
 
 // DOMCall instructs the client to invoke a method on the referenced element.
-func DOMCall[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T], method string, args ...any) {
+func DOMCall[T ElementDescriptor](ctx Dispatcher, ref *ElementRef[T], method string, args ...any) {
 	method = strings.TrimSpace(method)
 	if method == "" {
 		return
@@ -28,7 +28,7 @@ func DOMCall[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T], method
 }
 
 // DOMSet assigns the provided value to the named property on the referenced element.
-func DOMSet[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T], prop string, value any) {
+func DOMSet[T ElementDescriptor](ctx Dispatcher, ref *ElementRef[T], prop string, value any) {
 	prop = strings.TrimSpace(prop)
 	if prop == "" {
 		return
@@ -42,7 +42,7 @@ func DOMSet[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T], prop st
 }
 
 // DOMToggle updates a boolean property on the referenced element.
-func DOMToggle[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T], prop string, on bool) {
+func DOMToggle[T ElementDescriptor](ctx Dispatcher, ref *ElementRef[T], prop string, on bool) {
 	prop = strings.TrimSpace(prop)
 	if prop == "" {
 		return
@@ -56,7 +56,7 @@ func DOMToggle[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T], prop
 }
 
 // DOMToggleClass toggles the provided class on the referenced element.
-func DOMToggleClass[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T], class string, on bool) {
+func DOMToggleClass[T ElementDescriptor](ctx Dispatcher, ref *ElementRef[T], class string, on bool) {
 	class = strings.TrimSpace(class)
 	if class == "" {
 		return
@@ -70,7 +70,7 @@ func DOMToggleClass[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T],
 }
 
 // DOMScrollIntoView scrolls the referenced element into view using the provided options.
-func DOMScrollIntoView[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T], opts ScrollOptions) {
+func DOMScrollIntoView[T ElementDescriptor](ctx Dispatcher, ref *ElementRef[T], opts ScrollOptions) {
 	enqueueDOMAction(ctx, ref, func(effect *DOMActionEffect) bool {
 		effect.Kind = domActionScroll
 		if trimmed := strings.TrimSpace(opts.Behavior); trimmed != "" {
@@ -86,7 +86,7 @@ func DOMScrollIntoView[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[
 	})
 }
 
-func enqueueDOMAction[T ElementDescriptor](ctx ActionExecutor, ref *ElementRef[T], build func(*DOMActionEffect) bool) {
+func enqueueDOMAction[T ElementDescriptor](ctx Dispatcher, ref *ElementRef[T], build func(*DOMActionEffect) bool) {
 	if ctx == nil {
 		return
 	}

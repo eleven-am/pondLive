@@ -22,6 +22,9 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 		slotPathStart := len(b.slotPaths)
 		listPathStart := len(b.listPaths)
 		componentPathStart := len(b.componentPaths)
+		uploadStart := len(b.uploadBindings)
+		refStart := len(b.refBindings)
+		routerStart := len(b.routerBindings)
 		b.pushChildIndex(idx)
 		b.visit(row)
 		b.popChildIndex()
@@ -30,6 +33,9 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 		slotPathEnd := len(b.slotPaths)
 		listPathEnd := len(b.listPaths)
 		componentPathEnd := len(b.componentPaths)
+		uploadEnd := len(b.uploadBindings)
+		refEnd := len(b.refBindings)
+		routerEnd := len(b.routerBindings)
 		if end <= start {
 			rowEntries = append(rowEntries, Row{Key: row.Key})
 			continue
@@ -54,6 +60,18 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 		if componentPathEnd > componentPathStart {
 			componentPaths = append([]ComponentPath(nil), b.componentPaths[componentPathStart:componentPathEnd]...)
 		}
+		var uploadBindings []UploadBinding
+		if uploadEnd > uploadStart {
+			uploadBindings = append([]UploadBinding(nil), b.uploadBindings[uploadStart:uploadEnd]...)
+		}
+		var refBindings []RefBinding
+		if refEnd > refStart {
+			refBindings = append([]RefBinding(nil), b.refBindings[refStart:refEnd]...)
+		}
+		var routerBindings []RouterBinding
+		if routerEnd > routerStart {
+			routerBindings = append([]RouterBinding(nil), b.routerBindings[routerStart:routerEnd]...)
+		}
 		rowEntries = append(rowEntries, Row{
 			Key:            row.Key,
 			HTML:           renderFinalizedNode(row),
@@ -62,6 +80,9 @@ func (b *structuredBuilder) tryKeyedChildren(parent *html.Element, children []ht
 			SlotPaths:      slotPaths,
 			ListPaths:      listPaths,
 			ComponentPaths: componentPaths,
+			UploadBindings: uploadBindings,
+			RefBindings:    refBindings,
+			RouterBindings: routerBindings,
 		})
 	}
 	if listSlot >= 0 && listSlot < len(b.dynamics) {

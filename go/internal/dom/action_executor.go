@@ -1,11 +1,16 @@
 package dom
 
-// ActionExecutor provides the interface for executing DOM actions on the client.
-// This interface is implemented by runtime.Ctx to allow action mixins to enqueue
-// DOM operations without creating import cycles.
-type ActionExecutor interface {
+// Dispatcher provides the interface for dispatching DOM operations to the client.
+// This interface is implemented by runtime.Ctx to allow DOM operations without creating import cycles.
+type Dispatcher interface {
 	// EnqueueDOMAction enqueues a DOM action effect to be sent to the client.
 	EnqueueDOMAction(effect DOMActionEffect)
+
+	// DOMGet requests property values from the client for the given element ref.
+	DOMGet(ref string, selectors ...string) (map[string]any, error)
+
+	// DOMAsyncCall calls a method on the given element ref and returns the result.
+	DOMAsyncCall(ref string, method string, args ...any) (any, error)
 }
 
 // DOMActionEffect represents a DOM manipulation to be performed on the client.

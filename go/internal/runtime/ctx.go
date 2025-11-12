@@ -97,12 +97,28 @@ func NoRender(ctx Ctx) {
 	ctx.sess.clearDirty(ctx.comp)
 }
 
-// EnqueueDOMAction implements dom.ActionExecutor by enqueuing a DOM action effect.
+// EnqueueDOMAction implements dom.Dispatcher by enqueuing a DOM action effect.
 func (c Ctx) EnqueueDOMAction(effect dom.DOMActionEffect) {
 	if c.sess == nil || c.sess.owner == nil {
 		return
 	}
 	c.sess.owner.enqueueFrameEffect(effect)
+}
+
+// DOMGet implements dom.Dispatcher by requesting property values from the client.
+func (c Ctx) DOMGet(ref string, selectors ...string) (map[string]any, error) {
+	if c.sess == nil || c.sess.owner == nil {
+		return nil, fmt.Errorf("runtime: domget requires live session context")
+	}
+	return c.sess.owner.DOMGet(ref, selectors...)
+}
+
+// DOMAsyncCall implements dom.Dispatcher by calling a method on the client and returning the result.
+func (c Ctx) DOMAsyncCall(ref string, method string, args ...any) (any, error) {
+	if c.sess == nil || c.sess.owner == nil {
+		return nil, fmt.Errorf("runtime: domasynccall requires live session context")
+	}
+	return c.sess.owner.DOMAsyncCall(ref, method, args...)
 }
 
 func panicHookMismatch(comp *component, idx int, expected string, actual any) {

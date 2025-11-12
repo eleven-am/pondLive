@@ -9,8 +9,9 @@ import { clearHandlers, primeSlotBindings, registerHandlers, syncEventListeners 
 import { applyComponentRanges, resolveListContainers, resolveSlotAnchors } from './manifest';
 import { resetComponentRanges } from './componentRanges';
 import type { ComponentRange } from './componentRanges';
-import { bindRefsInTree, clearRefs, registerRefs } from './refs';
+import { clearRefs, registerRefs } from './refs';
 import { primeUploadBindings } from './uploads';
+import { applyRefBindings, applyRouterBindings } from './bindings';
 import type { BootPayload, Location } from './types';
 
 export class BootHandler {
@@ -81,14 +82,19 @@ export class BootHandler {
     clearRefs();
     registerRefs(boot.refs?.add ?? null);
     let rangeOverrides: Map<string, ComponentRange> | undefined;
+    let rootRange: ComponentRange | null = null;
     if (typeof document !== 'undefined') {
-      bindRefsInTree(document);
       resetComponentRanges();
       rangeOverrides = applyComponentRanges(boot.componentPaths, { root: document });
+      rootRange = this.computeRootRange();
     }
 
     // Register DOM slots
     this.registerInitialDom(boot);
+
+    const bindingOptions = { overrides: rangeOverrides, fallbackRange: rootRange };
+    applyRouterBindings(boot.bindings?.router ?? null, bindingOptions);
+    applyRefBindings(boot.bindings?.refs ?? null, bindingOptions);
 
     primeUploadBindings(boot.bindings?.uploads ?? null, rangeOverrides);
 
@@ -150,6 +156,19 @@ export class BootHandler {
     for (const [slotId, element] of listContainers.entries()) {
       dom.registerList(slotId, element);
     }
+  }
+
+  private computeRootRange(): ComponentRange | null {
+    if (typeof document === 'undefined') {
+      return null;
+    }
+    const container: ParentNode = document.body ?? document;
+    const count = container.childNodes.length;
+    return {
+      container,
+      startIndex: 0,
+      endIndex: count > 0 ? count - 1 : -1,
+    };
   }
 
   /**

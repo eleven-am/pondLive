@@ -248,12 +248,6 @@ func AttachElementRef[T ElementDescriptor](ref *ElementRef[T], e *Element) {
 		e.Events[event] = binding
 	}
 	ref.bindingsMu.Unlock()
-	if ref.id != "" {
-		if e.Attrs == nil {
-			e.Attrs = map[string]string{}
-		}
-		e.Attrs["data-live-ref"] = ref.id
-	}
 	e.RefID = ref.id
 }
 

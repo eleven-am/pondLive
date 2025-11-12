@@ -8,10 +8,10 @@ import (
 // Embedded in refs for input, textarea, select, and other form controls.
 type ValueActions[T dom.ElementDescriptor] struct {
 	ref *dom.ElementRef[T]
-	ctx dom.ActionExecutor
+	ctx dom.Dispatcher
 }
 
-func NewValueActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.ActionExecutor) *ValueActions[T] {
+func NewValueActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *ValueActions[T] {
 	return &ValueActions[T]{ref: ref, ctx: ctx}
 }
 
@@ -23,11 +23,6 @@ func (a *ValueActions[T]) SetValue(value string) {
 // SetChecked sets the checked property of the element (for checkboxes and radio buttons).
 func (a *ValueActions[T]) SetChecked(checked bool) {
 	dom.DOMSet[T](a.ctx, a.ref, "checked", checked)
-}
-
-// SetDisabled sets the disabled property of the element.
-func (a *ValueActions[T]) SetDisabled(disabled bool) {
-	dom.DOMSet[T](a.ctx, a.ref, "disabled", disabled)
 }
 
 // SetSelectedIndex sets the selectedIndex property of a select element.

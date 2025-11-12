@@ -37,6 +37,9 @@ type Row struct {
 	SlotPaths      []SlotPath
 	ListPaths      []ListPath
 	ComponentPaths []ComponentPath
+	UploadBindings []UploadBinding
+	RefBindings    []RefBinding
+	RouterBindings []RouterBinding
 }
 
 // SlotPath captures the structural location of a dynamic slot anchor relative to a component root.
@@ -71,6 +74,8 @@ type Structured struct {
 	Bindings   []HandlerBinding
 
 	UploadBindings []UploadBinding
+	RefBindings    []RefBinding
+	RouterBindings []RouterBinding
 
 	SlotPaths      []SlotPath
 	ListPaths      []ListPath
@@ -84,6 +89,21 @@ type UploadBinding struct {
 	Accept      []string
 	Multiple    bool
 	MaxSize     int64
+}
+
+type RefBinding struct {
+	ComponentID string
+	Path        []int
+	RefID       string
+}
+
+type RouterBinding struct {
+	ComponentID string
+	Path        []int
+	PathValue   string
+	Query       string
+	Hash        string
+	Replace     string
 }
 
 // PromotionTracker allows callers to control when static nodes should become dynamic.
@@ -132,6 +152,8 @@ func ToStructuredWithOptions(n h.Node, opts StructuredOptions) Structured {
 		Components:     b.components,
 		Bindings:       append([]HandlerBinding(nil), b.handlerBindings...),
 		UploadBindings: append([]UploadBinding(nil), b.uploadBindings...),
+		RefBindings:    append([]RefBinding(nil), b.refBindings...),
+		RouterBindings: append([]RouterBinding(nil), b.routerBindings...),
 		SlotPaths:      append([]SlotPath(nil), b.slotPaths...),
 		ListPaths:      append([]ListPath(nil), b.listPaths...),
 		ComponentPaths: append([]ComponentPath(nil), b.componentPaths...),
@@ -146,6 +168,8 @@ type structuredBuilder struct {
 	components      map[string]ComponentSpan
 	handlerBindings []HandlerBinding
 	uploadBindings  []UploadBinding
+	refBindings     []RefBinding
+	routerBindings  []RouterBinding
 
 	tracker        PromotionTracker
 	componentStack []componentFrame
@@ -524,6 +548,41 @@ func (b *structuredBuilder) assignSlotIndices(frame elementFrame) {
 			}
 			b.uploadBindings = append(b.uploadBindings, binding)
 		}
+	}
+
+	if refID := strings.TrimSpace(frame.element.RefID); refID != "" {
+		binding := RefBinding{
+			ComponentID: frame.componentID,
+			Path:        append([]int(nil), frame.componentPath...),
+			RefID:       refID,
+		}
+		b.refBindings = append(b.refBindings, binding)
+	}
+
+	if router := extractRouterBinding(frame); router != nil {
+		b.routerBindings = append(b.routerBindings, *router)
+	}
+}
+
+func extractRouterBinding(frame elementFrame) *RouterBinding {
+	el := frame.element
+	if el == nil || len(el.Attrs) == 0 {
+		return nil
+	}
+	pathValue := strings.TrimSpace(el.Attrs["data-router-path"])
+	query := strings.TrimSpace(el.Attrs["data-router-query"])
+	hash := strings.TrimSpace(el.Attrs["data-router-hash"])
+	replace := strings.TrimSpace(el.Attrs["data-router-replace"])
+	if pathValue == "" && query == "" && hash == "" && replace == "" {
+		return nil
+	}
+	return &RouterBinding{
+		ComponentID: frame.componentID,
+		Path:        append([]int(nil), frame.componentPath...),
+		PathValue:   pathValue,
+		Query:       query,
+		Hash:        hash,
+		Replace:     replace,
 	}
 }
 

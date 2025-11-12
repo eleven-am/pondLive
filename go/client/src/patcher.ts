@@ -17,12 +17,12 @@ import {
   applyRouterAttribute,
   DATA_ROUTER_ATTR_PREFIX,
   getRegisteredSlotBindings,
-  primeHandlerBindings,
-  refreshHandlerBindings,
   registerBindingsForSlot,
 } from "./events";
 import { applyComponentRanges, resolveListContainers, resolveSlotAnchors } from "./manifest";
-import { bindRefsInTree, unbindRefsInTree, updateRefBinding } from "./refs";
+import { unbindRefsInTree } from "./refs";
+import { applyRefBindings, applyRouterBindings } from "./bindings";
+import { applyUploadBindings } from "./uploads";
 import type { DiffOp, ListChildOp, ListRow, SlotBinding } from "./types";
 
 // ============================================================================
@@ -405,7 +405,6 @@ function applySetAttrs(
         registerBindingsForSlot(slotIndex, specs);
     }
 
-    const previousRef = node.getAttribute('data-live-ref');
     const applyAttrs = () => {
         if (upsert) {
             for (const [k, v] of Object.entries(upsert)) {
@@ -426,11 +425,6 @@ function applySetAttrs(
                 }
             }
         }
-
-        const nextRef = node.getAttribute('data-live-ref');
-        updateRefBinding(node, previousRef, nextRef);
-
-        refreshHandlerBindings(node);
     };
 
     if (config.enableBatching) {
@@ -568,9 +562,10 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
             case 'ins': {
                 const pos = op[1];
                 const payload = op[2] || {key: '', html: ''};
+                const rowBindings = payload && typeof payload === 'object' ? payload.bindings ?? null : null;
 
-                if (payload && typeof payload === 'object' && payload.bindings) {
-                    for (const [slotKey, specs] of Object.entries(payload.bindings)) {
+                if (rowBindings?.slots) {
+                    for (const [slotKey, specs] of Object.entries(rowBindings.slots)) {
                         const slotId = Number(slotKey);
                         if (Number.isNaN(slotId)) {
                             continue;
@@ -592,8 +587,6 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
                     }
                 }
 
-                primeHandlerBindings(fragment);
-
                 const nodes = Array.from(fragment.childNodes);
                 if (nodes.length === 0) {
                     console.warn('live: insertion payload missing nodes for key', payload.key);
@@ -608,17 +601,16 @@ function applyList(slotIndex: number, childOps: ListChildOp[]): void {
 
                     container.insertBefore(fragment, refNode);
 
-                    for (const inserted of nodes) {
-                        if (inserted instanceof Element) {
-                            bindRefsInTree(inserted);
-                        }
-                    }
-
                     const root = nodes[0];
                     if (root instanceof Element) {
                         dom.setRow(slotIndex, payload.key, root);
                         const rangeOverrides = applyComponentRanges(payload.componentPaths);
                         registerRowSlots(payload, root, rangeOverrides);
+
+                        const bindingOptions = { overrides: rangeOverrides };
+                        applyRouterBindings(rowBindings?.router ?? null, bindingOptions);
+                        applyRefBindings(rowBindings?.refs ?? null, bindingOptions);
+                        applyUploadBindings(rowBindings?.uploads ?? null, rangeOverrides);
 
                         // Virtual scrolling: hide items outside viewport
                         if (shouldVirtualize(slotIndex, itemCount)) {

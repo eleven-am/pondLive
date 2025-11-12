@@ -2,7 +2,6 @@ package render
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/handlers"
@@ -67,9 +66,6 @@ func attachHandlers(e *dom.Element, reg handlers.Registry) {
 	if e == nil || len(e.Events) == 0 || reg == nil {
 		return
 	}
-	if e.Attrs == nil {
-		e.Attrs = map[string]string{}
-	}
 	if e.HandlerAssignments == nil {
 		e.HandlerAssignments = map[string]dom.EventAssignment{}
 	}
@@ -83,14 +79,6 @@ func attachHandlers(e *dom.Element, reg handlers.Registry) {
 		id := reg.Ensure(binding.Handler, binding.Key)
 		if id == "" {
 			continue
-		}
-		attrName := "data-on" + name
-		e.Attrs[attrName] = string(id)
-		if listens := binding.Listen; len(listens) > 0 {
-			e.Attrs[attrName+"-listen"] = strings.Join(listens, " ")
-		}
-		if props := binding.Props; len(props) > 0 {
-			e.Attrs[attrName+"-props"] = strings.Join(props, " ")
 		}
 		e.HandlerAssignments[name] = dom.EventAssignment{
 			ID:     string(id),

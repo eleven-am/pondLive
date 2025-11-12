@@ -1509,6 +1509,14 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		if filtered := filterUploadBindingsForComponent(next.UploadBindings, id); len(filtered) > 0 {
 			uploadBindings = filtered
 		}
+		var refBindings []protocol.RefBinding
+		if filteredRefs := filterRefBindingsForComponent(next.RefBindings, id); len(filteredRefs) > 0 {
+			refBindings = filteredRefs
+		}
+		var routerBindings []protocol.RouterBinding
+		if filteredRouter := filterRouterBindingsForComponent(next.RouterBindings, id); len(filteredRouter) > 0 {
+			routerBindings = filteredRouter
+		}
 		if len(update.slots) > 0 {
 			componentBindings := make(protocol.BindingTable, len(update.slots))
 			for _, slot := range update.slots {
@@ -1530,13 +1538,41 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 				}
 				componentBindings[slot] = cloned
 			}
-			if len(componentBindings) > 0 || len(uploadBindings) > 0 {
-				update.bindings = protocol.TemplateBindings{Slots: componentBindings, Uploads: uploadBindings}
-			} else if len(uploadBindings) > 0 {
-				update.bindings = protocol.TemplateBindings{Uploads: uploadBindings}
+			hasSlots := len(componentBindings) > 0
+			hasUploads := len(uploadBindings) > 0
+			hasRefs := len(refBindings) > 0
+			hasRouter := len(routerBindings) > 0
+			if hasSlots || hasUploads || hasRefs || hasRouter {
+				update.bindings = protocol.TemplateBindings{}
+				if hasSlots {
+					update.bindings.Slots = componentBindings
+				}
+				if hasUploads {
+					update.bindings.Uploads = uploadBindings
+				}
+				if hasRefs {
+					update.bindings.Refs = refBindings
+				}
+				if hasRouter {
+					update.bindings.Router = routerBindings
+				}
 			}
-		} else if len(uploadBindings) > 0 {
-			update.bindings = protocol.TemplateBindings{Uploads: uploadBindings}
+		} else {
+			hasUploads := len(uploadBindings) > 0
+			hasRefs := len(refBindings) > 0
+			hasRouter := len(routerBindings) > 0
+			if hasUploads || hasRefs || hasRouter {
+				update.bindings = protocol.TemplateBindings{}
+				if hasUploads {
+					update.bindings.Uploads = uploadBindings
+				}
+				if hasRefs {
+					update.bindings.Refs = refBindings
+				}
+				if hasRouter {
+					update.bindings.Router = routerBindings
+				}
+			}
 		}
 		if req != nil && req.component != nil {
 			node := req.component.render()
@@ -1778,6 +1814,57 @@ func filterUploadBindingsForComponent(bindings []render.UploadBinding, component
 		}
 		if len(binding.Accept) > 0 {
 			encoded.Accept = append([]string(nil), binding.Accept...)
+		}
+		out = append(out, encoded)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func filterRefBindingsForComponent(bindings []render.RefBinding, componentID string) []protocol.RefBinding {
+	if componentID == "" || len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.RefBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.ComponentID != componentID {
+			continue
+		}
+		encoded := protocol.RefBinding{
+			ComponentID: binding.ComponentID,
+			RefID:       binding.RefID,
+		}
+		if len(binding.Path) > 0 {
+			encoded.Path = append([]int(nil), binding.Path...)
+		}
+		out = append(out, encoded)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func filterRouterBindingsForComponent(bindings []render.RouterBinding, componentID string) []protocol.RouterBinding {
+	if componentID == "" || len(bindings) == 0 {
+		return nil
+	}
+	out := make([]protocol.RouterBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.ComponentID != componentID {
+			continue
+		}
+		encoded := protocol.RouterBinding{
+			ComponentID: binding.ComponentID,
+			PathValue:   binding.PathValue,
+			Query:       binding.Query,
+			Hash:        binding.Hash,
+			Replace:     binding.Replace,
+		}
+		if len(binding.Path) > 0 {
+			encoded.Path = append([]int(nil), binding.Path...)
 		}
 		out = append(out, encoded)
 	}

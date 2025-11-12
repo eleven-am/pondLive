@@ -8,10 +8,10 @@ import (
 // Embedded in refs for details elements.
 type DetailsActions[T dom.ElementDescriptor] struct {
 	ref *dom.ElementRef[T]
-	ctx dom.ActionExecutor
+	ctx dom.Dispatcher
 }
 
-func NewDetailsActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.ActionExecutor) *DetailsActions[T] {
+func NewDetailsActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *DetailsActions[T] {
 	return &DetailsActions[T]{ref: ref, ctx: ctx}
 }
 

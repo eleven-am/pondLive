@@ -60,6 +60,8 @@ type TemplatePayload struct {
 type TemplateBindings struct {
 	Slots   BindingTable    `json:"slots,omitempty"`
 	Uploads []UploadBinding `json:"uploads,omitempty"`
+	Refs    []RefBinding    `json:"refs,omitempty"`
+	Router  []RouterBinding `json:"router,omitempty"`
 }
 
 type DynamicSlot struct {
@@ -70,12 +72,12 @@ type DynamicSlot struct {
 }
 
 type ListRow struct {
-	Key            string          `json:"key"`
-	Slots          []int           `json:"slots,omitempty"`
-	Bindings       BindingTable    `json:"bindings,omitempty"`
-	SlotPaths      []SlotPath      `json:"slotPaths,omitempty"`
-	ListPaths      []ListPath      `json:"listPaths,omitempty"`
-	ComponentPaths []ComponentPath `json:"componentPaths,omitempty"`
+	Key            string           `json:"key"`
+	Slots          []int            `json:"slots,omitempty"`
+	Bindings       TemplateBindings `json:"bindings,omitempty"`
+	SlotPaths      []SlotPath       `json:"slotPaths,omitempty"`
+	ListPaths      []ListPath       `json:"listPaths,omitempty"`
+	ComponentPaths []ComponentPath  `json:"componentPaths,omitempty"`
 }
 
 type SlotMeta struct {
@@ -123,6 +125,21 @@ type UploadBinding struct {
 	Accept      []string `json:"accept,omitempty"`
 	Multiple    bool     `json:"multiple,omitempty"`
 	MaxSize     int64    `json:"maxSize,omitempty"`
+}
+
+type RefBinding struct {
+	ComponentID string `json:"componentId"`
+	Path        []int  `json:"path,omitempty"`
+	RefID       string `json:"refId"`
+}
+
+type RouterBinding struct {
+	ComponentID string `json:"componentId"`
+	Path        []int  `json:"path,omitempty"`
+	PathValue   string `json:"pathValue,omitempty"`
+	Query       string `json:"query,omitempty"`
+	Hash        string `json:"hash,omitempty"`
+	Replace     string `json:"replace,omitempty"`
 }
 
 type BindingTable map[int][]SlotBinding

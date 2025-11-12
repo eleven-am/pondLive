@@ -5,1434 +5,1252 @@ import "github.com/eleven-am/pondlive/go/internal/dom"
 
 type ARef struct {
 	*ElementRef[HTMLAElement]
+	*InteractionAPI[HTMLAElement]
+	*ScrollAPI[HTMLAElement]
 	*ElementActions[HTMLAElement]
-	*FocusActions[HTMLAElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewARef(ref *ElementRef[HTMLAElement], ctx dom.ActionExecutor) *ARef {
+func NewARef(ref *ElementRef[HTMLAElement], ctx dom.Dispatcher) *ARef {
 	if ref == nil {
 		return nil
 	}
 	return &ARef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLAElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLAElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLAElement](ref.DOMElementRef(), ctx),
-		FocusActions:       NewFocusActions[HTMLAElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type AbbrRef struct {
 	*ElementRef[HTMLAbbrElement]
+	*InteractionAPI[HTMLAbbrElement]
+	*ScrollAPI[HTMLAbbrElement]
 	*ElementActions[HTMLAbbrElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewAbbrRef(ref *ElementRef[HTMLAbbrElement], ctx dom.ActionExecutor) *AbbrRef {
+func NewAbbrRef(ref *ElementRef[HTMLAbbrElement], ctx dom.Dispatcher) *AbbrRef {
 	if ref == nil {
 		return nil
 	}
 	return &AbbrRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLAbbrElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLAbbrElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLAbbrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type AddressRef struct {
 	*ElementRef[HTMLAddressElement]
+	*InteractionAPI[HTMLAddressElement]
+	*ScrollAPI[HTMLAddressElement]
 	*ElementActions[HTMLAddressElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewAddressRef(ref *ElementRef[HTMLAddressElement], ctx dom.ActionExecutor) *AddressRef {
+func NewAddressRef(ref *ElementRef[HTMLAddressElement], ctx dom.Dispatcher) *AddressRef {
 	if ref == nil {
 		return nil
 	}
 	return &AddressRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLAddressElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLAddressElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLAddressElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type AreaRef struct {
 	*ElementRef[HTMLAreaElement]
+	*InteractionAPI[HTMLAreaElement]
+	*ScrollAPI[HTMLAreaElement]
 	*ElementActions[HTMLAreaElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewAreaRef(ref *ElementRef[HTMLAreaElement], ctx dom.ActionExecutor) *AreaRef {
+func NewAreaRef(ref *ElementRef[HTMLAreaElement], ctx dom.Dispatcher) *AreaRef {
 	if ref == nil {
 		return nil
 	}
 	return &AreaRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLAreaElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLAreaElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLAreaElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ArticleRef struct {
 	*ElementRef[HTMLArticleElement]
+	*InteractionAPI[HTMLArticleElement]
+	*ScrollAPI[HTMLArticleElement]
 	*ElementActions[HTMLArticleElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewArticleRef(ref *ElementRef[HTMLArticleElement], ctx dom.ActionExecutor) *ArticleRef {
+func NewArticleRef(ref *ElementRef[HTMLArticleElement], ctx dom.Dispatcher) *ArticleRef {
 	if ref == nil {
 		return nil
 	}
 	return &ArticleRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLArticleElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLArticleElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLArticleElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type AsideRef struct {
 	*ElementRef[HTMLAsideElement]
+	*InteractionAPI[HTMLAsideElement]
+	*ScrollAPI[HTMLAsideElement]
 	*ElementActions[HTMLAsideElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewAsideRef(ref *ElementRef[HTMLAsideElement], ctx dom.ActionExecutor) *AsideRef {
+func NewAsideRef(ref *ElementRef[HTMLAsideElement], ctx dom.Dispatcher) *AsideRef {
 	if ref == nil {
 		return nil
 	}
 	return &AsideRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLAsideElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLAsideElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLAsideElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type AudioRef struct {
 	*ElementRef[HTMLAudioElement]
+	*InteractionAPI[HTMLAudioElement]
+	*ScrollAPI[HTMLAudioElement]
+	*MediaAPI[HTMLAudioElement]
 	*ElementActions[HTMLAudioElement]
-	*FocusActions[HTMLAudioElement]
-	*MediaActions[HTMLAudioElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
-	*MediaHandler
 }
 
-func NewAudioRef(ref *ElementRef[HTMLAudioElement], ctx dom.ActionExecutor) *AudioRef {
+func NewAudioRef(ref *ElementRef[HTMLAudioElement], ctx dom.Dispatcher) *AudioRef {
 	if ref == nil {
 		return nil
 	}
 	return &AudioRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLAudioElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLAudioElement](ref.DOMElementRef(), ctx),
+		MediaAPI:           NewMediaAPI[HTMLAudioElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLAudioElement](ref.DOMElementRef(), ctx),
-		FocusActions:       NewFocusActions[HTMLAudioElement](ref.DOMElementRef(), ctx),
-		MediaActions:       NewMediaActions[HTMLAudioElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 	}
 }
 
 type BRef struct {
 	*ElementRef[HTMLBElement]
+	*InteractionAPI[HTMLBElement]
+	*ScrollAPI[HTMLBElement]
 	*ElementActions[HTMLBElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewBRef(ref *ElementRef[HTMLBElement], ctx dom.ActionExecutor) *BRef {
+func NewBRef(ref *ElementRef[HTMLBElement], ctx dom.Dispatcher) *BRef {
 	if ref == nil {
 		return nil
 	}
 	return &BRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLBElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLBElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLBElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type BaseRef struct {
 	*ElementRef[HTMLBaseElement]
+	*InteractionAPI[HTMLBaseElement]
+	*ScrollAPI[HTMLBaseElement]
 	*ElementActions[HTMLBaseElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewBaseRef(ref *ElementRef[HTMLBaseElement], ctx dom.ActionExecutor) *BaseRef {
+func NewBaseRef(ref *ElementRef[HTMLBaseElement], ctx dom.Dispatcher) *BaseRef {
 	if ref == nil {
 		return nil
 	}
 	return &BaseRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLBaseElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLBaseElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLBaseElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type BdiRef struct {
 	*ElementRef[HTMLBdiElement]
+	*InteractionAPI[HTMLBdiElement]
+	*ScrollAPI[HTMLBdiElement]
 	*ElementActions[HTMLBdiElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewBdiRef(ref *ElementRef[HTMLBdiElement], ctx dom.ActionExecutor) *BdiRef {
+func NewBdiRef(ref *ElementRef[HTMLBdiElement], ctx dom.Dispatcher) *BdiRef {
 	if ref == nil {
 		return nil
 	}
 	return &BdiRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLBdiElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLBdiElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLBdiElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type BdoRef struct {
 	*ElementRef[HTMLBdoElement]
+	*InteractionAPI[HTMLBdoElement]
+	*ScrollAPI[HTMLBdoElement]
 	*ElementActions[HTMLBdoElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewBdoRef(ref *ElementRef[HTMLBdoElement], ctx dom.ActionExecutor) *BdoRef {
+func NewBdoRef(ref *ElementRef[HTMLBdoElement], ctx dom.Dispatcher) *BdoRef {
 	if ref == nil {
 		return nil
 	}
 	return &BdoRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLBdoElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLBdoElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLBdoElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type BlockquoteRef struct {
 	*ElementRef[HTMLBlockquoteElement]
+	*InteractionAPI[HTMLBlockquoteElement]
+	*ScrollAPI[HTMLBlockquoteElement]
 	*ElementActions[HTMLBlockquoteElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewBlockquoteRef(ref *ElementRef[HTMLBlockquoteElement], ctx dom.ActionExecutor) *BlockquoteRef {
+func NewBlockquoteRef(ref *ElementRef[HTMLBlockquoteElement], ctx dom.Dispatcher) *BlockquoteRef {
 	if ref == nil {
 		return nil
 	}
 	return &BlockquoteRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLBlockquoteElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLBlockquoteElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLBlockquoteElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type BodyRef struct {
 	*ElementRef[HTMLBodyElement]
+	*InteractionAPI[HTMLBodyElement]
+	*ScrollAPI[HTMLBodyElement]
 	*ElementActions[HTMLBodyElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewBodyRef(ref *ElementRef[HTMLBodyElement], ctx dom.ActionExecutor) *BodyRef {
+func NewBodyRef(ref *ElementRef[HTMLBodyElement], ctx dom.Dispatcher) *BodyRef {
 	if ref == nil {
 		return nil
 	}
 	return &BodyRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLBodyElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLBodyElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLBodyElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type BrRef struct {
 	*ElementRef[HTMLBrElement]
+	*InteractionAPI[HTMLBrElement]
+	*ScrollAPI[HTMLBrElement]
 	*ElementActions[HTMLBrElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewBrRef(ref *ElementRef[HTMLBrElement], ctx dom.ActionExecutor) *BrRef {
+func NewBrRef(ref *ElementRef[HTMLBrElement], ctx dom.Dispatcher) *BrRef {
 	if ref == nil {
 		return nil
 	}
 	return &BrRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLBrElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLBrElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLBrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ButtonRef struct {
 	*ElementRef[HTMLButtonElement]
+	*InteractionAPI[HTMLButtonElement]
+	*ScrollAPI[HTMLButtonElement]
+	*DisableableAPI[HTMLButtonElement]
 	*ElementActions[HTMLButtonElement]
-	*FocusActions[HTMLButtonElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewButtonRef(ref *ElementRef[HTMLButtonElement], ctx dom.ActionExecutor) *ButtonRef {
+func NewButtonRef(ref *ElementRef[HTMLButtonElement], ctx dom.Dispatcher) *ButtonRef {
 	if ref == nil {
 		return nil
 	}
 	return &ButtonRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLButtonElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLButtonElement](ref.DOMElementRef(), ctx),
+		DisableableAPI:     NewDisableableAPI[HTMLButtonElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLButtonElement](ref.DOMElementRef(), ctx),
-		FocusActions:       NewFocusActions[HTMLButtonElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type CanvasRef struct {
 	*ElementRef[HTMLCanvasElement]
+	*InteractionAPI[HTMLCanvasElement]
+	*ScrollAPI[HTMLCanvasElement]
 	*ElementActions[HTMLCanvasElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewCanvasRef(ref *ElementRef[HTMLCanvasElement], ctx dom.ActionExecutor) *CanvasRef {
+func NewCanvasRef(ref *ElementRef[HTMLCanvasElement], ctx dom.Dispatcher) *CanvasRef {
 	if ref == nil {
 		return nil
 	}
 	return &CanvasRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLCanvasElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLCanvasElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLCanvasElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type CaptionRef struct {
 	*ElementRef[HTMLCaptionElement]
+	*InteractionAPI[HTMLCaptionElement]
+	*ScrollAPI[HTMLCaptionElement]
 	*ElementActions[HTMLCaptionElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewCaptionRef(ref *ElementRef[HTMLCaptionElement], ctx dom.ActionExecutor) *CaptionRef {
+func NewCaptionRef(ref *ElementRef[HTMLCaptionElement], ctx dom.Dispatcher) *CaptionRef {
 	if ref == nil {
 		return nil
 	}
 	return &CaptionRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLCaptionElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLCaptionElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLCaptionElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type CircleRef struct {
 	*ElementRef[SVGCircleElement]
+	*InteractionAPI[SVGCircleElement]
+	*ScrollAPI[SVGCircleElement]
 	*ElementActions[SVGCircleElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewCircleRef(ref *ElementRef[SVGCircleElement], ctx dom.ActionExecutor) *CircleRef {
+func NewCircleRef(ref *ElementRef[SVGCircleElement], ctx dom.Dispatcher) *CircleRef {
 	if ref == nil {
 		return nil
 	}
 	return &CircleRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGCircleElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGCircleElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGCircleElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type CiteRef struct {
 	*ElementRef[HTMLCiteElement]
+	*InteractionAPI[HTMLCiteElement]
+	*ScrollAPI[HTMLCiteElement]
 	*ElementActions[HTMLCiteElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewCiteRef(ref *ElementRef[HTMLCiteElement], ctx dom.ActionExecutor) *CiteRef {
+func NewCiteRef(ref *ElementRef[HTMLCiteElement], ctx dom.Dispatcher) *CiteRef {
 	if ref == nil {
 		return nil
 	}
 	return &CiteRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLCiteElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLCiteElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLCiteElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ClipPathRef struct {
 	*ElementRef[SVGClipPathElement]
+	*InteractionAPI[SVGClipPathElement]
+	*ScrollAPI[SVGClipPathElement]
 	*ElementActions[SVGClipPathElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewClipPathRef(ref *ElementRef[SVGClipPathElement], ctx dom.ActionExecutor) *ClipPathRef {
+func NewClipPathRef(ref *ElementRef[SVGClipPathElement], ctx dom.Dispatcher) *ClipPathRef {
 	if ref == nil {
 		return nil
 	}
 	return &ClipPathRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGClipPathElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGClipPathElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGClipPathElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type CodeRef struct {
 	*ElementRef[HTMLCodeElement]
+	*InteractionAPI[HTMLCodeElement]
+	*ScrollAPI[HTMLCodeElement]
 	*ElementActions[HTMLCodeElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewCodeRef(ref *ElementRef[HTMLCodeElement], ctx dom.ActionExecutor) *CodeRef {
+func NewCodeRef(ref *ElementRef[HTMLCodeElement], ctx dom.Dispatcher) *CodeRef {
 	if ref == nil {
 		return nil
 	}
 	return &CodeRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLCodeElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLCodeElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLCodeElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ColRef struct {
 	*ElementRef[HTMLColElement]
+	*InteractionAPI[HTMLColElement]
+	*ScrollAPI[HTMLColElement]
 	*ElementActions[HTMLColElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewColRef(ref *ElementRef[HTMLColElement], ctx dom.ActionExecutor) *ColRef {
+func NewColRef(ref *ElementRef[HTMLColElement], ctx dom.Dispatcher) *ColRef {
 	if ref == nil {
 		return nil
 	}
 	return &ColRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLColElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLColElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLColElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ColgroupRef struct {
 	*ElementRef[HTMLColgroupElement]
+	*InteractionAPI[HTMLColgroupElement]
+	*ScrollAPI[HTMLColgroupElement]
 	*ElementActions[HTMLColgroupElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewColgroupRef(ref *ElementRef[HTMLColgroupElement], ctx dom.ActionExecutor) *ColgroupRef {
+func NewColgroupRef(ref *ElementRef[HTMLColgroupElement], ctx dom.Dispatcher) *ColgroupRef {
 	if ref == nil {
 		return nil
 	}
 	return &ColgroupRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLColgroupElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLColgroupElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLColgroupElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type DataElRef struct {
 	*ElementRef[HTMLDataElement]
+	*InteractionAPI[HTMLDataElement]
+	*ScrollAPI[HTMLDataElement]
 	*ElementActions[HTMLDataElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewDataElRef(ref *ElementRef[HTMLDataElement], ctx dom.ActionExecutor) *DataElRef {
+func NewDataElRef(ref *ElementRef[HTMLDataElement], ctx dom.Dispatcher) *DataElRef {
 	if ref == nil {
 		return nil
 	}
 	return &DataElRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDataElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDataElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDataElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type DatalistRef struct {
 	*ElementRef[HTMLDatalistElement]
+	*InteractionAPI[HTMLDatalistElement]
+	*ScrollAPI[HTMLDatalistElement]
 	*ElementActions[HTMLDatalistElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewDatalistRef(ref *ElementRef[HTMLDatalistElement], ctx dom.ActionExecutor) *DatalistRef {
+func NewDatalistRef(ref *ElementRef[HTMLDatalistElement], ctx dom.Dispatcher) *DatalistRef {
 	if ref == nil {
 		return nil
 	}
 	return &DatalistRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDatalistElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDatalistElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDatalistElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type DdRef struct {
 	*ElementRef[HTMLDdElement]
+	*InteractionAPI[HTMLDdElement]
+	*ScrollAPI[HTMLDdElement]
 	*ElementActions[HTMLDdElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewDdRef(ref *ElementRef[HTMLDdElement], ctx dom.ActionExecutor) *DdRef {
+func NewDdRef(ref *ElementRef[HTMLDdElement], ctx dom.Dispatcher) *DdRef {
 	if ref == nil {
 		return nil
 	}
 	return &DdRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDdElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDdElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDdElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type DefsRef struct {
 	*ElementRef[SVGDefsElement]
+	*InteractionAPI[SVGDefsElement]
+	*ScrollAPI[SVGDefsElement]
 	*ElementActions[SVGDefsElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewDefsRef(ref *ElementRef[SVGDefsElement], ctx dom.ActionExecutor) *DefsRef {
+func NewDefsRef(ref *ElementRef[SVGDefsElement], ctx dom.Dispatcher) *DefsRef {
 	if ref == nil {
 		return nil
 	}
 	return &DefsRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGDefsElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGDefsElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGDefsElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type DelElRef struct {
 	*ElementRef[HTMLDelElement]
+	*InteractionAPI[HTMLDelElement]
+	*ScrollAPI[HTMLDelElement]
 	*ElementActions[HTMLDelElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewDelElRef(ref *ElementRef[HTMLDelElement], ctx dom.ActionExecutor) *DelElRef {
+func NewDelElRef(ref *ElementRef[HTMLDelElement], ctx dom.Dispatcher) *DelElRef {
 	if ref == nil {
 		return nil
 	}
 	return &DelElRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDelElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDelElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDelElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type DetailsRef struct {
 	*ElementRef[HTMLDetailsElement]
+	*InteractionAPI[HTMLDetailsElement]
+	*ScrollAPI[HTMLDetailsElement]
 	*ElementActions[HTMLDetailsElement]
-	*FocusActions[HTMLDetailsElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 	*ToggleHandler
 }
 
-func NewDetailsRef(ref *ElementRef[HTMLDetailsElement], ctx dom.ActionExecutor) *DetailsRef {
+func NewDetailsRef(ref *ElementRef[HTMLDetailsElement], ctx dom.Dispatcher) *DetailsRef {
 	if ref == nil {
 		return nil
 	}
 	return &DetailsRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDetailsElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDetailsElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDetailsElement](ref.DOMElementRef(), ctx),
-		FocusActions:       NewFocusActions[HTMLDetailsElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 		ToggleHandler:      NewToggleHandler(ref),
 	}
@@ -1440,5397 +1258,4725 @@ func NewDetailsRef(ref *ElementRef[HTMLDetailsElement], ctx dom.ActionExecutor) 
 
 type DfnRef struct {
 	*ElementRef[HTMLDfnElement]
+	*InteractionAPI[HTMLDfnElement]
+	*ScrollAPI[HTMLDfnElement]
 	*ElementActions[HTMLDfnElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewDfnRef(ref *ElementRef[HTMLDfnElement], ctx dom.ActionExecutor) *DfnRef {
+func NewDfnRef(ref *ElementRef[HTMLDfnElement], ctx dom.Dispatcher) *DfnRef {
 	if ref == nil {
 		return nil
 	}
 	return &DfnRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDfnElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDfnElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDfnElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type DialogRef struct {
 	*ElementRef[HTMLDialogElement]
+	*InteractionAPI[HTMLDialogElement]
+	*ScrollAPI[HTMLDialogElement]
+	*DialogAPI[HTMLDialogElement]
 	*ElementActions[HTMLDialogElement]
-	*DialogActions[HTMLDialogElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
-	*DialogHandler
 }
 
-func NewDialogRef(ref *ElementRef[HTMLDialogElement], ctx dom.ActionExecutor) *DialogRef {
+func NewDialogRef(ref *ElementRef[HTMLDialogElement], ctx dom.Dispatcher) *DialogRef {
 	if ref == nil {
 		return nil
 	}
 	return &DialogRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDialogElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDialogElement](ref.DOMElementRef(), ctx),
+		DialogAPI:          NewDialogAPI[HTMLDialogElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDialogElement](ref.DOMElementRef(), ctx),
-		DialogActions:      NewDialogActions[HTMLDialogElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
-		DialogHandler:      NewDialogHandler(ref),
 	}
 }
 
 type DivRef struct {
 	*ElementRef[HTMLDivElement]
+	*InteractionAPI[HTMLDivElement]
+	*ScrollAPI[HTMLDivElement]
 	*ElementActions[HTMLDivElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewDivRef(ref *ElementRef[HTMLDivElement], ctx dom.ActionExecutor) *DivRef {
+func NewDivRef(ref *ElementRef[HTMLDivElement], ctx dom.Dispatcher) *DivRef {
 	if ref == nil {
 		return nil
 	}
 	return &DivRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDivElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDivElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDivElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type DlRef struct {
 	*ElementRef[HTMLDlElement]
+	*InteractionAPI[HTMLDlElement]
+	*ScrollAPI[HTMLDlElement]
 	*ElementActions[HTMLDlElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewDlRef(ref *ElementRef[HTMLDlElement], ctx dom.ActionExecutor) *DlRef {
+func NewDlRef(ref *ElementRef[HTMLDlElement], ctx dom.Dispatcher) *DlRef {
 	if ref == nil {
 		return nil
 	}
 	return &DlRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDlElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDlElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDlElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type DtRef struct {
 	*ElementRef[HTMLDtElement]
+	*InteractionAPI[HTMLDtElement]
+	*ScrollAPI[HTMLDtElement]
 	*ElementActions[HTMLDtElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewDtRef(ref *ElementRef[HTMLDtElement], ctx dom.ActionExecutor) *DtRef {
+func NewDtRef(ref *ElementRef[HTMLDtElement], ctx dom.Dispatcher) *DtRef {
 	if ref == nil {
 		return nil
 	}
 	return &DtRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLDtElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLDtElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLDtElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type EllipseRef struct {
 	*ElementRef[SVGEllipseElement]
+	*InteractionAPI[SVGEllipseElement]
+	*ScrollAPI[SVGEllipseElement]
 	*ElementActions[SVGEllipseElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewEllipseRef(ref *ElementRef[SVGEllipseElement], ctx dom.ActionExecutor) *EllipseRef {
+func NewEllipseRef(ref *ElementRef[SVGEllipseElement], ctx dom.Dispatcher) *EllipseRef {
 	if ref == nil {
 		return nil
 	}
 	return &EllipseRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGEllipseElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGEllipseElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGEllipseElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type EmRef struct {
 	*ElementRef[HTMLEmElement]
+	*InteractionAPI[HTMLEmElement]
+	*ScrollAPI[HTMLEmElement]
 	*ElementActions[HTMLEmElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewEmRef(ref *ElementRef[HTMLEmElement], ctx dom.ActionExecutor) *EmRef {
+func NewEmRef(ref *ElementRef[HTMLEmElement], ctx dom.Dispatcher) *EmRef {
 	if ref == nil {
 		return nil
 	}
 	return &EmRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLEmElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLEmElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLEmElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type EmbedRef struct {
 	*ElementRef[HTMLEmbedElement]
+	*InteractionAPI[HTMLEmbedElement]
+	*ScrollAPI[HTMLEmbedElement]
 	*ElementActions[HTMLEmbedElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewEmbedRef(ref *ElementRef[HTMLEmbedElement], ctx dom.ActionExecutor) *EmbedRef {
+func NewEmbedRef(ref *ElementRef[HTMLEmbedElement], ctx dom.Dispatcher) *EmbedRef {
 	if ref == nil {
 		return nil
 	}
 	return &EmbedRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLEmbedElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLEmbedElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLEmbedElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type FieldsetRef struct {
 	*ElementRef[HTMLFieldsetElement]
+	*InteractionAPI[HTMLFieldsetElement]
+	*ScrollAPI[HTMLFieldsetElement]
+	*DisableableAPI[HTMLFieldsetElement]
 	*ElementActions[HTMLFieldsetElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewFieldsetRef(ref *ElementRef[HTMLFieldsetElement], ctx dom.ActionExecutor) *FieldsetRef {
+func NewFieldsetRef(ref *ElementRef[HTMLFieldsetElement], ctx dom.Dispatcher) *FieldsetRef {
 	if ref == nil {
 		return nil
 	}
 	return &FieldsetRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLFieldsetElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLFieldsetElement](ref.DOMElementRef(), ctx),
+		DisableableAPI:     NewDisableableAPI[HTMLFieldsetElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLFieldsetElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type FigcaptionRef struct {
 	*ElementRef[HTMLFigcaptionElement]
+	*InteractionAPI[HTMLFigcaptionElement]
+	*ScrollAPI[HTMLFigcaptionElement]
 	*ElementActions[HTMLFigcaptionElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewFigcaptionRef(ref *ElementRef[HTMLFigcaptionElement], ctx dom.ActionExecutor) *FigcaptionRef {
+func NewFigcaptionRef(ref *ElementRef[HTMLFigcaptionElement], ctx dom.Dispatcher) *FigcaptionRef {
 	if ref == nil {
 		return nil
 	}
 	return &FigcaptionRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLFigcaptionElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLFigcaptionElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLFigcaptionElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type FigureRef struct {
 	*ElementRef[HTMLFigureElement]
+	*InteractionAPI[HTMLFigureElement]
+	*ScrollAPI[HTMLFigureElement]
 	*ElementActions[HTMLFigureElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewFigureRef(ref *ElementRef[HTMLFigureElement], ctx dom.ActionExecutor) *FigureRef {
+func NewFigureRef(ref *ElementRef[HTMLFigureElement], ctx dom.Dispatcher) *FigureRef {
 	if ref == nil {
 		return nil
 	}
 	return &FigureRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLFigureElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLFigureElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLFigureElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type FooterRef struct {
 	*ElementRef[HTMLFooterElement]
+	*InteractionAPI[HTMLFooterElement]
+	*ScrollAPI[HTMLFooterElement]
 	*ElementActions[HTMLFooterElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewFooterRef(ref *ElementRef[HTMLFooterElement], ctx dom.ActionExecutor) *FooterRef {
+func NewFooterRef(ref *ElementRef[HTMLFooterElement], ctx dom.Dispatcher) *FooterRef {
 	if ref == nil {
 		return nil
 	}
 	return &FooterRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLFooterElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLFooterElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLFooterElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ForeignObjectRef struct {
 	*ElementRef[SVGForeignObjectElement]
+	*InteractionAPI[SVGForeignObjectElement]
+	*ScrollAPI[SVGForeignObjectElement]
 	*ElementActions[SVGForeignObjectElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewForeignObjectRef(ref *ElementRef[SVGForeignObjectElement], ctx dom.ActionExecutor) *ForeignObjectRef {
+func NewForeignObjectRef(ref *ElementRef[SVGForeignObjectElement], ctx dom.Dispatcher) *ForeignObjectRef {
 	if ref == nil {
 		return nil
 	}
 	return &ForeignObjectRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGForeignObjectElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGForeignObjectElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGForeignObjectElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type FormRef struct {
 	*ElementRef[HTMLFormElement]
+	*InteractionAPI[HTMLFormElement]
+	*ScrollAPI[HTMLFormElement]
+	*FormAPI[HTMLFormElement]
 	*ElementActions[HTMLFormElement]
-	*FormActions[HTMLFormElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
-	*FormHandler
 }
 
-func NewFormRef(ref *ElementRef[HTMLFormElement], ctx dom.ActionExecutor) *FormRef {
+func NewFormRef(ref *ElementRef[HTMLFormElement], ctx dom.Dispatcher) *FormRef {
 	if ref == nil {
 		return nil
 	}
 	return &FormRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLFormElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLFormElement](ref.DOMElementRef(), ctx),
+		FormAPI:            NewFormAPI[HTMLFormElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLFormElement](ref.DOMElementRef(), ctx),
-		FormActions:        NewFormActions[HTMLFormElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 	}
 }
 
 type GRef struct {
 	*ElementRef[SVGGElement]
+	*InteractionAPI[SVGGElement]
+	*ScrollAPI[SVGGElement]
 	*ElementActions[SVGGElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewGRef(ref *ElementRef[SVGGElement], ctx dom.ActionExecutor) *GRef {
+func NewGRef(ref *ElementRef[SVGGElement], ctx dom.Dispatcher) *GRef {
 	if ref == nil {
 		return nil
 	}
 	return &GRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGGElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGGElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGGElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type H1Ref struct {
 	*ElementRef[HTMLH1Element]
+	*InteractionAPI[HTMLH1Element]
+	*ScrollAPI[HTMLH1Element]
 	*ElementActions[HTMLH1Element]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewH1Ref(ref *ElementRef[HTMLH1Element], ctx dom.ActionExecutor) *H1Ref {
+func NewH1Ref(ref *ElementRef[HTMLH1Element], ctx dom.Dispatcher) *H1Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H1Ref{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLH1Element](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLH1Element](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLH1Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type H2Ref struct {
 	*ElementRef[HTMLH2Element]
+	*InteractionAPI[HTMLH2Element]
+	*ScrollAPI[HTMLH2Element]
 	*ElementActions[HTMLH2Element]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewH2Ref(ref *ElementRef[HTMLH2Element], ctx dom.ActionExecutor) *H2Ref {
+func NewH2Ref(ref *ElementRef[HTMLH2Element], ctx dom.Dispatcher) *H2Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H2Ref{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLH2Element](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLH2Element](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLH2Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type H3Ref struct {
 	*ElementRef[HTMLH3Element]
+	*InteractionAPI[HTMLH3Element]
+	*ScrollAPI[HTMLH3Element]
 	*ElementActions[HTMLH3Element]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewH3Ref(ref *ElementRef[HTMLH3Element], ctx dom.ActionExecutor) *H3Ref {
+func NewH3Ref(ref *ElementRef[HTMLH3Element], ctx dom.Dispatcher) *H3Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H3Ref{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLH3Element](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLH3Element](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLH3Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type H4Ref struct {
 	*ElementRef[HTMLH4Element]
+	*InteractionAPI[HTMLH4Element]
+	*ScrollAPI[HTMLH4Element]
 	*ElementActions[HTMLH4Element]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewH4Ref(ref *ElementRef[HTMLH4Element], ctx dom.ActionExecutor) *H4Ref {
+func NewH4Ref(ref *ElementRef[HTMLH4Element], ctx dom.Dispatcher) *H4Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H4Ref{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLH4Element](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLH4Element](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLH4Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type H5Ref struct {
 	*ElementRef[HTMLH5Element]
+	*InteractionAPI[HTMLH5Element]
+	*ScrollAPI[HTMLH5Element]
 	*ElementActions[HTMLH5Element]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewH5Ref(ref *ElementRef[HTMLH5Element], ctx dom.ActionExecutor) *H5Ref {
+func NewH5Ref(ref *ElementRef[HTMLH5Element], ctx dom.Dispatcher) *H5Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H5Ref{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLH5Element](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLH5Element](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLH5Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type H6Ref struct {
 	*ElementRef[HTMLH6Element]
+	*InteractionAPI[HTMLH6Element]
+	*ScrollAPI[HTMLH6Element]
 	*ElementActions[HTMLH6Element]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewH6Ref(ref *ElementRef[HTMLH6Element], ctx dom.ActionExecutor) *H6Ref {
+func NewH6Ref(ref *ElementRef[HTMLH6Element], ctx dom.Dispatcher) *H6Ref {
 	if ref == nil {
 		return nil
 	}
 	return &H6Ref{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLH6Element](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLH6Element](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLH6Element](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type HeadRef struct {
 	*ElementRef[HTMLHeadElement]
+	*InteractionAPI[HTMLHeadElement]
+	*ScrollAPI[HTMLHeadElement]
 	*ElementActions[HTMLHeadElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewHeadRef(ref *ElementRef[HTMLHeadElement], ctx dom.ActionExecutor) *HeadRef {
+func NewHeadRef(ref *ElementRef[HTMLHeadElement], ctx dom.Dispatcher) *HeadRef {
 	if ref == nil {
 		return nil
 	}
 	return &HeadRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLHeadElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLHeadElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLHeadElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type HeaderRef struct {
 	*ElementRef[HTMLHeaderElement]
+	*InteractionAPI[HTMLHeaderElement]
+	*ScrollAPI[HTMLHeaderElement]
 	*ElementActions[HTMLHeaderElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewHeaderRef(ref *ElementRef[HTMLHeaderElement], ctx dom.ActionExecutor) *HeaderRef {
+func NewHeaderRef(ref *ElementRef[HTMLHeaderElement], ctx dom.Dispatcher) *HeaderRef {
 	if ref == nil {
 		return nil
 	}
 	return &HeaderRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLHeaderElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLHeaderElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLHeaderElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type HgroupRef struct {
 	*ElementRef[HTMLHgroupElement]
+	*InteractionAPI[HTMLHgroupElement]
+	*ScrollAPI[HTMLHgroupElement]
 	*ElementActions[HTMLHgroupElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewHgroupRef(ref *ElementRef[HTMLHgroupElement], ctx dom.ActionExecutor) *HgroupRef {
+func NewHgroupRef(ref *ElementRef[HTMLHgroupElement], ctx dom.Dispatcher) *HgroupRef {
 	if ref == nil {
 		return nil
 	}
 	return &HgroupRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLHgroupElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLHgroupElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLHgroupElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type HrRef struct {
 	*ElementRef[HTMLHrElement]
+	*InteractionAPI[HTMLHrElement]
+	*ScrollAPI[HTMLHrElement]
 	*ElementActions[HTMLHrElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewHrRef(ref *ElementRef[HTMLHrElement], ctx dom.ActionExecutor) *HrRef {
+func NewHrRef(ref *ElementRef[HTMLHrElement], ctx dom.Dispatcher) *HrRef {
 	if ref == nil {
 		return nil
 	}
 	return &HrRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLHrElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLHrElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLHrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type HtmlRef struct {
 	*ElementRef[HTMLHtmlElement]
+	*InteractionAPI[HTMLHtmlElement]
+	*ScrollAPI[HTMLHtmlElement]
 	*ElementActions[HTMLHtmlElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewHtmlRef(ref *ElementRef[HTMLHtmlElement], ctx dom.ActionExecutor) *HtmlRef {
+func NewHtmlRef(ref *ElementRef[HTMLHtmlElement], ctx dom.Dispatcher) *HtmlRef {
 	if ref == nil {
 		return nil
 	}
 	return &HtmlRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLHtmlElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLHtmlElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLHtmlElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type IRef struct {
 	*ElementRef[HTMLIElement]
+	*InteractionAPI[HTMLIElement]
+	*ScrollAPI[HTMLIElement]
 	*ElementActions[HTMLIElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewIRef(ref *ElementRef[HTMLIElement], ctx dom.ActionExecutor) *IRef {
+func NewIRef(ref *ElementRef[HTMLIElement], ctx dom.Dispatcher) *IRef {
 	if ref == nil {
 		return nil
 	}
 	return &IRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLIElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLIElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLIElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type IframeRef struct {
 	*ElementRef[HTMLIframeElement]
+	*InteractionAPI[HTMLIframeElement]
+	*ScrollAPI[HTMLIframeElement]
 	*ElementActions[HTMLIframeElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewIframeRef(ref *ElementRef[HTMLIframeElement], ctx dom.ActionExecutor) *IframeRef {
+func NewIframeRef(ref *ElementRef[HTMLIframeElement], ctx dom.Dispatcher) *IframeRef {
 	if ref == nil {
 		return nil
 	}
 	return &IframeRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLIframeElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLIframeElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLIframeElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ImageRef struct {
 	*ElementRef[SVGImageElement]
+	*InteractionAPI[SVGImageElement]
+	*ScrollAPI[SVGImageElement]
 	*ElementActions[SVGImageElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewImageRef(ref *ElementRef[SVGImageElement], ctx dom.ActionExecutor) *ImageRef {
+func NewImageRef(ref *ElementRef[SVGImageElement], ctx dom.Dispatcher) *ImageRef {
 	if ref == nil {
 		return nil
 	}
 	return &ImageRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGImageElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGImageElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGImageElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ImgRef struct {
 	*ElementRef[HTMLImgElement]
+	*InteractionAPI[HTMLImgElement]
+	*ScrollAPI[HTMLImgElement]
 	*ElementActions[HTMLImgElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewImgRef(ref *ElementRef[HTMLImgElement], ctx dom.ActionExecutor) *ImgRef {
+func NewImgRef(ref *ElementRef[HTMLImgElement], ctx dom.Dispatcher) *ImgRef {
 	if ref == nil {
 		return nil
 	}
 	return &ImgRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLImgElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLImgElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLImgElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type InputRef struct {
 	*ElementRef[HTMLInputElement]
+	*InteractionAPI[HTMLInputElement]
+	*ScrollAPI[HTMLInputElement]
+	*DisableableAPI[HTMLInputElement]
+	*SelectionAPI[HTMLInputElement]
 	*ElementActions[HTMLInputElement]
-	*FocusActions[HTMLInputElement]
-	*SelectionActions[HTMLInputElement]
 	*ValueActions[HTMLInputElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
-	*FormHandler
 	*InputHandler
 }
 
-func NewInputRef(ref *ElementRef[HTMLInputElement], ctx dom.ActionExecutor) *InputRef {
+func NewInputRef(ref *ElementRef[HTMLInputElement], ctx dom.Dispatcher) *InputRef {
 	if ref == nil {
 		return nil
 	}
 	return &InputRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLInputElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLInputElement](ref.DOMElementRef(), ctx),
+		DisableableAPI:     NewDisableableAPI[HTMLInputElement](ref.DOMElementRef(), ctx),
+		SelectionAPI:       NewSelectionAPI[HTMLInputElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLInputElement](ref.DOMElementRef(), ctx),
-		FocusActions:       NewFocusActions[HTMLInputElement](ref.DOMElementRef(), ctx),
-		SelectionActions:   NewSelectionActions[HTMLInputElement](ref.DOMElementRef(), ctx),
 		ValueActions:       NewValueActions[HTMLInputElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		InputHandler:       NewInputHandler(ref),
 	}
 }
 
 type InsElRef struct {
 	*ElementRef[HTMLInsElement]
+	*InteractionAPI[HTMLInsElement]
+	*ScrollAPI[HTMLInsElement]
 	*ElementActions[HTMLInsElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewInsElRef(ref *ElementRef[HTMLInsElement], ctx dom.ActionExecutor) *InsElRef {
+func NewInsElRef(ref *ElementRef[HTMLInsElement], ctx dom.Dispatcher) *InsElRef {
 	if ref == nil {
 		return nil
 	}
 	return &InsElRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLInsElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLInsElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLInsElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type KbdRef struct {
 	*ElementRef[HTMLKbdElement]
+	*InteractionAPI[HTMLKbdElement]
+	*ScrollAPI[HTMLKbdElement]
 	*ElementActions[HTMLKbdElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewKbdRef(ref *ElementRef[HTMLKbdElement], ctx dom.ActionExecutor) *KbdRef {
+func NewKbdRef(ref *ElementRef[HTMLKbdElement], ctx dom.Dispatcher) *KbdRef {
 	if ref == nil {
 		return nil
 	}
 	return &KbdRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLKbdElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLKbdElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLKbdElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type LabelRef struct {
 	*ElementRef[HTMLLabelElement]
+	*InteractionAPI[HTMLLabelElement]
+	*ScrollAPI[HTMLLabelElement]
 	*ElementActions[HTMLLabelElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewLabelRef(ref *ElementRef[HTMLLabelElement], ctx dom.ActionExecutor) *LabelRef {
+func NewLabelRef(ref *ElementRef[HTMLLabelElement], ctx dom.Dispatcher) *LabelRef {
 	if ref == nil {
 		return nil
 	}
 	return &LabelRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLLabelElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLLabelElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLLabelElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type LegendRef struct {
 	*ElementRef[HTMLLegendElement]
+	*InteractionAPI[HTMLLegendElement]
+	*ScrollAPI[HTMLLegendElement]
 	*ElementActions[HTMLLegendElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewLegendRef(ref *ElementRef[HTMLLegendElement], ctx dom.ActionExecutor) *LegendRef {
+func NewLegendRef(ref *ElementRef[HTMLLegendElement], ctx dom.Dispatcher) *LegendRef {
 	if ref == nil {
 		return nil
 	}
 	return &LegendRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLLegendElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLLegendElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLLegendElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type LiRef struct {
 	*ElementRef[HTMLLiElement]
+	*InteractionAPI[HTMLLiElement]
+	*ScrollAPI[HTMLLiElement]
 	*ElementActions[HTMLLiElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewLiRef(ref *ElementRef[HTMLLiElement], ctx dom.ActionExecutor) *LiRef {
+func NewLiRef(ref *ElementRef[HTMLLiElement], ctx dom.Dispatcher) *LiRef {
 	if ref == nil {
 		return nil
 	}
 	return &LiRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLLiElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLLiElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLLiElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type LineRef struct {
 	*ElementRef[SVGLineElement]
+	*InteractionAPI[SVGLineElement]
+	*ScrollAPI[SVGLineElement]
 	*ElementActions[SVGLineElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewLineRef(ref *ElementRef[SVGLineElement], ctx dom.ActionExecutor) *LineRef {
+func NewLineRef(ref *ElementRef[SVGLineElement], ctx dom.Dispatcher) *LineRef {
 	if ref == nil {
 		return nil
 	}
 	return &LineRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGLineElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGLineElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGLineElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type LinearGradientRef struct {
 	*ElementRef[SVGLinearGradientElement]
+	*InteractionAPI[SVGLinearGradientElement]
+	*ScrollAPI[SVGLinearGradientElement]
 	*ElementActions[SVGLinearGradientElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewLinearGradientRef(ref *ElementRef[SVGLinearGradientElement], ctx dom.ActionExecutor) *LinearGradientRef {
+func NewLinearGradientRef(ref *ElementRef[SVGLinearGradientElement], ctx dom.Dispatcher) *LinearGradientRef {
 	if ref == nil {
 		return nil
 	}
 	return &LinearGradientRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGLinearGradientElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGLinearGradientElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGLinearGradientElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type LinkRef struct {
 	*ElementRef[HTMLLinkElement]
+	*InteractionAPI[HTMLLinkElement]
+	*ScrollAPI[HTMLLinkElement]
 	*ElementActions[HTMLLinkElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewLinkRef(ref *ElementRef[HTMLLinkElement], ctx dom.ActionExecutor) *LinkRef {
+func NewLinkRef(ref *ElementRef[HTMLLinkElement], ctx dom.Dispatcher) *LinkRef {
 	if ref == nil {
 		return nil
 	}
 	return &LinkRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLLinkElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLLinkElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLLinkElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type MainRef struct {
 	*ElementRef[HTMLMainElement]
+	*InteractionAPI[HTMLMainElement]
+	*ScrollAPI[HTMLMainElement]
 	*ElementActions[HTMLMainElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewMainRef(ref *ElementRef[HTMLMainElement], ctx dom.ActionExecutor) *MainRef {
+func NewMainRef(ref *ElementRef[HTMLMainElement], ctx dom.Dispatcher) *MainRef {
 	if ref == nil {
 		return nil
 	}
 	return &MainRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLMainElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLMainElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLMainElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type MapElRef struct {
 	*ElementRef[HTMLMapElement]
+	*InteractionAPI[HTMLMapElement]
+	*ScrollAPI[HTMLMapElement]
 	*ElementActions[HTMLMapElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewMapElRef(ref *ElementRef[HTMLMapElement], ctx dom.ActionExecutor) *MapElRef {
+func NewMapElRef(ref *ElementRef[HTMLMapElement], ctx dom.Dispatcher) *MapElRef {
 	if ref == nil {
 		return nil
 	}
 	return &MapElRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLMapElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLMapElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLMapElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type MarkRef struct {
 	*ElementRef[HTMLMarkElement]
+	*InteractionAPI[HTMLMarkElement]
+	*ScrollAPI[HTMLMarkElement]
 	*ElementActions[HTMLMarkElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewMarkRef(ref *ElementRef[HTMLMarkElement], ctx dom.ActionExecutor) *MarkRef {
+func NewMarkRef(ref *ElementRef[HTMLMarkElement], ctx dom.Dispatcher) *MarkRef {
 	if ref == nil {
 		return nil
 	}
 	return &MarkRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLMarkElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLMarkElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLMarkElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type MarkerRef struct {
 	*ElementRef[SVGMarkerElement]
+	*InteractionAPI[SVGMarkerElement]
+	*ScrollAPI[SVGMarkerElement]
 	*ElementActions[SVGMarkerElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewMarkerRef(ref *ElementRef[SVGMarkerElement], ctx dom.ActionExecutor) *MarkerRef {
+func NewMarkerRef(ref *ElementRef[SVGMarkerElement], ctx dom.Dispatcher) *MarkerRef {
 	if ref == nil {
 		return nil
 	}
 	return &MarkerRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGMarkerElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGMarkerElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGMarkerElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type MaskRef struct {
 	*ElementRef[SVGMaskElement]
+	*InteractionAPI[SVGMaskElement]
+	*ScrollAPI[SVGMaskElement]
 	*ElementActions[SVGMaskElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewMaskRef(ref *ElementRef[SVGMaskElement], ctx dom.ActionExecutor) *MaskRef {
+func NewMaskRef(ref *ElementRef[SVGMaskElement], ctx dom.Dispatcher) *MaskRef {
 	if ref == nil {
 		return nil
 	}
 	return &MaskRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGMaskElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGMaskElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGMaskElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type MenuRef struct {
 	*ElementRef[HTMLMenuElement]
+	*InteractionAPI[HTMLMenuElement]
+	*ScrollAPI[HTMLMenuElement]
 	*ElementActions[HTMLMenuElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewMenuRef(ref *ElementRef[HTMLMenuElement], ctx dom.ActionExecutor) *MenuRef {
+func NewMenuRef(ref *ElementRef[HTMLMenuElement], ctx dom.Dispatcher) *MenuRef {
 	if ref == nil {
 		return nil
 	}
 	return &MenuRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLMenuElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLMenuElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLMenuElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type MenuItemRef struct {
 	*ElementRef[HTMLMenuItemElement]
+	*InteractionAPI[HTMLMenuItemElement]
+	*ScrollAPI[HTMLMenuItemElement]
 	*ElementActions[HTMLMenuItemElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewMenuItemRef(ref *ElementRef[HTMLMenuItemElement], ctx dom.ActionExecutor) *MenuItemRef {
+func NewMenuItemRef(ref *ElementRef[HTMLMenuItemElement], ctx dom.Dispatcher) *MenuItemRef {
 	if ref == nil {
 		return nil
 	}
 	return &MenuItemRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLMenuItemElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLMenuItemElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLMenuItemElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type MetaRef struct {
 	*ElementRef[HTMLMetaElement]
+	*InteractionAPI[HTMLMetaElement]
+	*ScrollAPI[HTMLMetaElement]
 	*ElementActions[HTMLMetaElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewMetaRef(ref *ElementRef[HTMLMetaElement], ctx dom.ActionExecutor) *MetaRef {
+func NewMetaRef(ref *ElementRef[HTMLMetaElement], ctx dom.Dispatcher) *MetaRef {
 	if ref == nil {
 		return nil
 	}
 	return &MetaRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLMetaElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLMetaElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLMetaElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type MeterRef struct {
 	*ElementRef[HTMLMeterElement]
+	*InteractionAPI[HTMLMeterElement]
+	*ScrollAPI[HTMLMeterElement]
 	*ElementActions[HTMLMeterElement]
 	*ValueActions[HTMLMeterElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
-	*FormHandler
 	*InputHandler
 }
 
-func NewMeterRef(ref *ElementRef[HTMLMeterElement], ctx dom.ActionExecutor) *MeterRef {
+func NewMeterRef(ref *ElementRef[HTMLMeterElement], ctx dom.Dispatcher) *MeterRef {
 	if ref == nil {
 		return nil
 	}
 	return &MeterRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLMeterElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLMeterElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLMeterElement](ref.DOMElementRef(), ctx),
 		ValueActions:       NewValueActions[HTMLMeterElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		InputHandler:       NewInputHandler(ref),
 	}
 }
 
 type NavRef struct {
 	*ElementRef[HTMLNavElement]
+	*InteractionAPI[HTMLNavElement]
+	*ScrollAPI[HTMLNavElement]
 	*ElementActions[HTMLNavElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewNavRef(ref *ElementRef[HTMLNavElement], ctx dom.ActionExecutor) *NavRef {
+func NewNavRef(ref *ElementRef[HTMLNavElement], ctx dom.Dispatcher) *NavRef {
 	if ref == nil {
 		return nil
 	}
 	return &NavRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLNavElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLNavElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLNavElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type NoscriptRef struct {
 	*ElementRef[HTMLNoscriptElement]
+	*InteractionAPI[HTMLNoscriptElement]
+	*ScrollAPI[HTMLNoscriptElement]
 	*ElementActions[HTMLNoscriptElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewNoscriptRef(ref *ElementRef[HTMLNoscriptElement], ctx dom.ActionExecutor) *NoscriptRef {
+func NewNoscriptRef(ref *ElementRef[HTMLNoscriptElement], ctx dom.Dispatcher) *NoscriptRef {
 	if ref == nil {
 		return nil
 	}
 	return &NoscriptRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLNoscriptElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLNoscriptElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLNoscriptElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ObjectRef struct {
 	*ElementRef[HTMLObjectElement]
+	*InteractionAPI[HTMLObjectElement]
+	*ScrollAPI[HTMLObjectElement]
 	*ElementActions[HTMLObjectElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewObjectRef(ref *ElementRef[HTMLObjectElement], ctx dom.ActionExecutor) *ObjectRef {
+func NewObjectRef(ref *ElementRef[HTMLObjectElement], ctx dom.Dispatcher) *ObjectRef {
 	if ref == nil {
 		return nil
 	}
 	return &ObjectRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLObjectElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLObjectElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLObjectElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type OlRef struct {
 	*ElementRef[HTMLOlElement]
+	*InteractionAPI[HTMLOlElement]
+	*ScrollAPI[HTMLOlElement]
 	*ElementActions[HTMLOlElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewOlRef(ref *ElementRef[HTMLOlElement], ctx dom.ActionExecutor) *OlRef {
+func NewOlRef(ref *ElementRef[HTMLOlElement], ctx dom.Dispatcher) *OlRef {
 	if ref == nil {
 		return nil
 	}
 	return &OlRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLOlElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLOlElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLOlElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type OptgroupRef struct {
 	*ElementRef[HTMLOptgroupElement]
+	*InteractionAPI[HTMLOptgroupElement]
+	*ScrollAPI[HTMLOptgroupElement]
 	*ElementActions[HTMLOptgroupElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewOptgroupRef(ref *ElementRef[HTMLOptgroupElement], ctx dom.ActionExecutor) *OptgroupRef {
+func NewOptgroupRef(ref *ElementRef[HTMLOptgroupElement], ctx dom.Dispatcher) *OptgroupRef {
 	if ref == nil {
 		return nil
 	}
 	return &OptgroupRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLOptgroupElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLOptgroupElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLOptgroupElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type OptionRef struct {
 	*ElementRef[HTMLOptionElement]
+	*InteractionAPI[HTMLOptionElement]
+	*ScrollAPI[HTMLOptionElement]
 	*ElementActions[HTMLOptionElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewOptionRef(ref *ElementRef[HTMLOptionElement], ctx dom.ActionExecutor) *OptionRef {
+func NewOptionRef(ref *ElementRef[HTMLOptionElement], ctx dom.Dispatcher) *OptionRef {
 	if ref == nil {
 		return nil
 	}
 	return &OptionRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLOptionElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLOptionElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLOptionElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type OutputRef struct {
 	*ElementRef[HTMLOutputElement]
+	*InteractionAPI[HTMLOutputElement]
+	*ScrollAPI[HTMLOutputElement]
 	*ElementActions[HTMLOutputElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewOutputRef(ref *ElementRef[HTMLOutputElement], ctx dom.ActionExecutor) *OutputRef {
+func NewOutputRef(ref *ElementRef[HTMLOutputElement], ctx dom.Dispatcher) *OutputRef {
 	if ref == nil {
 		return nil
 	}
 	return &OutputRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLOutputElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLOutputElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLOutputElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type PRef struct {
 	*ElementRef[HTMLPElement]
+	*InteractionAPI[HTMLPElement]
+	*ScrollAPI[HTMLPElement]
 	*ElementActions[HTMLPElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewPRef(ref *ElementRef[HTMLPElement], ctx dom.ActionExecutor) *PRef {
+func NewPRef(ref *ElementRef[HTMLPElement], ctx dom.Dispatcher) *PRef {
 	if ref == nil {
 		return nil
 	}
 	return &PRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLPElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLPElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLPElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ParamRef struct {
 	*ElementRef[HTMLParamElement]
+	*InteractionAPI[HTMLParamElement]
+	*ScrollAPI[HTMLParamElement]
 	*ElementActions[HTMLParamElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewParamRef(ref *ElementRef[HTMLParamElement], ctx dom.ActionExecutor) *ParamRef {
+func NewParamRef(ref *ElementRef[HTMLParamElement], ctx dom.Dispatcher) *ParamRef {
 	if ref == nil {
 		return nil
 	}
 	return &ParamRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLParamElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLParamElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLParamElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type PathRef struct {
 	*ElementRef[SVGPathElement]
+	*InteractionAPI[SVGPathElement]
+	*ScrollAPI[SVGPathElement]
 	*ElementActions[SVGPathElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewPathRef(ref *ElementRef[SVGPathElement], ctx dom.ActionExecutor) *PathRef {
+func NewPathRef(ref *ElementRef[SVGPathElement], ctx dom.Dispatcher) *PathRef {
 	if ref == nil {
 		return nil
 	}
 	return &PathRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGPathElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGPathElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGPathElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type PatternRef struct {
 	*ElementRef[SVGPatternElement]
+	*InteractionAPI[SVGPatternElement]
+	*ScrollAPI[SVGPatternElement]
 	*ElementActions[SVGPatternElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewPatternRef(ref *ElementRef[SVGPatternElement], ctx dom.ActionExecutor) *PatternRef {
+func NewPatternRef(ref *ElementRef[SVGPatternElement], ctx dom.Dispatcher) *PatternRef {
 	if ref == nil {
 		return nil
 	}
 	return &PatternRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGPatternElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGPatternElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGPatternElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type PictureRef struct {
 	*ElementRef[HTMLPictureElement]
+	*InteractionAPI[HTMLPictureElement]
+	*ScrollAPI[HTMLPictureElement]
 	*ElementActions[HTMLPictureElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewPictureRef(ref *ElementRef[HTMLPictureElement], ctx dom.ActionExecutor) *PictureRef {
+func NewPictureRef(ref *ElementRef[HTMLPictureElement], ctx dom.Dispatcher) *PictureRef {
 	if ref == nil {
 		return nil
 	}
 	return &PictureRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLPictureElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLPictureElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLPictureElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type PolygonRef struct {
 	*ElementRef[SVGPolygonElement]
+	*InteractionAPI[SVGPolygonElement]
+	*ScrollAPI[SVGPolygonElement]
 	*ElementActions[SVGPolygonElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewPolygonRef(ref *ElementRef[SVGPolygonElement], ctx dom.ActionExecutor) *PolygonRef {
+func NewPolygonRef(ref *ElementRef[SVGPolygonElement], ctx dom.Dispatcher) *PolygonRef {
 	if ref == nil {
 		return nil
 	}
 	return &PolygonRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGPolygonElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGPolygonElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGPolygonElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type PolylineRef struct {
 	*ElementRef[SVGPolylineElement]
+	*InteractionAPI[SVGPolylineElement]
+	*ScrollAPI[SVGPolylineElement]
 	*ElementActions[SVGPolylineElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewPolylineRef(ref *ElementRef[SVGPolylineElement], ctx dom.ActionExecutor) *PolylineRef {
+func NewPolylineRef(ref *ElementRef[SVGPolylineElement], ctx dom.Dispatcher) *PolylineRef {
 	if ref == nil {
 		return nil
 	}
 	return &PolylineRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGPolylineElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGPolylineElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGPolylineElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type PortalRef struct {
 	*ElementRef[HTMLPortalElement]
+	*InteractionAPI[HTMLPortalElement]
+	*ScrollAPI[HTMLPortalElement]
 	*ElementActions[HTMLPortalElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewPortalRef(ref *ElementRef[HTMLPortalElement], ctx dom.ActionExecutor) *PortalRef {
+func NewPortalRef(ref *ElementRef[HTMLPortalElement], ctx dom.Dispatcher) *PortalRef {
 	if ref == nil {
 		return nil
 	}
 	return &PortalRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLPortalElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLPortalElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLPortalElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type PreRef struct {
 	*ElementRef[HTMLPreElement]
+	*InteractionAPI[HTMLPreElement]
+	*ScrollAPI[HTMLPreElement]
 	*ElementActions[HTMLPreElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewPreRef(ref *ElementRef[HTMLPreElement], ctx dom.ActionExecutor) *PreRef {
+func NewPreRef(ref *ElementRef[HTMLPreElement], ctx dom.Dispatcher) *PreRef {
 	if ref == nil {
 		return nil
 	}
 	return &PreRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLPreElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLPreElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLPreElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ProgressRef struct {
 	*ElementRef[HTMLProgressElement]
+	*InteractionAPI[HTMLProgressElement]
+	*ScrollAPI[HTMLProgressElement]
 	*ElementActions[HTMLProgressElement]
 	*ValueActions[HTMLProgressElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
-	*FormHandler
 	*InputHandler
 }
 
-func NewProgressRef(ref *ElementRef[HTMLProgressElement], ctx dom.ActionExecutor) *ProgressRef {
+func NewProgressRef(ref *ElementRef[HTMLProgressElement], ctx dom.Dispatcher) *ProgressRef {
 	if ref == nil {
 		return nil
 	}
 	return &ProgressRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLProgressElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLProgressElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLProgressElement](ref.DOMElementRef(), ctx),
 		ValueActions:       NewValueActions[HTMLProgressElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		InputHandler:       NewInputHandler(ref),
 	}
 }
 
 type QRef struct {
 	*ElementRef[HTMLQElement]
+	*InteractionAPI[HTMLQElement]
+	*ScrollAPI[HTMLQElement]
 	*ElementActions[HTMLQElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewQRef(ref *ElementRef[HTMLQElement], ctx dom.ActionExecutor) *QRef {
+func NewQRef(ref *ElementRef[HTMLQElement], ctx dom.Dispatcher) *QRef {
 	if ref == nil {
 		return nil
 	}
 	return &QRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLQElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLQElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLQElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type RadialGradientRef struct {
 	*ElementRef[SVGRadialGradientElement]
+	*InteractionAPI[SVGRadialGradientElement]
+	*ScrollAPI[SVGRadialGradientElement]
 	*ElementActions[SVGRadialGradientElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewRadialGradientRef(ref *ElementRef[SVGRadialGradientElement], ctx dom.ActionExecutor) *RadialGradientRef {
+func NewRadialGradientRef(ref *ElementRef[SVGRadialGradientElement], ctx dom.Dispatcher) *RadialGradientRef {
 	if ref == nil {
 		return nil
 	}
 	return &RadialGradientRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGRadialGradientElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGRadialGradientElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGRadialGradientElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type RbRef struct {
 	*ElementRef[HTMLRbElement]
+	*InteractionAPI[HTMLRbElement]
+	*ScrollAPI[HTMLRbElement]
 	*ElementActions[HTMLRbElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewRbRef(ref *ElementRef[HTMLRbElement], ctx dom.ActionExecutor) *RbRef {
+func NewRbRef(ref *ElementRef[HTMLRbElement], ctx dom.Dispatcher) *RbRef {
 	if ref == nil {
 		return nil
 	}
 	return &RbRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLRbElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLRbElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLRbElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type RectRef struct {
 	*ElementRef[SVGRectElement]
+	*InteractionAPI[SVGRectElement]
+	*ScrollAPI[SVGRectElement]
 	*ElementActions[SVGRectElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewRectRef(ref *ElementRef[SVGRectElement], ctx dom.ActionExecutor) *RectRef {
+func NewRectRef(ref *ElementRef[SVGRectElement], ctx dom.Dispatcher) *RectRef {
 	if ref == nil {
 		return nil
 	}
 	return &RectRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGRectElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGRectElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGRectElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type RpRef struct {
 	*ElementRef[HTMLRpElement]
+	*InteractionAPI[HTMLRpElement]
+	*ScrollAPI[HTMLRpElement]
 	*ElementActions[HTMLRpElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewRpRef(ref *ElementRef[HTMLRpElement], ctx dom.ActionExecutor) *RpRef {
+func NewRpRef(ref *ElementRef[HTMLRpElement], ctx dom.Dispatcher) *RpRef {
 	if ref == nil {
 		return nil
 	}
 	return &RpRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLRpElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLRpElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLRpElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type RtRef struct {
 	*ElementRef[HTMLRtElement]
+	*InteractionAPI[HTMLRtElement]
+	*ScrollAPI[HTMLRtElement]
 	*ElementActions[HTMLRtElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewRtRef(ref *ElementRef[HTMLRtElement], ctx dom.ActionExecutor) *RtRef {
+func NewRtRef(ref *ElementRef[HTMLRtElement], ctx dom.Dispatcher) *RtRef {
 	if ref == nil {
 		return nil
 	}
 	return &RtRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLRtElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLRtElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLRtElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type RtcRef struct {
 	*ElementRef[HTMLRtcElement]
+	*InteractionAPI[HTMLRtcElement]
+	*ScrollAPI[HTMLRtcElement]
 	*ElementActions[HTMLRtcElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewRtcRef(ref *ElementRef[HTMLRtcElement], ctx dom.ActionExecutor) *RtcRef {
+func NewRtcRef(ref *ElementRef[HTMLRtcElement], ctx dom.Dispatcher) *RtcRef {
 	if ref == nil {
 		return nil
 	}
 	return &RtcRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLRtcElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLRtcElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLRtcElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type RubyRef struct {
 	*ElementRef[HTMLRubyElement]
+	*InteractionAPI[HTMLRubyElement]
+	*ScrollAPI[HTMLRubyElement]
 	*ElementActions[HTMLRubyElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewRubyRef(ref *ElementRef[HTMLRubyElement], ctx dom.ActionExecutor) *RubyRef {
+func NewRubyRef(ref *ElementRef[HTMLRubyElement], ctx dom.Dispatcher) *RubyRef {
 	if ref == nil {
 		return nil
 	}
 	return &RubyRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLRubyElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLRubyElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLRubyElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SRef struct {
 	*ElementRef[HTMLSElement]
+	*InteractionAPI[HTMLSElement]
+	*ScrollAPI[HTMLSElement]
 	*ElementActions[HTMLSElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSRef(ref *ElementRef[HTMLSElement], ctx dom.ActionExecutor) *SRef {
+func NewSRef(ref *ElementRef[HTMLSElement], ctx dom.Dispatcher) *SRef {
 	if ref == nil {
 		return nil
 	}
 	return &SRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SampRef struct {
 	*ElementRef[HTMLSampElement]
+	*InteractionAPI[HTMLSampElement]
+	*ScrollAPI[HTMLSampElement]
 	*ElementActions[HTMLSampElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSampRef(ref *ElementRef[HTMLSampElement], ctx dom.ActionExecutor) *SampRef {
+func NewSampRef(ref *ElementRef[HTMLSampElement], ctx dom.Dispatcher) *SampRef {
 	if ref == nil {
 		return nil
 	}
 	return &SampRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSampElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSampElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSampElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ScriptRef struct {
 	*ElementRef[HTMLScriptElement]
+	*InteractionAPI[HTMLScriptElement]
+	*ScrollAPI[HTMLScriptElement]
 	*ElementActions[HTMLScriptElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewScriptRef(ref *ElementRef[HTMLScriptElement], ctx dom.ActionExecutor) *ScriptRef {
+func NewScriptRef(ref *ElementRef[HTMLScriptElement], ctx dom.Dispatcher) *ScriptRef {
 	if ref == nil {
 		return nil
 	}
 	return &ScriptRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLScriptElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLScriptElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLScriptElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SectionRef struct {
 	*ElementRef[HTMLSectionElement]
+	*InteractionAPI[HTMLSectionElement]
+	*ScrollAPI[HTMLSectionElement]
 	*ElementActions[HTMLSectionElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSectionRef(ref *ElementRef[HTMLSectionElement], ctx dom.ActionExecutor) *SectionRef {
+func NewSectionRef(ref *ElementRef[HTMLSectionElement], ctx dom.Dispatcher) *SectionRef {
 	if ref == nil {
 		return nil
 	}
 	return &SectionRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSectionElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSectionElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSectionElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SelectRef struct {
 	*ElementRef[HTMLSelectElement]
+	*InteractionAPI[HTMLSelectElement]
+	*ScrollAPI[HTMLSelectElement]
+	*DisableableAPI[HTMLSelectElement]
 	*ElementActions[HTMLSelectElement]
-	*FocusActions[HTMLSelectElement]
 	*ValueActions[HTMLSelectElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
-	*FormHandler
 	*InputHandler
 }
 
-func NewSelectRef(ref *ElementRef[HTMLSelectElement], ctx dom.ActionExecutor) *SelectRef {
+func NewSelectRef(ref *ElementRef[HTMLSelectElement], ctx dom.Dispatcher) *SelectRef {
 	if ref == nil {
 		return nil
 	}
 	return &SelectRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSelectElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSelectElement](ref.DOMElementRef(), ctx),
+		DisableableAPI:     NewDisableableAPI[HTMLSelectElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSelectElement](ref.DOMElementRef(), ctx),
-		FocusActions:       NewFocusActions[HTMLSelectElement](ref.DOMElementRef(), ctx),
 		ValueActions:       NewValueActions[HTMLSelectElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		InputHandler:       NewInputHandler(ref),
 	}
 }
 
 type SlotRef struct {
 	*ElementRef[HTMLSlotElement]
+	*InteractionAPI[HTMLSlotElement]
+	*ScrollAPI[HTMLSlotElement]
 	*ElementActions[HTMLSlotElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSlotRef(ref *ElementRef[HTMLSlotElement], ctx dom.ActionExecutor) *SlotRef {
+func NewSlotRef(ref *ElementRef[HTMLSlotElement], ctx dom.Dispatcher) *SlotRef {
 	if ref == nil {
 		return nil
 	}
 	return &SlotRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSlotElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSlotElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSlotElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SmallRef struct {
 	*ElementRef[HTMLSmallElement]
+	*InteractionAPI[HTMLSmallElement]
+	*ScrollAPI[HTMLSmallElement]
 	*ElementActions[HTMLSmallElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSmallRef(ref *ElementRef[HTMLSmallElement], ctx dom.ActionExecutor) *SmallRef {
+func NewSmallRef(ref *ElementRef[HTMLSmallElement], ctx dom.Dispatcher) *SmallRef {
 	if ref == nil {
 		return nil
 	}
 	return &SmallRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSmallElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSmallElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSmallElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SourceRef struct {
 	*ElementRef[HTMLSourceElement]
+	*InteractionAPI[HTMLSourceElement]
+	*ScrollAPI[HTMLSourceElement]
 	*ElementActions[HTMLSourceElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSourceRef(ref *ElementRef[HTMLSourceElement], ctx dom.ActionExecutor) *SourceRef {
+func NewSourceRef(ref *ElementRef[HTMLSourceElement], ctx dom.Dispatcher) *SourceRef {
 	if ref == nil {
 		return nil
 	}
 	return &SourceRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSourceElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSourceElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSourceElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SpanRef struct {
 	*ElementRef[HTMLSpanElement]
+	*InteractionAPI[HTMLSpanElement]
+	*ScrollAPI[HTMLSpanElement]
 	*ElementActions[HTMLSpanElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSpanRef(ref *ElementRef[HTMLSpanElement], ctx dom.ActionExecutor) *SpanRef {
+func NewSpanRef(ref *ElementRef[HTMLSpanElement], ctx dom.Dispatcher) *SpanRef {
 	if ref == nil {
 		return nil
 	}
 	return &SpanRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSpanElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSpanElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSpanElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type StopRef struct {
 	*ElementRef[SVGStopElement]
+	*InteractionAPI[SVGStopElement]
+	*ScrollAPI[SVGStopElement]
 	*ElementActions[SVGStopElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewStopRef(ref *ElementRef[SVGStopElement], ctx dom.ActionExecutor) *StopRef {
+func NewStopRef(ref *ElementRef[SVGStopElement], ctx dom.Dispatcher) *StopRef {
 	if ref == nil {
 		return nil
 	}
 	return &StopRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGStopElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGStopElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGStopElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type StrongRef struct {
 	*ElementRef[HTMLStrongElement]
+	*InteractionAPI[HTMLStrongElement]
+	*ScrollAPI[HTMLStrongElement]
 	*ElementActions[HTMLStrongElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewStrongRef(ref *ElementRef[HTMLStrongElement], ctx dom.ActionExecutor) *StrongRef {
+func NewStrongRef(ref *ElementRef[HTMLStrongElement], ctx dom.Dispatcher) *StrongRef {
 	if ref == nil {
 		return nil
 	}
 	return &StrongRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLStrongElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLStrongElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLStrongElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type StyleElRef struct {
 	*ElementRef[HTMLStyleElement]
+	*InteractionAPI[HTMLStyleElement]
+	*ScrollAPI[HTMLStyleElement]
 	*ElementActions[HTMLStyleElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewStyleElRef(ref *ElementRef[HTMLStyleElement], ctx dom.ActionExecutor) *StyleElRef {
+func NewStyleElRef(ref *ElementRef[HTMLStyleElement], ctx dom.Dispatcher) *StyleElRef {
 	if ref == nil {
 		return nil
 	}
 	return &StyleElRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLStyleElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLStyleElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLStyleElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SubRef struct {
 	*ElementRef[HTMLSubElement]
+	*InteractionAPI[HTMLSubElement]
+	*ScrollAPI[HTMLSubElement]
 	*ElementActions[HTMLSubElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSubRef(ref *ElementRef[HTMLSubElement], ctx dom.ActionExecutor) *SubRef {
+func NewSubRef(ref *ElementRef[HTMLSubElement], ctx dom.Dispatcher) *SubRef {
 	if ref == nil {
 		return nil
 	}
 	return &SubRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSubElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSubElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSubElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SummaryRef struct {
 	*ElementRef[HTMLSummaryElement]
+	*InteractionAPI[HTMLSummaryElement]
+	*ScrollAPI[HTMLSummaryElement]
 	*ElementActions[HTMLSummaryElement]
-	*FocusActions[HTMLSummaryElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSummaryRef(ref *ElementRef[HTMLSummaryElement], ctx dom.ActionExecutor) *SummaryRef {
+func NewSummaryRef(ref *ElementRef[HTMLSummaryElement], ctx dom.Dispatcher) *SummaryRef {
 	if ref == nil {
 		return nil
 	}
 	return &SummaryRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSummaryElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSummaryElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSummaryElement](ref.DOMElementRef(), ctx),
-		FocusActions:       NewFocusActions[HTMLSummaryElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SupRef struct {
 	*ElementRef[HTMLSupElement]
+	*InteractionAPI[HTMLSupElement]
+	*ScrollAPI[HTMLSupElement]
 	*ElementActions[HTMLSupElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSupRef(ref *ElementRef[HTMLSupElement], ctx dom.ActionExecutor) *SupRef {
+func NewSupRef(ref *ElementRef[HTMLSupElement], ctx dom.Dispatcher) *SupRef {
 	if ref == nil {
 		return nil
 	}
 	return &SupRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLSupElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLSupElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLSupElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SvgRef struct {
 	*ElementRef[SVGSvgElement]
+	*InteractionAPI[SVGSvgElement]
+	*ScrollAPI[SVGSvgElement]
 	*ElementActions[SVGSvgElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSvgRef(ref *ElementRef[SVGSvgElement], ctx dom.ActionExecutor) *SvgRef {
+func NewSvgRef(ref *ElementRef[SVGSvgElement], ctx dom.Dispatcher) *SvgRef {
 	if ref == nil {
 		return nil
 	}
 	return &SvgRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGSvgElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGSvgElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGSvgElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type SvgTextRef struct {
 	*ElementRef[SVGSvgTextElement]
+	*InteractionAPI[SVGSvgTextElement]
+	*ScrollAPI[SVGSvgTextElement]
 	*ElementActions[SVGSvgTextElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewSvgTextRef(ref *ElementRef[SVGSvgTextElement], ctx dom.ActionExecutor) *SvgTextRef {
+func NewSvgTextRef(ref *ElementRef[SVGSvgTextElement], ctx dom.Dispatcher) *SvgTextRef {
 	if ref == nil {
 		return nil
 	}
 	return &SvgTextRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGSvgTextElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGSvgTextElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGSvgTextElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TSpanRef struct {
 	*ElementRef[SVGTSpanElement]
+	*InteractionAPI[SVGTSpanElement]
+	*ScrollAPI[SVGTSpanElement]
 	*ElementActions[SVGTSpanElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTSpanRef(ref *ElementRef[SVGTSpanElement], ctx dom.ActionExecutor) *TSpanRef {
+func NewTSpanRef(ref *ElementRef[SVGTSpanElement], ctx dom.Dispatcher) *TSpanRef {
 	if ref == nil {
 		return nil
 	}
 	return &TSpanRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGTSpanElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGTSpanElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGTSpanElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TableRef struct {
 	*ElementRef[HTMLTableElement]
+	*InteractionAPI[HTMLTableElement]
+	*ScrollAPI[HTMLTableElement]
 	*ElementActions[HTMLTableElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTableRef(ref *ElementRef[HTMLTableElement], ctx dom.ActionExecutor) *TableRef {
+func NewTableRef(ref *ElementRef[HTMLTableElement], ctx dom.Dispatcher) *TableRef {
 	if ref == nil {
 		return nil
 	}
 	return &TableRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTableElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTableElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTableElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TbodyRef struct {
 	*ElementRef[HTMLTbodyElement]
+	*InteractionAPI[HTMLTbodyElement]
+	*ScrollAPI[HTMLTbodyElement]
 	*ElementActions[HTMLTbodyElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTbodyRef(ref *ElementRef[HTMLTbodyElement], ctx dom.ActionExecutor) *TbodyRef {
+func NewTbodyRef(ref *ElementRef[HTMLTbodyElement], ctx dom.Dispatcher) *TbodyRef {
 	if ref == nil {
 		return nil
 	}
 	return &TbodyRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTbodyElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTbodyElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTbodyElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TdRef struct {
 	*ElementRef[HTMLTdElement]
+	*InteractionAPI[HTMLTdElement]
+	*ScrollAPI[HTMLTdElement]
 	*ElementActions[HTMLTdElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTdRef(ref *ElementRef[HTMLTdElement], ctx dom.ActionExecutor) *TdRef {
+func NewTdRef(ref *ElementRef[HTMLTdElement], ctx dom.Dispatcher) *TdRef {
 	if ref == nil {
 		return nil
 	}
 	return &TdRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTdElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTdElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTdElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TemplateRef struct {
 	*ElementRef[HTMLTemplateElement]
+	*InteractionAPI[HTMLTemplateElement]
+	*ScrollAPI[HTMLTemplateElement]
 	*ElementActions[HTMLTemplateElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTemplateRef(ref *ElementRef[HTMLTemplateElement], ctx dom.ActionExecutor) *TemplateRef {
+func NewTemplateRef(ref *ElementRef[HTMLTemplateElement], ctx dom.Dispatcher) *TemplateRef {
 	if ref == nil {
 		return nil
 	}
 	return &TemplateRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTemplateElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTemplateElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTemplateElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TextareaRef struct {
 	*ElementRef[HTMLTextareaElement]
+	*InteractionAPI[HTMLTextareaElement]
+	*ScrollAPI[HTMLTextareaElement]
+	*DisableableAPI[HTMLTextareaElement]
+	*SelectionAPI[HTMLTextareaElement]
 	*ElementActions[HTMLTextareaElement]
-	*FocusActions[HTMLTextareaElement]
-	*SelectionActions[HTMLTextareaElement]
 	*ValueActions[HTMLTextareaElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
-	*FormHandler
 	*InputHandler
 }
 
-func NewTextareaRef(ref *ElementRef[HTMLTextareaElement], ctx dom.ActionExecutor) *TextareaRef {
+func NewTextareaRef(ref *ElementRef[HTMLTextareaElement], ctx dom.Dispatcher) *TextareaRef {
 	if ref == nil {
 		return nil
 	}
 	return &TextareaRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTextareaElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTextareaElement](ref.DOMElementRef(), ctx),
+		DisableableAPI:     NewDisableableAPI[HTMLTextareaElement](ref.DOMElementRef(), ctx),
+		SelectionAPI:       NewSelectionAPI[HTMLTextareaElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTextareaElement](ref.DOMElementRef(), ctx),
-		FocusActions:       NewFocusActions[HTMLTextareaElement](ref.DOMElementRef(), ctx),
-		SelectionActions:   NewSelectionActions[HTMLTextareaElement](ref.DOMElementRef(), ctx),
 		ValueActions:       NewValueActions[HTMLTextareaElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
-		FormHandler:        NewFormHandler(ref),
 		InputHandler:       NewInputHandler(ref),
 	}
 }
 
 type TfootRef struct {
 	*ElementRef[HTMLTfootElement]
+	*InteractionAPI[HTMLTfootElement]
+	*ScrollAPI[HTMLTfootElement]
 	*ElementActions[HTMLTfootElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTfootRef(ref *ElementRef[HTMLTfootElement], ctx dom.ActionExecutor) *TfootRef {
+func NewTfootRef(ref *ElementRef[HTMLTfootElement], ctx dom.Dispatcher) *TfootRef {
 	if ref == nil {
 		return nil
 	}
 	return &TfootRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTfootElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTfootElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTfootElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type ThRef struct {
 	*ElementRef[HTMLThElement]
+	*InteractionAPI[HTMLThElement]
+	*ScrollAPI[HTMLThElement]
 	*ElementActions[HTMLThElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewThRef(ref *ElementRef[HTMLThElement], ctx dom.ActionExecutor) *ThRef {
+func NewThRef(ref *ElementRef[HTMLThElement], ctx dom.Dispatcher) *ThRef {
 	if ref == nil {
 		return nil
 	}
 	return &ThRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLThElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLThElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLThElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TheadRef struct {
 	*ElementRef[HTMLTheadElement]
+	*InteractionAPI[HTMLTheadElement]
+	*ScrollAPI[HTMLTheadElement]
 	*ElementActions[HTMLTheadElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTheadRef(ref *ElementRef[HTMLTheadElement], ctx dom.ActionExecutor) *TheadRef {
+func NewTheadRef(ref *ElementRef[HTMLTheadElement], ctx dom.Dispatcher) *TheadRef {
 	if ref == nil {
 		return nil
 	}
 	return &TheadRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTheadElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTheadElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTheadElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TimeRef struct {
 	*ElementRef[HTMLTimeElement]
+	*InteractionAPI[HTMLTimeElement]
+	*ScrollAPI[HTMLTimeElement]
 	*ElementActions[HTMLTimeElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTimeRef(ref *ElementRef[HTMLTimeElement], ctx dom.ActionExecutor) *TimeRef {
+func NewTimeRef(ref *ElementRef[HTMLTimeElement], ctx dom.Dispatcher) *TimeRef {
 	if ref == nil {
 		return nil
 	}
 	return &TimeRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTimeElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTimeElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTimeElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TitleElRef struct {
 	*ElementRef[HTMLTitleElement]
+	*InteractionAPI[HTMLTitleElement]
+	*ScrollAPI[HTMLTitleElement]
 	*ElementActions[HTMLTitleElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTitleElRef(ref *ElementRef[HTMLTitleElement], ctx dom.ActionExecutor) *TitleElRef {
+func NewTitleElRef(ref *ElementRef[HTMLTitleElement], ctx dom.Dispatcher) *TitleElRef {
 	if ref == nil {
 		return nil
 	}
 	return &TitleElRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTitleElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTitleElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTitleElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TrRef struct {
 	*ElementRef[HTMLTrElement]
+	*InteractionAPI[HTMLTrElement]
+	*ScrollAPI[HTMLTrElement]
 	*ElementActions[HTMLTrElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTrRef(ref *ElementRef[HTMLTrElement], ctx dom.ActionExecutor) *TrRef {
+func NewTrRef(ref *ElementRef[HTMLTrElement], ctx dom.Dispatcher) *TrRef {
 	if ref == nil {
 		return nil
 	}
 	return &TrRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTrElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTrElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type TrackRef struct {
 	*ElementRef[HTMLTrackElement]
+	*InteractionAPI[HTMLTrackElement]
+	*ScrollAPI[HTMLTrackElement]
 	*ElementActions[HTMLTrackElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewTrackRef(ref *ElementRef[HTMLTrackElement], ctx dom.ActionExecutor) *TrackRef {
+func NewTrackRef(ref *ElementRef[HTMLTrackElement], ctx dom.Dispatcher) *TrackRef {
 	if ref == nil {
 		return nil
 	}
 	return &TrackRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLTrackElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLTrackElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLTrackElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type URef struct {
 	*ElementRef[HTMLUElement]
+	*InteractionAPI[HTMLUElement]
+	*ScrollAPI[HTMLUElement]
 	*ElementActions[HTMLUElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewURef(ref *ElementRef[HTMLUElement], ctx dom.ActionExecutor) *URef {
+func NewURef(ref *ElementRef[HTMLUElement], ctx dom.Dispatcher) *URef {
 	if ref == nil {
 		return nil
 	}
 	return &URef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLUElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLUElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLUElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type UlRef struct {
 	*ElementRef[HTMLUlElement]
+	*InteractionAPI[HTMLUlElement]
+	*ScrollAPI[HTMLUlElement]
 	*ElementActions[HTMLUlElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewUlRef(ref *ElementRef[HTMLUlElement], ctx dom.ActionExecutor) *UlRef {
+func NewUlRef(ref *ElementRef[HTMLUlElement], ctx dom.Dispatcher) *UlRef {
 	if ref == nil {
 		return nil
 	}
 	return &UlRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLUlElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLUlElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLUlElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type UseRef struct {
 	*ElementRef[SVGUseElement]
+	*InteractionAPI[SVGUseElement]
+	*ScrollAPI[SVGUseElement]
 	*ElementActions[SVGUseElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewUseRef(ref *ElementRef[SVGUseElement], ctx dom.ActionExecutor) *UseRef {
+func NewUseRef(ref *ElementRef[SVGUseElement], ctx dom.Dispatcher) *UseRef {
 	if ref == nil {
 		return nil
 	}
 	return &UseRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[SVGUseElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[SVGUseElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[SVGUseElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type VarRef struct {
 	*ElementRef[HTMLVarElement]
+	*InteractionAPI[HTMLVarElement]
+	*ScrollAPI[HTMLVarElement]
 	*ElementActions[HTMLVarElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewVarRef(ref *ElementRef[HTMLVarElement], ctx dom.ActionExecutor) *VarRef {
+func NewVarRef(ref *ElementRef[HTMLVarElement], ctx dom.Dispatcher) *VarRef {
 	if ref == nil {
 		return nil
 	}
 	return &VarRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLVarElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLVarElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLVarElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }
 
 type VideoRef struct {
 	*ElementRef[HTMLVideoElement]
+	*InteractionAPI[HTMLVideoElement]
+	*ScrollAPI[HTMLVideoElement]
+	*MediaAPI[HTMLVideoElement]
 	*ElementActions[HTMLVideoElement]
-	*FocusActions[HTMLVideoElement]
-	*MediaActions[HTMLVideoElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
-	*MediaHandler
 }
 
-func NewVideoRef(ref *ElementRef[HTMLVideoElement], ctx dom.ActionExecutor) *VideoRef {
+func NewVideoRef(ref *ElementRef[HTMLVideoElement], ctx dom.Dispatcher) *VideoRef {
 	if ref == nil {
 		return nil
 	}
 	return &VideoRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLVideoElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLVideoElement](ref.DOMElementRef(), ctx),
+		MediaAPI:           NewMediaAPI[HTMLVideoElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLVideoElement](ref.DOMElementRef(), ctx),
-		FocusActions:       NewFocusActions[HTMLVideoElement](ref.DOMElementRef(), ctx),
-		MediaActions:       NewMediaActions[HTMLVideoElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
-		MediaHandler:       NewMediaHandler(ref),
 	}
 }
 
 type WbrRef struct {
 	*ElementRef[HTMLWbrElement]
+	*InteractionAPI[HTMLWbrElement]
+	*ScrollAPI[HTMLWbrElement]
 	*ElementActions[HTMLWbrElement]
 	*AnimationHandler
-	*ClickHandler
 	*ClipboardHandler
 	*CompositionHandler
-	*DragHandler
-	*FocusHandler
 	*FullscreenHandler
-	*KeyboardHandler
 	*LifecycleHandler
 	*LoadHandler
-	*MouseHandler
-	*PointerHandler
-	*ScrollHandler
-	*SelectionHandler
-	*TouchHandler
+	*PrintHandler
+	*ResizeHandler
+	*StorageHandler
 	*TransitionHandler
+	*VisibilityHandler
 	*WheelHandler
 }
 
-func NewWbrRef(ref *ElementRef[HTMLWbrElement], ctx dom.ActionExecutor) *WbrRef {
+func NewWbrRef(ref *ElementRef[HTMLWbrElement], ctx dom.Dispatcher) *WbrRef {
 	if ref == nil {
 		return nil
 	}
 	return &WbrRef{
 		ElementRef:         ref,
+		InteractionAPI:     NewInteractionAPI[HTMLWbrElement](ref.DOMElementRef(), ctx),
+		ScrollAPI:          NewScrollAPI[HTMLWbrElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLWbrElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
-		ClickHandler:       NewClickHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),
 		CompositionHandler: NewCompositionHandler(ref),
-		DragHandler:        NewDragHandler(ref),
-		FocusHandler:       NewFocusHandler(ref),
 		FullscreenHandler:  NewFullscreenHandler(ref),
-		KeyboardHandler:    NewKeyboardHandler(ref),
 		LifecycleHandler:   NewLifecycleHandler(ref),
 		LoadHandler:        NewLoadHandler(ref),
-		MouseHandler:       NewMouseHandler(ref),
-		PointerHandler:     NewPointerHandler(ref),
-		ScrollHandler:      NewScrollHandler(ref),
-		SelectionHandler:   NewSelectionHandler(ref),
-		TouchHandler:       NewTouchHandler(ref),
+		PrintHandler:       NewPrintHandler(ref),
+		ResizeHandler:      NewResizeHandler(ref),
+		StorageHandler:     NewStorageHandler(ref),
 		TransitionHandler:  NewTransitionHandler(ref),
+		VisibilityHandler:  NewVisibilityHandler(ref),
 		WheelHandler:       NewWheelHandler(ref),
 	}
 }

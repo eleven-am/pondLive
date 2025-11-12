@@ -29,6 +29,8 @@ export interface Location {
 export interface BindingsPayload {
   slots?: BindingTable;
   uploads?: UploadBindingDescriptor[];
+  refs?: RefBindingDescriptor[];
+  router?: RouterBindingDescriptor[];
 }
 
 export interface UploadBindingDescriptor {
@@ -38,6 +40,21 @@ export interface UploadBindingDescriptor {
   accept?: string[];
   multiple?: boolean;
   maxSize?: number;
+}
+
+export interface RefBindingDescriptor {
+  componentId: string;
+  path?: number[];
+  refId: string;
+}
+
+export interface RouterBindingDescriptor {
+  componentId: string;
+  path?: number[];
+  pathValue?: string;
+  query?: string;
+  hash?: string;
+  replace?: string;
 }
 
 export interface TemplatePayload {
@@ -120,7 +137,7 @@ export interface DynamicSlot {
 export interface ListRow {
   key: string;
   slots?: number[];
-  bindings?: BindingTable;
+  bindings?: BindingsPayload;
   slotPaths?: SlotPathDescriptor[];
   listPaths?: ListPathDescriptor[];
   componentPaths?: ComponentPathDescriptor[];
