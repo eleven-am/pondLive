@@ -1244,18 +1244,78 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
           return;
         }
 
-        // Get the method from the element
-        const fn = (element as any)[method];
-        if (typeof fn !== "function") {
-          response.error = "method_not_found";
-          this.sendDOMResponse(response);
-          return;
-        }
+        // Handle custom methods first
+        switch (method) {
+          case "getScrollMetrics":
+            response.result = {
+              scrollTop: element.scrollTop,
+              scrollLeft: element.scrollLeft,
+              scrollHeight: element.scrollHeight,
+              scrollWidth: element.scrollWidth,
+              clientHeight: element.clientHeight,
+              clientWidth: element.clientWidth,
+            };
+            break;
 
-        // Call the method with provided arguments
-        const args = Array.isArray(msg.args) ? msg.args : [];
-        const result = fn.apply(element, args);
-        response.result = result;
+          case "getComputedStyle": {
+            const properties = Array.isArray(msg.args) && msg.args.length > 0
+              ? msg.args[0]
+              : [];
+            const computed = window.getComputedStyle(element);
+
+            if (Array.isArray(properties) && properties.length > 0) {
+              // Return only requested properties
+              const styles: Record<string, string> = {};
+              for (const prop of properties) {
+                styles[prop] = computed.getPropertyValue(prop);
+              }
+              response.result = styles;
+            } else {
+              // Return commonly used properties
+              response.result = {
+                display: computed.display,
+                visibility: computed.visibility,
+                opacity: computed.opacity,
+                position: computed.position,
+                zIndex: computed.zIndex,
+                width: computed.width,
+                height: computed.height,
+                top: computed.top,
+                left: computed.left,
+                right: computed.right,
+                bottom: computed.bottom,
+                margin: computed.margin,
+                padding: computed.padding,
+                border: computed.border,
+                backgroundColor: computed.backgroundColor,
+                color: computed.color,
+                fontSize: computed.fontSize,
+                fontFamily: computed.fontFamily,
+                fontWeight: computed.fontWeight,
+                lineHeight: computed.lineHeight,
+                textAlign: computed.textAlign,
+                overflow: computed.overflow,
+                transform: computed.transform,
+              };
+            }
+            break;
+          }
+
+          default: {
+            // Fall back to calling method directly on element
+            const fn = (element as any)[method];
+            if (typeof fn !== "function") {
+              response.error = "method_not_found";
+              this.sendDOMResponse(response);
+              return;
+            }
+
+            // Call the method with provided arguments
+            const args = Array.isArray(msg.args) ? msg.args : [];
+            const result = fn.apply(element, args);
+            response.result = result;
+          }
+        }
       } catch (error) {
         response.error = error instanceof Error ? error.message : String(error);
         this.sendDOMResponse(response);

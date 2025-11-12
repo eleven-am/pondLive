@@ -155,4 +155,191 @@ describe("dom utilities", () => {
       error: "not_found",
     });
   });
+
+  it("handles getBoundingClientRect method call", () => {
+    const div = document.createElement("div");
+    document.body.appendChild(div);
+    registerRefs({ box: { tag: "div" } });
+    attachRefToElement("box", div);
+
+    const mockRect = {
+      x: 10,
+      y: 20,
+      width: 100,
+      height: 50,
+      top: 20,
+      left: 10,
+      right: 110,
+      bottom: 70,
+      toJSON: () => mockRect,
+    };
+    div.getBoundingClientRect = vi.fn().mockReturnValue(mockRect);
+
+    const live = new LiveUI({ autoConnect: false });
+    const sendMessage = vi.fn();
+    (live as any).channel = { sendMessage };
+
+    (live as any).handleDOMRequest({
+      t: "domreq",
+      id: "req-3",
+      ref: "box",
+      method: "getBoundingClientRect",
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith("domres", {
+      t: "domres",
+      id: "req-3",
+      result: mockRect,
+    });
+  });
+
+  it("handles getScrollMetrics custom method", () => {
+    const div = document.createElement("div");
+    Object.defineProperty(div, "scrollTop", { value: 100, writable: true });
+    Object.defineProperty(div, "scrollLeft", { value: 50, writable: true });
+    Object.defineProperty(div, "scrollHeight", { value: 500, writable: true });
+    Object.defineProperty(div, "scrollWidth", { value: 300, writable: true });
+    Object.defineProperty(div, "clientHeight", { value: 200, writable: true });
+    Object.defineProperty(div, "clientWidth", { value: 150, writable: true });
+    document.body.appendChild(div);
+    registerRefs({ scroller: { tag: "div" } });
+    attachRefToElement("scroller", div);
+
+    const live = new LiveUI({ autoConnect: false });
+    const sendMessage = vi.fn();
+    (live as any).channel = { sendMessage };
+
+    (live as any).handleDOMRequest({
+      t: "domreq",
+      id: "req-4",
+      ref: "scroller",
+      method: "getScrollMetrics",
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith("domres", {
+      t: "domres",
+      id: "req-4",
+      result: {
+        scrollTop: 100,
+        scrollLeft: 50,
+        scrollHeight: 500,
+        scrollWidth: 300,
+        clientHeight: 200,
+        clientWidth: 150,
+      },
+    });
+  });
+
+  it("handles getComputedStyle with specific properties", () => {
+    const div = document.createElement("div");
+    div.style.color = "red";
+    div.style.fontSize = "16px";
+    document.body.appendChild(div);
+    registerRefs({ styled: { tag: "div" } });
+    attachRefToElement("styled", div);
+
+    const live = new LiveUI({ autoConnect: false });
+    const sendMessage = vi.fn();
+    (live as any).channel = { sendMessage };
+
+    (live as any).handleDOMRequest({
+      t: "domreq",
+      id: "req-5",
+      ref: "styled",
+      method: "getComputedStyle",
+      args: [["color", "font-size"]],
+    });
+
+    expect(sendMessage).toHaveBeenCalled();
+    const call = sendMessage.mock.calls[0];
+    expect(call[0]).toBe("domres");
+    expect(call[1].t).toBe("domres");
+    expect(call[1].id).toBe("req-5");
+    expect(call[1].result).toHaveProperty("color");
+    expect(call[1].result).toHaveProperty("font-size");
+  });
+
+  it("handles getComputedStyle with default properties", () => {
+    const div = document.createElement("div");
+    document.body.appendChild(div);
+    registerRefs({ styled: { tag: "div" } });
+    attachRefToElement("styled", div);
+
+    const live = new LiveUI({ autoConnect: false });
+    const sendMessage = vi.fn();
+    (live as any).channel = { sendMessage };
+
+    (live as any).handleDOMRequest({
+      t: "domreq",
+      id: "req-6",
+      ref: "styled",
+      method: "getComputedStyle",
+    });
+
+    expect(sendMessage).toHaveBeenCalled();
+    const call = sendMessage.mock.calls[0];
+    expect(call[0]).toBe("domres");
+    expect(call[1].t).toBe("domres");
+    expect(call[1].id).toBe("req-6");
+    expect(call[1].result).toHaveProperty("display");
+    expect(call[1].result).toHaveProperty("position");
+    expect(call[1].result).toHaveProperty("color");
+    expect(call[1].result).toHaveProperty("fontSize");
+  });
+
+  it("handles matches method call", () => {
+    const div = document.createElement("div");
+    div.className = "active featured";
+    document.body.appendChild(div);
+    registerRefs({ item: { tag: "div" } });
+    attachRefToElement("item", div);
+
+    const live = new LiveUI({ autoConnect: false });
+    const sendMessage = vi.fn();
+    (live as any).channel = { sendMessage };
+
+    (live as any).handleDOMRequest({
+      t: "domreq",
+      id: "req-7",
+      ref: "item",
+      method: "matches",
+      args: [".active"],
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith("domres", {
+      t: "domres",
+      id: "req-7",
+      result: true,
+    });
+  });
+
+  it("handles checkVisibility method call", () => {
+    const div = document.createElement("div");
+    document.body.appendChild(div);
+    registerRefs({ visible: { tag: "div" } });
+    attachRefToElement("visible", div);
+
+    // Mock checkVisibility if not available in test environment
+    if (typeof (div as any).checkVisibility !== "function") {
+      (div as any).checkVisibility = vi.fn().mockReturnValue(true);
+    }
+
+    const live = new LiveUI({ autoConnect: false });
+    const sendMessage = vi.fn();
+    (live as any).channel = { sendMessage };
+
+    (live as any).handleDOMRequest({
+      t: "domreq",
+      id: "req-8",
+      ref: "visible",
+      method: "checkVisibility",
+    });
+
+    expect(sendMessage).toHaveBeenCalled();
+    const call = sendMessage.mock.calls[0];
+    expect(call[0]).toBe("domres");
+    expect(call[1].t).toBe("domres");
+    expect(call[1].id).toBe("req-8");
+    expect(typeof call[1].result).toBe("boolean");
+  });
 });
