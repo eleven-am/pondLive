@@ -65,7 +65,13 @@ func counter(ctx ui.Ctx) h.Node {
 	buttonRef.OnClick(func(evt h.ClickEvent) h.Updates {
 		setCount(count() - 1)
 		rect, _ := buttonRef.GetBoundingClientRect()
-		fmt.Printf("Decrement button clicked: %v", rect)
+		fmt.Printf("Decrement button clicked: %v\n", rect)
+		return nil
+	})
+
+	buttonRef.On("click", func(evt h.Event) h.Updates {
+		setCount(count() - 1)
+		fmt.Printf("Decrement button clicked %v\n", evt)
 		return nil
 	})
 

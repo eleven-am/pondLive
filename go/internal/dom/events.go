@@ -2,6 +2,10 @@ package dom
 
 import "strings"
 
+// CaptureAllProperties is a special marker that instructs the client
+// to automatically capture all serializable properties from an event.
+const CaptureAllProperties = "*"
+
 var defaultEventPresets = map[string]EventOptions{
 	"input": {
 		Listen: []string{"change"},

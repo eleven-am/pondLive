@@ -67,6 +67,7 @@ var apiSpecs = []apiSpec{
 	{"ScrollAPI", "NewScrollAPI", "ScrollAPI"},
 	{"DisableableAPI", "NewDisableableAPI", "DisableableAPI"},
 	{"MediaAPI", "NewMediaAPI", "MediaAPI"},
+	{"CanvasAPI", "NewCanvasAPI", "CanvasAPI"},
 	{"DialogAPI", "NewDialogAPI", "DialogAPI"},
 	{"FormAPI", "NewFormAPI", "FormAPI"},
 	{"SelectionAPI", "NewSelectionAPI", "SelectionAPI"},
@@ -150,6 +151,7 @@ var apiMixins = map[string][]string{
 	"disableable": {"DisableableAPI"},
 	"textInput":   {"SelectionAPI"},
 	"media":       {"MediaAPI"},
+	"canvas":      {"CanvasAPI"},
 	"formElement": {"FormAPI"},
 	"dialog":      {"DialogAPI"},
 }
@@ -310,6 +312,7 @@ var tags = []tagSpec{
 			{Method: "OnCanvasPointerUp", Event: "pointerup"},
 			{Method: "OnCanvasWheel", Event: "wheel"},
 		},
+		Mixins: []string{"canvas"},
 	}},
 	{"Caption", "caption", "Caption creates a <caption> element.", "html", nil},
 	{"Cite", "cite", "Cite creates a <cite> element.", "html", nil},

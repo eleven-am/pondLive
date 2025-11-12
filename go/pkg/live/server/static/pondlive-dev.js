@@ -2046,6 +2046,31 @@ var LiveUIModule = (() => {
     }
     return null;
   }
+  function autoCaptureEventProperties(e) {
+    const captured = {};
+    for (const key in e) {
+      try {
+        const value = e[key];
+        if (typeof value === "function" || value instanceof Node || value instanceof Window || key === "target" || // Too large, causes circular refs
+        key === "currentTarget" || key === "srcElement") {
+          continue;
+        }
+        if (value !== null && typeof value === "object") {
+          try {
+            JSON.stringify(value);
+            captured[key] = value;
+          } catch {
+            continue;
+          }
+        } else {
+          captured[key] = value;
+        }
+      } catch {
+        continue;
+      }
+    }
+    return captured;
+  }
   function extractEventPayload(e, target, props, handlerElement, refElement) {
     const payload = {
       type: e.type
@@ -2071,15 +2096,18 @@ var LiveUIModule = (() => {
       payload.clientY = e.clientY;
     }
     if (Array.isArray(props)) {
-      const domValues = domGetSync(props, {
-        event: e,
-        target,
-        handlerElement: handlerElement ?? null,
-        refElement: refElement ?? null
-      });
-      if (domValues) {
-        for (const [key, value] of Object.entries(domValues)) {
-          payload[key] = value;
+      if (props.includes("*")) {
+        const captured = autoCaptureEventProperties(e);
+        Object.assign(payload, captured);
+      } else {
+        const domValues = domGetSync(props, {
+          event: e,
+          target,
+          handlerElement: handlerElement ?? null,
+          refElement: refElement ?? null
+        });
+        if (domValues) {
+          Object.assign(payload, domValues);
         }
       }
     }
@@ -4780,6 +4808,57 @@ var LiveUIModule = (() => {
         registerRefs(payload.refs.add);
       }
     }
+    /**
+     * Serializes DOM objects into JSON-serializable format.
+     * Handles TimeRanges, DOMRect, DOMRectReadOnly, and other complex DOM types.
+     */
+    serializeDOMResult(result) {
+      if (result === null || result === void 0) {
+        return result;
+      }
+      if (typeof result === "object" && "length" in result && typeof result.start === "function" && typeof result.end === "function") {
+        const ranges = [];
+        for (let i = 0; i < result.length; i++) {
+          ranges.push({
+            start: result.start(i),
+            end: result.end(i)
+          });
+        }
+        return { length: result.length, ranges };
+      }
+      if (result instanceof DOMRect || result instanceof DOMRectReadOnly) {
+        return {
+          x: result.x,
+          y: result.y,
+          width: result.width,
+          height: result.height,
+          top: result.top,
+          right: result.right,
+          bottom: result.bottom,
+          left: result.left
+        };
+      }
+      if (result && typeof result === "object" && "length" in result && typeof result.contains === "function") {
+        return Array.from(result);
+      }
+      if (result instanceof NodeList || result instanceof HTMLCollection) {
+        return Array.from(result).map((node) => {
+          if (node instanceof Element) {
+            return { tagName: node.tagName, id: node.id, className: node.className };
+          }
+          return null;
+        }).filter(Boolean);
+      }
+      if (result && result.constructor && result.constructor.name === "CSSStyleDeclaration") {
+        const styles = {};
+        for (let i = 0; i < result.length; i++) {
+          const prop = result[i];
+          styles[prop] = result.getPropertyValue(prop);
+        }
+        return styles;
+      }
+      return result;
+    }
     handleDOMRequest(msg) {
       if (!msg || !msg.id) {
         return;
@@ -4807,16 +4886,6 @@ var LiveUIModule = (() => {
             return;
           }
           switch (method) {
-            case "getScrollMetrics":
-              response.result = {
-                scrollTop: element.scrollTop,
-                scrollLeft: element.scrollLeft,
-                scrollHeight: element.scrollHeight,
-                scrollWidth: element.scrollWidth,
-                clientHeight: element.clientHeight,
-                clientWidth: element.clientWidth
-              };
-              break;
             case "getComputedStyle": {
               const properties = Array.isArray(msg.args) && msg.args.length > 0 ? msg.args[0] : [];
               const computed = window.getComputedStyle(element);
@@ -4856,15 +4925,20 @@ var LiveUIModule = (() => {
               break;
             }
             default: {
-              const fn = element[method];
-              if (typeof fn !== "function") {
+              const prop = element[method];
+              if (prop === void 0) {
                 response.error = "method_not_found";
                 this.sendDOMResponse(response);
                 return;
               }
-              const args = Array.isArray(msg.args) ? msg.args : [];
-              const result = fn.apply(element, args);
-              response.result = result;
+              let result;
+              if (typeof prop === "function") {
+                const args = Array.isArray(msg.args) ? msg.args : [];
+                result = prop.apply(element, args);
+              } else {
+                result = prop;
+              }
+              response.result = this.serializeDOMResult(result);
             }
           }
         } catch (error) {

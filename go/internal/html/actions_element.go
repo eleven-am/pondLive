@@ -38,8 +38,18 @@ type WindowMetrics struct {
 	ScreenY     float64 // Window position on screen (Y)
 }
 
-// ElementActions provides common DOM actions available on all elements.
-// This is the base action mixin embedded in all ref types.
+// ElementActions provides common DOM actions and queries available on all HTML elements.
+// This is the base action mixin embedded in all element ref types, offering fundamental
+// DOM inspection capabilities like bounds checking, scroll metrics, and computed styles.
+//
+// Example:
+//
+//	div := html.NewElementRef[html.DivDescriptor]("container", html.DivDescriptor{})
+//	actions := html.NewElementActions(div.DOMElementRef(), ctx)
+//
+//	// Query element dimensions
+//	rect, _ := actions.GetBoundingClientRect()
+//	fmt.Printf("Element at (%f, %f) with size %fx%f\n", rect.X, rect.Y, rect.Width, rect.Height)
 type ElementActions[T dom.ElementDescriptor] struct {
 	ref *dom.ElementRef[T]
 	ctx dom.Dispatcher
@@ -49,14 +59,55 @@ func NewElementActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.
 	return &ElementActions[T]{ref: ref, ctx: ctx}
 }
 
-// Call invokes an arbitrary method on the element with the provided arguments.
-// Use this as a fallback for methods not exposed as typed methods.
+// Call invokes an arbitrary method on the DOM element with the provided arguments.
+// This is a low-level escape hatch for calling any DOM method not exposed through typed APIs.
+//
+// Example:
+//
+//	video := html.NewElementRef[html.VideoDescriptor]("player", html.VideoDescriptor{})
+//	actions := html.NewElementActions(video.DOMElementRef(), ctx)
+//
+//	// Call a method not available in MediaAPI
+//	actions.Call("requestPictureInPicture")
+//
+//	// Call with arguments
+//	actions.Call("scrollTo", 0, 100)
+//
+// Note: This method provides no type safety. Use typed API methods when available.
+// Arguments are serialized to JSON and sent to the client, so ensure they're JSON-serializable.
 func (a *ElementActions[T]) Call(method string, args ...any) {
 	dom.DOMCall[T](a.ctx, a.ref, method, args...)
 }
 
-// GetBoundingClientRect returns the size and position of the element.
-// This makes a synchronous call to the client and waits for the response.
+// GetBoundingClientRect returns the size and position of the element relative to the viewport.
+// This makes a synchronous call to the client (~1-2ms latency) and waits for the response.
+//
+// DOMRect fields:
+//   - X, Y: Position relative to viewport top-left corner
+//   - Width, Height: Element dimensions including padding and border
+//   - Top, Right, Bottom, Left: Edges relative to viewport
+//
+// Example:
+//
+//	tooltip := html.NewElementRef[html.DivDescriptor]("tooltip", html.DivDescriptor{})
+//	actions := html.NewElementActions(tooltip.DOMElementRef(), ctx)
+//
+//	// Position tooltip relative to trigger element
+//	triggerRect, err := actions.GetBoundingClientRect()
+//	if err == nil {
+//	    tooltipX := triggerRect.Right + 10 // 10px to the right
+//	    tooltipY := triggerRect.Top
+//	    positionTooltip(tooltipX, tooltipY)
+//	}
+//
+// Use Cases:
+//   - Positioning popups, tooltips, or dropdowns
+//   - Detecting element visibility in viewport
+//   - Calculating relative positions between elements
+//   - Implementing drag-and-drop with precise positioning
+//
+// Note: Coordinates are relative to the viewport, not the document. For document-relative
+// positions, add window scroll offsets (scrollX, scrollY) to the returned values.
 func (a *ElementActions[T]) GetBoundingClientRect() (*DOMRect, error) {
 	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getBoundingClientRect")
 	if err != nil {
@@ -83,35 +134,117 @@ func (a *ElementActions[T]) GetBoundingClientRect() (*DOMRect, error) {
 	}, nil
 }
 
-// GetScrollMetrics returns detailed scroll information for the element.
-// This makes a synchronous call to the client and waits for the response.
+// GetScrollMetrics returns detailed scroll information for scrollable elements.
+// This makes multiple synchronous calls (~6-12ms total) to gather comprehensive scroll state.
+//
+// ScrollMetrics fields:
+//   - ScrollTop/ScrollLeft: Current scroll position
+//   - ScrollHeight/ScrollWidth: Total scrollable content size
+//   - ClientHeight/ClientWidth: Visible area size (excluding scrollbar)
+//
+// Example:
+//
+//	chatWindow := html.NewElementRef[html.DivDescriptor]("chat", html.DivDescriptor{})
+//	actions := html.NewElementActions(chatWindow.DOMElementRef(), ctx)
+//
+//	// Check if user has scrolled to bottom
+//	metrics, err := actions.GetScrollMetrics()
+//	if err == nil {
+//	    atBottom := metrics.ScrollTop + metrics.ClientHeight >= metrics.ScrollHeight - 10
+//	    if atBottom {
+//	        markAllMessagesAsRead()
+//	    }
+//
+//	    // Calculate scroll percentage
+//	    scrollPercent := (metrics.ScrollTop / (metrics.ScrollHeight - metrics.ClientHeight)) * 100
+//	}
+//
+// Use Cases:
+//   - Implementing infinite scroll (detect when near bottom)
+//   - Auto-scrolling to latest content
+//   - Showing scroll position indicators
+//   - Detecting scroll progress through long content
+//   - Implementing "scroll to top" buttons
+//
+// Note: For non-scrollable elements, ScrollHeight/Width equals ClientHeight/Width and
+// ScrollTop/Left will be 0. Use this to detect if an element is scrollable.
 func (a *ElementActions[T]) GetScrollMetrics() (*ScrollMetrics, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getScrollMetrics")
+
+	scrollTop, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollTop")
 	if err != nil {
 		return nil, err
 	}
-	if result == nil {
-		return nil, nil
+	scrollLeft, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollLeft")
+	if err != nil {
+		return nil, err
 	}
-
-	metricsMap, ok := result.(map[string]any)
-	if !ok {
-		return nil, nil
+	scrollHeight, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollHeight")
+	if err != nil {
+		return nil, err
+	}
+	scrollWidth, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollWidth")
+	if err != nil {
+		return nil, err
+	}
+	clientHeight, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "clientHeight")
+	if err != nil {
+		return nil, err
+	}
+	clientWidth, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "clientWidth")
+	if err != nil {
+		return nil, err
 	}
 
 	return &ScrollMetrics{
-		ScrollTop:    payloadFloat(metricsMap, "scrollTop", 0),
-		ScrollLeft:   payloadFloat(metricsMap, "scrollLeft", 0),
-		ScrollHeight: payloadFloat(metricsMap, "scrollHeight", 0),
-		ScrollWidth:  payloadFloat(metricsMap, "scrollWidth", 0),
-		ClientHeight: payloadFloat(metricsMap, "clientHeight", 0),
-		ClientWidth:  payloadFloat(metricsMap, "clientWidth", 0),
+		ScrollTop:    payloadFloatDirect(scrollTop, 0),
+		ScrollLeft:   payloadFloatDirect(scrollLeft, 0),
+		ScrollHeight: payloadFloatDirect(scrollHeight, 0),
+		ScrollWidth:  payloadFloatDirect(scrollWidth, 0),
+		ClientHeight: payloadFloatDirect(clientHeight, 0),
+		ClientWidth:  payloadFloatDirect(clientWidth, 0),
 	}, nil
 }
 
-// GetComputedStyle returns the computed CSS styles for the element.
-// If no properties are specified, returns a commonly used subset of styles.
-// This makes a synchronous call to the client and waits for the response.
+// payloadFloatDirect converts a direct any value to float64
+func payloadFloatDirect(value any, defaultValue float64) float64 {
+	if value == nil {
+		return defaultValue
+	}
+	if v, ok := value.(float64); ok {
+		return v
+	}
+	return defaultValue
+}
+
+// GetComputedStyle returns the computed CSS styles for the element as resolved by the browser.
+// If properties are specified, returns only those properties. Otherwise returns common styles.
+// This makes a synchronous call (~1-2ms latency) to the client.
+//
+// Example:
+//
+//	button := html.NewElementRef[html.ButtonDescriptor]("btn", html.ButtonDescriptor{})
+//	actions := html.NewElementActions(button.DOMElementRef(), ctx)
+//
+//	// Get specific styles
+//	styles, err := actions.GetComputedStyle("color", "backgroundColor", "fontSize")
+//	if err == nil {
+//	    textColor := styles["color"]          // e.g., "rgb(255, 255, 255)"
+//	    bgColor := styles["backgroundColor"]  // e.g., "rgb(0, 123, 255)"
+//	    fontSize := styles["fontSize"]        // e.g., "16px"
+//	}
+//
+//	// Get all common styles (when no properties specified)
+//	allStyles, _ := actions.GetComputedStyle()
+//
+// Use Cases:
+//   - Reading theme colors or dimensions set by CSS
+//   - Checking if element is hidden via display:none or visibility:hidden
+//   - Getting animation/transition properties
+//   - Debugging style inheritance issues
+//   - Implementing responsive behavior based on computed styles
+//
+// Note: Computed styles are the final values after CSS cascade, inheritance, and defaults.
+// Use camelCase for multi-word properties (e.g., "backgroundColor" not "background-color").
 func (a *ElementActions[T]) GetComputedStyle(properties ...string) (map[string]string, error) {
 	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getComputedStyle", properties)
 	if err != nil {
@@ -133,9 +266,31 @@ func (a *ElementActions[T]) GetComputedStyle(properties ...string) (map[string]s
 	return styles, nil
 }
 
-// IsVisible checks if the element is visible in the viewport.
-// This makes a synchronous call to the client and waits for the response.
-func (a *ElementActions[T]) IsVisible() (bool, error) {
+// CheckVisibility checks if the element is currently visible according to CSS visibility rules.
+// This considers opacity, visibility, display, and content-visibility properties.
+// This makes a synchronous call (~1-2ms latency) to the client.
+//
+// Example:
+//
+//	modal := html.NewElementRef[html.DivDescriptor]("modal", html.DivDescriptor{})
+//	actions := html.NewElementActions(modal.DOMElementRef(), ctx)
+//
+//	// Check if modal is visible before showing toast
+//	visible, err := actions.CheckVisibility()
+//	if err == nil && !visible {
+//	    showToastNotification()
+//	}
+//
+// Use Cases:
+//   - Conditional logic based on visibility state
+//   - Verifying animations completed correctly
+//   - Implementing focus management (don't focus hidden elements)
+//   - A/B testing visibility experiments
+//
+// Note: This checks CSS-level visibility, not whether the element is in the viewport.
+// An element can be "visible" according to this method but scrolled out of view.
+// Use GetBoundingClientRect() to check viewport visibility.
+func (a *ElementActions[T]) CheckVisibility() (bool, error) {
 	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "checkVisibility")
 	if err != nil {
 		return false, err
@@ -152,7 +307,33 @@ func (a *ElementActions[T]) IsVisible() (bool, error) {
 }
 
 // Matches checks if the element matches the given CSS selector.
-// This makes a synchronous call to the client and waits for the response.
+// This is useful for dynamic behavior based on element state or attributes.
+// This makes a synchronous call (~1-2ms latency) to the client.
+//
+// Example:
+//
+//	listItem := html.NewElementRef[html.LiDescriptor]("item", html.LiDescriptor{})
+//	actions := html.NewElementActions(listItem.DOMElementRef(), ctx)
+//
+//	// Check if element has specific class or pseudo-class
+//	isActive, _ := actions.Matches(".active")
+//	isFirst, _ := actions.Matches(":first-child")
+//	isChecked, _ := actions.Matches(":checked")
+//
+//	// Complex selectors work too
+//	matches, _ := actions.Matches("li.item[data-status='completed']:not(.archived)")
+//	if matches {
+//	    // Element matches all criteria
+//	}
+//
+// Use Cases:
+//   - Checking if element has specific classes or attributes
+//   - Testing pseudo-classes (:hover, :focus, :checked, etc.)
+//   - Validating element state matches expected selector
+//   - Implementing conditional logic based on CSS selectors
+//
+// Note: This is equivalent to element.matches(selector) in JavaScript. The selector is evaluated
+// in the browser, so all standard CSS selectors including pseudo-classes are supported.
 func (a *ElementActions[T]) Matches(selector string) (bool, error) {
 	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "matches", selector)
 	if err != nil {

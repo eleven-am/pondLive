@@ -656,6 +656,7 @@ type CanvasRef struct {
 	*ElementRef[HTMLCanvasElement]
 	*InteractionAPI[HTMLCanvasElement]
 	*ScrollAPI[HTMLCanvasElement]
+	*CanvasAPI[HTMLCanvasElement]
 	*ElementActions[HTMLCanvasElement]
 	*AnimationHandler
 	*ClipboardHandler
@@ -679,6 +680,7 @@ func NewCanvasRef(ref *ElementRef[HTMLCanvasElement], ctx dom.Dispatcher) *Canva
 		ElementRef:         ref,
 		InteractionAPI:     NewInteractionAPI[HTMLCanvasElement](ref.DOMElementRef(), ctx),
 		ScrollAPI:          NewScrollAPI[HTMLCanvasElement](ref.DOMElementRef(), ctx),
+		CanvasAPI:          NewCanvasAPI[HTMLCanvasElement](ref.DOMElementRef(), ctx),
 		ElementActions:     NewElementActions[HTMLCanvasElement](ref.DOMElementRef(), ctx),
 		AnimationHandler:   NewAnimationHandler(ref),
 		ClipboardHandler:   NewClipboardHandler(ref),

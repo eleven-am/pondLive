@@ -1212,6 +1212,70 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
 
   }
 
+  /**
+   * Serializes DOM objects into JSON-serializable format.
+   * Handles TimeRanges, DOMRect, DOMRectReadOnly, and other complex DOM types.
+   */
+  private serializeDOMResult(result: any): any {
+    if (result === null || result === undefined) {
+      return result;
+    }
+
+    // Handle TimeRanges (buffered, played, seekable)
+    if (typeof result === "object" && "length" in result && typeof result.start === "function" && typeof result.end === "function") {
+      const ranges = [];
+      for (let i = 0; i < result.length; i++) {
+        ranges.push({
+          start: result.start(i),
+          end: result.end(i),
+        });
+      }
+      return { length: result.length, ranges };
+    }
+
+    // Handle DOMRect and DOMRectReadOnly (already serializable but ensure consistency)
+    if (result instanceof DOMRect || result instanceof DOMRectReadOnly) {
+      return {
+        x: result.x,
+        y: result.y,
+        width: result.width,
+        height: result.height,
+        top: result.top,
+        right: result.right,
+        bottom: result.bottom,
+        left: result.left,
+      };
+    }
+
+    // Handle DOMTokenList (classList)
+    if (result && typeof result === "object" && "length" in result && typeof result.contains === "function") {
+      return Array.from(result);
+    }
+
+    // Handle NodeList, HTMLCollection
+    if (result instanceof NodeList || result instanceof HTMLCollection) {
+      return Array.from(result).map(node => {
+        if (node instanceof Element) {
+          return { tagName: node.tagName, id: node.id, className: node.className };
+        }
+        return null;
+      }).filter(Boolean);
+    }
+
+    // Handle CSSStyleDeclaration
+    if (result && result.constructor && result.constructor.name === "CSSStyleDeclaration") {
+      const styles: Record<string, string> = {};
+      for (let i = 0; i < result.length; i++) {
+        const prop = result[i];
+        styles[prop] = result.getPropertyValue(prop);
+      }
+      return styles;
+    }
+
+    // Primitives and plain objects pass through
+    return result;
+  }
+
   private handleDOMRequest(msg: DOMRequestMessage): void {
     if (!msg || !msg.id) {
       return;
@@ -1246,17 +1310,6 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
 
         // Handle custom methods first
         switch (method) {
-          case "getScrollMetrics":
-            response.result = {
-              scrollTop: element.scrollTop,
-              scrollLeft: element.scrollLeft,
-              scrollHeight: element.scrollHeight,
-              scrollWidth: element.scrollWidth,
-              clientHeight: element.clientHeight,
-              clientWidth: element.clientWidth,
-            };
-            break;
-
           case "getComputedStyle": {
             const properties = Array.isArray(msg.args) && msg.args.length > 0
               ? msg.args[0]
@@ -1302,18 +1355,27 @@ class LiveUI extends EventEmitter<LiveUIEvents> {
           }
 
           default: {
-            // Fall back to calling method directly on element
-            const fn = (element as any)[method];
-            if (typeof fn !== "function") {
+            // Try to call method or access property on element
+            const prop = (element as any)[method];
+
+            if (prop === undefined) {
               response.error = "method_not_found";
               this.sendDOMResponse(response);
               return;
             }
 
-            // Call the method with provided arguments
-            const args = Array.isArray(msg.args) ? msg.args : [];
-            const result = fn.apply(element, args);
-            response.result = result;
+            let result;
+            if (typeof prop === "function") {
+              // It's a method - call it with arguments
+              const args = Array.isArray(msg.args) ? msg.args : [];
+              result = prop.apply(element, args);
+            } else {
+              // It's a property - return its value
+              result = prop;
+            }
+
+            // Serialize complex DOM objects
+            response.result = this.serializeDOMResult(result);
           }
         }
       } catch (error) {

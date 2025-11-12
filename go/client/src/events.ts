@@ -625,6 +625,49 @@ function findHandlerInfo(
   return null;
 }
 
+/**
+ * Auto-capture all serializable properties from an event object.
+ * Skips functions, DOM nodes, and circular references.
+ */
+function autoCaptureEventProperties(e: Event): Record<string, any> {
+  const captured: Record<string, any> = {};
+
+  for (const key in e) {
+    try {
+      const value = (e as any)[key];
+
+      // Skip non-serializable types
+      if (
+        typeof value === "function" ||
+        value instanceof Node ||
+        value instanceof Window ||
+        key === "target" || // Too large, causes circular refs
+        key === "currentTarget" ||
+        key === "srcElement"
+      ) {
+        continue;
+      }
+
+      // Serialize primitives and plain objects
+      if (value !== null && typeof value === "object") {
+        // Try to serialize, skip if circular/complex
+        try {
+          JSON.stringify(value);
+          captured[key] = value;
+        } catch {
+          continue; // Skip circular refs
+        }
+      } else {
+        captured[key] = value;
+      }
+    } catch {
+      continue; // Skip if property access throws
+    }
+  }
+
+  return captured;
+}
+
 function extractEventPayload(
   e: Event,
   target: Element,
@@ -667,15 +710,20 @@ function extractEventPayload(
   }
 
   if (Array.isArray(props)) {
-    const domValues = domGetSync(props, {
-      event: e,
-      target,
-      handlerElement: handlerElement ?? null,
-      refElement: refElement ?? null,
-    });
-    if (domValues) {
-      for (const [key, value] of Object.entries(domValues)) {
-        payload[key] = value;
+    if (props.includes("*")) {
+      // Auto-capture all event properties
+      const captured = autoCaptureEventProperties(e);
+      Object.assign(payload, captured);
+    } else {
+      // Normal mode: use specified props
+      const domValues = domGetSync(props, {
+        event: e,
+        target,
+        handlerElement: handlerElement ?? null,
+        refElement: refElement ?? null,
+      });
+      if (domValues) {
+        Object.assign(payload, domValues);
       }
     }
   }

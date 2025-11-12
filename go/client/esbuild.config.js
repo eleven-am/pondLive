@@ -86,14 +86,40 @@ async function minifyWithTerser(filePath) {
     const minified = await minify(code, {
         sourceMap: false,
         compress: {
-            passes: 2,
+            passes: 3,
             unsafe: true,
             unsafe_math: true,
             unsafe_methods: true,
+            unsafe_proto: true,
+            unsafe_regexp: true,
+            unsafe_comps: true,
             drop_console: true,
+            drop_debugger: true,
+            pure_funcs: ['console.log', 'console.debug', 'console.info', 'console.warn'],
+            pure_getters: true,
+            keep_fargs: false,
+            booleans_as_integers: true,
+            toplevel: true,
+            hoist_funs: true,
+            hoist_vars: true,
+            if_return: true,
+            join_vars: true,
+            sequences: true,
+            properties: true,
+            dead_code: true,
+            evaluate: true,
+            reduce_vars: true,
+            collapse_vars: true,
         },
         mangle: {
             toplevel: true,
+            properties: {
+                regex: /^_/,
+            },
+        },
+        format: {
+            comments: false,
+            preamble: '// LiveUI Client v1.0.0',
         },
     });
 
