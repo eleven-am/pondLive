@@ -6,7 +6,7 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
-	"github.com/eleven-am/pondlive/go/internal/render"
+	render "github.com/eleven-am/pondlive/go/internal/render"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -22,6 +22,33 @@ func settingsLayout(ctx Ctx, _ Match) h.Node {
 func settingsPage(label string) Component[Match] {
 	return func(ctx Ctx, _ Match) h.Node {
 		return h.Div(h.Text(label))
+	}
+}
+
+func placeholderRouter(ctx Ctx, _ routerRenderProps) h.Node {
+	return Router(ctx,
+		h.Main(
+			h.H1(h.Text("Placeholder Shell")),
+			Routes(ctx,
+				Route(ctx, RouteProps{Path: "/", Component: placeholderPage("home")}),
+				Route(ctx, RouteProps{Path: "/refs", Component: placeholderPage("refs")}),
+			),
+		),
+	)
+}
+
+func placeholderPage(label string) Component[Match] {
+	return func(ctx Ctx, _ Match) h.Node {
+		handler := func(h.Event) h.Updates { return nil }
+		return h.Section(
+			h.H2(h.Text(label+" route")),
+			h.P(h.Text("content:"+label)),
+			h.Button(
+				h.Type("button"),
+				h.On("click", handler),
+				h.Text("action "+label),
+			),
+		)
 	}
 }
 
@@ -148,32 +175,15 @@ func TestRouterOutletRerender(t *testing.T) {
 		return
 	}
 
-	switch len(ops) {
-	case 1:
-		set, ok := ops[0].(diff.SetText)
-		if !ok {
-			t.Fatalf("expected SetText op, got %T", ops[0])
-		}
-		if set.Text != "Security" {
-			t.Fatalf("expected Security label, got %q", set.Text)
-		}
-	case 2:
-		attrs, ok := ops[0].(diff.SetAttrs)
-		if !ok {
-			t.Fatalf("expected SetAttrs as first op, got %T", ops[0])
-		}
-		if attrs.Upsert["data-row-key"] != "/settings/security" {
-			t.Fatalf("expected data-row-key to update to /settings/security, got %q", attrs.Upsert["data-row-key"])
-		}
-		set, ok := ops[1].(diff.SetText)
-		if !ok {
-			t.Fatalf("expected SetText as second op, got %T", ops[1])
-		}
-		if set.Text != "Security" {
-			t.Fatalf("expected Security label, got %q", set.Text)
-		}
-	default:
-		t.Fatalf("expected 1 or 2 diff ops, got %d", len(ops))
+	if len(ops) != 1 {
+		t.Fatalf("expected single diff op, got %d", len(ops))
+	}
+	set, ok := ops[0].(diff.SetText)
+	if !ok {
+		t.Fatalf("expected SetText op, got %T", ops[0])
+	}
+	if set.Text != "Security" {
+		t.Fatalf("expected Security label, got %q", set.Text)
 	}
 }
 
@@ -227,7 +237,10 @@ func TestRouterRendersNestedLinkDuringSSR(t *testing.T) {
 	if strings.Contains(html, "data-onclick") {
 		t.Fatalf("expected sanitized SSR output without inline handler metadata, got %q", html)
 	}
-	structured := render.ToStructuredWithHandlers(node, sess.Registry())
+	structured, err := render.ToStructuredWithHandlers(node, render.StructuredOptions{Handlers: sess.Registry()})
+	if err != nil {
+		t.Fatalf("ToStructuredWithHandlers failed: %v", err)
+	}
 	var found bool
 	for _, binding := range structured.Bindings {
 		if binding.Event == "click" && binding.Handler != "" {
@@ -275,5 +288,55 @@ func TestRouterLinkRendersStaticAnchorWithoutRouter(t *testing.T) {
 	}
 	if !strings.Contains(html, ">Settings<") {
 		t.Fatalf("expected fallback anchor text, got %q", html)
+	}
+}
+
+func TestRouterSSRPreservesDeveloperMarkup(t *testing.T) {
+	sess := NewSession(placeholderRouter, routerRenderProps{})
+	sess.SetRegistry(handlers.NewRegistry())
+
+	InternalSeedSessionLocation(sess, ParseHref("/refs"))
+
+	node := sess.RenderNode()
+	html := render.RenderHTML(node, sess.Registry())
+
+	if !strings.Contains(html, "refs route") {
+		t.Fatalf("expected refs route content, got %q", html)
+	}
+	if strings.Contains(html, "home route") {
+		t.Fatalf("expected home route to be inactive, got %q", html)
+	}
+	if strings.Contains(html, "data-row-key") {
+		t.Fatalf("expected SSR output to omit framework data attributes, got %q", html)
+	}
+	if strings.Contains(html, "data-onclick") {
+		t.Fatalf("expected SSR output to omit inline handler metadata, got %q", html)
+	}
+
+	structured, err := render.ToStructuredWithHandlers(node, render.StructuredOptions{Handlers: sess.Registry()})
+	if err != nil {
+		t.Fatalf("ToStructuredWithHandlers failed: %v", err)
+	}
+	if len(structured.Bindings) == 0 {
+		t.Fatalf("expected handler bindings to be recorded, got %+v", structured.Bindings)
+	}
+	foundClick := false
+	for _, binding := range structured.Bindings {
+		if binding.Event == "click" {
+			foundClick = true
+			break
+		}
+	}
+	if !foundClick {
+		t.Fatalf("expected click binding, got %+v", structured.Bindings)
+	}
+	if len(structured.SlotPaths) == 0 {
+		t.Fatalf("expected slot paths for dynamic button, got %+v", structured.SlotPaths)
+	}
+	if len(structured.ComponentPaths) == 0 {
+		t.Fatalf("expected component paths to be recorded, got %+v", structured.ComponentPaths)
+	}
+	if len(structured.Components) < 2 {
+		t.Fatalf("expected multiple component spans to be tracked, got %+v", structured.Components)
 	}
 }

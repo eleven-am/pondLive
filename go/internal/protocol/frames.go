@@ -38,9 +38,9 @@ type TemplateFrame struct {
 }
 
 type TemplateScope struct {
-	ComponentID string `json:"componentId"`
-	ParentID    string `json:"parentId,omitempty"`
-	ParentPath  []int  `json:"parentPath,omitempty"`
+	ComponentID string        `json:"componentId"`
+	ParentID    string        `json:"parentId,omitempty"`
+	ParentPath  []PathSegment `json:"parentPath,omitempty"`
 }
 
 type TemplatePayload struct {
@@ -78,6 +78,12 @@ type ListRow struct {
 	SlotPaths      []SlotPath       `json:"slotPaths,omitempty"`
 	ListPaths      []ListPath       `json:"listPaths,omitempty"`
 	ComponentPaths []ComponentPath  `json:"componentPaths,omitempty"`
+	RootCount      int              `json:"rootCount,omitempty"`
+}
+
+type PathSegment struct {
+	Kind  string `json:"kind"`
+	Index int    `json:"index"`
 }
 
 type SlotMeta struct {
@@ -85,24 +91,25 @@ type SlotMeta struct {
 }
 
 type SlotPath struct {
-	Slot           int    `json:"slot"`
-	ComponentID    string `json:"componentId"`
-	ElementPath    []int  `json:"elementPath,omitempty"`
-	TextChildIndex int    `json:"textChildIndex"`
+	Slot           int           `json:"slot"`
+	ComponentID    string        `json:"componentId"`
+	Path           []PathSegment `json:"path"`
+	TextChildIndex int           `json:"textChildIndex"`
 }
 
 type ListPath struct {
-	Slot        int    `json:"slot"`
-	ComponentID string `json:"componentId"`
-	ElementPath []int  `json:"elementPath,omitempty"`
+	Slot        int           `json:"slot"`
+	ComponentID string        `json:"componentId"`
+	Path        []PathSegment `json:"path,omitempty"`
+	AtRoot      bool          `json:"atRoot,omitempty"`
 }
 
 type ComponentPath struct {
-	ComponentID string `json:"componentId"`
-	ParentID    string `json:"parentId,omitempty"`
-	ParentPath  []int  `json:"parentPath,omitempty"`
-	FirstChild  []int  `json:"firstChild,omitempty"`
-	LastChild   []int  `json:"lastChild,omitempty"`
+	ComponentID string        `json:"componentId"`
+	ParentID    string        `json:"parentId,omitempty"`
+	ParentPath  []PathSegment `json:"parentPath,omitempty"`
+	FirstChild  []PathSegment `json:"firstChild,omitempty"`
+	LastChild   []PathSegment `json:"lastChild,omitempty"`
 }
 
 type HandlerMeta struct {
@@ -119,27 +126,27 @@ type SlotBinding struct {
 }
 
 type UploadBinding struct {
-	ComponentID string   `json:"componentId"`
-	Path        []int    `json:"path,omitempty"`
-	UploadID    string   `json:"uploadId"`
-	Accept      []string `json:"accept,omitempty"`
-	Multiple    bool     `json:"multiple,omitempty"`
-	MaxSize     int64    `json:"maxSize,omitempty"`
+	ComponentID string        `json:"componentId"`
+	Path        []PathSegment `json:"path,omitempty"`
+	UploadID    string        `json:"uploadId"`
+	Accept      []string      `json:"accept,omitempty"`
+	Multiple    bool          `json:"multiple,omitempty"`
+	MaxSize     int64         `json:"maxSize,omitempty"`
 }
 
 type RefBinding struct {
-	ComponentID string `json:"componentId"`
-	Path        []int  `json:"path,omitempty"`
-	RefID       string `json:"refId"`
+	ComponentID string        `json:"componentId"`
+	Path        []PathSegment `json:"path,omitempty"`
+	RefID       string        `json:"refId"`
 }
 
 type RouterBinding struct {
-	ComponentID string `json:"componentId"`
-	Path        []int  `json:"path,omitempty"`
-	PathValue   string `json:"pathValue,omitempty"`
-	Query       string `json:"query,omitempty"`
-	Hash        string `json:"hash,omitempty"`
-	Replace     string `json:"replace,omitempty"`
+	ComponentID string        `json:"componentId"`
+	Path        []PathSegment `json:"path,omitempty"`
+	PathValue   string        `json:"pathValue,omitempty"`
+	Query       string        `json:"query,omitempty"`
+	Hash        string        `json:"hash,omitempty"`
+	Replace     string        `json:"replace,omitempty"`
 }
 
 type BindingTable map[int][]SlotBinding
@@ -229,6 +236,7 @@ type FrameDelta struct {
 type NavDelta struct {
 	Push    string `json:"push,omitempty"`
 	Replace string `json:"replace,omitempty"`
+	Back    bool   `json:"back,omitempty"`
 }
 
 type HandlerDelta struct {
@@ -247,8 +255,9 @@ type RefMeta struct {
 }
 
 type RefEventMeta struct {
-	Listen []string `json:"listen,omitempty"`
-	Props  []string `json:"props,omitempty"`
+	Handler string   `json:"handler,omitempty"`
+	Listen  []string `json:"listen,omitempty"`
+	Props   []string `json:"props,omitempty"`
 }
 
 type Diagnostic struct {

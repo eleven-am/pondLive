@@ -41,7 +41,7 @@ func TestRoutesPlaceholdersDoNotLeakBetweenSessions(t *testing.T) {
 
 	frag := h.Fragment()
 	noopRoute := func(ctx Ctx, _ Match) h.Node { return h.Fragment() }
-	node := &routesNode{FragmentNode: frag, entries: []routeEntry{{pattern: "/", component: noopRoute}}}
+	node := &routesNode{ComponentNode: h.WrapComponent("", frag), entries: []routeEntry{{pattern: "/", component: noopRoute}}, placeholder: frag}
 
 	sessA.storeRoutesPlaceholder(frag, node)
 

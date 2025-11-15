@@ -19,7 +19,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/handlers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	"github.com/eleven-am/pondlive/go/internal/render"
+	render "github.com/eleven-am/pondlive/go/internal/render"
 )
 
 const (
@@ -884,6 +884,20 @@ func (s *LiveSession) Prev() render.Structured { return s.component.prev }
 // SetPrev overrides the previous structured render state.
 func (s *LiveSession) SetPrev(prev render.Structured) { s.component.prev = prev }
 
+// RebuildSnapshot replaces the stored snapshot using the provided structured render.
+// It updates the cached template payload so subsequent BuildBoot calls reflect
+// the supplied structured view (for example, after seeding router state before SSR).
+func (s *LiveSession) RebuildSnapshot(structured render.Structured) {
+	if s == nil {
+		return
+	}
+	meta := s.Metadata()
+	s.mu.Lock()
+	s.snapshot = s.buildSnapshot(structured, s.loc, meta)
+	s.touchLocked()
+	s.mu.Unlock()
+}
+
 // Registry returns the handler registry backing this session.
 func (s *LiveSession) Registry() handlers.Registry { return s.component.Registry() }
 
@@ -998,13 +1012,13 @@ func (s *LiveSession) HandleRouterReset(componentID string) error {
 				metadata["parentId"] = scope.ParentID
 			}
 			if len(scope.ParentPath) > 0 {
-				metadata["parentPath"] = append([]int(nil), scope.ParentPath...)
+				metadata["parentPath"] = cloneProtocolSegments(scope.ParentPath)
 			}
 			if len(scope.FirstChild) > 0 {
-				metadata["firstChild"] = append([]int(nil), scope.FirstChild...)
+				metadata["firstChild"] = cloneProtocolSegments(scope.FirstChild)
 			}
 			if len(scope.LastChild) > 0 {
-				metadata["lastChild"] = append([]int(nil), scope.LastChild...)
+				metadata["lastChild"] = cloneProtocolSegments(scope.LastChild)
 			}
 		}
 
@@ -1076,17 +1090,17 @@ func (s *LiveSession) snapshotComponentPathLocked(id string) *protocol.Component
 		if path.ComponentID != id {
 			continue
 		}
-		copy := path
-		if len(copy.ParentPath) > 0 {
-			copy.ParentPath = append([]int(nil), copy.ParentPath...)
+		clone := path
+		if len(clone.ParentPath) > 0 {
+			clone.ParentPath = cloneProtocolSegments(clone.ParentPath)
 		}
-		if len(copy.FirstChild) > 0 {
-			copy.FirstChild = append([]int(nil), copy.FirstChild...)
+		if len(clone.FirstChild) > 0 {
+			clone.FirstChild = cloneProtocolSegments(clone.FirstChild)
 		}
-		if len(copy.LastChild) > 0 {
-			copy.LastChild = append([]int(nil), copy.LastChild...)
+		if len(clone.LastChild) > 0 {
+			clone.LastChild = cloneProtocolSegments(clone.LastChild)
 		}
-		return &copy
+		return &clone
 	}
 	return nil
 }
@@ -1099,13 +1113,13 @@ func buildComponentScopeMetadata(path protocol.ComponentPath) map[string]any {
 		scope["parentId"] = path.ParentID
 	}
 	if len(path.ParentPath) > 0 {
-		scope["parentPath"] = append([]int(nil), path.ParentPath...)
+		scope["parentPath"] = cloneProtocolSegments(path.ParentPath)
 	}
 	if len(path.FirstChild) > 0 {
-		scope["firstChild"] = append([]int(nil), path.FirstChild...)
+		scope["firstChild"] = cloneProtocolSegments(path.FirstChild)
 	}
 	if len(path.LastChild) > 0 {
-		scope["lastChild"] = append([]int(nil), path.LastChild...)
+		scope["lastChild"] = cloneProtocolSegments(path.LastChild)
 	}
 	return scope
 }
@@ -1862,7 +1876,7 @@ func templateScopeFromUpdate(update componentTemplateUpdate) *protocol.TemplateS
 			scope.ParentID = path.ParentID
 		}
 		if len(path.ParentPath) > 0 {
-			scope.ParentPath = append([]int(nil), path.ParentPath...)
+			scope.ParentPath = cloneProtocolSegments(path.ParentPath)
 		}
 		break
 	}
@@ -1884,7 +1898,7 @@ func (s *LiveSession) ensureSnapshotStaticsOwned() {
 	s.snapshot.staticsOwned = true
 }
 
-func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
+func encodeDynamics(dynamics []render.DynamicSlot) []protocol.DynamicSlot {
 	if len(dynamics) == 0 {
 		return nil
 	}
@@ -1892,10 +1906,10 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 	for i, dyn := range dynamics {
 		slot := protocol.DynamicSlot{}
 		switch dyn.Kind {
-		case render.DynText:
+		case render.DynamicText:
 			slot.Kind = "text"
 			slot.Text = dyn.Text
-		case render.DynAttrs:
+		case render.DynamicAttrs:
 			slot.Kind = "attrs"
 			if len(dyn.Attrs) > 0 {
 				attrs := make(map[string]string, len(dyn.Attrs))
@@ -1904,12 +1918,12 @@ func encodeDynamics(dynamics []render.Dyn) []protocol.DynamicSlot {
 				}
 				slot.Attrs = attrs
 			}
-		case render.DynList:
+		case render.DynamicList:
 			slot.Kind = "list"
 			if len(dyn.List) > 0 {
 				rows := make([]protocol.ListRow, len(dyn.List))
 				for j, row := range dyn.List {
-					rows[j] = protocol.ListRow{Key: row.Key}
+					rows[j] = protocol.ListRow{Key: row.Key, RootCount: row.RootCount}
 					if len(row.Slots) > 0 {
 						rows[j].Slots = append([]int(nil), row.Slots...)
 					}
@@ -1999,8 +2013,8 @@ func encodeUploadBindings(bindings []render.UploadBinding) []protocol.UploadBind
 			Multiple:    binding.Multiple,
 			MaxSize:     binding.MaxSize,
 		}
-		if len(binding.Path) > 0 {
-			encoded.Path = append([]int(nil), binding.Path...)
+		if segs := encodePathSegments(binding.Path); len(segs) > 0 {
+			encoded.Path = segs
 		}
 		if len(binding.Accept) > 0 {
 			encoded.Accept = append([]string(nil), binding.Accept...)
@@ -2026,8 +2040,8 @@ func encodeRefBindings(bindings []render.RefBinding) []protocol.RefBinding {
 			ComponentID: binding.ComponentID,
 			RefID:       binding.RefID,
 		}
-		if len(binding.Path) > 0 {
-			encoded.Path = append([]int(nil), binding.Path...)
+		if segs := encodePathSegments(binding.Path); len(segs) > 0 {
+			encoded.Path = segs
 		}
 		out = append(out, encoded)
 	}
@@ -2053,8 +2067,8 @@ func encodeRouterBindings(bindings []render.RouterBinding) []protocol.RouterBind
 			Hash:        binding.Hash,
 			Replace:     binding.Replace,
 		}
-		if len(binding.Path) > 0 {
-			encoded.Path = append([]int(nil), binding.Path...)
+		if segs := encodePathSegments(binding.Path); len(segs) > 0 {
+			encoded.Path = segs
 		}
 		out = append(out, encoded)
 	}
@@ -2075,8 +2089,8 @@ func encodeSlotPaths(paths []render.SlotPath) []protocol.SlotPath {
 			ComponentID:    path.ComponentID,
 			TextChildIndex: path.TextChildIndex,
 		}
-		if len(path.ElementPath) > 0 {
-			clone.ElementPath = append([]int(nil), path.ElementPath...)
+		if segs := encodePathSegments(path.Path); len(segs) > 0 {
+			clone.Path = segs
 		}
 		out[i] = clone
 	}
@@ -2093,8 +2107,11 @@ func encodeListPaths(paths []render.ListPath) []protocol.ListPath {
 			Slot:        path.Slot,
 			ComponentID: path.ComponentID,
 		}
-		if len(path.ElementPath) > 0 {
-			clone.ElementPath = append([]int(nil), path.ElementPath...)
+		if segs := encodePathSegments(path.Path); len(segs) > 0 {
+			clone.Path = segs
+		}
+		if path.AtRoot {
+			clone.AtRoot = true
 		}
 		out[i] = clone
 	}
@@ -2113,18 +2130,80 @@ func encodeComponentPaths(paths []render.ComponentPath) []protocol.ComponentPath
 		if path.ParentID != "" {
 			clone.ParentID = path.ParentID
 		}
-		if len(path.ParentPath) > 0 {
-			clone.ParentPath = append([]int(nil), path.ParentPath...)
+		if segs := encodePathSegments(path.ParentPath); len(segs) > 0 {
+			clone.ParentPath = segs
 		}
-		if len(path.FirstChild) > 0 {
-			clone.FirstChild = append([]int(nil), path.FirstChild...)
+		if segs := encodePathSegments(path.FirstChild); len(segs) > 0 {
+			clone.FirstChild = segs
 		}
-		if len(path.LastChild) > 0 {
-			clone.LastChild = append([]int(nil), path.LastChild...)
+		if segs := encodePathSegments(path.LastChild); len(segs) > 0 {
+			clone.LastChild = segs
 		}
 		out[i] = clone
 	}
 	return out
+}
+
+func encodePathSegments(segments []render.PathSegment) []protocol.PathSegment {
+	if len(segments) == 0 {
+		return nil
+	}
+	out := make([]protocol.PathSegment, len(segments))
+	for i, segment := range segments {
+		out[i] = protocol.PathSegment{
+			Kind:  encodePathKind(segment.Kind),
+			Index: segment.Index,
+		}
+	}
+	return out
+}
+
+func cloneProtocolSegments(src []protocol.PathSegment) []protocol.PathSegment {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make([]protocol.PathSegment, len(src))
+	copy(dst, src)
+	return dst
+}
+
+func comparePathSegmentSlices(a, b []protocol.PathSegment) int {
+	minLen := len(a)
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+	for i := 0; i < minLen; i++ {
+		if a[i].Kind != b[i].Kind {
+			if a[i].Kind < b[i].Kind {
+				return -1
+			}
+			return 1
+		}
+		if a[i].Index != b[i].Index {
+			if a[i].Index < b[i].Index {
+				return -1
+			}
+			return 1
+		}
+	}
+	if len(a) == len(b) {
+		return 0
+	}
+	if len(a) < len(b) {
+		return -1
+	}
+	return 1
+}
+
+func encodePathKind(kind render.PathKind) string {
+	switch kind {
+	case render.PathRangeOffset:
+		return "range"
+	case render.PathDomChild:
+		return "dom"
+	default:
+		return "unknown"
+	}
 }
 
 func encodeBindings(bindings []render.HandlerBinding) []protocol.SlotBinding {
@@ -2261,7 +2340,7 @@ func extractHandlerMeta(structured render.Structured) map[string]protocol.Handle
 
 	handlers = map[string]protocol.HandlerMeta{}
 	for _, dyn := range structured.D {
-		if dyn.Kind != render.DynAttrs {
+		if dyn.Kind != render.DynamicAttrs {
 			continue
 		}
 		mergeHandlerAttrs(handlers, dyn.Attrs)
@@ -2465,7 +2544,7 @@ func cloneDynamics(dynamics []protocol.DynamicSlot) []protocol.DynamicSlot {
 		if len(dyn.List) > 0 {
 			rows := make([]protocol.ListRow, len(dyn.List))
 			for j, row := range dyn.List {
-				rows[j] = protocol.ListRow{Key: row.Key}
+				rows[j] = protocol.ListRow{Key: row.Key, RootCount: row.RootCount}
 				if len(row.Slots) > 0 {
 					rows[j].Slots = append([]int(nil), row.Slots...)
 				}
@@ -2505,8 +2584,8 @@ func cloneSlotPaths(paths []protocol.SlotPath) []protocol.SlotPath {
 	out := make([]protocol.SlotPath, len(paths))
 	for i, path := range paths {
 		clone := path
-		if len(path.ElementPath) > 0 {
-			clone.ElementPath = append([]int(nil), path.ElementPath...)
+		if len(path.Path) > 0 {
+			clone.Path = append([]protocol.PathSegment(nil), path.Path...)
 		}
 		out[i] = clone
 	}
@@ -2520,8 +2599,11 @@ func cloneListPaths(paths []protocol.ListPath) []protocol.ListPath {
 	out := make([]protocol.ListPath, len(paths))
 	for i, path := range paths {
 		clone := path
-		if len(path.ElementPath) > 0 {
-			clone.ElementPath = append([]int(nil), path.ElementPath...)
+		if len(path.Path) > 0 {
+			clone.Path = append([]protocol.PathSegment(nil), path.Path...)
+		}
+		if path.AtRoot {
+			clone.AtRoot = true
 		}
 		out[i] = clone
 	}
@@ -2536,13 +2618,13 @@ func cloneComponentPaths(paths []protocol.ComponentPath) []protocol.ComponentPat
 	for i, path := range paths {
 		clone := path
 		if len(path.ParentPath) > 0 {
-			clone.ParentPath = append([]int(nil), path.ParentPath...)
+			clone.ParentPath = append([]protocol.PathSegment(nil), path.ParentPath...)
 		}
 		if len(path.FirstChild) > 0 {
-			clone.FirstChild = append([]int(nil), path.FirstChild...)
+			clone.FirstChild = append([]protocol.PathSegment(nil), path.FirstChild...)
 		}
 		if len(path.LastChild) > 0 {
-			clone.LastChild = append([]int(nil), path.LastChild...)
+			clone.LastChild = append([]protocol.PathSegment(nil), path.LastChild...)
 		}
 		out[i] = clone
 	}
@@ -2704,7 +2786,7 @@ func cloneTemplateScope(scope *protocol.TemplateScope) *protocol.TemplateScope {
 		ParentID:    scope.ParentID,
 	}
 	if len(scope.ParentPath) > 0 {
-		cloned.ParentPath = append([]int(nil), scope.ParentPath...)
+		cloned.ParentPath = cloneProtocolSegments(scope.ParentPath)
 	}
 	return cloned
 }
@@ -2746,7 +2828,7 @@ func cloneRefBindings(bindings []protocol.RefBinding) []protocol.RefBinding {
 			RefID:       binding.RefID,
 		}
 		if len(binding.Path) > 0 {
-			clone.Path = append([]int(nil), binding.Path...)
+			clone.Path = cloneProtocolSegments(binding.Path)
 		}
 		out[i] = clone
 	}
@@ -2767,7 +2849,7 @@ func cloneRouterBindings(bindings []protocol.RouterBinding) []protocol.RouterBin
 			Replace:     binding.Replace,
 		}
 		if len(binding.Path) > 0 {
-			clone.Path = append([]int(nil), binding.Path...)
+			clone.Path = cloneProtocolSegments(binding.Path)
 		}
 		out[i] = clone
 	}
@@ -2805,6 +2887,7 @@ type hashListRow struct {
 	ListPaths      []protocol.ListPath      `json:"lp,omitempty"`
 	ComponentPaths []protocol.ComponentPath `json:"cp,omitempty"`
 	Bindings       hashTemplateBindings     `json:"b,omitempty"`
+	RootCount      int                      `json:"rc,omitempty"`
 }
 
 type hashHandlerEntry struct {
@@ -2825,27 +2908,27 @@ type hashSlotBindingEntry struct {
 }
 
 type hashUploadBinding struct {
-	ComponentID string   `json:"componentId"`
-	Path        []int    `json:"path,omitempty"`
-	UploadID    string   `json:"uploadId"`
-	Accept      []string `json:"accept,omitempty"`
-	Multiple    bool     `json:"multiple,omitempty"`
-	MaxSize     int64    `json:"maxSize,omitempty"`
+	ComponentID string                 `json:"componentId"`
+	Path        []protocol.PathSegment `json:"path,omitempty"`
+	UploadID    string                 `json:"uploadId"`
+	Accept      []string               `json:"accept,omitempty"`
+	Multiple    bool                   `json:"multiple,omitempty"`
+	MaxSize     int64                  `json:"maxSize,omitempty"`
 }
 
 type hashRefBinding struct {
-	ComponentID string `json:"componentId"`
-	Path        []int  `json:"path,omitempty"`
-	RefID       string `json:"refId"`
+	ComponentID string                 `json:"componentId"`
+	Path        []protocol.PathSegment `json:"path,omitempty"`
+	RefID       string                 `json:"refId"`
 }
 
 type hashRouterBinding struct {
-	ComponentID string `json:"componentId"`
-	Path        []int  `json:"path,omitempty"`
-	PathValue   string `json:"pathValue,omitempty"`
-	Query       string `json:"query,omitempty"`
-	Hash        string `json:"hash,omitempty"`
-	Replace     string `json:"replace,omitempty"`
+	ComponentID string                 `json:"componentId"`
+	Path        []protocol.PathSegment `json:"path,omitempty"`
+	PathValue   string                 `json:"pathValue,omitempty"`
+	Query       string                 `json:"query,omitempty"`
+	Hash        string                 `json:"hash,omitempty"`
+	Replace     string                 `json:"replace,omitempty"`
 }
 
 type hashRefDelta struct {
@@ -2925,7 +3008,7 @@ func buildHashListRows(rows []protocol.ListRow) []hashListRow {
 	}
 	out := make([]hashListRow, len(rows))
 	for i, row := range rows {
-		hashRow := hashListRow{Key: row.Key}
+		hashRow := hashListRow{Key: row.Key, RootCount: row.RootCount}
 		if len(row.Slots) > 0 {
 			hashRow.Slots = append([]int(nil), row.Slots...)
 		}
@@ -3005,7 +3088,7 @@ func buildHashUploadBindings(bindings []protocol.UploadBinding) []hashUploadBind
 	for i, binding := range bindings {
 		out[i] = hashUploadBinding{
 			ComponentID: binding.ComponentID,
-			Path:        append([]int(nil), binding.Path...),
+			Path:        cloneProtocolSegments(binding.Path),
 			UploadID:    binding.UploadID,
 			Accept:      append([]string(nil), binding.Accept...),
 			Multiple:    binding.Multiple,
@@ -3016,7 +3099,7 @@ func buildHashUploadBindings(bindings []protocol.UploadBinding) []hashUploadBind
 		if out[i].ComponentID != out[j].ComponentID {
 			return out[i].ComponentID < out[j].ComponentID
 		}
-		if cmp := compareIntSlices(out[i].Path, out[j].Path); cmp != 0 {
+		if cmp := comparePathSegmentSlices(out[i].Path, out[j].Path); cmp != 0 {
 			return cmp < 0
 		}
 		return out[i].UploadID < out[j].UploadID
@@ -3032,7 +3115,7 @@ func buildHashRefBindings(bindings []protocol.RefBinding) []hashRefBinding {
 	for i, binding := range bindings {
 		out[i] = hashRefBinding{
 			ComponentID: binding.ComponentID,
-			Path:        append([]int(nil), binding.Path...),
+			Path:        cloneProtocolSegments(binding.Path),
 			RefID:       binding.RefID,
 		}
 	}
@@ -3040,7 +3123,7 @@ func buildHashRefBindings(bindings []protocol.RefBinding) []hashRefBinding {
 		if out[i].ComponentID != out[j].ComponentID {
 			return out[i].ComponentID < out[j].ComponentID
 		}
-		if cmp := compareIntSlices(out[i].Path, out[j].Path); cmp != 0 {
+		if cmp := comparePathSegmentSlices(out[i].Path, out[j].Path); cmp != 0 {
 			return cmp < 0
 		}
 		return out[i].RefID < out[j].RefID
@@ -3056,7 +3139,7 @@ func buildHashRouterBindings(bindings []protocol.RouterBinding) []hashRouterBind
 	for i, binding := range bindings {
 		out[i] = hashRouterBinding{
 			ComponentID: binding.ComponentID,
-			Path:        append([]int(nil), binding.Path...),
+			Path:        cloneProtocolSegments(binding.Path),
 			PathValue:   binding.PathValue,
 			Query:       binding.Query,
 			Hash:        binding.Hash,
@@ -3067,7 +3150,7 @@ func buildHashRouterBindings(bindings []protocol.RouterBinding) []hashRouterBind
 		if out[i].ComponentID != out[j].ComponentID {
 			return out[i].ComponentID < out[j].ComponentID
 		}
-		if cmp := compareIntSlices(out[i].Path, out[j].Path); cmp != 0 {
+		if cmp := comparePathSegmentSlices(out[i].Path, out[j].Path); cmp != 0 {
 			return cmp < 0
 		}
 		if out[i].PathValue != out[j].PathValue {
@@ -3130,30 +3213,6 @@ func buildHashRefMeta(meta protocol.RefMeta) hashRefMeta {
 	return result
 }
 
-func compareIntSlices(a, b []int) int {
-	lenA := len(a)
-	lenB := len(b)
-	min := lenA
-	if lenB < min {
-		min = lenB
-	}
-	for i := 0; i < min; i++ {
-		if a[i] < b[i] {
-			return -1
-		}
-		if a[i] > b[i] {
-			return 1
-		}
-	}
-	if lenA < lenB {
-		return -1
-	}
-	if lenA > lenB {
-		return 1
-	}
-	return 0
-}
-
 func cloneUploadBindings(bindings []protocol.UploadBinding) []protocol.UploadBinding {
 	if len(bindings) == 0 {
 		return nil
@@ -3167,7 +3226,7 @@ func cloneUploadBindings(bindings []protocol.UploadBinding) []protocol.UploadBin
 			MaxSize:     binding.MaxSize,
 		}
 		if len(binding.Path) > 0 {
-			clone.Path = append([]int(nil), binding.Path...)
+			clone.Path = append([]protocol.PathSegment(nil), binding.Path...)
 		}
 		if len(binding.Accept) > 0 {
 			clone.Accept = append([]string(nil), binding.Accept...)

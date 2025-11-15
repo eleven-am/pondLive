@@ -32,6 +32,12 @@ type (
 	StreamItem[T any]                 = runtime.StreamItem[T]
 	StreamHandle[T any]               = runtime.StreamHandle[T]
 	RuntimeComponent[P any]           = runtime.Component[P]
+	StyleLookup                       = runtime.StyleLookup
+	StyleRule                         = runtime.StyleRule
+)
+
+var (
+	Rule = runtime.Rule
 )
 
 // Component wraps a stateless component function so it can be invoked directly
@@ -97,7 +103,7 @@ func Render[P any](ctx Ctx, fn RuntimeComponent[P], props P, opts ...RenderOptio
 func WithKey(key string) RenderOption { return runtime.WithKey(key) }
 
 // UseState creates reactive state scoped to the component. It returns getter
-// and setter closures; calling the setter schedules a rerender. Supply
+// and setter closures; calling the setter schedules a render. Supply
 // WithEqual to suppress renders when the value hasn't meaningfully changed.
 //
 // Example:
@@ -217,6 +223,59 @@ func UseMemo[T any](ctx Ctx, compute func() T, deps ...any) T {
 //	}
 func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
 	runtime.UseEffect(ctx, setup, deps...)
+}
+
+// UseStyles provides component-scoped CSS that doesn't collide with other components.
+// It returns a StyleLookup that maps selectors to scoped class/ID names.
+//
+// Example:
+//
+//	func Card(ctx live.Ctx) h.Node {
+//	    style := live.UseStyles(ctx, `
+//	        .card { padding: 1rem; background: white; }
+//	        .title { font-size: 1.5rem; color: #333; }
+//	        .card:hover { background: #f5f5f5; }
+//	    `)
+//
+//	    return h.Div(
+//	        style.StyleTag(),  // Injects scoped <style> tag
+//	        h.Div(h.Class(style(".card")),
+//	            h.H1(h.Class(style(".title")), h.Text("Hello")),
+//	        ),
+//	    )
+//	}
+//
+// The CSS is automatically scoped to the component using a hash suffix:
+//
+//	.card becomes .card-abc123 (unique per component)
+//	.title becomes .title-abc123
+//
+// This prevents style collisions between components even if they use the same class names.
+func UseStyles(ctx Ctx, css string) StyleLookup {
+	return runtime.UseStyles(ctx, css)
+}
+
+// UseStyleRules provides component-scoped CSS using structured Rule objects.
+// This is a more structured alternative to UseStyles for programmatic style generation.
+//
+// Example:
+//
+//	func Card(ctx live.Ctx) h.Node {
+//	    style := live.UseStyleRules(ctx,
+//	        live.Rule(".card", "padding: 1rem; background: white;"),
+//	        live.Rule(".title", "font-size: 1.5rem; color: #333;"),
+//	        live.Rule(".card:hover", "background: #f5f5f5;"),
+//	    )
+//
+//	    return h.Div(
+//	        style.StyleTag(),
+//	        h.Div(h.Class(style(".card")),
+//	            h.H1(h.Class(style(".title")), h.Text("Hello")),
+//	        ),
+//	    )
+//	}
+func UseStyleRules(ctx Ctx, rules ...StyleRule) StyleLookup {
+	return runtime.UseStyleRules(ctx, rules...)
 }
 
 // UseRef returns a pointer holding mutable state that persists across renders.
@@ -407,7 +466,7 @@ func UseStream[T any](ctx Ctx, renderRow func(StreamItem[T]) h.Node, initial ...
 }
 
 // WithEqual customizes UseState comparisons. If eq(old, new) is true, the
-// setter skips scheduling a rerender.
+// setter skips scheduling a render.
 func WithEqual[T any](eq func(a, b T) bool) StateOpt[T] {
 	return runtime.WithEqual(eq)
 }
@@ -427,7 +486,7 @@ func WithEqual[T any](eq func(a, b T) bool) StateOpt[T] {
 //	var AppContext = live.NewContext(AppState{})
 //
 //	func UserProfile(ctx live.Ctx) h.Node {
-//	    // Only rerender when User changes, not when Theme or Locale changes
+//	    // Only render when User changes, not when Theme or Locale changes
 //	    user := live.UseSelect(ctx, AppContext,
 //	        func(state AppState) User { return state.User },
 //	        func(a, b User) bool { return a.ID == b.ID && a.Name == b.Name },
@@ -442,7 +501,7 @@ func WithEqual[T any](eq func(a, b T) bool) StateOpt[T] {
 // Example - Compute derived value:
 //
 //	func CartItemCount(ctx live.Ctx) h.Node {
-//	    // Only rerender when cart item count changes
+//	    // Only render when cart item count changes
 //	    itemCount := live.UseSelect(ctx, CartContext,
 //	        func(cart Cart) int { return len(cart.Items) },
 //	        func(a, b int) bool { return a == b },

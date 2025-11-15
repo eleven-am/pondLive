@@ -13,9 +13,10 @@ type RouteProps struct {
 }
 
 type routeNode struct {
-	*h.FragmentNode
-	entry      routeEntry
-	rawPattern string
+	*h.ComponentNode
+	entry       routeEntry
+	rawPattern  string
+	placeholder *h.FragmentNode
 }
 
 type routeEntry struct {
@@ -33,13 +34,15 @@ func Route(ctx Ctx, p RouteProps, children ...h.Node) h.Node {
 		component: p.Component,
 		children:  children,
 	}
-	return &routeNode{FragmentNode: h.Fragment(), entry: entry, rawPattern: pattern}
+	placeholder := h.Fragment()
+	return &routeNode{ComponentNode: h.WrapComponent("", placeholder), entry: entry, rawPattern: pattern, placeholder: placeholder}
 }
 
 type routesNode struct {
-	*h.FragmentNode
-	entries  []routeEntry
-	children []h.Node
+	*h.ComponentNode
+	entries     []routeEntry
+	children    []h.Node
+	placeholder *h.FragmentNode
 }
 
 func Routes(ctx Ctx, children ...h.Node) h.Node {
@@ -57,9 +60,10 @@ func Routes(ctx Ctx, children ...h.Node) h.Node {
 }
 
 func newRoutesPlaceholder(sess *ComponentSession, entries []routeEntry, children []h.Node) *routesNode {
-	node := &routesNode{FragmentNode: h.Fragment(), entries: entries, children: append([]h.Node(nil), children...)}
+	placeholder := h.Fragment()
+	node := &routesNode{ComponentNode: h.WrapComponent("", placeholder), entries: entries, children: append([]h.Node(nil), children...), placeholder: placeholder}
 	if sess != nil {
-		sess.storeRoutesPlaceholder(node.FragmentNode, node)
+		sess.storeRoutesPlaceholder(placeholder, node)
 	}
 	return node
 }
@@ -261,6 +265,13 @@ func ensureRouteKey(node h.Node, key string) h.Node {
 		clone := *v
 		clone.Key = key
 		return &clone
+	case *h.ComponentNode:
+		if v.Key != "" {
+			return node
+		}
+		clone := *v
+		clone.Key = key
+		return &clone
 	case *h.FragmentNode:
 		if len(v.Children) == 0 {
 			return node
@@ -286,8 +297,8 @@ func ensureRouteKey(node h.Node, key string) h.Node {
 		clone.Children = updated
 		return &clone
 	case nil:
-		return h.Span(h.Key(key))
+		return h.Fragment()
 	default:
-		return h.Span(h.Key(key), node)
+		return node
 	}
 }

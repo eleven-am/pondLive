@@ -106,7 +106,7 @@ func TestAppServesClientScript(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", res.StatusCode)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "window.LiveUI") {
+	if !strings.Contains(body, ".LiveUI") {
 		snippet := body
 		if len(snippet) > 64 {
 			snippet = snippet[:64]

@@ -157,7 +157,7 @@ func UseSearch(ctx Ctx) url.Values {
 }
 
 // UseSearchParam returns reactive getter/setter for a specific search parameter.
-// Setting the value updates the URL and triggers a rerender.
+// Setting the value updates the URL and triggers a render.
 //
 // Example - Single value parameter:
 //

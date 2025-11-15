@@ -80,7 +80,8 @@ type ComponentSession struct {
 	componentBoots        map[string]*componentBootRequest
 	pendingComponentBoots []componentTemplateUpdate
 
-	promotions map[string]*componentPromotionState
+	promotions   map[string]*componentPromotionState
+	promotionsMu sync.Mutex
 
 	mu sync.Mutex
 }
@@ -120,6 +121,7 @@ type componentTemplateUpdate struct {
 }
 
 type componentPromotionState struct {
+	mu    sync.Mutex
 	texts map[string]*textPromotionSlot
 	attrs map[string]*attrPromotionSlot
 }
@@ -248,6 +250,11 @@ func (s *ComponentSession) snapshotRefsLocked(ids []string) map[string]protocol.
 				if len(binding.Props) > 0 {
 					eventMeta.Props = append([]string(nil), binding.Props...)
 				}
+				if refWithHandlers, ok := ref.(interface{ GetHandlerID(string) string }); ok {
+					if handlerID := refWithHandlers.GetHandlerID(event); handlerID != "" {
+						eventMeta.Handler = handlerID
+					}
+				}
 				events[event] = eventMeta
 			}
 			meta.Events = events
@@ -271,8 +278,9 @@ func cloneRefMetaMap(src map[string]protocol.RefMeta) map[string]protocol.RefMet
 			events := make(map[string]protocol.RefEventMeta, len(meta.Events))
 			for name, event := range meta.Events {
 				events[name] = protocol.RefEventMeta{
-					Listen: append([]string(nil), event.Listen...),
-					Props:  append([]string(nil), event.Props...),
+					Handler: event.Handler,
+					Listen:  append([]string(nil), event.Listen...),
+					Props:   append([]string(nil), event.Props...),
 				}
 			}
 			clone.Events = events
@@ -462,9 +470,11 @@ func (s *ComponentSession) ResolveAttrPromotion(componentID string, path []int, 
 }
 
 func (s *ComponentSession) ensurePromotionState(componentID string) *componentPromotionState {
-	if componentID == "" {
+	if s == nil || componentID == "" {
 		return nil
 	}
+	s.promotionsMu.Lock()
+	defer s.promotionsMu.Unlock()
 	if s.promotions == nil {
 		s.promotions = make(map[string]*componentPromotionState)
 	}
@@ -480,9 +490,11 @@ func (s *ComponentSession) clearPromotionState(componentID string) {
 	if s == nil || componentID == "" {
 		return
 	}
+	s.promotionsMu.Lock()
 	if s.promotions != nil {
 		delete(s.promotions, componentID)
 	}
+	s.promotionsMu.Unlock()
 }
 
 func promotionPathKey(path []int) string {
@@ -503,6 +515,8 @@ func (s *componentPromotionState) ensureTextSlot(key string) (*textPromotionSlot
 	if s == nil {
 		return nil, false
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.texts == nil {
 		s.texts = make(map[string]*textPromotionSlot)
 	}
@@ -519,6 +533,8 @@ func (s *componentPromotionState) ensureAttrSlot(key string) (*attrPromotionSlot
 	if s == nil {
 		return nil, false
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.attrs == nil {
 		s.attrs = make(map[string]*attrPromotionSlot)
 	}
@@ -598,11 +614,11 @@ func alignStrings(prev, next []string, pairs []spanRangePair) []string {
 	return aligned
 }
 
-func alignDynamics(prev, next []render.Dyn, pairs []spanRangePair) []render.Dyn {
+func alignDynamics(prev, next []render.DynamicSlot, pairs []spanRangePair) []render.DynamicSlot {
 	if len(next) == 0 {
 		return nil
 	}
-	aligned := make([]render.Dyn, len(next))
+	aligned := make([]render.DynamicSlot, len(next))
 	delta := 0
 	pairIdx := 0
 	for nextIdx := 0; nextIdx < len(next); nextIdx++ {
@@ -1126,7 +1142,11 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 	if err := s.withRecovery("initial", func() error {
 		reg := s.ensureRegistry()
 		node := s.root.render()
-		structured = render.ToStructuredWithOptions(node, render.StructuredOptions{Handlers: reg, Promotions: s})
+		var err error
+		structured, err = render.ToStructuredWithOptions(node, render.StructuredOptions{Handlers: reg, Promotions: s})
+		if err != nil {
+			return err
+		}
 		s.prev = structured
 		s.dirtyRoot = false
 		s.pendingFlush = false
@@ -1179,7 +1199,12 @@ func (s *ComponentSession) RenderNode() dom.Node {
 	if s == nil || s.root == nil {
 		return nil
 	}
-	return s.root.render()
+	node := s.root.render()
+
+	if node != nil {
+		node = normalizeRouterNodeForSSR(Ctx{sess: s}, s, node)
+	}
+	return node
 }
 
 // Flush applies pending state updates by rerendering and diffing the component tree.
@@ -1239,7 +1264,10 @@ func (s *ComponentSession) Flush() error {
 		}
 
 		node := root.render()
-		next := render.ToStructuredWithOptions(node, render.StructuredOptions{Handlers: reg, Promotions: s})
+		next, err := render.ToStructuredWithOptions(node, render.StructuredOptions{Handlers: reg, Promotions: s})
+		if err != nil {
+			return err
+		}
 
 		s.mu.Lock()
 		locked = true
@@ -1310,6 +1338,7 @@ func (s *ComponentSession) Flush() error {
 			navDelta = &protocol.NavDelta{
 				Push:    navUpdate.Push,
 				Replace: navUpdate.Replace,
+				Back:    navUpdate.Back,
 			}
 		}
 
@@ -1453,7 +1482,7 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 	}
 	sanitized := render.Structured{
 		S:              append([]string(nil), next.S...),
-		D:              append([]render.Dyn(nil), next.D...),
+		D:              append([]render.DynamicSlot(nil), next.D...),
 		Components:     next.Components,
 		UploadBindings: append([]render.UploadBinding(nil), next.UploadBindings...),
 	}
@@ -1474,13 +1503,13 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 			dynamicsRange: spanRange{start: span.DynamicsStart, end: span.DynamicsEnd},
 			statics:       append([]string(nil), next.S[span.StaticsStart:span.StaticsEnd]...),
 		}
-		dynamicsSlice := append([]render.Dyn(nil), next.D[span.DynamicsStart:span.DynamicsEnd]...)
+		dynamicsSlice := append([]render.DynamicSlot(nil), next.D[span.DynamicsStart:span.DynamicsEnd]...)
 		update.dynamics = encodeDynamics(dynamicsSlice)
 		for slot := span.DynamicsStart; slot < span.DynamicsEnd; slot++ {
 			update.slots = append(update.slots, slot)
 		}
 		for idx, dyn := range dynamicsSlice {
-			if dyn.Kind == render.DynList {
+			if dyn.Kind == render.DynamicList {
 				update.listSlots = append(update.listSlots, span.DynamicsStart+idx)
 			}
 		}
@@ -1593,7 +1622,7 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		if prevSpan, ok := prev.Components[id]; ok && prevSpan.StaticsStart >= 0 && prevSpan.StaticsEnd <= len(prev.S) && prevSpan.DynamicsStart >= 0 && prevSpan.DynamicsEnd <= len(prev.D) {
 			oldStructured := render.Structured{
 				S: append([]string(nil), prev.S[prevSpan.StaticsStart:prevSpan.StaticsEnd]...),
-				D: append([]render.Dyn(nil), prev.D[prevSpan.DynamicsStart:prevSpan.DynamicsEnd]...),
+				D: append([]render.DynamicSlot(nil), prev.D[prevSpan.DynamicsStart:prevSpan.DynamicsEnd]...),
 			}
 			oldHandlers = extractHandlerMeta(oldStructured)
 			spanPairs = append(spanPairs, componentSpanPair{prev: prevSpan, next: span})
@@ -1746,10 +1775,10 @@ func filterComponentPathsForSpan(paths []render.ComponentPath, span render.Compo
 	return filtered
 }
 
-func collectSlotPathsFromDynamics(dynamics []render.Dyn) []render.SlotPath {
+func collectSlotPathsFromDynamics(dynamics []render.DynamicSlot) []render.SlotPath {
 	var out []render.SlotPath
 	for _, dyn := range dynamics {
-		if dyn.Kind != render.DynList {
+		if dyn.Kind != render.DynamicList {
 			continue
 		}
 		for _, row := range dyn.List {
@@ -1762,10 +1791,10 @@ func collectSlotPathsFromDynamics(dynamics []render.Dyn) []render.SlotPath {
 	return out
 }
 
-func collectListPathsFromDynamics(dynamics []render.Dyn) []render.ListPath {
+func collectListPathsFromDynamics(dynamics []render.DynamicSlot) []render.ListPath {
 	var out []render.ListPath
 	for _, dyn := range dynamics {
-		if dyn.Kind != render.DynList {
+		if dyn.Kind != render.DynamicList {
 			continue
 		}
 		for _, row := range dyn.List {
@@ -1778,10 +1807,10 @@ func collectListPathsFromDynamics(dynamics []render.Dyn) []render.ListPath {
 	return out
 }
 
-func collectComponentPathsFromDynamics(dynamics []render.Dyn) []render.ComponentPath {
+func collectComponentPathsFromDynamics(dynamics []render.DynamicSlot) []render.ComponentPath {
 	var out []render.ComponentPath
 	for _, dyn := range dynamics {
-		if dyn.Kind != render.DynList {
+		if dyn.Kind != render.DynamicList {
 			continue
 		}
 		for _, row := range dyn.List {
@@ -1810,7 +1839,7 @@ func filterUploadBindingsForComponent(bindings []render.UploadBinding, component
 			MaxSize:     binding.MaxSize,
 		}
 		if len(binding.Path) > 0 {
-			encoded.Path = append([]int(nil), binding.Path...)
+			encoded.Path = encodePathSegments(binding.Path)
 		}
 		if len(binding.Accept) > 0 {
 			encoded.Accept = append([]string(nil), binding.Accept...)
@@ -1837,7 +1866,7 @@ func filterRefBindingsForComponent(bindings []render.RefBinding, componentID str
 			RefID:       binding.RefID,
 		}
 		if len(binding.Path) > 0 {
-			encoded.Path = append([]int(nil), binding.Path...)
+			encoded.Path = encodePathSegments(binding.Path)
 		}
 		out = append(out, encoded)
 	}
@@ -1864,7 +1893,7 @@ func filterRouterBindingsForComponent(bindings []render.RouterBinding, component
 			Replace:     binding.Replace,
 		}
 		if len(binding.Path) > 0 {
-			encoded.Path = append([]int(nil), binding.Path...)
+			encoded.Path = encodePathSegments(binding.Path)
 		}
 		out = append(out, encoded)
 	}
@@ -1934,7 +1963,7 @@ func normalizeComponentMarker(s, marker string) string {
 	return b.String()
 }
 
-func componentEqualDyns(a, b []render.Dyn) bool {
+func componentEqualDyns(a, b []render.DynamicSlot) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -1942,7 +1971,7 @@ func componentEqualDyns(a, b []render.Dyn) bool {
 		if a[i].Kind != b[i].Kind {
 			return false
 		}
-		if a[i].Kind == render.DynList {
+		if a[i].Kind == render.DynamicList {
 			if !componentEqualRows(a[i].List, b[i].List) {
 				return false
 			}

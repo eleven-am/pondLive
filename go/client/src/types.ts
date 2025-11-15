@@ -1,94 +1,30 @@
-/**
- * Type definitions for LiveUI protocol and internal structures
- */
+// Minimal protocol/type definitions for the rewritten client runtime.
 
-// Protocol message types
 export type MessageType =
-  | "init"
-  | "frame"
-  | "template"
-  | "join"
-  | "resume"
-  | "error"
-  | "diagnostic"
-  | "evt"
-  | "ack"
-  | "nav"
-  | "pop"
-  | "recover"
-  | "pubsub";
+  | 'boot'
+  | 'init'
+  | 'frame'
+  | 'template'
+  | 'join'
+  | 'resume'
+  | 'error'
+  | 'diagnostic'
+  | 'pubsub'
+  | 'evt'
+  | 'ack'
+  | 'nav'
+  | 'pop'
+  | 'recover'
+  | 'upload'
+  | 'domreq'
+  | 'domres';
 
-// Location
 export interface Location {
   path: string;
   q: string;
   hash: string;
 }
 
-// Boot payload produced during SSR
-export interface BindingsPayload {
-  slots?: BindingTable;
-  uploads?: UploadBindingDescriptor[];
-  refs?: RefBindingDescriptor[];
-  router?: RouterBindingDescriptor[];
-}
-
-export interface UploadBindingDescriptor {
-  componentId: string;
-  path?: number[];
-  uploadId: string;
-  accept?: string[];
-  multiple?: boolean;
-  maxSize?: number;
-}
-
-export interface RefBindingDescriptor {
-  componentId: string;
-  path?: number[];
-  refId: string;
-}
-
-export interface RouterBindingDescriptor {
-  componentId: string;
-  path?: number[];
-  pathValue?: string;
-  query?: string;
-  hash?: string;
-  replace?: string;
-}
-
-export interface TemplatePayload {
-  html?: string;
-  templateHash?: string;
-  s: string[];
-  d: DynamicSlot[];
-  slots: SlotMeta[];
-  slotPaths?: SlotPathDescriptor[];
-  listPaths?: ListPathDescriptor[];
-  componentPaths?: ComponentPathDescriptor[];
-  handlers?: HandlerMap;
-  bindings?: BindingsPayload;
-  refs?: RefDelta;
-}
-
-export interface BootPayload extends TemplatePayload {
-  t: "boot";
-  sid: string;
-  ver: number;
-  seq: number;
-  location: Location;
-  errors?: ErrorMessage[];
-  client?: BootClientConfig;
-}
-
-export interface BootClientConfig {
-  endpoint?: string;
-  upload?: string;
-  debug?: boolean;
-  [key: string]: unknown;
-}
-
-// Handler metadata
 export interface HandlerMeta {
   event: string;
   listen?: string[];
@@ -106,15 +42,103 @@ export interface SlotBinding {
 
 export type BindingTable = Record<number, SlotBinding[]>;
 
-// Ref metadata
-export interface RefEventMeta {
-  listen?: string[];
-  props?: string[];
+export type DynKind = 'text' | 'attrs' | 'list';
+
+export interface DynamicSlot {
+  kind: DynKind;
+  text?: string;
+  attrs?: Record<string, string>;
+  list?: ListRowDescriptor[];
+}
+
+export interface ListRowDescriptor {
+  key: string;
+  slots?: number[];
+  slotPaths?: SlotPathDescriptor[];
+  listPaths?: ListPathDescriptor[];
+  componentPaths?: ComponentPathDescriptor[];
+  rootCount?: number;
+}
+
+export type SetTextOp = ['setText', number, string];
+export type SetAttrsOp = ['setAttrs', number, Record<string, string>, string[]?];
+export type ListDelOp = ['del', string];
+export type ListInsOp = [
+  'ins',
+  number,
+  {
+    key: string;
+    html: string;
+    slots?: number[];
+    slotPaths?: SlotPathDescriptor[];
+    listPaths?: ListPathDescriptor[];
+    componentPaths?: ComponentPathDescriptor[];
+    bindings?: BindingsPayload;
+  },
+];
+export type ListMovOp = ['mov', number, number];
+export type ListChildOp = ListDelOp | ListInsOp | ListMovOp;
+export type ListOp = ['list', number, ...ListChildOp[]];
+export type DiffOp = SetTextOp | SetAttrsOp | ListOp;
+
+export interface SlotMeta {
+  anchorId: number;
+}
+
+export interface PathSegmentDescriptor {
+  kind: 'range' | 'dom';
+  index: number;
+}
+
+export interface SlotPathDescriptor {
+  slot: number;
+  componentId: string;
+  path?: PathSegmentDescriptor[];
+  textChildIndex?: number;
+}
+
+export interface ListPathDescriptor {
+  slot: number;
+  componentId: string;
+  path?: PathSegmentDescriptor[];
+  atRoot?: boolean;
+}
+
+export interface ComponentPathDescriptor {
+  componentId: string;
+  parentId?: string;
+  parentPath?: PathSegmentDescriptor[];
+  firstChild?: PathSegmentDescriptor[];
+  lastChild?: PathSegmentDescriptor[];
+}
+
+export interface UploadBindingDescriptor {
+  componentId: string;
+  path?: PathSegmentDescriptor[];
+  uploadId: string;
+  accept?: string[];
+  multiple?: boolean;
+  maxSize?: number;
+}
+
+export interface RefBindingDescriptor {
+  componentId: string;
+  path?: PathSegmentDescriptor[];
+  refId: string;
+}
+
+export interface RouterBindingDescriptor {
+  componentId: string;
+  path?: PathSegmentDescriptor[];
+  pathValue?: string;
+  query?: string;
+  hash?: string;
+  replace?: string;
 }
 
 export interface RefMeta {
   tag: string;
-  events?: Record<string, RefEventMeta>;
+  events?: Record<string, { handler?: string; listen?: string[]; props?: string[] }>;
 }
 
 export type RefMap = Record<string, RefMeta>;
@@ -124,53 +148,44 @@ export interface RefDelta {
   del?: string[];
 }
 
-// Dynamic slot kinds
-export type DynKind = "text" | "attrs" | "list";
-
-export interface DynamicSlot {
-  kind: DynKind;
-  text?: string;
-  attrs?: Record<string, string>;
-  list?: ListRow[];
+export interface BindingsPayload {
+  slots?: BindingTable;
+  uploads?: UploadBindingDescriptor[];
+  refs?: RefBindingDescriptor[];
+  router?: RouterBindingDescriptor[];
 }
 
-export interface ListRow {
-  key: string;
-  slots?: number[];
-  bindings?: BindingsPayload;
+export interface TemplatePayload {
+  html?: string;
+  templateHash?: string;
+  s: string[];
+  d: DynamicSlot[];
+  slots: SlotMeta[];
   slotPaths?: SlotPathDescriptor[];
   listPaths?: ListPathDescriptor[];
   componentPaths?: ComponentPathDescriptor[];
+  handlers?: HandlerMap;
+  bindings?: BindingsPayload;
+  refs?: RefDelta;
 }
 
-export interface SlotMeta {
-  anchorId: number;
+export interface BootPayload extends TemplatePayload {
+  t: 'boot';
+  sid: string;
+  ver: number;
+  seq: number;
+  location: Location;
+  client?: BootClientConfig;
 }
 
-export interface SlotPathDescriptor {
-  slot: number;
-  componentId: string;
-  elementPath?: number[];
-  textChildIndex: number;
+export interface BootClientConfig {
+  endpoint?: string;
+  upload?: string;
+  debug?: boolean;
 }
 
-export interface ListPathDescriptor {
-  slot: number;
-  componentId: string;
-  elementPath?: number[];
-}
-
-export interface ComponentPathDescriptor {
-  componentId: string;
-  parentId?: string;
-  parentPath?: number[];
-  firstChild?: number[];
-  lastChild?: number[];
-}
-
-// Init message
 export interface InitMessage extends TemplatePayload {
-  t: "init";
+  t: 'init';
   sid: string;
   ver: number;
   location: Location;
@@ -178,193 +193,66 @@ export interface InitMessage extends TemplatePayload {
   errors?: ErrorMessage[];
 }
 
-// Frame delta
-export interface FrameDelta {
-  statics: boolean;
-  slots: any;
+export interface FrameMessage {
+  t: 'frame';
+  sid: string;
+  ver: number;
+  seq?: number;
+  patch?: DiffOp[];
+  handlers?: HandlerDelta;
+  bindings?: BindingsPayload;
+  refs?: RefDelta;
+  nav?: { push?: string; replace?: string; back?: boolean };
+  effects?: Effect[];
 }
 
-// Navigation delta
-export interface NavDelta {
-  push?: string;
-  replace?: string;
-}
-
-// Handler delta
 export interface HandlerDelta {
   add?: HandlerMap;
   del?: string[];
 }
 
-// Frame metrics
-export interface FrameMetrics {
-  renderMs: number;
-  ops: number;
-  effectsMs?: number;
-  maxEffectMs?: number;
-  slowEffects?: number;
-}
-
-// Diff operations
-export type SetTextOp = ["setText", number, string];
-export type SetAttrsOp = ["setAttrs", number, Record<string, string>, string[]];
-export type ListDelOp = ["del", string];
-export type ListInsOp = [
-  "ins",
-  number,
-  {
-    key: string;
-    html: string;
-    slots?: number[];
-    bindings?: BindingTable;
-  },
-];
-export type ListMovOp = ["mov", number, number];
-export type ListChildOp = ListDelOp | ListInsOp | ListMovOp;
-export type ListOp = ["list", number, ...ListChildOp[]];
-export type DiffOp = SetTextOp | SetAttrsOp | ListOp;
-
-// Frame message
-export interface FrameMessage {
-  t: "frame";
-  sid: string;
-  seq?: number;
-  ver: number;
-  delta: FrameDelta;
-  patch: DiffOp[];
-  effects: any[];
-  nav?: NavDelta | null;
-  handlers: HandlerDelta;
-  refs: RefDelta;
-  bindings?: BindingsPayload;
-  metrics: FrameMetrics;
-}
-
-export interface TemplateScope {
-  componentId: string;
-  parentId?: string;
-  parentPath?: number[];
-}
-
 export interface TemplateMessage extends TemplatePayload {
-  t: "template";
+  t: 'template';
   sid: string;
   ver: number;
-  scope?: TemplateScope;
 }
 
-// Join message
 export interface JoinMessage {
-  t: "join";
+  t: 'join';
   sid: string;
   ver: number;
-  ack: number;
-  loc: Location;
 }
 
-// Resume message
 export interface ResumeMessage {
-  t: "resume";
+  t: 'resume';
   sid: string;
   from: number;
   to: number;
   errors?: ErrorMessage[];
 }
 
-// Error message
 export interface ErrorMessage {
-  t: "error";
+  t: 'error';
   sid: string;
-  code: string;
-  message: string;
-  details?: ErrorDetails;
+  code?: string;
+  message?: string;
 }
 
 export interface DiagnosticMessage {
-  t: "diagnostic";
+  t: 'diagnostic';
   sid: string;
   code: string;
   message: string;
-  details?: ErrorDetails;
 }
 
 export interface PubsubControlMessage {
-  t: "pubsub";
-  op: "join" | "leave";
+  t: 'pubsub';
+  op: 'join' | 'leave';
   topic: string;
 }
 
-export interface ErrorDetails {
-  phase?: string;
-  componentId?: string;
-  componentName?: string;
-  hook?: string;
-  hookIndex?: number;
-  suggestion?: string;
-  stack?: string;
-  panic?: string;
-  capturedAt?: string;
-  metadata?: Record<string, any>;
-}
-
-// Client event message
-export interface ClientEventMessage {
-  t: "evt";
-  sid: string;
-  hid: string;
-  payload: EventPayload;
-  cseq?: number;
-}
-
-// Client ack message
-export interface ClientAckMessage {
-  t: "ack";
-  sid: string;
-  seq: number;
-}
-
-// Client navigation message
-export interface ClientNavMessage {
-  t: "nav" | "pop";
-  sid: string;
-  path: string;
-  q: string;
-  hash?: string;
-}
-
-export interface ClientRecoverMessage {
-  t: "recover";
-  sid: string;
-}
-
-export interface UploadMeta {
-  name: string;
-  size: number;
-  type?: string;
-}
-
-export type UploadClientOp = "change" | "progress" | "error" | "cancelled";
-
-export interface UploadClientMessage {
-  t: "upload";
-  sid: string;
-  id: string;
-  op: UploadClientOp;
-  meta?: UploadMeta;
-  loaded?: number;
-  total?: number;
-  error?: string;
-}
-
-export interface UploadControlMessage {
-  t: "upload";
-  sid: string;
-  id: string;
-  op: "cancel";
-}
-
 export interface DOMRequestMessage {
-  t: "domreq";
+  t: 'domreq';
   id: string;
   ref: string;
   props?: string[];
@@ -373,212 +261,18 @@ export interface DOMRequestMessage {
 }
 
 export interface DOMResponseMessage {
-  t: "domres";
+  t: 'domres';
+  sid: string;
   id: string;
   values?: Record<string, any>;
   result?: any;
   error?: string;
 }
 
-// Event payload
-export interface EventPayload {
-  type: string;
-  value?: string;
-  checked?: boolean;
-  key?: string;
-  keyCode?: number;
-  altKey?: boolean;
-  ctrlKey?: boolean;
-  metaKey?: boolean;
-  shiftKey?: boolean;
-  clientX?: number;
-  clientY?: number;
-
-  [key: string]: any;
-}
-
-// Union of all server messages
-export type ServerMessage =
-  | InitMessage
-  | FrameMessage
-  | TemplateMessage
-  | JoinMessage
-  | ResumeMessage
-  | ErrorMessage
-  | DiagnosticMessage
-  | PubsubControlMessage
-  | UploadControlMessage
-  | DOMRequestMessage;
-
-// Union of all client messages
-export type ClientMessage =
-  | ClientEventMessage
-  | ClientAckMessage
-  | ClientNavMessage
-  | ClientRecoverMessage
-  | UploadClientMessage
-  | DOMResponseMessage;
-
-// PondSocket EventMap for LiveUI protocol
-export interface LiveUIEventMap {
-  init: InitMessage;
-  frame: FrameMessage;
-  template: TemplateMessage;
-  join: JoinMessage;
-  resume: ResumeMessage;
-  error: ErrorMessage;
-  diagnostic: DiagnosticMessage;
-  pubsub: PubsubControlMessage;
-  evt: ClientEventMessage;
-  ack: ClientAckMessage;
-  nav: ClientNavMessage;
-  pop: ClientNavMessage;
-  recover: ClientRecoverMessage;
-  upload: UploadClientMessage;
-  domreq: DOMRequestMessage;
-  domres: DOMResponseMessage;
-
-  [key: string]: any; // Index signature for PondEventMap compatibility
-}
-
-// List record in DOM index
-export interface ListRecord {
-  container: Element;
-  rows: Map<string, Element>;
-}
-
-// LiveUI options
-export interface LiveUIOptions {
-  endpoint?: string;
-  uploadEndpoint?: string;
-  autoConnect?: boolean;
-  debug?: boolean;
-  reconnect?: boolean;
-  maxReconnectAttempts?: number;
-  reconnectDelay?: number;
-  boot?: BootPayload;
-
-  [key: string]: any;
-}
-
-// Connection states
-export type ConnectionState =
-  | { status: "disconnected" }
-  | { status: "connecting" }
-  | { status: "connected"; sessionId: string; version: number }
-  | { status: "reconnecting"; attempt: number }
-  | { status: "error"; error: Error };
-
-// Effect types
-export type EffectType =
-  | "scroll"
-  | "focus"
-  | "alert"
-  | "dispatch"
-  | "custom"
-  | "toast"
-  | "dom"
-  | "domcall"
-  | "scrollTop"
-  | "push"
-  | "replace"
-  | "metadata"
-  | "cookies"
-  | "Cookies"
-  | "Toast"
-  | "Focus"
-  | "ScrollTop"
-  | "DOM"
-  | "DOMCall"
-  | "Push"
-  | "Replace"
-  | "componentBoot"
-  | "ComponentBoot";
-
-export interface ScrollEffect {
-  type: "scroll" | "ScrollTop";
-  selector?: string;
-  behavior?: ScrollBehavior;
-  block?: ScrollLogicalPosition;
-}
-
-export interface FocusEffect {
-  type: "focus" | "Focus";
-  selector?: string;
-  Selector?: string; // Go capitalized field name
-}
-
-export interface AlertEffect {
-  type: "alert";
-  message: string;
-}
-
-export interface ToastEffect {
-  type: "toast" | "Toast";
-  message?: string;
-  Message?: string; // Go capitalized field name
-  duration?: number;
-  variant?: "info" | "success" | "warning" | "error";
-}
-
-export interface PushEffect {
-  type: "push" | "Push";
-  url?: string;
-  URL?: string; // Go capitalized field name
-}
-
-export interface ReplaceEffect {
-  type: "replace" | "Replace";
-  url?: string;
-  URL?: string; // Go capitalized field name
-}
-
-export interface DispatchEffect {
-  type: "dispatch";
-  eventName: string;
-  detail?: any;
-}
-
-export interface CustomEffect {
-  type: "custom";
+export interface UploadMeta {
   name: string;
-  data: any;
-}
-
-export interface DOMCallEffect {
-  type: "domcall" | "DOMCall";
-  ref?: string;
-  Ref?: string;
-  method?: string;
-  Method?: string;
-  args?: any[];
-  Args?: any[];
-}
-
-export interface DOMActionEffect {
-  type: "dom" | "DOM";
-  kind?: string;
-  Kind?: string;
-  ref?: string;
-  Ref?: string;
-  method?: string;
-  Method?: string;
-  args?: any[];
-  Args?: any[];
-  prop?: string;
-  Prop?: string;
-  value?: any;
-  Value?: any;
-  "class"?: string;
-  Class?: string;
-  on?: boolean;
-  On?: boolean;
-  behavior?: ScrollBehavior;
-  Behavior?: ScrollBehavior;
-  block?: ScrollLogicalPosition;
-  Block?: ScrollLogicalPosition;
-  inline?: ScrollLogicalPosition;
-  Inline?: ScrollLogicalPosition;
+  size: number;
+  type: string;
 }
 
 export interface MetadataTagPayload {
@@ -592,7 +286,7 @@ export interface MetadataTagPayload {
   attrs?: Record<string, string>;
 }
 
-export interface MetadataLinkPayload {
+export interface LinkTagPayload {
   key: string;
   rel?: string;
   href?: string;
@@ -608,7 +302,7 @@ export interface MetadataLinkPayload {
   attrs?: Record<string, string>;
 }
 
-export interface MetadataScriptPayload {
+export interface ScriptTagPayload {
   key: string;
   src?: string;
   type?: string;
@@ -625,99 +319,129 @@ export interface MetadataScriptPayload {
 }
 
 export interface MetadataEffect {
-  type: "metadata";
+  type: 'metadata';
   title?: string;
   description?: string;
   clearDescription?: boolean;
   metaAdd?: MetadataTagPayload[];
   metaRemove?: string[];
-  linkAdd?: MetadataLinkPayload[];
+  linkAdd?: LinkTagPayload[];
   linkRemove?: string[];
-  scriptAdd?: MetadataScriptPayload[];
+  scriptAdd?: ScriptTagPayload[];
   scriptRemove?: string[];
 }
 
-export interface CookieEffect {
-  type: "cookies";
-  endpoint?: string;
-  Endpoint?: string;
-  sid?: string;
-  SID?: string;
-  token?: string;
-  Token?: string;
+export interface DOMActionEffect {
+  type: 'dom';
+  kind: string;
+  ref: string;
   method?: string;
-  Method?: string;
+  args?: any[];
+  prop?: string;
+  value?: any;
+  class?: string;
+  on?: boolean;
+  behavior?: string;
+  block?: string;
+  inline?: string;
 }
 
-export interface ComponentBootEffect {
-  type: "componentBoot" | "ComponentBoot";
-  componentId: string;
-  html: string;
-  slots: number[];
-  listSlots?: number[];
-  slotPaths?: SlotPathDescriptor[];
-  listPaths?: ListPathDescriptor[];
-  componentPaths?: ComponentPathDescriptor[];
-  bindings?: BindingTable;
+export interface CookieEffect {
+  type: 'cookies';
+  endpoint: string;
+  sid: string;
+  token: string;
+  method?: string;
 }
 
-export interface BootEffect {
-  type: "boot";
-  boot: BootPayload;
-}
+export type Effect = MetadataEffect | DOMActionEffect | CookieEffect;
 
-export type Effect =
-  | ScrollEffect
-  | FocusEffect
-  | AlertEffect
-  | ToastEffect
-  | PushEffect
-  | ReplaceEffect
-  | DispatchEffect
-  | CustomEffect
-  | DOMActionEffect
-  | DOMCallEffect
-  | MetadataEffect
-  | CookieEffect
-  | ComponentBootEffect
-  | BootEffect;
+export type UploadClientOp = 'change' | 'progress' | 'error' | 'cancelled';
 
-// Performance metrics
-export interface PerformanceMetrics {
-  patchesApplied: number;
-  averagePatchTime: number;
-  framesReceived: number;
-  eventsProcessed: number;
-  reconnections: number;
-  uptime: number;
-  effectsMs: number;
-  maxEffectMs: number;
-  slowEffects: number;
-  framesBuffered: number;
-  framesDropped: number;
-  sequenceGaps: number;
-}
-
-// Optimistic update
-export interface OptimisticUpdate {
+export interface UploadClientMessage {
+  t: 'upload';
+  sid: string;
   id: string;
-  patches: DiffOp[];
-  inverseOps: DiffOp[];
-  timestamp: number;
+  op: UploadClientOp;
+  meta?: UploadMeta;
+  loaded?: number;
+  total?: number;
+  error?: string;
 }
 
-// Lifecycle events
-export interface LiveUIEvents {
-  connected: { sessionId: string; version: number };
-  disconnected: void;
-  reconnecting: { attempt: number };
-  reconnected: { sessionId: string };
-  error: { error: Error; context?: string };
-  diagnostic: { diagnostic: DiagnosticMessage };
-  frameApplied: { operations: number; duration: number };
-  stateChanged: { from: ConnectionState; to: ConnectionState };
-  effect: { effect: Effect };
-  metricsUpdated: PerformanceMetrics;
-  rollback: { id: string; patches: DiffOp[] };
-  resumed: { from: number; to: number };
+export interface UploadControlMessage {
+  t: 'upload';
+  sid: string;
+  op: 'ack' | 'error' | 'cancel';
+  id: string;
+}
+
+export interface ClientEventMessage {
+  t: 'evt';
+  sid: string;
+  hid: string;
+  payload: EventPayload;
+  cseq?: number;
+}
+
+export interface EventPayload {
+  name: string;
+  detail?: any;
+}
+
+export interface ClientAckMessage {
+  t: 'ack';
+  sid: string;
+  seq: number;
+}
+
+export interface ClientNavMessage {
+  t: 'nav' | 'pop';
+  sid: string;
+  path: string;
+  q: string;
+  hash?: string;
+}
+
+export interface ClientRecoverMessage {
+  t: 'recover';
+  sid: string;
+}
+
+export type ConnectionState =
+  | { status: 'disconnected' }
+  | { status: 'connecting' }
+  | { status: 'connected'; sessionId: string; version: number }
+  | { status: 'reconnecting'; attempt: number }
+  | { status: 'error'; error: Error };
+
+export interface LiveUIOptionOverrides {
+  endpoint?: string;
+  uploadEndpoint?: string;
+  autoConnect?: boolean;
+  debug?: boolean;
+  reconnect?: boolean;
+  reconnectDelay?: number;
+  maxReconnectAttempts?: number;
+  boot?: BootPayload;
+}
+
+export interface LiveUIOptions extends LiveUIOptionOverrides {}
+
+export type LiveUIEventMap = {
+  init: InitMessage;
+  frame: FrameMessage;
+  template: TemplateMessage;
+  join: JoinMessage;
+  resume: ResumeMessage;
+  error: ErrorMessage;
+  diagnostic: DiagnosticMessage;
+  pubsub: PubsubControlMessage;
+  upload: UploadControlMessage;
+  domreq: DOMRequestMessage;
+  evt: ClientEventMessage;
+  ack: ClientAckMessage;
+  nav: ClientNavMessage;
+  pop: ClientNavMessage;
+  recover: ClientRecoverMessage;
 }

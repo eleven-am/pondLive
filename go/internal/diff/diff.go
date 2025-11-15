@@ -39,16 +39,16 @@ func Diff(prev, next render.Structured) []Op {
 		}
 
 		switch q.Kind {
-		case render.DynText:
+		case render.DynamicText:
 			if p.Text != q.Text {
 				ops = append(ops, SetText{Slot: i, Text: q.Text})
 			}
-		case render.DynAttrs:
+		case render.DynamicAttrs:
 			op := diffAttrsSlot(i, p.Attrs, q.Attrs)
 			if op != nil {
 				ops = append(ops, op)
 			}
-		case render.DynList:
+		case render.DynamicList:
 			listOps := diffListSlot(i, p.List, q.List)
 			if len(listOps) > 0 {
 				ops = append(ops, List{Slot: i, Ops: listOps})

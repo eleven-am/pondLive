@@ -115,7 +115,7 @@ func TestUseUploadLifecycle(t *testing.T) {
 		t.Fatalf("complete upload: %v", err)
 	}
 	if updates == nil {
-		t.Fatal("expected OnComplete to request rerender")
+		t.Fatal("expected OnComplete to request render")
 	}
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush after completion: %v", err)
@@ -246,7 +246,7 @@ func findUploadBinding(structured render.Structured) (render.UploadBinding, bool
 
 func findProgressText(structured render.Structured) string {
 	for _, dyn := range structured.D {
-		if dyn.Kind == render.DynText && dyn.Text != "" {
+		if dyn.Kind == render.DynamicText && dyn.Text != "" {
 			return dyn.Text
 		}
 	}

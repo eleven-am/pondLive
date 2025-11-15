@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
@@ -31,7 +33,7 @@ func TestComponentSessionPromotesStaticText(t *testing.T) {
 		t.Fatalf("expected child setter to be initialized")
 	}
 	for _, dyn := range structured.D {
-		if dyn.Kind == render.DynText {
+		if dyn.Kind == render.DynamicText {
 			t.Fatalf("expected initial render to avoid dynamic text slots, got %+v", structured.D)
 		}
 	}
@@ -59,7 +61,7 @@ func TestComponentSessionPromotesStaticText(t *testing.T) {
 	}
 	sawPromotedText := false
 	for _, dyn := range update.structured.D {
-		if dyn.Kind == render.DynText && dyn.Text == "bravo" {
+		if dyn.Kind == render.DynamicText && dyn.Text == "bravo" {
 			sawPromotedText = true
 			break
 		}
@@ -85,7 +87,7 @@ func TestComponentSessionPromotesStaticText(t *testing.T) {
 	}
 	foundPrevText := false
 	for _, dyn := range sess.prev.D {
-		if dyn.Kind == render.DynText && dyn.Text == "bravo" {
+		if dyn.Kind == render.DynamicText && dyn.Text == "bravo" {
 			foundPrevText = true
 			break
 		}
@@ -142,7 +144,7 @@ func TestComponentSessionPromotesStaticAttrs(t *testing.T) {
 	sess := NewSession(parent, parentProps{})
 	structured := sess.InitialStructured()
 	for _, dyn := range structured.D {
-		if dyn.Kind == render.DynAttrs {
+		if dyn.Kind == render.DynamicAttrs {
 			t.Fatalf("expected initial render to avoid dynamic attr slots, got %+v", structured.D)
 		}
 	}
@@ -172,7 +174,7 @@ func TestComponentSessionPromotesStaticAttrs(t *testing.T) {
 	}
 	sawPromotedAttrs := false
 	for _, dyn := range update.structured.D {
-		if dyn.Kind != render.DynAttrs {
+		if dyn.Kind != render.DynamicAttrs {
 			continue
 		}
 		if dyn.Attrs["class"] == "bravo" {
@@ -202,7 +204,7 @@ func TestComponentSessionPromotesStaticAttrs(t *testing.T) {
 	}
 	foundPrevAttrs := false
 	for _, dyn := range sess.prev.D {
-		if dyn.Kind == render.DynAttrs && dyn.Attrs["class"] == "bravo" {
+		if dyn.Kind == render.DynamicAttrs && dyn.Attrs["class"] == "bravo" {
 			foundPrevAttrs = true
 			break
 		}
@@ -232,4 +234,68 @@ func TestComponentSessionPromotesStaticAttrs(t *testing.T) {
 	if !sawSetAttrs {
 		t.Fatalf("expected SetAttrs operation for 'charlie', got %+v", lastOps)
 	}
+}
+
+func TestResolveAttrPromotionConcurrent(t *testing.T) {
+	componentID := "comp-concurrent-attrs"
+	comp := &component{id: componentID, children: make(map[string]*component)}
+	sess := &ComponentSession{
+		dirty:      make(map[*component]struct{}),
+		components: map[string]*component{componentID: comp},
+	}
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	workerCount := 64
+	iter := 256
+
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			<-start
+			for j := 0; j < iter; j++ {
+				path := []int{worker % 3, j % 5}
+				attrs := map[string]string{
+					"class": fmt.Sprintf("worker-%d-%d", worker, j),
+					"data":  fmt.Sprintf("payload-%d", j),
+				}
+				sess.ResolveAttrPromotion(componentID, path, attrs, nil)
+			}
+		}(i)
+	}
+
+	close(start)
+	wg.Wait()
+}
+
+func TestResolveTextPromotionConcurrent(t *testing.T) {
+	componentID := "comp-concurrent-text"
+	comp := &component{id: componentID, children: make(map[string]*component)}
+	sess := &ComponentSession{
+		dirty:      make(map[*component]struct{}),
+		components: map[string]*component{componentID: comp},
+	}
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	workerCount := 64
+	iter := 256
+
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			<-start
+			for j := 0; j < iter; j++ {
+				path := []int{worker % 4, j % 3}
+				value := fmt.Sprintf("value-%d-%d", worker, j)
+				mutable := (worker+j)%2 == 0
+				sess.ResolveTextPromotion(componentID, path, value, mutable)
+			}
+		}(i)
+	}
+
+	close(start)
+	wg.Wait()
 }

@@ -21,6 +21,25 @@ func RouterReplaceWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
 	updateSearchWithNavigation(ctx, patch, true)
 }
 
+func RouterBack(ctx Ctx) {
+
+	recordBack(ctx.Session())
+}
+
+func recordBack(sess *ComponentSession) {
+	if sess == nil {
+		return
+	}
+	msg := NavMsg{
+		T: "back",
+	}
+	if entry := sess.ensureRouterEntry(); entry != nil {
+		entry.mu.Lock()
+		entry.navigation.pending = append(entry.navigation.pending, msg)
+		entry.mu.Unlock()
+	}
+}
+
 func updateSearchWithNavigation(ctx Ctx, patch func(url.Values) url.Values, replace bool) {
 	state := requireRouterState(ctx)
 	current := state.getLoc()

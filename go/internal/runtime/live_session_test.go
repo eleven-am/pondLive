@@ -562,7 +562,10 @@ func TestExtractHandlerMetaIncludesListenAndProps(t *testing.T) {
 		h.On("play", handler),
 	)
 
-	structured := render.ToStructuredWithHandlers(tree, reg)
+	structured, err := render.ToStructuredWithHandlers(tree, render.StructuredOptions{Handlers: reg})
+	if err != nil {
+		t.Fatalf("ToStructuredWithHandlers failed: %v", err)
+	}
 	meta := extractHandlerMeta(structured)
 	if len(meta) != 1 {
 		t.Fatalf("expected a single handler meta, got %d", len(meta))

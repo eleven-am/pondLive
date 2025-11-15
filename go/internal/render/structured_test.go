@@ -1,325 +1,1025 @@
 package render
 
 import (
-	"strings"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
-func TestToStructuredWithHandlersProducesStableSlots(t *testing.T) {
-	reg := handlers.NewRegistry()
-	click := func(h.Event) h.Updates { return h.Rerender() }
-	tree := h.WrapComponent("comp", h.Div(
-		h.Class("wrapper"),
-		h.Button(h.On("click", click), h.Textf("%d", 0)),
+func TestRootSlotPathAnchorsRange(t *testing.T) {
+	root := h.WrapComponent("root", h.Div(
+		h.Input(h.Attr("value", "hello")),
 	))
 
-	structured := ToStructuredWithHandlers(tree, reg)
-	if len(structured.S) == 0 {
-		t.Fatal("expected statics to be populated")
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
 	}
-	if len(structured.D) == 0 {
-		t.Fatal("expected dynamics to be populated")
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
 	}
-	var textSlots int
-	var attrSlots int
-	for _, dyn := range structured.D {
-		switch dyn.Kind {
-		case DynText:
-			textSlots++
-		case DynAttrs:
-			attrSlots++
-		}
+	if len(structured.SlotPaths) == 0 {
+		t.Fatalf("expected slot paths, got none")
 	}
-	if textSlots == 0 {
-		t.Fatal("expected at least one text slot")
+	path := structured.SlotPaths[0].Path
+	if len(path) < 1 {
+		t.Fatalf("expected at least one segment, got %v", path)
 	}
-	if attrSlots == 0 {
-		t.Fatal("expected dynamic attr slot for handler bindings")
-	}
-	combined := strings.Join(structured.S, "")
-	if strings.Contains(combined, "data-slot-index=") {
-		t.Fatalf("expected slot annotations to move to dynamic attrs, got %q", combined)
-	}
-	if strings.Contains(combined, "data-onclick=") {
-		t.Fatalf("expected static markup to omit data-onclick attribute, got %q", combined)
-	}
-	if strings.Contains(combined, "<!---->") {
-		t.Fatalf("expected static markup to omit component markers, got %q", combined)
-	}
-	if len(structured.Bindings) == 0 {
-		t.Fatal("expected handler bindings to be recorded")
-	}
-	var found bool
-	for _, binding := range structured.Bindings {
-		if binding.Event == "click" && binding.Handler != "" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected click handler binding to be recorded, got %+v", structured.Bindings)
-	}
-	var slotFound bool
-	for _, path := range structured.SlotPaths {
-		if path.TextChildIndex == -1 {
-			slotFound = true
-			break
-		}
-	}
-	if !slotFound {
-		t.Fatalf("expected at least one slot path targeting element attributes, got %+v", structured.SlotPaths)
+	if path[0].Kind != PathRangeOffset {
+		t.Fatalf("expected first segment to be range offset, got %+v", path[0])
 	}
 }
 
-func TestToStructuredKeyedList(t *testing.T) {
-	nodes := h.Ul(
-		h.Li(h.Key("a"), h.Text("first")),
-		h.Li(h.Key("b"), h.Text("second")),
+func TestComponentPathsUseTypedSegments(t *testing.T) {
+	child := h.WrapComponent("child", h.Div(h.Text("body")))
+	root := h.WrapComponent("parent", h.Div(
+		h.Text("head"),
+		child,
+	))
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.ComponentPaths) != 2 {
+		t.Fatalf("expected two component paths, got %d", len(structured.ComponentPaths))
+	}
+	var childPath ComponentPath
+	for _, cp := range structured.ComponentPaths {
+		if cp.ComponentID == "child" {
+			childPath = cp
+			break
+		}
+	}
+	if childPath.ComponentID == "" {
+		t.Fatalf("child component path not recorded")
+	}
+	if len(childPath.ParentPath) == 0 || childPath.ParentPath[0].Kind != PathRangeOffset {
+		t.Fatalf("expected parent path to start with range segment, got %+v", childPath.ParentPath)
+	}
+}
+
+func TestListPathCapturesContainerDomPath(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Ul(
+				h.Li(h.Key("a"), h.Text("first")),
+				h.Li(h.Key("b"), h.Text("second")),
+			),
+		),
 	)
-	structured := ToStructured(nodes)
-	var listSlots int
-	var listSlotIndex int
-	for i, dyn := range structured.D {
-		if dyn.Kind != DynList {
-			continue
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.ListPaths) != 1 {
+		t.Fatalf("expected one list path, got %d", len(structured.ListPaths))
+	}
+	listPath := structured.ListPaths[0]
+	if len(listPath.Path) == 0 {
+		t.Fatalf("expected typed segments, got empty path")
+	}
+	if listPath.Path[0].Kind != PathRangeOffset {
+		t.Fatalf("expected first segment range offset, got %+v", listPath.Path[0])
+	}
+}
+
+func TestSlotPathsSkipWhitespaceSiblings(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Div(h.Text("alpha")),
+			h.Text("\n    \n"),
+			h.Div(
+				h.Text("button:"),
+				h.Textf("%d", 1),
+			),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	var dynamic SlotPath
+	for _, slot := range structured.SlotPaths {
+		if slot.ComponentID == "root" && slot.TextChildIndex >= 0 {
+			dynamic = slot
+			break
 		}
-		listSlots++
-		listSlotIndex = i
-		if len(dyn.List) != 2 {
-			t.Fatalf("expected 2 rows, got %d", len(dyn.List))
+	}
+	if dynamic.ComponentID == "" {
+		t.Fatalf("expected dynamic slot for root component, got none: %+v", structured.SlotPaths)
+	}
+	segments := dynamic.Path
+	if len(segments) < 2 {
+		t.Fatalf("expected at least range+dom segments, got %v", segments)
+	}
+	last := segments[len(segments)-1]
+	if last.Kind != PathDomChild || last.Index != 1 {
+		t.Fatalf("expected slot to target second element ignoring whitespace, got last=%+v full=%v", last, segments)
+	}
+}
+
+func TestBindingsShareTypedPathsAcrossDescriptors(t *testing.T) {
+	button := h.Button(
+		h.MutableAttr("data-count", "0"),
+		h.Text("Upload"),
+	)
+	button.RefID = "primary"
+	button.UploadBindings = []dom.UploadBinding{{
+		UploadID: "upload-slot",
+		Accept:   []string{"image/png"},
+		Multiple: true,
+		MaxSize:  4096,
+	}}
+	if button.Attrs == nil {
+		button.Attrs = map[string]string{}
+	}
+	button.Attrs["data-router-path"] = "/drive"
+	button.Attrs["data-router-query"] = "tab=files"
+
+	root := h.WrapComponent("root",
+		h.Section(
+			h.Text("\n"),
+			button,
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.UploadBindings) != 1 {
+		t.Fatalf("expected one upload binding, got %d", len(structured.UploadBindings))
+	}
+	if len(structured.RefBindings) != 1 {
+		t.Fatalf("expected one ref binding, got %d", len(structured.RefBindings))
+	}
+	if len(structured.RouterBindings) != 1 {
+		t.Fatalf("expected one router binding, got %d", len(structured.RouterBindings))
+	}
+	var attrSlot SlotPath
+	for _, slot := range structured.SlotPaths {
+		if slot.ComponentID == "root" {
+			attrSlot = slot
+			break
 		}
-		if dyn.List[0].Key != "a" || dyn.List[1].Key != "b" {
-			t.Fatalf("unexpected row keys: %+v", dyn.List)
+	}
+	if attrSlot.ComponentID == "" {
+		t.Fatalf("expected attr slot path for root component, got none: %+v", structured.SlotPaths)
+	}
+
+	checkPathEqual(t, attrSlot.Path, structured.UploadBindings[0].Path)
+	checkPathEqual(t, attrSlot.Path, structured.RefBindings[0].Path)
+	checkPathEqual(t, attrSlot.Path, structured.RouterBindings[0].Path)
+	if attrSlot.Path[0].Kind != PathRangeOffset {
+		t.Fatalf("expected slot path to begin with range offset, got %v", attrSlot.Path)
+	}
+}
+
+func checkPathEqual(t *testing.T, a, b []PathSegment) {
+	t.Helper()
+	if len(a) != len(b) {
+		t.Fatalf("path length mismatch: %v vs %v", a, b)
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			t.Fatalf("path mismatch at %d: %v vs %v", i, a[i], b[i])
 		}
-		for _, row := range dyn.List {
-			for _, slot := range row.Slots {
-				if slot <= i {
-					t.Fatalf("expected row slot %d to appear after list slot %d", slot, i)
-				}
+	}
+}
+
+func TestValidatePath(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    []PathSegment
+		wantErr bool
+	}{
+		{
+			name:    "empty path",
+			path:    []PathSegment{},
+			wantErr: true,
+		},
+		{
+			name: "valid path with range only",
+			path: []PathSegment{
+				{Kind: PathRangeOffset, Index: 0},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid path with range and dom child",
+			path: []PathSegment{
+				{Kind: PathRangeOffset, Index: 2},
+				{Kind: PathDomChild, Index: 1},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid path with range and multiple dom children",
+			path: []PathSegment{
+				{Kind: PathRangeOffset, Index: 0},
+				{Kind: PathDomChild, Index: 1},
+				{Kind: PathDomChild, Index: 2},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid path starting with dom child",
+			path: []PathSegment{
+				{Kind: PathDomChild, Index: 0},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid path with range after dom child",
+			path: []PathSegment{
+				{Kind: PathRangeOffset, Index: 0},
+				{Kind: PathDomChild, Index: 1},
+				{Kind: PathRangeOffset, Index: 2},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePath(tt.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validatePath() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDeeplyNestedComponents(t *testing.T) {
+	level5 := h.WrapComponent("level5", h.Div(h.Text("deepest")))
+	level4 := h.WrapComponent("level4", h.Div(level5))
+	level3 := h.WrapComponent("level3", h.Div(level4))
+	level2 := h.WrapComponent("level2", h.Div(level3))
+	level1 := h.WrapComponent("level1", h.Div(level2))
+	root := h.WrapComponent("root", h.Div(level1))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.ComponentPaths) != 6 {
+		t.Fatalf("expected 6 component paths for nested components, got %d", len(structured.ComponentPaths))
+	}
+
+	foundLevel5 := false
+	for _, cp := range structured.ComponentPaths {
+		if cp.ComponentID == "level5" {
+			foundLevel5 = true
+			if len(cp.ParentPath) == 0 {
+				t.Fatalf("level5 should have non-empty parent path")
 			}
 		}
 	}
-	if listSlots != 1 {
-		t.Fatalf("expected a single list slot, got %d", listSlots)
-	}
-	combined := strings.Join(structured.S, "")
-	if strings.Contains(combined, "data-list-slot=") {
-		t.Fatalf("expected static markup to omit list annotations, got %q", combined)
-	}
-	if strings.Contains(combined, "<!---->") {
-		t.Fatalf("expected static markup to omit component markers, got %q", combined)
-	}
-	if listSlotIndex < 0 {
-		t.Fatalf("expected list slot index to be non-negative, got %d", listSlotIndex)
+	if !foundLevel5 {
+		t.Fatalf("level5 component path not found")
 	}
 }
 
-func TestDataSlotIndexesEncodeChildOffsets(t *testing.T) {
-	tree := h.WrapComponent("comp", h.Div(
-		h.Span(h.Textf("%s", "first")),
-		h.Textf("%s", " tail"),
-	))
-	structured := ToStructured(tree)
-	if len(structured.SlotPaths) == 0 {
-		t.Fatalf("expected slot paths to be recorded, got %+v", structured.SlotPaths)
+func TestEmptyComponent(t *testing.T) {
+	root := h.WrapComponent("root", h.Div())
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
 	}
-	var divChild, spanChild bool
-	for _, path := range structured.SlotPaths {
-		if path.TextChildIndex == 0 {
-			spanChild = true
-		}
-		if path.TextChildIndex == 1 {
-			divChild = true
-		}
-	}
-	if !spanChild || !divChild {
-		t.Fatalf("expected slot paths to capture text child offsets, got %+v", structured.SlotPaths)
+	if len(structured.SlotPaths) != 0 {
+		t.Fatalf("expected no slot paths for empty component, got %d", len(structured.SlotPaths))
 	}
 }
 
-func TestStructuredCapturesSlotPaths(t *testing.T) {
-	tree := h.WrapComponent("comp", h.Div(
-		h.Textf("%s", "value"),
+func TestComponentWithOnlyWhitespace(t *testing.T) {
+	root := h.WrapComponent("root", h.Div(
+		h.Text("\n  "),
+		h.Text("\t\t"),
+		h.Text("   \n"),
 	))
-	structured := ToStructured(tree)
-	if len(structured.SlotPaths) != 1 {
-		t.Fatalf("expected a single slot path, got %d", len(structured.SlotPaths))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
 	}
-	anchor := structured.SlotPaths[0]
-	if anchor.ComponentID != "comp" {
-		t.Fatalf("expected slot path component 'comp', got %q", anchor.ComponentID)
+	if len(structured.SlotPaths) != 0 {
+		t.Fatalf("expected no slot paths for whitespace-only component, got %d", len(structured.SlotPaths))
 	}
-	if len(anchor.ElementPath) != 0 {
-		t.Fatalf("expected slot path to target the component root element, got %+v", anchor.ElementPath)
+}
+
+func TestMultipleListsInSameComponent(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Ul(
+				h.Li(h.Key("a"), h.Text("first list A")),
+				h.Li(h.Key("b"), h.Text("first list B")),
+			),
+			h.Ul(
+				h.Li(h.Key("x"), h.Text("second list X")),
+				h.Li(h.Key("y"), h.Text("second list Y")),
+			),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
 	}
-	if anchor.TextChildIndex != 0 {
-		t.Fatalf("expected text slot to reference first child, got %d", anchor.TextChildIndex)
+	if len(structured.ListPaths) != 2 {
+		t.Fatalf("expected 2 list paths, got %d", len(structured.ListPaths))
 	}
-	var textSlot = -1
-	for idx, dyn := range structured.D {
-		if dyn.Kind == DynText {
-			textSlot = idx
+}
+
+func TestFragmentWithMixedContent(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Fragment(
+			h.Div(h.Text("before")),
+			h.Text("\n"),
+			h.Span(h.Text("middle")),
+			h.Text("  "),
+			h.P(h.Text("after")),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.S) == 0 {
+		t.Fatalf("expected static HTML segments, got none")
+	}
+}
+
+func TestRouterBindingValidation(t *testing.T) {
+	validButton := h.Button(h.Text("valid"))
+	validButton.Attrs = map[string]string{
+		"data-router-path":  "/dashboard",
+		"data-router-query": "tab=settings",
+	}
+
+	emptyButton := h.Button(h.Text("empty"))
+	emptyButton.Attrs = map[string]string{
+		"data-router-path":  "",
+		"data-router-query": "",
+	}
+
+	root := h.WrapComponent("root",
+		h.Div(
+			validButton,
+			h.Text(" "),
+			emptyButton,
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	validCount := 0
+	for _, rb := range structured.RouterBindings {
+		if rb.PathValue != "" {
+			validCount++
+		}
+	}
+
+	if validCount == 0 {
+		t.Fatalf("expected at least one valid router binding")
+	}
+}
+
+func TestComponentIDCollisionDoesNotPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("should not panic on duplicate component IDs, got panic: %v", r)
+		}
+	}()
+
+	child1 := h.WrapComponent("duplicate", h.Div(h.Text("first")))
+	child2 := h.WrapComponent("duplicate", h.Div(h.Text("second")))
+	root := h.WrapComponent("root", h.Div(child1, child2))
+
+	_, _ = ToStructured(root)
+}
+
+func TestMutableWhitespaceIsPreserved(t *testing.T) {
+	mutableSpace := h.Text("   ")
+	mutableSpace.Mutable = true
+
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Text("before"),
+			mutableSpace,
+			h.Text("after"),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	hasMutableSlot := false
+	for _, slot := range structured.D {
+		if slot.Kind == DynamicText && slot.Text == "   " {
+			hasMutableSlot = true
 			break
 		}
 	}
-	if textSlot < 0 {
-		t.Fatalf("expected dynamic text slot, got %+v", structured.D)
-	}
-	if anchor.Slot != textSlot {
-		t.Fatalf("expected slot path to reference slot %d, got %d", textSlot, anchor.Slot)
-	}
-	var component ComponentPath
-	for _, cp := range structured.ComponentPaths {
-		if cp.ComponentID == "comp" {
-			component = cp
-			break
-		}
-	}
-	if component.ComponentID == "" {
-		t.Fatalf("expected component path for 'comp', got %+v", structured.ComponentPaths)
-	}
-	if component.ParentID != "" {
-		t.Fatalf("expected top-level component to have empty parent id, got %q", component.ParentID)
-	}
-	if len(component.ParentPath) != 0 {
-		t.Fatalf("expected top-level component parent path to be empty, got %+v", component.ParentPath)
-	}
-	if len(component.FirstChild) != 1 || component.FirstChild[0] != 0 {
-		t.Fatalf("expected component first child path [0], got %+v", component.FirstChild)
-	}
-	if len(component.LastChild) != 1 || component.LastChild[0] != 0 {
-		t.Fatalf("expected component last child path [0], got %+v", component.LastChild)
+
+	if !hasMutableSlot {
+		t.Fatalf("expected mutable whitespace to create dynamic slot")
 	}
 }
 
-func TestStructuredCapturesListPaths(t *testing.T) {
-	tree := h.WrapComponent("comp", h.Ul(
-		h.Li(h.Key("a"), h.Text("first")),
-		h.Li(h.Key("b"), h.Text("second")),
-	))
-	structured := ToStructured(tree)
+func TestNilNodeReturnsError(t *testing.T) {
+	_, err := ToStructured(nil)
+	if err == nil {
+		t.Fatalf("expected error for nil node, got nil")
+	}
+	if _, ok := err.(*ValidationError); !ok {
+		t.Fatalf("expected ValidationError, got %T", err)
+	}
+}
+
+func TestEmptyElementTagReturnsError(t *testing.T) {
+	invalidElement := &h.Element{
+		Tag:      "",
+		Children: []h.Node{h.Text("content")},
+	}
+	root := h.WrapComponent("root", invalidElement)
+
+	_, err := ToStructured(root)
+	if err == nil {
+		t.Fatalf("expected error for empty element tag, got nil")
+	}
+}
+
+func TestDeeplyNestedFragments(t *testing.T) {
+	level3 := h.Fragment(h.Div(h.Text("deep")))
+	level2 := h.Fragment(h.Div(level3))
+	level1 := h.Fragment(h.Div(level2))
+	root := h.WrapComponent("root", level1)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.S) == 0 {
+		t.Fatalf("expected HTML output for nested fragments")
+	}
+}
+
+func TestUnsafeHTMLRendering(t *testing.T) {
+	unsafeHTML := "<script>alert('xss')</script>"
+	div := h.Div()
+	div.Unsafe = &unsafeHTML
+
+	root := h.WrapComponent("root", div)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	htmlOutput := ""
+	for _, s := range structured.S {
+		htmlOutput += s
+	}
+	if !contains(htmlOutput, unsafeHTML) {
+		t.Fatalf("expected unsafe HTML to be preserved, got: %s", htmlOutput)
+	}
+}
+
+func TestMultipleHandlerAssignments(t *testing.T) {
+	button := h.Button(h.Text("multi"))
+	button.HandlerAssignments = map[string]dom.EventAssignment{
+		"click": {ID: "handleClick", Listen: []string{"target.value"}},
+		"focus": {ID: "handleFocus", Props: []string{"focused"}},
+		"blur":  {ID: "handleBlur"},
+	}
+	root := h.WrapComponent("root", h.Div(button))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.Bindings) != 3 {
+		t.Fatalf("expected 3 handler bindings, got %d", len(structured.Bindings))
+	}
+	events := make(map[string]bool)
+	for _, binding := range structured.Bindings {
+		events[binding.Event] = true
+	}
+	if !events["click"] || !events["focus"] || !events["blur"] {
+		t.Fatalf("expected click, focus, blur events, got: %v", events)
+	}
+}
+
+func TestUploadBindingWithAllOptions(t *testing.T) {
+	button := h.Button(h.Text("upload"))
+	button.UploadBindings = []dom.UploadBinding{{
+		UploadID: "file-upload",
+		Accept:   []string{"image/png", "image/jpeg", "application/pdf"},
+		Multiple: true,
+		MaxSize:  10485760,
+	}}
+	root := h.WrapComponent("root", h.Div(button))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.UploadBindings) != 1 {
+		t.Fatalf("expected 1 upload binding, got %d", len(structured.UploadBindings))
+	}
+	upload := structured.UploadBindings[0]
+	if upload.UploadID != "file-upload" {
+		t.Fatalf("expected UploadID 'file-upload', got %s", upload.UploadID)
+	}
+	if !upload.Multiple {
+		t.Fatalf("expected Multiple=true")
+	}
+	if upload.MaxSize != 10485760 {
+		t.Fatalf("expected MaxSize=10485760, got %d", upload.MaxSize)
+	}
+	if len(upload.Accept) != 3 {
+		t.Fatalf("expected 3 accepted types, got %d", len(upload.Accept))
+	}
+}
+
+func TestRefBindingInNestedComponent(t *testing.T) {
+	input := h.Input()
+	input.RefID = "email-input"
+
+	child := h.WrapComponent("child", h.Div(input))
+	root := h.WrapComponent("root", h.Div(child))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.RefBindings) != 1 {
+		t.Fatalf("expected 1 ref binding, got %d", len(structured.RefBindings))
+	}
+	if structured.RefBindings[0].RefID != "email-input" {
+		t.Fatalf("expected RefID 'email-input', got %s", structured.RefBindings[0].RefID)
+	}
+	if structured.RefBindings[0].ComponentID != "child" {
+		t.Fatalf("expected ComponentID 'child', got %s", structured.RefBindings[0].ComponentID)
+	}
+}
+
+func TestTextWithSpecialCharacters(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Text("<script>alert('xss')</script>"),
+			h.Text("& < > \" '"),
+			h.Text("Unicode: ñ é ü 中文 🚀"),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	htmlOutput := ""
+	for _, s := range structured.S {
+		htmlOutput += s
+	}
+	if contains(htmlOutput, "<script>") && !contains(htmlOutput, "&lt;script&gt;") {
+		t.Fatalf("expected script tags to be escaped")
+	}
+	if !contains(htmlOutput, "&amp;") {
+		t.Fatalf("expected ampersand to be escaped")
+	}
+}
+
+func TestAttributesWithSpecialCharacters(t *testing.T) {
+	div := h.Div(h.Text("content"))
+	div.Attrs = map[string]string{
+		"data-value":   "<script>",
+		"data-encoded": "one & two",
+		"title":        `quotes "here"`,
+	}
+	root := h.WrapComponent("root", div)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	htmlOutput := ""
+	for _, s := range structured.S {
+		htmlOutput += s
+	}
+	if contains(htmlOutput, `data-value="<script>"`) {
+		t.Fatalf("expected special characters in attributes to be escaped")
+	}
+}
+
+func TestEmptyUploadBindingIDSkipped(t *testing.T) {
+	button := h.Button(h.Text("upload"))
+	button.UploadBindings = []dom.UploadBinding{{
+		UploadID: "",
+		Multiple: true,
+	}}
+	root := h.WrapComponent("root", h.Div(button))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.UploadBindings) != 0 {
+		t.Fatalf("expected 0 upload bindings for empty UploadID, got %d", len(structured.UploadBindings))
+	}
+}
+
+func TestEmptyRefIDNotRecorded(t *testing.T) {
+	input := h.Input()
+	input.RefID = "   "
+	root := h.WrapComponent("root", h.Div(input))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.RefBindings) != 0 {
+		t.Fatalf("expected 0 ref bindings for whitespace RefID, got %d", len(structured.RefBindings))
+	}
+}
+
+func TestComponentWithoutChild(t *testing.T) {
+	comp := &h.ComponentNode{
+		ID:    "empty",
+		Child: nil,
+	}
+	root := h.WrapComponent("root", h.Div(comp))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if _, found := structured.Components["empty"]; !found {
+		t.Fatalf("expected component 'empty' to be recorded")
+	}
+}
+
+func TestComponentWithoutID(t *testing.T) {
+	comp := &h.ComponentNode{
+		ID:    "",
+		Child: h.Div(h.Text("content")),
+	}
+	root := h.WrapComponent("root", h.Div(comp))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	htmlOutput := ""
+	for _, s := range structured.S {
+		htmlOutput += s
+	}
+	if !contains(htmlOutput, "content") {
+		t.Fatalf("expected child content to be rendered even without component ID")
+	}
+}
+
+func TestVoidElementsNotSelfClosing(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Input(h.Attr("type", "text")),
+			h.Img(h.Attr("src", "/logo.png")),
+			h.Br(),
+			h.Hr(),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	htmlOutput := ""
+	for _, s := range structured.S {
+		htmlOutput += s
+	}
+	voidElements := []string{"<input", "<img", "<br", "<hr"}
+	for _, elem := range voidElements {
+		if !contains(htmlOutput, elem) {
+			t.Fatalf("expected void element %s in output", elem)
+		}
+	}
+}
+
+func TestMixedMutableAndStaticAttrs(t *testing.T) {
+	div := h.Div(h.Text("content"))
+	div.Attrs = map[string]string{
+		"class":      "static-class",
+		"id":         "static-id",
+		"data-value": "initial",
+	}
+	div.MutableAttrs = map[string]bool{
+		"data-value": true,
+	}
+	root := h.WrapComponent("root", div)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	hasDynamicAttrs := false
+	for _, slot := range structured.D {
+		if slot.Kind == DynamicAttrs {
+			hasDynamicAttrs = true
+			if slot.Attrs["data-value"] != "initial" {
+				t.Fatalf("expected mutable attr to preserve initial value")
+			}
+		}
+	}
+	if !hasDynamicAttrs {
+		t.Fatalf("expected dynamic attrs slot for mutable attributes")
+	}
+}
+
+func TestListWithNoKeys(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Ul(
+			h.Li(h.Text("no key 1")),
+			h.Li(h.Text("no key 2")),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.ListPaths) != 0 {
+		t.Fatalf("expected no list paths when children have no keys, got %d", len(structured.ListPaths))
+	}
+}
+
+func TestListWithSingleKeyedItem(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Ul(
+			h.Li(h.Key("only"), h.Text("single item")),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
 	if len(structured.ListPaths) != 1 {
-		t.Fatalf("expected a single list path, got %d", len(structured.ListPaths))
+		t.Fatalf("expected 1 list path for single keyed item, got %d", len(structured.ListPaths))
 	}
-	anchor := structured.ListPaths[0]
-	if anchor.ComponentID != "comp" {
-		t.Fatalf("expected list path component 'comp', got %q", anchor.ComponentID)
+	if len(structured.D) == 0 {
+		t.Fatalf("expected dynamic list slot")
 	}
-	if len(anchor.ElementPath) != 0 {
-		t.Fatalf("expected list path to reference component root element, got %+v", anchor.ElementPath)
-	}
-	var listSlot = -1
-	for idx, dyn := range structured.D {
-		if dyn.Kind == DynList {
-			listSlot = idx
-			break
+	hasListSlot := false
+	for _, slot := range structured.D {
+		if slot.Kind == DynamicList {
+			hasListSlot = true
+			if len(slot.List) != 1 {
+				t.Fatalf("expected 1 row in list, got %d", len(slot.List))
+			}
 		}
 	}
-	if listSlot < 0 {
-		t.Fatalf("expected dynamic list slot, got %+v", structured.D)
-	}
-	if anchor.Slot != listSlot {
-		t.Fatalf("expected list path to reference slot %d, got %d", listSlot, anchor.Slot)
+	if !hasListSlot {
+		t.Fatalf("expected DynamicList slot")
 	}
 }
 
-func TestKeyedRowCapturesSlotManifest(t *testing.T) {
-	tree := h.WrapComponent("comp", h.Ul(
-		h.Li(h.Key("a"), h.Textf("%s", "value")),
+func TestFragmentWithNoChildren(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Fragment(),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.S) == 0 {
+		t.Fatalf("expected some static HTML")
+	}
+}
+
+func TestRouterBindingWithAllFields(t *testing.T) {
+	link := h.A(h.Text("navigate"))
+	link.Attrs = map[string]string{
+		"data-router-path":    "/dashboard",
+		"data-router-query":   "tab=overview&filter=active",
+		"data-router-hash":    "#section-1",
+		"data-router-replace": "true",
+	}
+	root := h.WrapComponent("root", h.Div(link))
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+	if len(structured.RouterBindings) != 1 {
+		t.Fatalf("expected 1 router binding, got %d", len(structured.RouterBindings))
+	}
+	router := structured.RouterBindings[0]
+	if router.PathValue != "/dashboard" {
+		t.Fatalf("expected PathValue '/dashboard', got %s", router.PathValue)
+	}
+	if router.Query != "tab=overview&filter=active" {
+		t.Fatalf("expected Query 'tab=overview&filter=active', got %s", router.Query)
+	}
+	if router.Hash != "#section-1" {
+		t.Fatalf("expected Hash '#section-1', got %s", router.Hash)
+	}
+	if router.Replace != "true" {
+		t.Fatalf("expected Replace 'true', got %s", router.Replace)
+	}
+}
+
+func TestPreComputedRanges(t *testing.T) {
+	child := h.WrapComponent("child", h.Div(
+		h.Text("static"),
+		h.Textf("%d", 42),
 	))
-	structured := ToStructured(tree)
-	var row Row
-	found := false
-	for _, dyn := range structured.D {
-		if dyn.Kind != DynList {
-			continue
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Text("before"),
+			child,
+			h.Text("after"),
+		),
+	)
+
+	structured, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+
+	if len(structured.S) == 0 {
+		t.Fatalf("expected static segments")
+	}
+	if len(structured.D) == 0 {
+		t.Fatalf("expected dynamic slots")
+	}
+	if _, found := structured.Components["child"]; !found {
+		t.Fatalf("expected child component to be tracked")
+	}
+	if _, found := structured.Components["root"]; !found {
+		t.Fatalf("expected root component to be tracked")
+	}
+}
+
+func TestAnalyzerCountsCorrectly(t *testing.T) {
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Text("static1"),
+			h.Textf("%s", "dynamic"),
+			h.Text("static2"),
+			h.Div(
+				h.Button(h.Text("click")),
+			),
+		),
+	)
+
+	analyzer := NewComponentAnalyzer()
+	result := analyzer.Analyze(root)
+
+	if result.StaticsCapacity <= 0 {
+		t.Fatalf("expected positive statics capacity, got %d", result.StaticsCapacity)
+	}
+	if result.DynamicsCapacity <= 0 {
+		t.Fatalf("expected positive dynamics capacity, got %d", result.DynamicsCapacity)
+	}
+	if len(result.Components) != 1 {
+		t.Fatalf("expected 1 component, got %d", len(result.Components))
+	}
+
+	_, err := ToStructured(root)
+	if err != nil {
+		t.Fatalf("ToStructured failed: %v", err)
+	}
+}
+
+func contains(haystack, needle string) bool {
+	return len(haystack) >= len(needle) && (haystack == needle || len(needle) == 0 ||
+		(len(haystack) > 0 && (haystack[:len(needle)] == needle || contains(haystack[1:], needle))))
+}
+
+// TestConcurrentAnalyzerMatchesSequential ensures concurrent analysis produces same results
+func TestConcurrentAnalyzerMatchesSequential(t *testing.T) {
+
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Div(h.Text("1"), h.Textf("%d", 1)),
+			h.Div(h.Text("2"), h.Textf("%d", 2)),
+			h.Div(h.Text("3"), h.Textf("%d", 3)),
+			h.Div(h.Text("4"), h.Textf("%d", 4)),
+			h.Div(h.Text("5"), h.Textf("%d", 5)),
+			h.Div(h.Text("6"), h.Textf("%d", 6)),
+			h.Div(h.Text("7"), h.Textf("%d", 7)),
+			h.Div(h.Text("8"), h.Textf("%d", 8)),
+			h.Div(h.Text("9"), h.Textf("%d", 9)),
+			h.Div(h.Text("10"), h.Textf("%d", 10)),
+		),
+	)
+
+	seqAnalyzer := NewComponentAnalyzer()
+	seqResult := seqAnalyzer.Analyze(root)
+
+	concAnalyzer := NewComponentAnalyzerWithOptions(AnalysisOptions{
+		Concurrent:           true,
+		ConcurrencyThreshold: 4,
+	})
+	concResult := concAnalyzer.Analyze(root)
+
+	if seqResult.StaticsCapacity != concResult.StaticsCapacity {
+		t.Fatalf("statics mismatch: seq=%d, conc=%d", seqResult.StaticsCapacity, concResult.StaticsCapacity)
+	}
+	if seqResult.DynamicsCapacity != concResult.DynamicsCapacity {
+		t.Fatalf("dynamics mismatch: seq=%d, conc=%d", seqResult.DynamicsCapacity, concResult.DynamicsCapacity)
+	}
+	if len(seqResult.Components) != len(concResult.Components) {
+		t.Fatalf("component count mismatch: seq=%d, conc=%d", len(seqResult.Components), len(concResult.Components))
+	}
+
+	for id, seqSpan := range seqResult.Components {
+		concSpan, ok := concResult.Components[id]
+		if !ok {
+			t.Fatalf("component %s missing in concurrent result", id)
 		}
-		if len(dyn.List) == 0 {
-			t.Fatalf("expected keyed list to include rows, got %+v", dyn.List)
-		}
-		row = dyn.List[0]
-		found = true
-		break
-	}
-	if !found {
-		t.Fatalf("expected keyed list dynamics, got %+v", structured.D)
-	}
-	if len(row.SlotPaths) == 0 {
-		t.Fatalf("expected keyed row to capture slot paths, got %+v", row.SlotPaths)
-	}
-	anchor := row.SlotPaths[0]
-	if anchor.ComponentID != "comp" {
-		t.Fatalf("expected row slot path to reference component 'comp', got %q", anchor.ComponentID)
-	}
-	if anchor.Slot < 0 {
-		t.Fatalf("expected slot path to reference a valid slot, got %d", anchor.Slot)
-	}
-}
-
-func TestStaticTextDefaultsToStatics(t *testing.T) {
-	tree := h.Div(h.Text("hello"))
-	structured := ToStructured(tree)
-	for _, dyn := range structured.D {
-		if dyn.Kind == DynText {
-			t.Fatalf("expected no dynamic text slots, got %+v", structured.D)
+		if seqSpan != concSpan {
+			t.Fatalf("component %s span mismatch:\nseq=%+v\nconc=%+v", id, seqSpan, concSpan)
 		}
 	}
 }
 
-type recordingTracker struct {
-	decisions []promotionCall
-	promote   bool
-}
+// TestConcurrentAnalyzerNestedComponents tests concurrent analysis with nested components
+func TestConcurrentAnalyzerNestedComponents(t *testing.T) {
 
-type promotionCall struct {
-	id      string
-	path    []int
-	value   string
-	mutable bool
-}
+	root := h.WrapComponent("root",
+		h.Div(
+			h.WrapComponent("childA", h.Div(h.Text("text"), h.Textf("%d", 1), h.Button(h.Text("click")))),
+			h.WrapComponent("childB", h.Div(h.Text("text"), h.Textf("%d", 2), h.Button(h.Text("click")))),
+			h.WrapComponent("childC", h.Div(h.Text("text"), h.Textf("%d", 3), h.Button(h.Text("click")))),
+			h.WrapComponent("childD", h.Div(h.Text("text"), h.Textf("%d", 4), h.Button(h.Text("click")))),
+			h.WrapComponent("childE", h.Div(h.Text("text"), h.Textf("%d", 5), h.Button(h.Text("click")))),
+			h.WrapComponent("childF", h.Div(h.Text("text"), h.Textf("%d", 6), h.Button(h.Text("click")))),
+		),
+	)
 
-func (r *recordingTracker) ResolveTextPromotion(id string, path []int, value string, mutable bool) bool {
-	call := promotionCall{id: id, path: append([]int(nil), path...), value: value, mutable: mutable}
-	r.decisions = append(r.decisions, call)
-	return r.promote
-}
+	seqAnalyzer := NewComponentAnalyzer()
+	seqResult := seqAnalyzer.Analyze(root)
 
-func (r *recordingTracker) ResolveAttrPromotion(string, []int, map[string]string, map[string]bool) bool {
-	return r.promote
-}
+	concAnalyzer := NewComponentAnalyzerWithOptions(AnalysisOptions{
+		Concurrent:           true,
+		ConcurrencyThreshold: 3,
+	})
+	concResult := concAnalyzer.Analyze(root)
 
-func TestPromotionTrackerControlsDynamicText(t *testing.T) {
-	component := h.WrapComponent("comp", h.Div(h.Text("static")))
-	tracker := &recordingTracker{}
-	structured := ToStructuredWithOptions(component, StructuredOptions{Promotions: tracker})
-	if len(tracker.decisions) != 1 {
-		t.Fatalf("expected tracker to see one text node, got %d", len(tracker.decisions))
+	if seqResult.StaticsCapacity != concResult.StaticsCapacity {
+		t.Fatalf("statics mismatch: seq=%d, conc=%d", seqResult.StaticsCapacity, concResult.StaticsCapacity)
 	}
-	if tracker.decisions[0].id != "comp" {
-		t.Fatalf("expected component id 'comp', got %q", tracker.decisions[0].id)
+	if seqResult.DynamicsCapacity != concResult.DynamicsCapacity {
+		t.Fatalf("dynamics mismatch: seq=%d, conc=%d", seqResult.DynamicsCapacity, concResult.DynamicsCapacity)
 	}
-	if len(tracker.decisions[0].path) != 1 || tracker.decisions[0].path[0] != 0 {
-		t.Fatalf("unexpected path: %+v", tracker.decisions[0].path)
+
+	if len(seqResult.Components) != 7 || len(concResult.Components) != 7 {
+		t.Fatalf("expected 7 components, got seq=%d, conc=%d", len(seqResult.Components), len(concResult.Components))
 	}
-	for _, dyn := range structured.D {
-		if dyn.Kind == DynText {
-			t.Fatalf("expected no dynamic text slots when tracker does not promote, got %+v", structured.D)
+
+	for id, seqSpan := range seqResult.Components {
+		concSpan, ok := concResult.Components[id]
+		if !ok {
+			t.Fatalf("component %s missing in concurrent result", id)
+		}
+		if seqSpan != concSpan {
+			t.Fatalf("component %s span mismatch:\nseq=%+v\nconc=%+v", id, seqSpan, concSpan)
 		}
 	}
+}
 
-	promoteTracker := &recordingTracker{promote: true}
-	promoted := ToStructuredWithOptions(component, StructuredOptions{Promotions: promoteTracker})
-	foundText := false
-	for _, dyn := range promoted.D {
-		if dyn.Kind == DynText {
-			foundText = true
-			break
-		}
+// TestConcurrentAnalyzerBelowThreshold tests that concurrent mode falls back to sequential when below threshold
+func TestConcurrentAnalyzerBelowThreshold(t *testing.T) {
+
+	root := h.WrapComponent("root",
+		h.Div(
+			h.Text("child1"),
+			h.Text("child2"),
+		),
+	)
+
+	seqAnalyzer := NewComponentAnalyzer()
+	seqResult := seqAnalyzer.Analyze(root)
+
+	concAnalyzer := NewComponentAnalyzerWithOptions(AnalysisOptions{
+		Concurrent:           true,
+		ConcurrencyThreshold: 4,
+	})
+	concResult := concAnalyzer.Analyze(root)
+
+	if seqResult.StaticsCapacity != concResult.StaticsCapacity {
+		t.Fatalf("statics mismatch: seq=%d, conc=%d", seqResult.StaticsCapacity, concResult.StaticsCapacity)
 	}
-	if !foundText {
-		t.Fatalf("expected promoted render to include a dynamic text slot, got %+v", promoted.D)
+	if seqResult.DynamicsCapacity != concResult.DynamicsCapacity {
+		t.Fatalf("dynamics mismatch: seq=%d, conc=%d", seqResult.DynamicsCapacity, concResult.DynamicsCapacity)
 	}
 }

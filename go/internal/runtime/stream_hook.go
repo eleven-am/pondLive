@@ -17,7 +17,7 @@ type StreamItem[T any] struct {
 // StreamHandle exposes mutation helpers for a keyed list managed by UseStream.
 // Implementations are intended for single-goroutine use from component event
 // handlers. Methods return whether they changed the underlying state and
-// therefore scheduled a rerender.
+// therefore scheduled a render.
 type StreamHandle[T any] interface {
 	Append(StreamItem[T]) bool
 	Prepend(StreamItem[T]) bool

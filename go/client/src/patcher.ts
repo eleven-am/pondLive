@@ -1,826 +1,222 @@
-/**
- * Advanced Patcher with Maximum Optimizations
- *
- * Applies diff operations to the DOM with:
- * - Dirty checking (skip unchanged updates)
- * - Smart attribute diffing
- * - Batched DOM operations (prevent layout thrashing)
- * - DocumentFragment pooling
- * - Keyed list optimization
- * - Morphdom-style reconciliation
- * - Patch memoization
- * - Virtual scrolling support
- */
+import { DomRegistry } from './dom-registry';
+import { registerBindingsForSlot } from './events';
+import { applyRouterBindings } from './router-bindings';
+import { applyComponentRanges } from './manifest';
+import { RefRegistry } from './refs';
+import { UploadManager } from './uploads';
+import { Logger } from './logger';
+import type {
+  DiffOp,
+  FrameMessage,
+  ListChildOp,
+  ListInsOp,
+  ListDelOp,
+  ListMovOp,
+  ComponentPathDescriptor,
+  SlotPathDescriptor,
+  ListPathDescriptor,
+  BindingsPayload,
+} from './types';
 
-import * as dom from "./dom-index";
-import {
-  applyRouterAttribute,
-  DATA_ROUTER_ATTR_PREFIX,
-  getRegisteredSlotBindings,
-  registerBindingsForSlot,
-} from "./events";
-import { applyComponentRanges, resolveListContainers, resolveSlotAnchors } from "./manifest";
-import { unbindRefsInTree } from "./refs";
-import { applyRefBindings, applyRouterBindings } from "./bindings";
-import { applyUploadBindings } from "./uploads";
-import type { DiffOp, ListChildOp, ListRow, SlotBinding } from "./types";
+export class Patcher {
+  constructor(private dom: DomRegistry, private refs?: RefRegistry, private uploads?: UploadManager) {}
 
-// ============================================================================
-// Configuration
-// ============================================================================
-
-interface PatcherConfig {
-    enableDirtyChecking: boolean;
-    enableBatching: boolean;
-    enableFragmentPooling: boolean;
-    enableMemoization: boolean;
-    enableVirtualScrolling: boolean;
-    virtualScrollThreshold: number;
-    memoizationCacheSize: number;
-}
-
-const config: PatcherConfig = {
-    enableDirtyChecking: true,
-    enableBatching: true,
-    enableFragmentPooling: true,
-    enableMemoization: true,
-    enableVirtualScrolling: true,
-    virtualScrollThreshold: 100, // Start virtual scrolling after 100 items
-    memoizationCacheSize: 1000,
-};
-
-const DATA_EVENT_ATTR_PREFIX = 'data-on';
-
-// ============================================================================
-// Fragment Pooling (for future use)
-// ============================================================================
-
-// class FragmentPool {
-//   private pool: DocumentFragment[] = [];
-//   private maxSize: number = 10;
-//
-//   acquire(): DocumentFragment {
-//     return this.pool.pop() || document.createDocumentFragment();
-//   }
-//
-//   release(fragment: DocumentFragment): void {
-//     if (this.pool.length < this.maxSize) {
-//       // Clear fragment before reusing
-//       while (fragment.firstChild) {
-//         fragment.removeChild(fragment.firstChild);
-//       }
-//       this.pool.push(fragment);
-//     }
-//   }
-// }
-//
-// const fragmentPool = new FragmentPool();
-
-// ============================================================================
-// Template Caching
-// ============================================================================
-
-const templateCache = document.createElement('template');
-const htmlCache = new Map<string, DocumentFragment>();
-
-function createFragment(html: string): DocumentFragment {
-    if (config.enableFragmentPooling && htmlCache.has(html)) {
-        // Clone cached fragment for reuse
-        return htmlCache.get(html)!.cloneNode(true) as DocumentFragment;
+  applyFrame(frame: FrameMessage): void {
+    if (!Array.isArray(frame.patch)) {
+      return;
     }
-
-    templateCache.innerHTML = html;
-    const fragment = templateCache.content.cloneNode(true) as DocumentFragment;
-
-    // Cache popular fragments (limit size)
-    if (config.enableFragmentPooling && htmlCache.size < 50) {
-        htmlCache.set(html, fragment.cloneNode(true) as DocumentFragment);
-    }
-
-    return fragment;
-}
-
-// ============================================================================
-// Patch Memoization
-// ============================================================================
-
-class PatchMemoizer {
-    private cache = new Map<string, any>();
-    private maxSize: number;
-
-    constructor(maxSize: number) {
-        this.maxSize = maxSize;
-    }
-
-    key(op: string, slotIndex: number, value: any): string {
-        return `${op}:${slotIndex}:${JSON.stringify(value)}`;
-    }
-
-    has(key: string): boolean {
-        return this.cache.has(key);
-    }
-
-    get(key: string): any {
-        return this.cache.get(key);
-    }
-
-    set(key: string, value: any): void {
-        if (this.cache.size >= this.maxSize) {
-            // Simple LRU: delete first entry
-            const firstKey = this.cache.keys().next().value;
-            if (firstKey !== undefined) {
-                this.cache.delete(firstKey);
-            }
-        }
-        this.cache.set(key, value);
-    }
-
-    clear(): void {
-        this.cache.clear();
-    }
-}
-
-const memoizer = new PatchMemoizer(config.memoizationCacheSize);
-
-// ============================================================================
-// Batched DOM Operations
-// ============================================================================
-
-interface DOMBatch {
-    reads: Array<() => any>;
-    writes: Array<() => void>;
-}
-
-class DOMBatcher {
-    private batch: DOMBatch = {reads: [], writes: []};
-    private scheduled = false;
-
-    scheduleRead(fn: () => any): void {
-        this.batch.reads.push(fn);
-        this.schedule();
-    }
-
-    scheduleWrite(fn: () => void): void {
-        this.batch.writes.push(fn);
-        this.schedule();
-    }
-
-    private schedule(): void {
-        if (this.scheduled) return;
-        this.scheduled = true;
-
-        requestAnimationFrame(() => {
-            this.flush();
-        });
-    }
-
-    flush(): void {
-        // Execute all reads first (prevent layout thrashing)
-        this.batch.reads.forEach(fn => fn());
-
-        // Then execute all writes
-        this.batch.writes.forEach(fn => fn());
-
-        // Reset
-        this.batch = {reads: [], writes: []};
-        this.scheduled = false;
-    }
-
-    immediate(): void {
-        if (this.scheduled) {
-            this.flush();
-        }
-    }
-}
-
-const batcher = new DOMBatcher();
-
-// ============================================================================
-// Virtual Scrolling Support
-// ============================================================================
-
-interface VirtualScrollState {
-    container: Element;
-    totalItems: number;
-    visibleRange: { start: number; end: number };
-    itemHeight: number;
-    observer?: IntersectionObserver;
-}
-
-const virtualScrollStates = new Map<number, VirtualScrollState>();
-
-function initVirtualScroll(slotIndex: number, container: Element): void {
-    if (!config.enableVirtualScrolling) return;
-
-    const state: VirtualScrollState = {
-        container,
-        totalItems: 0,
-        visibleRange: {start: 0, end: 50},
-        itemHeight: 0,
-    };
-
-    // Set up intersection observer for visibility tracking
-    state.observer = new IntersectionObserver(
-        (entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    // Item became visible
-                    const target = entry.target;
-                    if (target instanceof HTMLElement || target instanceof SVGElement) {
-                        target.style.display = '';
-                    }
-                }
-            });
-        },
-        {root: container, threshold: 0.1}
-    );
-
-    virtualScrollStates.set(slotIndex, state);
-}
-
-function shouldVirtualize(_slotIndex: number, itemCount: number): boolean {
-    return config.enableVirtualScrolling && itemCount > config.virtualScrollThreshold;
-}
-
-// ============================================================================
-// Dirty Checking
-// ============================================================================
-
-function ensureTextNode(node: Node | null, slotIndex: number): Node {
-    if (!node) {
-        throw new Error(`liveui: slot ${slotIndex} not registered`);
-    }
-    return node;
-}
-
-function applySetText(slotIndex: number, text: string): void {
-    const node = ensureTextNode(dom.getSlot(slotIndex), slotIndex);
-
-    // Dirty checking: skip if unchanged
-    if (config.enableDirtyChecking && node.textContent === text) {
-        return;
-    }
-
-    if (config.enableBatching) {
-        batcher.scheduleWrite(() => {
-            node.textContent = text;
-        });
-    } else {
-        node.textContent = text;
-    }
-}
-
-// ============================================================================
-// Smart Attribute Diffing
-// ============================================================================
-
-function applySetAttrs(
-    slotIndex: number,
-    upsert: Record<string, string>,
-    remove: string[]
-): void {
-    const node = dom.getSlot(slotIndex);
-    if (!(node instanceof Element)) {
-        throw new Error(`liveui: slot ${slotIndex} is not an element`);
-    }
-
-    const existingBindings = getRegisteredSlotBindings(slotIndex) ?? [];
-    const bindingMap = new Map<string, { handler?: string; listen?: string[]; props?: string[] }>();
-    for (const spec of existingBindings) {
-        if (!spec || typeof spec.event !== 'string') continue;
-        bindingMap.set(spec.event, {
-            handler: spec.handler,
-            listen: spec.listen ? [...spec.listen] : undefined,
-            props: spec.props ? [...spec.props] : undefined,
-        });
-    }
-
-    const parseTokens = (value: string | null | undefined): string[] | undefined => {
-        if (typeof value !== 'string') {
-            return undefined;
-        }
-        const tokens = value
-            .split(/\s+/)
-            .map((token) => token.trim())
-            .filter((token) => token.length > 0);
-        return tokens.length > 0 ? tokens : undefined;
-    };
-
-    let bindingChanged = false;
-
-    if (upsert) {
-        for (const key of Object.keys(upsert)) {
-            if (typeof key === 'string' && key.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
-                const routerKey = key.slice(DATA_ROUTER_ATTR_PREFIX.length);
-                applyRouterAttribute(node, routerKey, upsert[key]);
-                delete upsert[key];
-                continue;
-            }
-            if (typeof key !== 'string' || !key.startsWith(DATA_EVENT_ATTR_PREFIX)) {
-                continue;
-            }
-            bindingChanged = true;
-            const value = upsert[key];
-            delete upsert[key];
-
-            let remainder = key.slice(DATA_EVENT_ATTR_PREFIX.length);
-            if (remainder.startsWith('-')) {
-                remainder = remainder.slice(1);
-            }
-            if (remainder.length === 0) {
-                continue;
-            }
-            let metaType = '';
-            const dashIndex = remainder.indexOf('-');
-            if (dashIndex !== -1) {
-                metaType = remainder.slice(dashIndex + 1);
-                remainder = remainder.slice(0, dashIndex);
-            }
-            const eventName = remainder.trim();
-            if (eventName.length === 0) {
-                continue;
-            }
-            const entry = bindingMap.get(eventName) ?? {};
-            if (metaType === 'listen') {
-                entry.listen = parseTokens(value);
-            } else if (metaType === 'props') {
-                entry.props = parseTokens(value);
-            } else {
-                entry.handler = typeof value === 'string' ? value : value != null ? String(value) : '';
-            }
-            bindingMap.set(eventName, entry);
-        }
-    }
-
-    if (Array.isArray(remove) && remove.length > 0) {
-        for (let i = remove.length - 1; i >= 0; i--) {
-            const attrName = remove[i];
-            if (typeof attrName === 'string' && attrName.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
-                const routerKey = attrName.slice(DATA_ROUTER_ATTR_PREFIX.length);
-                applyRouterAttribute(node, routerKey, undefined);
-                remove.splice(i, 1);
-                continue;
-            }
-            if (typeof attrName !== 'string' || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX)) {
-                continue;
-            }
-            bindingChanged = true;
-            remove.splice(i, 1);
-
-            let remainder = attrName.slice(DATA_EVENT_ATTR_PREFIX.length);
-            if (remainder.startsWith('-')) {
-                remainder = remainder.slice(1);
-            }
-            if (remainder.length === 0) {
-                continue;
-            }
-            const dashIndex = remainder.indexOf('-');
-            if (dashIndex !== -1) {
-                remainder = remainder.slice(0, dashIndex);
-            }
-            const eventName = remainder.trim();
-            if (eventName.length === 0) {
-                continue;
-            }
-            bindingMap.delete(eventName);
-        }
-    }
-
-    if (bindingChanged) {
-        const specs: SlotBinding[] = [];
-        bindingMap.forEach((info, eventName) => {
-            const handlerId = info.handler?.trim();
-            if (!handlerId) {
-                return;
-            }
-            const spec: SlotBinding = { event: eventName, handler: handlerId };
-            if (info.listen && info.listen.length > 0) {
-                spec.listen = [...info.listen];
-            }
-            if (info.props && info.props.length > 0) {
-                spec.props = [...info.props];
-            }
-            specs.push(spec);
-        });
-        registerBindingsForSlot(slotIndex, specs);
-    }
-
-    const applyAttrs = () => {
-        if (upsert) {
-            for (const [k, v] of Object.entries(upsert)) {
-                if (v === undefined || v === null) continue;
-
-                if (config.enableDirtyChecking && node.getAttribute(k) === String(v)) {
-                    continue;
-                }
-
-                node.setAttribute(k, String(v));
-            }
-        }
-
-        if (remove) {
-            for (const key of remove) {
-                if (node.hasAttribute(key)) {
-                    node.removeAttribute(key);
-                }
-            }
-        }
-    };
-
-    if (config.enableBatching) {
-        batcher.scheduleWrite(applyAttrs);
-    } else {
-        applyAttrs();
-    }
-}
-// ============================================================================
-// Morphdom-style DOM Reconciliation (exported for advanced use cases)
-// ============================================================================
-
-export function morphElement(fromEl: Element, toEl: Element): void {
-    // Sync attributes
-    const fromAttrs = fromEl.attributes;
-    const toAttrs = toEl.attributes;
-
-    // Remove old attributes
-    for (let i = fromAttrs.length - 1; i >= 0; i--) {
-        const attr = fromAttrs[i];
-        if (!toEl.hasAttribute(attr.name)) {
-            fromEl.removeAttribute(attr.name);
-        }
-    }
-
-    // Add/update new attributes
-    for (let i = 0; i < toAttrs.length; i++) {
-        const attr = toAttrs[i];
-        if (fromEl.getAttribute(attr.name) !== attr.value) {
-            fromEl.setAttribute(attr.name, attr.value);
-        }
-    }
-
-    // Sync text content for text nodes
-    if (fromEl.childNodes.length === 1 && fromEl.firstChild?.nodeType === Node.TEXT_NODE) {
-        if (toEl.childNodes.length === 1 && toEl.firstChild?.nodeType === Node.TEXT_NODE) {
-            if (fromEl.firstChild.textContent !== toEl.firstChild.textContent) {
-                fromEl.firstChild.textContent = toEl.firstChild.textContent;
-            }
-        }
-    }
-}
-
-// ============================================================================
-// Slot Registration (optimized)
-// ============================================================================
-
-function registerRowSlots(
-    row: ListRow | undefined,
-    fragment: DocumentFragment | Element,
-    overrides?: Map<string, import('./componentRanges').ComponentRange>,
-): void {
-    if (!row) {
-        return;
-    }
-
-    const requestedSlots = Array.isArray(row.slots)
-        ? row.slots.filter((value) => Number.isInteger(value) && value >= 0)
-        : [];
-    const pendingSlots = new Set<number>(requestedSlots);
-
-    const slotAnchors = resolveSlotAnchors(row.slotPaths, overrides);
-    if (slotAnchors.size > 0) {
-        if (pendingSlots.size > 0) {
-            for (const slotId of Array.from(pendingSlots)) {
-                const node = slotAnchors.get(slotId);
-                if (node) {
-                    dom.registerSlot(slotId, node);
-                    pendingSlots.delete(slotId);
-                }
-            }
-        } else {
-            for (const [slotId, node] of slotAnchors.entries()) {
-                dom.registerSlot(slotId, node);
-            }
-        }
-    }
-
-    const listAnchors = resolveListContainers(row.listPaths, overrides);
-    for (const [slotId, element] of listAnchors.entries()) {
-        dom.registerList(slotId, element);
-    }
-
-    // If manifests failed to resolve anchors, log warnings in debug mode
-    if (pendingSlots.size > 0 && requestedSlots.length > 0) {
-        pendingSlots.forEach((idx) => {
-            console.warn(`liveui: slot ${idx} not resolved in inserted row`);
-        });
-    }
-}
-
-// ============================================================================
-// Keyed List Operations with Advanced Optimizations
-// ============================================================================
-
-function applyList(slotIndex: number, childOps: ListChildOp[]): void {
-    if (!Array.isArray(childOps) || childOps.length === 0) return;
-
-    const record = dom.ensureList(slotIndex);
-    const container = record.container;
-
-    // Batch DOM reads
-    const children = config.enableBatching ? Array.from(container.children) : null;
-
-    // Track keys for virtual scrolling
-    let itemCount = record.rows.size;
-
-    for (const op of childOps) {
-        if (!op || !op.length) continue;
-        const kind = op[0];
-
-        switch (kind) {
-            case 'del': {
-                const key = op[1];
-                const row = dom.getRow(slotIndex, key);
-
-                if (row && row.parentNode === container) {
-                    const removeNode = () => {
-                        unbindRefsInTree(row);
-                        container.removeChild(row);
-                    };
-
-                    if (config.enableBatching) {
-                        batcher.scheduleWrite(removeNode);
-                    } else {
-                        removeNode();
-                    }
-                }
-
-                dom.deleteRow(slotIndex, key);
-                itemCount--;
-                break;
-            }
-
-            case 'ins': {
-                const pos = op[1];
-                const payload = op[2] || {key: '', html: ''};
-                const rowBindings = payload && typeof payload === 'object' ? payload.bindings ?? null : null;
-
-                if (rowBindings?.slots) {
-                    for (const [slotKey, specs] of Object.entries(rowBindings.slots)) {
-                        const slotId = Number(slotKey);
-                        if (Number.isNaN(slotId)) {
-                            continue;
-                        }
-                        registerBindingsForSlot(slotId, specs ?? []);
-                    }
-                }
-
-                // Check memoization cache
-                const memoKey = memoizer.key('ins', slotIndex, payload.html);
-                let fragment: DocumentFragment;
-
-                if (config.enableMemoization && memoizer.has(memoKey)) {
-                    fragment = memoizer.get(memoKey).cloneNode(true) as DocumentFragment;
-                } else {
-                    fragment = createFragment(payload.html || '');
-                    if (config.enableMemoization) {
-                        memoizer.set(memoKey, fragment.cloneNode(true));
-                    }
-                }
-
-                const nodes = Array.from(fragment.childNodes);
-                if (nodes.length === 0) {
-                    console.warn('live: insertion payload missing nodes for key', payload.key);
-                    break;
-                }
-
-                const insertNode = () => {
-                    // Use batched children array if available
-                    const refNode = config.enableBatching
-                        ? children![pos] || null
-                        : container.children[pos] || null;
-
-                    container.insertBefore(fragment, refNode);
-
-                    const root = nodes[0];
-                    if (root instanceof Element) {
-                        dom.setRow(slotIndex, payload.key, root);
-                        const rangeOverrides = applyComponentRanges(payload.componentPaths);
-                        registerRowSlots(payload, root, rangeOverrides);
-
-                        const bindingOptions = { overrides: rangeOverrides };
-                        applyRouterBindings(rowBindings?.router ?? null, bindingOptions);
-                        applyRefBindings(rowBindings?.refs ?? null, bindingOptions);
-                        applyUploadBindings(rowBindings?.uploads ?? null, rangeOverrides);
-
-                        // Virtual scrolling: hide items outside viewport
-                        if (shouldVirtualize(slotIndex, itemCount)) {
-                            const state = virtualScrollStates.get(slotIndex);
-                            if (state && (pos < state.visibleRange.start || pos > state.visibleRange.end)) {
-                                if (root instanceof HTMLElement || root instanceof SVGElement) {
-                                    root.style.display = 'none';
-                                }
-                            }
-                        }
-                    } else {
-                        console.warn('live: row root is not an element for key', payload.key);
-                    }
-                };
-
-                if (config.enableBatching) {
-                    batcher.scheduleWrite(insertNode);
-                } else {
-                    insertNode();
-                }
-
-                itemCount++;
-                break;
-            }
-
-            case 'mov': {
-                const from = op[1];
-                const to = op[2];
-
-                if (from === to) break;
-
-                const moveNode = () => {
-                    // Use batched children array if available
-                    const childArray = config.enableBatching ? children! : Array.from(container.children);
-                    const child = childArray[from];
-
-                    if (child) {
-                        const refNode = to < childArray.length ? childArray[to] : null;
-                        container.insertBefore(child, refNode);
-                    }
-                };
-
-                if (config.enableBatching) {
-                    batcher.scheduleWrite(moveNode);
-                } else {
-                    moveNode();
-                }
-                break;
-            }
-
-            default:
-                console.warn('live: unknown list child op', op);
-        }
-    }
-
-    // Update virtual scroll state
-    if (shouldVirtualize(slotIndex, itemCount)) {
-        const state = virtualScrollStates.get(slotIndex);
-        if (state) {
-            state.totalItems = itemCount;
-        } else {
-            initVirtualScroll(slotIndex, container);
-        }
-    }
-}
-
-// ============================================================================
-// Main Apply Function with Batching
-// ============================================================================
-
-/**
- * Apply an array of diff operations to the DOM with advanced optimizations
- * @param ops - Array of operations from the server
- */
-export function applyOps(ops: DiffOp[]): void {
-    if (!Array.isArray(ops)) return;
-
+    Logger.debug('[Patcher]', 'applying frame patch', { opCount: frame.patch.length });
+    this.applyOps(frame.patch);
+  }
+
+  applyOps(ops: DiffOp[]): void {
+    Logger.debug('[Patcher]', 'applying ops', { count: ops.length });
     for (const op of ops) {
-        if (!op || op.length === 0) continue;
-        const kind = op[0];
-
-        switch (kind) {
-            case 'setText':
-                applySetText(op[1], op[2]);
-                break;
-            case 'setAttrs':
-                applySetAttrs(op[1], op[2] || {}, op[3] || []);
-                break;
-            case 'list':
-                applyList(op[1], op.slice(2) as ListChildOp[]);
-                break;
-            default:
-                console.warn('live: unknown op', op);
-        }
+      if (!Array.isArray(op) || op.length === 0) {
+        continue;
+      }
+      const kind = op[0];
+      switch (kind) {
+        case 'setText':
+          this.applySetText(op[1], op[2]);
+          break;
+        case 'setAttrs':
+          this.applySetAttrs(op[1], op[2] || {});
+          break;
+        case 'list':
+          this.applyList(op[1], op.slice(2) as ListChildOp[]);
+          break;
+      }
     }
+  }
 
-    // Flush batched operations if batching is enabled
-    if (config.enableBatching) {
-        batcher.immediate();
+  private applySetText(slotId: number, value: string): void {
+    const node = this.dom.getSlot(slotId);
+    if (!node) {
+      Logger.debug('[Patcher]', 'setText skipped (missing slot)', { slotId });
+      return;
     }
-}
-
-// ============================================================================
-// Public API for Configuration
-// ============================================================================
-
-export function configurePatcher(options: Partial<PatcherConfig>): void {
-    Object.assign(config, options);
-}
-
-export function getPatcherConfig(): Readonly<PatcherConfig> {
-    return {...config};
-}
-
-export function clearPatcherCaches(): void {
-    htmlCache.clear();
-    memoizer.clear();
-    virtualScrollStates.clear();
-}
-
-export function getPatcherStats() {
-    return {
-        htmlCacheSize: htmlCache.size,
-        memoizerCacheSize: memoizer['cache'].size,
-        virtualScrollCount: virtualScrollStates.size,
-    };
-}
-
-// ============================================================================
-// Inverse Operations (for Optimistic Rollback)
-// ============================================================================
-
-/**
- * Compute inverse operations for a set of patches.
- * These can be applied to rollback optimistic updates.
- */
-export function computeInverseOps(patches: DiffOp[]): DiffOp[] {
-    const inverseOps: DiffOp[] = [];
-
-    for (const patch of patches) {
-        const [opType, slotId, ...args] = patch;
-
-        if (opType === 'setText') {
-            // Capture current text before it changes
-            const element = dom.getSlot(slotId);
-            if (element) {
-                const currentText = element.textContent || '';
-                inverseOps.push(['setText', slotId, currentText]);
-            }
-        } else if (opType === 'setAttrs') {
-            // Capture current attributes before they change
-            const element = dom.getSlot(slotId);
-            if (element && element instanceof Element) {
-                const [newAttrs, removeKeys] = args as [Record<string, string>, string[]];
-
-                // Store current values of attributes that will be set
-                const oldAttrs: Record<string, string> = {};
-                const keysToRemove: string[] = [];
-
-                for (const key of Object.keys(newAttrs)) {
-                    const currentValue = element.getAttribute(key);
-                    if (currentValue !== null) {
-                        oldAttrs[key] = currentValue;
-                    } else {
-                        // Attribute doesn't exist, so inverse should remove it
-                        keysToRemove.push(key);
-                    }
-                }
-
-                // Store attributes that will be removed (so we can restore them)
-                for (const key of removeKeys) {
-                    const currentValue = element.getAttribute(key);
-                    if (currentValue !== null) {
-                        oldAttrs[key] = currentValue;
-                    }
-                }
-
-                inverseOps.push(['setAttrs', slotId, oldAttrs, keysToRemove]);
-            }
-        } else if (opType === 'list') {
-            // For list operations, compute inverse for each child operation
-            const childOps = args as ListChildOp[];
-            const inverseChildOps: ListChildOp[] = [];
-
-            for (const childOp of childOps) {
-                const [childOpType, ...childArgs] = childOp;
-
-                if (childOpType === 'ins') {
-                    // Insert inverse is delete
-                    const [, {key}] = childArgs as [number, { key: string; html: string; slots?: number[] }];
-                    inverseChildOps.push(['del', key]);
-                } else if (childOpType === 'del') {
-                    // Delete inverse requires capturing the element before deletion
-                    // This is complex - we'd need the HTML and position
-                    // For now, mark as not supported (would need re-render)
-                    // Skip creating inverse for delete operations
-
-                } else if (childOpType === 'mov') {
-                    // Move inverse is move back
-                    const [fromIdx, toIdx] = childArgs as [number, number];
-                    inverseChildOps.push(['mov', toIdx, fromIdx]);
-                }
-            }
-
-            if (inverseChildOps.length > 0) {
-                inverseOps.push(['list', slotId, ...inverseChildOps.reverse()]);
-            }
-        }
+    if (node instanceof Text) {
+      node.textContent = value ?? '';
+      Logger.debug('[Patcher]', 'setText applied', { slotId, nodeType: 'Text' });
+      return;
     }
+    if (node instanceof Element) {
+      node.textContent = value ?? '';
+      Logger.debug('[Patcher]', 'setText applied', { slotId, nodeType: node.tagName });
+    }
+  }
 
-    // Reverse the order of inverse operations
-    return inverseOps.reverse();
+  private applySetAttrs(slotId: number, attrs: Record<string, string>): void {
+    const node = this.dom.getSlot(slotId);
+    if (!(node instanceof Element)) {
+      Logger.debug('[Patcher]', 'setAttrs skipped (non-element)', { slotId });
+      return;
+    }
+    Object.entries(attrs ?? {}).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === '') {
+        node.removeAttribute(key);
+      } else {
+        node.setAttribute(key, value);
+      }
+    });
+    Logger.debug('[Patcher]', 'setAttrs applied', { slotId, keys: Object.keys(attrs ?? {}) });
+  }
+
+  private applyList(slotId: number, childOps: ListChildOp[]): void {
+    const container = this.dom.getList(slotId);
+    if (!(container instanceof Element)) {
+      Logger.debug('[Patcher]', 'list op skipped (no container)', { slotId });
+      return;
+    }
+    Logger.debug('[Patcher]', 'list patch', { slotId, opCount: childOps.length });
+    childOps.forEach((op) => {
+      if (!Array.isArray(op)) {
+        return;
+      }
+      switch (op[0]) {
+        case 'del':
+          this.applyListDelete(slotId, container, op as ListDelOp);
+          break;
+        case 'ins':
+          this.applyListInsert(slotId, container, op as ListInsOp);
+          break;
+        case 'mov':
+          this.applyListMove(slotId, container, op as ListMovOp);
+          break;
+      }
+    });
+  }
+
+  private applyListDelete(slotId: number, container: Element, op: ListDelOp): void {
+    const key = op[1];
+    const record = this.dom.getRow(slotId, key);
+    if (!record) {
+      Logger.debug('[Patcher]', 'list delete skipped (missing row)', { slotId, key });
+      return;
+    }
+    record.nodes.forEach((node) => {
+      if (node.parentNode === container) {
+        container.removeChild(node);
+      }
+    });
+    this.dom.deleteRow(slotId, key);
+    Logger.debug('[Patcher]', 'list delete applied', { slotId, key });
+  }
+
+  private applyListInsert(slotId: number, container: Element, op: ListInsOp): void {
+    const [_, index, payload] = op;
+    const html = payload?.html ?? '';
+    if (!html) {
+      Logger.debug('[Patcher]', 'list insert skipped (no html)', { slotId, index });
+      return;
+    }
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    const fragment = template.content;
+    const nodes = Array.from(fragment.childNodes);
+    if (nodes.length === 0) {
+      Logger.debug('[Patcher]', 'list insert skipped (no nodes)', { slotId, index });
+      return;
+    }
+    const beforeKey = this.dom.getRowKeyAt(slotId, index);
+    const before = beforeKey ? this.dom.getRowFirstNode(slotId, beforeKey) : null;
+    container.insertBefore(fragment, before ?? null);
+    this.dom.insertRow(slotId, payload?.key ?? '', nodes, index);
+    const root = nodes.find((node): node is Element => node instanceof Element) ?? null;
+    if (root) {
+      this.registerRowMetadata(
+        root,
+        payload?.componentPaths ?? [],
+        payload?.slotPaths,
+        payload?.listPaths,
+        payload?.bindings,
+      );
+    }
+    Logger.debug('[Patcher]', 'list insert applied', {
+      slotId,
+      index,
+      key: payload?.key,
+      nodeCount: nodes.length,
+    });
+  }
+
+  private applyListMove(slotId: number, container: Element, op: ListMovOp): void {
+    const from = op[1];
+    const to = op[2];
+    if (from === to) {
+      return;
+    }
+    const currentKey = this.dom.getRowKeyAt(slotId, from);
+    if (!currentKey) {
+      Logger.debug('[Patcher]', 'list move skipped (missing source key)', { slotId, from, to });
+      return;
+    }
+    const record = this.dom.getRow(slotId, currentKey);
+    if (!record) {
+      Logger.debug('[Patcher]', 'list move skipped (missing record)', { slotId, from, to });
+      return;
+    }
+    const targetKey = this.dom.getRowKeyAt(slotId, to);
+    const beforeNode = targetKey ? this.dom.getRowFirstNode(slotId, targetKey) : null;
+    record.nodes.forEach((node) => {
+      if (node.parentNode !== container) {
+        return;
+      }
+      container.insertBefore(node, beforeNode ?? null);
+    });
+    this.dom.moveRow(slotId, currentKey, to);
+    Logger.debug('[Patcher]', 'list move applied', { slotId, from, to, key: currentKey });
+  }
+  private registerRowMetadata(
+    root: Element,
+    componentPaths?: ComponentPathDescriptor[] | null,
+    slotPaths?: SlotPathDescriptor[] | null,
+    listPaths?: ListPathDescriptor[] | null,
+    bindings?: BindingsPayload | null,
+  ): void {
+    const overrides = applyComponentRanges(componentPaths ?? [], { root });
+    this.dom.registerSlotAnchors(slotPaths ?? undefined, overrides);
+    this.dom.registerLists(listPaths ?? undefined, overrides);
+    if (bindings?.slots) {
+      Object.entries(bindings.slots).forEach(([slot, specs]) => {
+        registerBindingsForSlot(Number(slot), specs);
+      });
+    }
+    if (bindings?.router) {
+      applyRouterBindings(bindings.router, overrides);
+    }
+    if (bindings?.refs) {
+      this.refs?.registerBindings(bindings.refs, overrides);
+    }
+    if (bindings?.uploads) {
+      this.uploads?.registerBindings(bindings.uploads, overrides, { replace: false });
+    }
+    Logger.debug('[Patcher]', 'row metadata registered', {
+      slots: bindings?.slots ? Object.keys(bindings.slots).length : 0,
+      routers: bindings?.router?.length ?? 0,
+      refs: bindings?.refs?.length ?? 0,
+      uploads: bindings?.uploads?.length ?? 0,
+    });
+  }
 }

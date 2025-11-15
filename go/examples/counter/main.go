@@ -25,7 +25,7 @@ func main() {
 	app, err := liveserver.NewApp(
 		ctx,
 		counter,
-		liveserver.WithDevMode(false),
+		liveserver.WithDevMode(true),
 	)
 	if err != nil {
 		log.Fatalf("build live app: %v", err)

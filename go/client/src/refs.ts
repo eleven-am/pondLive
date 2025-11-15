@@ -1,287 +1,180 @@
-import type { EventPayload, RefMap, RefMeta } from "./types";
+import type { RefBindingDescriptor, RefDelta, RefMeta } from './types';
+import type { ComponentRange } from './manifest';
+import { resolveNodeInComponent } from './manifest';
+import type { LiveRuntime } from './runtime';
+import { extractEventDetail } from './event-detail';
+import { Logger } from './logger';
 
-export interface RefEventContext {
-  id: string;
+const refEventObservers = new Set<(event: string) => void>();
+const registeredRefEvents = new Set<string>();
+
+export function observeRefEvents(observer: (event: string) => void): () => void {
+  refEventObservers.add(observer);
+  return () => refEventObservers.delete(observer);
+}
+
+export function getRegisteredRefEvents(): string[] {
+  return Array.from(registeredRefEvents);
+}
+
+function registerRefEvents(events: string[] | undefined): void {
+  if (!Array.isArray(events)) {
+    return;
+  }
+  const newlyAdded: string[] = [];
+  events.forEach((event) => {
+    if (!event) {
+      return;
+    }
+    if (!registeredRefEvents.has(event)) {
+      registeredRefEvents.add(event);
+      newlyAdded.push(event);
+    }
+  });
+  if (newlyAdded.length === 0) {
+    return;
+  }
+  newlyAdded.forEach((event) => {
+    refEventObservers.forEach((observer) => {
+      try {
+        observer(event);
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+}
+
+interface RefListeners {
   element: Element;
-  props: string[];
-  notify(payload: EventPayload): void;
+  listeners: Map<string, EventListener>;
 }
 
-interface RefRecord {
-  id: string;
-  meta: RefMeta;
-  element: Element | null;
-  lastPayloads?: Record<string, EventPayload>;
-}
+export class RefRegistry {
+  private meta = new Map<string, RefMeta>();
+  private bindings = new Map<string, RefListeners>();
 
-const registry = new Map<string, RefRecord>();
-let elementRefMap = new WeakMap<Element, Set<string>>();
+  constructor(private runtime: LiveRuntime) {}
 
-function ensureRecord(id: string, meta?: RefMeta): RefRecord {
-  let record = registry.get(id);
-  if (!record) {
-    record = {
-      id,
-      meta: meta ?? { tag: "" },
-      element: null,
-    };
-    registry.set(id, record);
-  } else if (meta) {
-    record.meta = meta;
-  }
-  return record;
-}
-
-function collectRefEventProps(meta: RefMeta | null | undefined, eventType: string): string[] {
-  if (!meta || !meta.events) {
-    return [];
+  clear(): void {
+    Array.from(this.bindings.keys()).forEach((id) => this.detach(id));
+    this.meta.clear();
+    Logger.debug('[Refs]', 'cleared all bindings');
   }
 
-  const selectors: string[] = [];
-  const seen = new Set<string>();
-
-  for (const [primary, eventMeta] of Object.entries(meta.events)) {
-    if (!eventMeta) {
-      continue;
+  apply(delta?: RefDelta | null): void {
+    if (!delta) {
+      return;
     }
-
-    const listens = Array.isArray(eventMeta.listen) ? eventMeta.listen : [];
-    if (primary !== eventType && !listens.includes(eventType)) {
-      continue;
-    }
-
-    if (!Array.isArray(eventMeta.props)) {
-      continue;
-    }
-
-    for (const prop of eventMeta.props) {
-      if (typeof prop !== "string" || prop.length === 0) {
-        continue;
+    if (Array.isArray(delta.del)) {
+      for (const id of delta.del) {
+        this.detach(id);
+        this.meta.delete(id);
       }
-      if (seen.has(prop)) {
-        continue;
-      }
-      seen.add(prop);
-      selectors.push(prop);
     }
-  }
-
-  return selectors;
-}
-
-export function resolveRefEventContext(
-  element: Element | null,
-  eventType: string,
-): RefEventContext | null {
-  if (!element || !eventType) {
-    return null;
-  }
-
-  const refElement = findClosestRefElement(element);
-  if (!refElement) {
-    return null;
-  }
-
-  const id = getPrimaryRefId(refElement);
-  if (!id) {
-    return null;
-  }
-
-  const record = ensureRecord(id);
-  record.element = refElement;
-
-  if (!refSupportsEvent(record.meta, eventType)) {
-    return null;
-  }
-
-  const props = collectRefEventProps(record.meta, eventType);
-
-  return {
-    id,
-    element: refElement,
-    props,
-    notify(payload: EventPayload) {
-      if (!record.lastPayloads) {
-        record.lastPayloads = Object.create(null);
-      }
-      record.lastPayloads[eventType] = { ...payload };
-    },
-  };
-}
-
-function attachRef(id: string, element: Element): void {
-  if (!id) {
-    return;
-  }
-  const record = ensureRecord(id);
-  if (record.element && record.element !== element) {
-    removeRefFromElement(record.element, id);
-  }
-  record.element = element;
-  if (!record.meta.tag) {
-    record.meta = { ...record.meta, tag: element.tagName.toLowerCase() };
-  }
-  addRefToElement(element, id);
-}
-
-function detachRef(id: string, element: Element | null): void {
-  const record = registry.get(id);
-  if (!record) {
-    return;
-  }
-  if (!element || record.element === element) {
-    if (record.element) {
-      removeRefFromElement(record.element, id);
-    }
-    record.element = null;
-  }
-}
-
-function addRefToElement(element: Element, id: string): void {
-  let ids = elementRefMap.get(element);
-  if (!ids) {
-    ids = new Set<string>();
-    elementRefMap.set(element, ids);
-  }
-  ids.add(id);
-}
-
-function removeRefFromElement(element: Element, id: string): void {
-  const ids = elementRefMap.get(element);
-  if (!ids) {
-    return;
-  }
-  ids.delete(id);
-  if (ids.size === 0) {
-    elementRefMap.delete(element);
-  }
-}
-
-function getPrimaryRefId(element: Element | null): string | null {
-  if (!element) {
-    return null;
-  }
-  const ids = elementRefMap.get(element);
-  if (ids && ids.size > 0) {
-    const first = ids.values().next();
-    if (!first.done) {
-      return first.value ?? null;
-    }
-  }
-  return null;
-}
-
-export function clearRefs(): void {
-  registry.clear();
-  elementRefMap = new WeakMap<Element, Set<string>>();
-}
-
-export function registerRefs(refs?: RefMap | null): void {
-  if (!refs) {
-    return;
-  }
-  for (const [id, meta] of Object.entries(refs)) {
-    if (!id) {
-      continue;
-    }
-    ensureRecord(id, meta);
-  }
-}
-
-export function unregisterRefs(ids?: string[] | null): void {
-  if (!Array.isArray(ids)) {
-    return;
-  }
-  for (const id of ids) {
-    if (!id) {
-      continue;
-    }
-    registry.delete(id);
-  }
-}
-
-export function unbindRefsInTree(
-  root: ParentNode | Element | DocumentFragment | Document | null | undefined,
-): void {
-  if (!root || typeof document === "undefined") {
-    return;
-  }
-  const walker = document.createTreeWalker(root as Node, NodeFilter.SHOW_ELEMENT);
-  let current: Node | null = root as Node;
-  while (current) {
-    if (current instanceof Element) {
-      const ids = elementRefMap.get(current);
-      if (ids && ids.size > 0) {
-        for (const id of Array.from(ids)) {
-          detachRef(id, current);
+    if (delta.add) {
+      for (const [id, meta] of Object.entries(delta.add)) {
+        if (id) {
+          this.meta.set(id, meta);
+          registerRefEvents(Object.keys(meta.events ?? {}));
         }
       }
     }
-    current = walker.nextNode();
+    Logger.debug('[Refs]', 'applied ref delta', {
+      added: delta.add ? Object.keys(delta.add).length : 0,
+      removed: delta.del?.length ?? 0,
+    });
   }
-}
 
-export function getRefElement(id: string): Element | null {
-  const record = registry.get(id);
-  return record?.element ?? null;
-}
-
-export function getRefMeta(id: string): RefMeta | null {
-  const record = registry.get(id);
-  return record?.meta ?? null;
-}
-
-export function getRegistrySnapshot(): Map<string, RefRecord> {
-  return new Map(registry);
-}
-
-export function attachRefToElement(
-  refId: string,
-  element: Element | null,
-): void {
-  if (!refId) {
-    return;
-  }
-  if (!element) {
-    detachRef(refId, null);
-    return;
-  }
-  attachRef(refId, element);
-}
-
-function findClosestRefElement(element: Element | null): Element | null {
-  let current: Element | null = element;
-  while (current) {
-    if (getPrimaryRefId(current)) {
-      return current;
+  registerBindings(descriptors?: RefBindingDescriptor[] | null, overrides?: Map<string, ComponentRange>): void {
+    if (!Array.isArray(descriptors)) {
+      return;
     }
-    current = current.parentElement;
+    Logger.debug('[Refs]', 'registering ref bindings', { count: descriptors.length });
+    descriptors.forEach((descriptor, index) => {
+      if (!descriptor || typeof descriptor.refId !== 'string' || descriptor.refId.length === 0) {
+        return;
+      }
+      Logger.debug('[Refs]', 'processing ref binding', {
+        index,
+        descriptor: {
+          componentId: descriptor.componentId,
+          path: descriptor.path,
+          refId: descriptor.refId,
+        },
+        hasRefId: !!descriptor.refId,
+        refIdLength: descriptor.refId?.length ?? 0,
+      });
+      Logger.debug('[Refs]', 'resolving node for ref', {
+        refId: descriptor.refId,
+        componentId: descriptor.componentId,
+        path: descriptor.path,
+      });
+      const node = resolveNodeInComponent(descriptor.componentId, descriptor.path, overrides);
+      Logger.debug('[Refs]', 'node resolved', {
+        refId: descriptor.refId,
+        node,
+        isElement: node instanceof Element,
+        nodeType: node?.nodeType,
+        nodeName: node?.nodeName,
+      });
+      if (node instanceof Element) {
+        Logger.debug('[Refs]', 'attaching ref', { refId: descriptor.refId, node });
+        this.attach(descriptor.refId, node);
+      } else {
+        Logger.debug('[Refs]', 'node is not Element, detaching', { refId: descriptor.refId, node });
+        this.detach(descriptor.refId);
+      }
+    });
   }
-  return null;
-}
 
-function refSupportsEvent(meta: RefMeta | null | undefined, eventType: string): boolean {
-  if (!meta || !meta.events) {
-    return false;
+  get(id: string): Element | undefined {
+    return this.bindings.get(id)?.element;
   }
-  for (const [primary, eventMeta] of Object.entries(meta.events)) {
-    if (primary === eventType) {
-      return true;
-    }
-    if (eventMeta?.listen && eventMeta.listen.includes(eventType)) {
-      return true;
-    }
-  }
-  return false;
-}
 
-export function notifyRefEvent(
-  element: Element | null,
-  eventType: string,
-  payload: EventPayload,
-): void {
-  const context = resolveRefEventContext(element, eventType);
-  if (context) {
-    context.notify(payload);
+  private attach(refId: string, element: Element): void {
+    const meta = this.meta.get(refId);
+    if (!meta) {
+      return;
+    }
+    const existing = this.bindings.get(refId);
+    if (existing && existing.element === element) {
+      return;
+    }
+    this.detach(refId);
+    const listeners = new Map<string, EventListener>();
+    const events = meta.events ?? {};
+    registerRefEvents(Object.keys(events));
+    Object.entries(events).forEach(([eventName, spec]) => {
+      if (!eventName) {
+        return;
+      }
+      const listener = (event: Event) => {
+        const detail = extractEventDetail(event, spec?.props, { refElement: element });
+        const payload = detail ? { name: eventName, detail } : { name: eventName };
+        const handlerKey = spec?.handler || `${refId}/${eventName}`;
+        this.runtime.sendEvent(handlerKey, payload);
+      };
+      element.addEventListener(eventName, listener);
+      listeners.set(eventName, listener);
+    });
+    this.bindings.set(refId, { element, listeners });
+    Logger.debug('[Refs]', 'attached ref', {
+      refId,
+      tag: element.tagName,
+      events: Object.keys(events).length,
+    });
+  }
+
+  private detach(refId: string): void {
+    const binding = this.bindings.get(refId);
+    if (!binding) {
+      return;
+    }
+    binding.listeners.forEach((listener, event) => {
+      binding.element.removeEventListener(event, listener);
+    });
+    this.bindings.delete(refId);
+    Logger.debug('[Refs]', 'detached ref', { refId });
   }
 }

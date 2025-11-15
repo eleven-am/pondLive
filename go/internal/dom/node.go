@@ -68,6 +68,7 @@ func (*CommentNode) privateNodeTag() {}
 // annotate and track its template spans.
 type ComponentNode struct {
 	ID    string
+	Key   string
 	Child Node
 }
 

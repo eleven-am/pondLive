@@ -335,7 +335,7 @@ describe('html parser', () => {
         });
     });
 
-    it('should detect the changes and rerender correctly', () => {
+    it('should detect the changes and render correctly', () => {
         let value: string | null = 'Hello World';
         const string = html`<div>${value || ''}</div>`;
 
@@ -368,7 +368,7 @@ describe('html parser', () => {
         expect(htmlString).toEqual('<div></div>');
     });
 
-    it('should detect the changes and rerender correctly with nested dynamic values', () => {
+    it('should detect the changes and render correctly with nested dynamic values', () => {
         const className = 'test';
         const message = 'Hello World';
         const message2 = 'Hello World 2';
@@ -401,7 +401,7 @@ describe('html parser', () => {
         expect(htmlString).toEqual('<div class="test">Hello World 2</div>');
     });
 
-    it('should detect the changes and rerender correctly with nested dynamic values and multiple dynamic values', () => {
+    it('should detect the changes and render correctly with nested dynamic values and multiple dynamic values', () => {
         const htmlString = html`<div class="${'test'}">${'Hello World'}</div>`;
         const htmlString2 = html``;
 

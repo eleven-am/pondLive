@@ -118,8 +118,8 @@ func TestRegistryMultipleRefsWithSameEvent(t *testing.T) {
 	handler1 := makeRefHandler("ref:0")
 	handler2 := makeRefHandler("ref:1")
 
-	id1 := reg.Ensure(handler1, "ref:ref:0/click")
-	id2 := reg.Ensure(handler2, "ref:ref:1/click")
+	id1 := reg.Ensure(handler1, "ref:0/click")
+	id2 := reg.Ensure(handler2, "ref:1/click")
 
 	if id1 == id2 {
 		t.Errorf("expected different IDs for different ref keys, got same ID %s", id1)

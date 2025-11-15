@@ -340,6 +340,7 @@ func LinkTagKey(tag h.LinkTag) string {
 }
 
 // ScriptTagKey returns a stable base key identifying the provided script tag.
+
 func ScriptTagKey(tag h.ScriptTag) string {
 	src := strings.TrimSpace(tag.Src)
 	if src != "" {

@@ -267,7 +267,7 @@ func TestUseStreamPanicsOnInvalidUsage(t *testing.T) {
 
 func findListSlot(structured render.Structured) int {
 	for i, dyn := range structured.D {
-		if dyn.Kind == render.DynList {
+		if dyn.Kind == render.DynamicList {
 			return i
 		}
 	}
@@ -313,7 +313,7 @@ func rowText(structured render.Structured, slot int, key string) string {
 				continue
 			}
 			dyn := structured.D[idx]
-			if dyn.Kind == render.DynText {
+			if dyn.Kind == render.DynamicText {
 				return dyn.Text
 			}
 		}

@@ -164,7 +164,10 @@ func (e *engine) renderStructuredAndHTML() (render.Structured, string) {
 		e.reg = reg
 	}
 	node := e.renderFn()
-	structured := render.ToStructuredWithHandlers(node, e.reg)
+	structured, err := render.ToStructuredWithHandlers(node, render.StructuredOptions{Handlers: e.reg})
+	if err != nil {
+		panic(fmt.Sprintf("testh: failed to structure DOM: %v", err))
+	}
 	html := render.RenderHTML(node, e.reg)
 	return cloneStructured(structured), html
 }

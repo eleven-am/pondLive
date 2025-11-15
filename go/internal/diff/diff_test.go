@@ -8,8 +8,8 @@ import (
 )
 
 func TestDiffTextChange(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{{Kind: render.DynText, Text: "A"}}}
-	next := render.Structured{D: []render.Dyn{{Kind: render.DynText, Text: "B"}}}
+	prev := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "A"}}}
+	next := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "B"}}}
 
 	ops := Diff(prev, next)
 	if len(ops) != 1 {
@@ -25,8 +25,8 @@ func TestDiffTextChange(t *testing.T) {
 }
 
 func TestDiffTextNoChange(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{{Kind: render.DynText, Text: "same"}}}
-	next := render.Structured{D: []render.Dyn{{Kind: render.DynText, Text: "same"}}}
+	prev := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "same"}}}
+	next := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "same"}}}
 
 	if ops := Diff(prev, next); len(ops) != 0 {
 		t.Fatalf("expected no ops, got %v", ops)
@@ -34,15 +34,15 @@ func TestDiffTextNoChange(t *testing.T) {
 }
 
 func TestDiffTextMultipleSlotsSingleChange(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{
-		{Kind: render.DynText, Text: "A"},
-		{Kind: render.DynText, Text: "X"},
-		{Kind: render.DynText, Text: "C"},
+	prev := render.Structured{D: []render.DynamicSlot{
+		{Kind: render.DynamicText, Text: "A"},
+		{Kind: render.DynamicText, Text: "X"},
+		{Kind: render.DynamicText, Text: "C"},
 	}}
-	next := render.Structured{D: []render.Dyn{
-		{Kind: render.DynText, Text: "A"},
-		{Kind: render.DynText, Text: "Y"},
-		{Kind: render.DynText, Text: "C"},
+	next := render.Structured{D: []render.DynamicSlot{
+		{Kind: render.DynamicText, Text: "A"},
+		{Kind: render.DynamicText, Text: "Y"},
+		{Kind: render.DynamicText, Text: "C"},
 	}}
 
 	ops := Diff(prev, next)
@@ -59,12 +59,12 @@ func TestDiffTextMultipleSlotsSingleChange(t *testing.T) {
 }
 
 func TestDiffAttrsAddChangeRemove(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{{
-		Kind:  render.DynAttrs,
+	prev := render.Structured{D: []render.DynamicSlot{{
+		Kind:  render.DynamicAttrs,
 		Attrs: map[string]string{"class": "x", "data-old": "remove"},
 	}}}
-	next := render.Structured{D: []render.Dyn{{
-		Kind:  render.DynAttrs,
+	next := render.Structured{D: []render.DynamicSlot{{
+		Kind:  render.DynamicAttrs,
 		Attrs: map[string]string{"class": "y", "title": "new"},
 	}}}
 
@@ -88,8 +88,8 @@ func TestDiffAttrsAddChangeRemove(t *testing.T) {
 }
 
 func TestDiffAttrsNoChange(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{{Kind: render.DynAttrs, Attrs: map[string]string{"class": "x"}}}}
-	next := render.Structured{D: []render.Dyn{{Kind: render.DynAttrs, Attrs: map[string]string{"class": "x"}}}}
+	prev := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicAttrs, Attrs: map[string]string{"class": "x"}}}}
+	next := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicAttrs, Attrs: map[string]string{"class": "x"}}}}
 
 	if ops := Diff(prev, next); len(ops) != 0 {
 		t.Fatalf("expected no ops, got %v", ops)
@@ -97,8 +97,8 @@ func TestDiffAttrsNoChange(t *testing.T) {
 }
 
 func TestDiffAttrsNilVsEmpty(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{{Kind: render.DynAttrs, Attrs: nil}}}
-	next := render.Structured{D: []render.Dyn{{Kind: render.DynAttrs, Attrs: map[string]string{}}}}
+	prev := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicAttrs, Attrs: nil}}}
+	next := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicAttrs, Attrs: map[string]string{}}}}
 
 	if ops := Diff(prev, next); len(ops) != 0 {
 		t.Fatalf("expected no ops for nil vs empty attrs, got %v", ops)
@@ -106,13 +106,13 @@ func TestDiffAttrsNilVsEmpty(t *testing.T) {
 }
 
 func TestDiffMixedKinds(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{
-		{Kind: render.DynText, Text: "Hello"},
-		{Kind: render.DynAttrs, Attrs: map[string]string{"class": "x"}},
+	prev := render.Structured{D: []render.DynamicSlot{
+		{Kind: render.DynamicText, Text: "Hello"},
+		{Kind: render.DynamicAttrs, Attrs: map[string]string{"class": "x"}},
 	}}
-	next := render.Structured{D: []render.Dyn{
-		{Kind: render.DynText, Text: "Hello, Bob"},
-		{Kind: render.DynAttrs, Attrs: map[string]string{"class": "x"}},
+	next := render.Structured{D: []render.DynamicSlot{
+		{Kind: render.DynamicText, Text: "Hello, Bob"},
+		{Kind: render.DynamicAttrs, Attrs: map[string]string{"class": "x"}},
 	}}
 
 	ops := Diff(prev, next)
@@ -138,8 +138,8 @@ func TestDiffKindMismatchPanics(t *testing.T) {
 		}
 	}()
 
-	prev := render.Structured{D: []render.Dyn{{Kind: render.DynText, Text: "A"}}}
-	next := render.Structured{D: []render.Dyn{{Kind: render.DynAttrs, Attrs: map[string]string{"class": "x"}}}}
+	prev := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "A"}}}
+	next := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicAttrs, Attrs: map[string]string{"class": "x"}}}}
 
 	Diff(prev, next)
 }
@@ -154,10 +154,10 @@ func TestDiffLengthMismatchPanics(t *testing.T) {
 		}
 	}()
 
-	prev := render.Structured{D: []render.Dyn{{Kind: render.DynText, Text: "A"}}}
-	next := render.Structured{D: []render.Dyn{
-		{Kind: render.DynText, Text: "A"},
-		{Kind: render.DynText, Text: "B"},
+	prev := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "A"}}}
+	next := render.Structured{D: []render.DynamicSlot{
+		{Kind: render.DynamicText, Text: "A"},
+		{Kind: render.DynamicText, Text: "B"},
 	}}
 
 	Diff(prev, next)
@@ -168,8 +168,8 @@ func TestDiffStrictMismatchDisabledIgnoresTemplateShift(t *testing.T) {
 	StrictMismatch = false
 	defer func() { StrictMismatch = prevStrict }()
 
-	prev := render.Structured{D: []render.Dyn{{Kind: render.DynText, Text: "A"}}}
-	next := render.Structured{D: []render.Dyn{{Kind: render.DynAttrs, Attrs: map[string]string{"class": "x"}}}}
+	prev := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "A"}}}
+	next := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicAttrs, Attrs: map[string]string{"class": "x"}}}}
 
 	if ops := Diff(prev, next); ops != nil {
 		t.Fatalf("expected nil ops when mismatch ignored, got %v", ops)
@@ -177,12 +177,12 @@ func TestDiffStrictMismatchDisabledIgnoresTemplateShift(t *testing.T) {
 }
 
 func TestDiffAttrsHandlesNilNextAsRemoval(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{{
-		Kind:  render.DynAttrs,
+	prev := render.Structured{D: []render.DynamicSlot{{
+		Kind:  render.DynamicAttrs,
 		Attrs: map[string]string{"class": "x", "id": "remove-me"},
 	}}}
-	next := render.Structured{D: []render.Dyn{{
-		Kind:  render.DynAttrs,
+	next := render.Structured{D: []render.DynamicSlot{{
+		Kind:  render.DynamicAttrs,
 		Attrs: nil,
 	}}}
 
@@ -224,8 +224,8 @@ func TestMismatchHandlerInvoked(t *testing.T) {
 		}
 		done <- struct{}{}
 	})
-	prev := render.Structured{D: []render.Dyn{{Kind: render.DynText, Text: "A"}}}
-	next := render.Structured{D: []render.Dyn{{Kind: render.DynAttrs, Attrs: map[string]string{"class": "x"}}}}
+	prev := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "A"}}}
+	next := render.Structured{D: []render.DynamicSlot{{Kind: render.DynamicAttrs, Attrs: map[string]string{"class": "x"}}}}
 
 	Diff(prev, next)
 
@@ -237,12 +237,12 @@ func TestMismatchHandlerInvoked(t *testing.T) {
 }
 
 func TestDiffListInsert(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{{
-		Kind: render.DynList,
+	prev := render.Structured{D: []render.DynamicSlot{{
+		Kind: render.DynamicList,
 		List: []render.Row{{Key: "a", HTML: "<li>A</li>"}},
 	}}}
-	next := render.Structured{D: []render.Dyn{{
-		Kind: render.DynList,
+	next := render.Structured{D: []render.DynamicSlot{{
+		Kind: render.DynamicList,
 		List: []render.Row{{Key: "a", HTML: "<li>A</li>"}, {Key: "b", HTML: "<li>B</li>"}},
 	}}}
 
@@ -270,16 +270,16 @@ func TestDiffListInsert(t *testing.T) {
 }
 
 func TestDiffListDeleteAndMove(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{{
-		Kind: render.DynList,
+	prev := render.Structured{D: []render.DynamicSlot{{
+		Kind: render.DynamicList,
 		List: []render.Row{
 			{Key: "a", HTML: "<li>A</li>"},
 			{Key: "b", HTML: "<li>B</li>"},
 			{Key: "c", HTML: "<li>C</li>"},
 		},
 	}}}
-	next := render.Structured{D: []render.Dyn{{
-		Kind: render.DynList,
+	next := render.Structured{D: []render.DynamicSlot{{
+		Kind: render.DynamicList,
 		List: []render.Row{
 			{Key: "c", HTML: "<li>C</li>"},
 			{Key: "a", HTML: "<li>A</li>"},
@@ -306,12 +306,12 @@ func TestDiffListDeleteAndMove(t *testing.T) {
 }
 
 func TestDiffAttrsHandlesNilPrevAsAddition(t *testing.T) {
-	prev := render.Structured{D: []render.Dyn{{
-		Kind:  render.DynAttrs,
+	prev := render.Structured{D: []render.DynamicSlot{{
+		Kind:  render.DynamicAttrs,
 		Attrs: nil,
 	}}}
-	next := render.Structured{D: []render.Dyn{{
-		Kind:  render.DynAttrs,
+	next := render.Structured{D: []render.DynamicSlot{{
+		Kind:  render.DynamicAttrs,
 		Attrs: map[string]string{"class": "x", "title": "hello"},
 	}}}
 
@@ -347,8 +347,8 @@ func TestDiffStaticsMismatchPanics(t *testing.T) {
 		}
 	}()
 
-	prev := render.Structured{S: []string{"<div>"}, D: []render.Dyn{{Kind: render.DynText, Text: "A"}}}
-	next := render.Structured{S: []string{"<span>"}, D: []render.Dyn{{Kind: render.DynText, Text: "A"}}}
+	prev := render.Structured{S: []string{"<div>"}, D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "A"}}}
+	next := render.Structured{S: []string{"<span>"}, D: []render.DynamicSlot{{Kind: render.DynamicText, Text: "A"}}}
 
 	Diff(prev, next)
 }

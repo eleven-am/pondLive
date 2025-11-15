@@ -2,244 +2,28 @@ import type {
   SlotPathDescriptor,
   ListPathDescriptor,
   ComponentPathDescriptor,
+  PathSegmentDescriptor,
 } from './types';
-import {
-  ComponentRange,
-  getComponentRange,
-  registerComponentRanges,
-} from './componentRanges';
+import { Logger } from './logger';
 
-function debugLog(...args: any[]): void {
-  if (typeof console === 'undefined') {
-    return;
-  }
-  console.log('[liveui][manifest]', ...args);
+export interface ComponentRange {
+  container: ParentNode;
+  startIndex: number;
+  endIndex: number;
 }
 
-function debugWarn(...args: any[]): void {
-  if (typeof console === 'undefined') {
-    return;
-  }
-  console.warn('[liveui][manifest]', ...args);
-}
+const componentRanges = new Map<string, ComponentRange>();
 
-function ensureArray(path?: number[] | null): number[] {
-  if (!Array.isArray(path)) {
-    return [];
-  }
-  return path.filter((index) => Number.isInteger(index));
-}
-
-function getRootContainer(root?: ParentNode | null): ParentNode {
-  if (root && root instanceof Document) {
-    return root.body ?? root;
-  }
-  if (root && 'childNodes' in root) {
-    return root;
-  }
-  if (typeof document !== 'undefined') {
-    return document.body ?? document;
-  }
-  throw new Error('liveui: unable to resolve root container for manifest resolution');
-}
-
-function clampIndex(container: ParentNode, index: number): number {
-  const maxIndex = container.childNodes.length - 1;
-  if (maxIndex < 0) {
-    return 0;
-  }
-  if (index < 0) {
-    return 0;
-  }
-  if (index > maxIndex) {
-    return maxIndex;
-  }
-  return index;
-}
-
-function computeBaseRange(root: ParentNode): ComponentRange {
-  const count = root.childNodes.length;
-  return {
-    container: root,
-    startIndex: 0,
-    endIndex: count > 0 ? count - 1 : -1,
-  };
-}
-
-function resolveContainerFromParent(
-  parentRange: ComponentRange,
-  parentPath: number[] | undefined,
-): ParentNode | null {
-  if (!parentRange || parentRange.endIndex < parentRange.startIndex) {
-    return null;
-  }
-  const steps = ensureArray(parentPath);
-  if (steps.length <= 1) {
-    return parentRange.container;
-  }
-  const containerSteps = steps.slice(0, -1);
-  let current: ParentNode = parentRange.container;
-  let node: Node | null = null;
-  for (let i = 0; i < containerSteps.length; i++) {
-    const step = containerSteps[i];
-    const targetIndex = i === 0 ? parentRange.startIndex + step : step;
-    node = current.childNodes.item(targetIndex) ?? null;
-    if (!(node instanceof Element || node instanceof DocumentFragment)) {
-      return null;
+export function registerComponentRanges(ranges: Map<string, ComponentRange>): void {
+  ranges.forEach((range, id) => {
+    if (id) {
+      componentRanges.set(id, range);
     }
-    current = node;
-  }
-  return current;
+  });
 }
 
-function deriveRangeFromDescriptor(
-  descriptor: ComponentPathDescriptor,
-  parentRange: ComponentRange,
-): ComponentRange | null {
-  if (!parentRange || parentRange.endIndex < parentRange.startIndex) {
-    return null;
-  }
-  const anchorPath = ensureArray(descriptor.parentPath);
-  const anchor = resolveNodeInRange(parentRange, anchorPath);
-  if (!anchor) {
-    return null;
-  }
-  const container =
-    (anchor.parentNode as ParentNode | null) ?? parentRange.container;
-  const startIndex = getNodeIndex(container, anchor);
-  if (startIndex < 0) {
-    return null;
-  }
-  return {
-    container,
-    startIndex,
-    endIndex: startIndex,
-  };
-}
-
-function getNodeIndex(container: ParentNode, target: Node | null): number {
-  if (!container || !target) {
-    return -1;
-  }
-  const nodes = container.childNodes;
-  for (let i = 0; i < nodes.length; i++) {
-    if (nodes.item(i) === target) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-export function computeComponentRanges(
-  descriptors: ComponentPathDescriptor[] | undefined,
-  options?: {
-    root?: ParentNode | null;
-    baseId?: string | null;
-    baseRange?: ComponentRange | null;
-  },
-): Map<string, ComponentRange> {
-  const ranges = new Map<string, ComponentRange>();
-  if (!Array.isArray(descriptors) || descriptors.length === 0) {
-    return ranges;
-  }
-  const rootContainer = getRootContainer(options?.root ?? null);
-  const defaultRange = options?.baseRange ?? computeBaseRange(rootContainer);
-  const baseId = options?.baseId ?? '';
-  if (options?.baseRange && baseId) {
-    ranges.set(baseId, options.baseRange);
-  }
-  const pending = new Map<string, ComponentPathDescriptor>();
-  for (const descriptor of descriptors) {
-    if (!descriptor || typeof descriptor.componentId !== 'string') continue;
-    pending.set(descriptor.componentId, descriptor);
-  }
-  let progressed = true;
-  while (pending.size > 0 && progressed) {
-    progressed = false;
-    for (const [id, descriptor] of Array.from(pending.entries())) {
-      const parentId = descriptor.parentId ?? '';
-      let parentRange: ComponentRange | null = null;
-      if (parentId) {
-        parentRange = ranges.get(parentId) ?? getComponentRange(parentId);
-      } else {
-        parentRange = baseId ? ranges.get(baseId) ?? null : null;
-        if (!parentRange) {
-          parentRange = defaultRange;
-        }
-      }
-      if (!parentRange) {
-        continue;
-      }
-      const derived = deriveRangeFromDescriptor(descriptor, parentRange);
-      if (!derived) {
-        pending.delete(id);
-        continue;
-      }
-      ranges.set(id, derived);
-      pending.delete(id);
-      progressed = true;
-    }
-  }
-  return ranges;
-}
-
-export function resolveComponentRanges(
-  descriptors: ComponentPathDescriptor[] | undefined,
-  options?: {
-    root?: ParentNode | null;
-    baseId?: string | null;
-    baseRange?: ComponentRange | null;
-  },
-): void {
-  const ranges = computeComponentRanges(descriptors, options);
-  registerComponentRanges(ranges);
-}
-
-export function resolveComponentPathNode(
-  componentId: string,
-  path?: number[] | null,
-  options?: {
-    overrides?: Map<string, ComponentRange>;
-    fallbackRange?: ComponentRange | null;
-  },
-): Node | null {
-  let range: ComponentRange | null = null;
-  if (componentId && componentId.length > 0) {
-    range = options?.overrides?.get(componentId) ?? getComponentRange(componentId);
-  } else {
-    range = options?.fallbackRange ?? null;
-  }
-  if (!range) {
-    return null;
-  }
-  return resolveNodeInRange(range, path ?? undefined);
-}
-
-function resolveNodeInRange(
-  range: ComponentRange | null,
-  path: number[] | undefined,
-): Node | null {
-  if (!range || range.endIndex < range.startIndex) return null;
-  const steps = ensureArray(path);
-  const rootIndex = clampIndex(range.container, range.startIndex);
-  let current: Node | null = range.container.childNodes.item(rootIndex) ?? null;
-  if (!current) {
-    return null;
-  }
-  if (steps.length === 0) {
-    return current;
-  }
-  for (const step of steps) {
-    if (!(current instanceof Element || current instanceof DocumentFragment)) {
-      return null;
-    }
-    const childIndex = clampIndex(current, step);
-    current = current.childNodes.item(childIndex) ?? null;
-    if (!current) {
-      return null;
-    }
-  }
-  return current;
+export function getComponentRange(id: string): ComponentRange | undefined {
+  return componentRanges.get(id);
 }
 
 export function resolveSlotAnchors(
@@ -256,21 +40,12 @@ export function resolveSlotAnchors(
     if (!Number.isInteger(slotId) || slotId < 0 || anchors.has(slotId)) {
       continue;
     }
-    const range =
-      overrides?.get(descriptor.componentId) ??
-      getComponentRange(descriptor.componentId);
+    const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
     if (!range) {
-      debugWarn(
-        'slot range missing',
-        descriptor.componentId,
-        descriptor,
-        Array.from(overrides?.keys() ?? []),
-      );
       continue;
     }
-    const anchor = resolveNodeInRange(range, descriptor.elementPath);
+    const anchor = resolveNodeBySegments(range, descriptor.path);
     if (!anchor) {
-      debugWarn('slot anchor not found', descriptor, range);
       continue;
     }
     let target: Node | null = anchor;
@@ -279,28 +54,22 @@ export function resolveSlotAnchors(
       if (anchor instanceof Text) {
         target = anchor;
       } else if (anchor instanceof Element || anchor instanceof DocumentFragment) {
-        let textNode = anchor.childNodes.item(textIndex) ?? null;
-        if (!textNode && typeof document !== 'undefined') {
-          textNode = document.createTextNode('');
-          const before =
-            textIndex < anchor.childNodes.length
-              ? anchor.childNodes.item(textIndex)
-              : null;
+        const existing = anchor.childNodes.item(textIndex);
+        if (existing) {
+          target = existing;
+        } else if (typeof document !== 'undefined') {
+          const textNode = document.createTextNode('');
+          const before = anchor.childNodes.item(textIndex) ?? null;
           anchor.insertBefore(textNode, before);
+          target = textNode;
         }
-        target = textNode;
       } else {
         target = null;
       }
     }
     if (!target) {
-      debugWarn('slot target missing', descriptor, {
-        anchorName:
-          anchor instanceof Element ? anchor.tagName : anchor?.nodeName,
-      });
       continue;
     }
-    debugLog('slot resolved', slotId, descriptor.componentId);
     anchors.set(slotId, target);
   }
   return anchors;
@@ -310,63 +79,329 @@ export function resolveListContainers(
   descriptors: ListPathDescriptor[] | undefined,
   overrides?: Map<string, ComponentRange>,
 ): Map<number, Element> {
-  const lists = new Map<number, Element>();
+  const containers = new Map<number, Element>();
   if (!Array.isArray(descriptors)) {
-    return lists;
+    return containers;
   }
   for (const descriptor of descriptors) {
     if (!descriptor) continue;
     const slotId = Number(descriptor.slot);
-    if (!Number.isInteger(slotId) || slotId < 0 || lists.has(slotId)) {
+    if (!Number.isInteger(slotId) || slotId < 0 || containers.has(slotId)) {
       continue;
     }
-    const range =
-      overrides?.get(descriptor.componentId) ??
-      getComponentRange(descriptor.componentId);
+    const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
     if (!range) {
-      debugWarn(
-        'list range missing',
-        descriptor.componentId,
-        descriptor,
-        Array.from(overrides?.keys() ?? []),
-      );
       continue;
     }
-    const node = resolveNodeInRange(range, descriptor.elementPath);
+    if (descriptor.atRoot) {
+      const element = resolveRangeContainerElement(range);
+      if (element) {
+        containers.set(slotId, element);
+      }
+      continue;
+    }
+    const node = resolveNodeBySegments(range, descriptor.path);
     if (!(node instanceof Element)) {
-      debugWarn('list container not found', descriptor, range);
       continue;
     }
-    debugLog('list container resolved', slotId, descriptor.componentId);
-    lists.set(slotId, node);
+    containers.set(slotId, node);
   }
-  return lists;
+  return containers;
 }
 
 export function applyComponentRanges(
   descriptors: ComponentPathDescriptor[] | undefined,
-  options?: {
-    root?: ParentNode | null;
-    baseId?: string | null;
-    baseRange?: ComponentRange | null;
-  },
+  options?: { root?: ParentNode | null },
 ): Map<string, ComponentRange> {
   const ranges = computeComponentRanges(descriptors, options);
   registerComponentRanges(ranges);
   return ranges;
 }
 
+function computeComponentRanges(
+  descriptors: ComponentPathDescriptor[] | undefined,
+  options?: { root?: ParentNode | null },
+): Map<string, ComponentRange> {
+  const ranges = new Map<string, ComponentRange>();
+  if (!Array.isArray(descriptors)) {
+    return ranges;
+  }
+  const root = options?.root ?? document.body ?? document;
+  const baseRange: ComponentRange | null = root
+    ? { container: root, startIndex: 0, endIndex: root.childNodes.length - 1 }
+    : null;
+  const pending = new Map<string, ComponentPathDescriptor>();
+  descriptors.forEach((descriptor) => {
+    if (descriptor && typeof descriptor.componentId === 'string') {
+      pending.set(descriptor.componentId, descriptor);
+    }
+  });
+  let progressed = true;
+  while (pending.size > 0 && progressed) {
+    progressed = false;
+    for (const [id, descriptor] of Array.from(pending.entries())) {
+      const parentRange = descriptor.parentId ? ranges.get(descriptor.parentId) : baseRange;
+      if (!parentRange) {
+        continue;
+      }
+      Logger.debug('[Manifest]', 'computing component range', {
+        id,
+        parentId: descriptor.parentId,
+        parentPath: descriptor.parentPath,
+        firstChild: descriptor.firstChild,
+        lastChild: descriptor.lastChild,
+        parentRangeContainer: parentRange.container.nodeName,
+        parentRangeStart: parentRange.startIndex,
+        parentRangeEnd: parentRange.endIndex,
+      });
+      const firstNode = resolveNodeForComponent(parentRange, descriptor.parentPath, descriptor.firstChild);
+      const lastNode = resolveNodeForComponent(parentRange, descriptor.parentPath, descriptor.lastChild);
+      Logger.debug('[Manifest]', 'resolved boundary nodes', {
+        id,
+        firstNode: firstNode?.nodeName,
+        lastNode: lastNode?.nodeName,
+      });
+      const container = chooseComponentContainer(firstNode, lastNode, parentRange.container);
+      const topLevelFirst = ascendToContainer(firstNode, container) ?? firstNode;
+      const topLevelLast = ascendToContainer(lastNode, container) ?? lastNode ?? topLevelFirst;
+      let startIndex = topLevelFirst ? getNodeIndex(container, topLevelFirst) : parentRange.startIndex;
+      if (startIndex < 0) {
+        startIndex = parentRange.startIndex;
+      }
+      let endIndex = topLevelLast ? getNodeIndex(container, topLevelLast) : startIndex;
+      if (endIndex < startIndex) {
+        endIndex = startIndex;
+      }
+      Logger.debug('[Manifest]', 'computed component range', {
+        id,
+        container: container.nodeName,
+        startIndex,
+        endIndex,
+      });
+      ranges.set(id, { container, startIndex, endIndex });
+      pending.delete(id);
+      progressed = true;
+    }
+  }
+  return ranges;
+}
+
 export function resolveNodeInComponent(
   componentId: string,
-  path: number[] | undefined,
+  path?: PathSegmentDescriptor[] | null,
   overrides?: Map<string, ComponentRange>,
 ): Node | null {
-  if (typeof componentId !== "string" || componentId.length === 0) {
-    return null;
-  }
   const range = overrides?.get(componentId) ?? getComponentRange(componentId);
   if (!range) {
     return null;
   }
-  return resolveNodeInRange(range, path);
+  return resolveNodeBySegments(range, path);
+}
+
+function resolveNodeBySegments(
+  range: ComponentRange,
+  segments?: PathSegmentDescriptor[] | null,
+): Node | null {
+  if (!range || range.endIndex < range.startIndex) {
+    Logger.debug('[Manifest]', 'resolveNodeBySegments: invalid range', { range });
+    return null;
+  }
+  const container = range.container;
+  if (!container) {
+    Logger.debug('[Manifest]', 'resolveNodeBySegments: no container', { range });
+    return null;
+  }
+  Logger.debug('[Manifest]', 'resolveNodeBySegments START', {
+    segments,
+    rangeInfo: {
+      containerNodeName: container.nodeName,
+      startIndex: range.startIndex,
+      endIndex: range.endIndex,
+      childCount: container.childNodes.length,
+    },
+  });
+  if (!Array.isArray(segments) || segments.length === 0) {
+    const root = resolveRangeRoot(range);
+    Logger.debug('[Manifest]', 'resolveNodeBySegments: using range root', { result: root?.nodeName });
+    return root;
+  }
+  let current: Node | null = null;
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+    if (!segment) {
+      continue;
+    }
+    if (segment.kind === 'range') {
+      current = resolveRangeChild(range, segment.index);
+      Logger.debug('[Manifest]', 'resolveNodeBySegments: range segment', {
+        step: i,
+        offset: segment.index,
+        node: current?.nodeName,
+      });
+      if (!current) {
+        return null;
+      }
+      continue;
+    }
+    if (!current) {
+      current = resolveRangeChild(range, segment.index);
+      Logger.debug('[Manifest]', 'resolveNodeBySegments: selecting top-level child', {
+        step: i,
+        offset: segment.index,
+        node: current?.nodeName,
+      });
+      if (!current) {
+        return null;
+      }
+      continue;
+    }
+    if (!(current instanceof Element || current instanceof DocumentFragment)) {
+      Logger.debug('[Manifest]', 'resolveNodeBySegments: current not Element/Fragment', {
+        step: i,
+        current: current?.nodeName,
+      });
+      return null;
+    }
+    const clamped = clampIndex(current, segment.index);
+    const next = current.childNodes.item(clamped) ?? null;
+    Logger.debug('[Manifest]', 'resolveNodeBySegments: navigating dom segment', {
+      step: i,
+      index: segment.index,
+      clamped,
+      currentNodeName: current.nodeName,
+      nextNodeName: next?.nodeName,
+    });
+    current = next;
+    if (!current) {
+      return null;
+    }
+  }
+  Logger.debug('[Manifest]', 'resolveNodeBySegments END', { result: current?.nodeName });
+  return current ?? resolveRangeRoot(range);
+}
+
+function resolveNodeForComponent(
+  range: ComponentRange,
+  parentPath?: PathSegmentDescriptor[] | null,
+  childPath?: PathSegmentDescriptor[] | null,
+): Node | null {
+  const combined = combineSegments(parentPath, childPath);
+  if (combined) {
+    return resolveNodeBySegments(range, combined);
+  }
+  return resolveNodeBySegments(range, parentPath) ?? resolveNodeBySegments(range, childPath);
+}
+
+function combineSegments(
+  base?: PathSegmentDescriptor[] | null,
+  extra?: PathSegmentDescriptor[] | null,
+): PathSegmentDescriptor[] | undefined {
+  const result: PathSegmentDescriptor[] = [];
+  if (Array.isArray(base) && base.length > 0) {
+    result.push(...base);
+  }
+  if (Array.isArray(extra) && extra.length > 0) {
+    result.push(...extra);
+  }
+  return result.length > 0 ? result : undefined;
+}
+
+function chooseComponentContainer(
+  firstNode: Node | null,
+  lastNode: Node | null,
+  fallback: ParentNode | null,
+): ParentNode {
+  const firstAncestors = collectAncestorParents(firstNode);
+  if (!lastNode) {
+    return firstAncestors[0] ?? (fallback as ParentNode);
+  }
+  const lastAncestors = collectAncestorParents(lastNode);
+  for (const ancestor of firstAncestors) {
+    if (lastAncestors.includes(ancestor)) {
+      return ancestor;
+    }
+  }
+  return firstAncestors[0] ?? lastAncestors[0] ?? (fallback as ParentNode);
+}
+
+function collectAncestorParents(node: Node | null): ParentNode[] {
+  const parents: ParentNode[] = [];
+  let current: Node | null = node;
+  while (current && current.parentNode) {
+    const parent = current.parentNode;
+    parents.push(parent);
+    current = parent;
+  }
+  return parents;
+}
+
+function ascendToContainer(node: Node | null, container: ParentNode | null): Node | null {
+  if (!node || !container) {
+    return node;
+  }
+  let current: Node | null = node;
+  while (current && current.parentNode && current.parentNode !== container) {
+    current = current.parentNode;
+  }
+  return current;
+}
+
+function clampIndex(container: ParentNode, index: number): number {
+  const max = container.childNodes.length - 1;
+  if (max < 0) {
+    return 0;
+  }
+  if (index < 0) {
+    return 0;
+  }
+  if (index > max) {
+    return max;
+  }
+  return index;
+}
+
+function getNodeIndex(container: ParentNode, node: Node | null): number {
+  if (!container || !node) {
+    return -1;
+  }
+  const nodes = container.childNodes;
+  for (let i = 0; i < nodes.length; i++) {
+    if (nodes.item(i) === node) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function resolveRangeRoot(range: ComponentRange): Node | null {
+  return resolveRangeChild(range, 0);
+}
+
+function resolveRangeChild(range: ComponentRange, offset: number): Node | null {
+  const container = range.container;
+  if (!container || container.childNodes.length === 0) {
+    return null;
+  }
+  const start = clampIndex(container, range.startIndex);
+  const end = Math.max(start, clampIndex(container, range.endIndex));
+  const span = end - start;
+  const normalizedOffset = Number.isFinite(offset) ? offset : 0;
+  const clampedOffset = normalizedOffset <= 0 ? 0 : normalizedOffset >= span ? span : normalizedOffset;
+  const index = start + clampedOffset;
+  return container.childNodes.item(index) ?? null;
+}
+
+function resolveRangeContainerElement(range: ComponentRange): Element | null {
+  const container = range.container;
+  if (container instanceof Element) {
+    return container;
+  }
+  if (container instanceof Document) {
+    return container.body ?? container.documentElement ?? null;
+  }
+  if (container instanceof DocumentFragment) {
+    const first = container.firstElementChild;
+    return first ?? null;
+  }
+  return null;
 }

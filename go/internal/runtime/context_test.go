@@ -14,7 +14,7 @@ type emptyProps struct{}
 
 func firstText(structured render.Structured) string {
 	for _, dyn := range structured.D {
-		if dyn.Kind == render.DynText {
+		if dyn.Kind == render.DynamicText {
 			return dyn.Text
 		}
 	}

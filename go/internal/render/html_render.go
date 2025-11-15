@@ -10,15 +10,74 @@ import (
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
-// RenderHTML renders to HTML while registering handlers.
+// RenderHTML renders a node tree to HTML string while registering handlers.
+// This finalizes the tree and produces the final HTML output.
 func RenderHTML(n h.Node, reg handlers.Registry) string {
 	if n == nil {
 		return ""
 	}
-	ToStructuredWithHandlers(n, reg)
+
+	n = normalizeForSSR(n)
+	FinalizeWithHandlers(n, reg)
 	var b strings.Builder
 	renderNode(&b, n)
 	return b.String()
+}
+
+// normalizeForSSR performs router-specific normalization for SSR.
+// This is needed because router placeholders must be resolved before rendering.
+func normalizeForSSR(n h.Node) h.Node {
+	if n == nil {
+		return nil
+	}
+
+	if comp, ok := n.(*h.ComponentNode); ok {
+		if comp.Child != nil {
+			comp.Child = normalizeForSSR(comp.Child)
+		}
+		return n
+	}
+
+	if elem, ok := n.(*h.Element); ok {
+		if len(elem.Children) == 0 {
+			return n
+		}
+		changed := false
+		updated := make([]h.Node, len(elem.Children))
+		for i, child := range elem.Children {
+			normalized := normalizeForSSR(child)
+			if normalized != child {
+				changed = true
+			}
+			updated[i] = normalized
+		}
+		if !changed {
+			return n
+		}
+		clone := *elem
+		clone.Children = updated
+		return &clone
+	}
+
+	if frag, ok := n.(*h.FragmentNode); ok {
+		if len(frag.Children) == 0 {
+			return n
+		}
+		changed := false
+		updated := make([]h.Node, len(frag.Children))
+		for i, child := range frag.Children {
+			normalized := normalizeForSSR(child)
+			if normalized != child {
+				changed = true
+			}
+			updated[i] = normalized
+		}
+		if !changed {
+			return n
+		}
+		return h.Fragment(updated...)
+	}
+	return n
 }
 
 func renderNode(b *strings.Builder, n h.Node) {
@@ -66,9 +125,6 @@ func renderElement(b *strings.Builder, e *h.Element) {
 			if v == "" {
 				continue
 			}
-			if strings.HasPrefix(k, "data-on") || strings.HasPrefix(k, "data-router-") {
-				continue
-			}
 			b.WriteByte(' ')
 			b.WriteString(k)
 			b.WriteString("=\"")
@@ -97,13 +153,4 @@ func renderElement(b *strings.Builder, e *h.Element) {
 	b.WriteString("</")
 	b.WriteString(e.Tag)
 	b.WriteByte('>')
-}
-
-func renderFinalizedNode(n h.Node) string {
-	if n == nil {
-		return ""
-	}
-	var b strings.Builder
-	renderNode(&b, n)
-	return b.String()
 }

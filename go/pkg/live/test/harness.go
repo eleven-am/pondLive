@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
-	"github.com/eleven-am/pondlive/go/internal/render"
+	render "github.com/eleven-am/pondlive/go/internal/render"
 	"github.com/eleven-am/pondlive/go/internal/testh"
 	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )
@@ -124,7 +124,7 @@ func (h *harness) ResetOps() {
 	h.engine.ResetOps()
 }
 
-func encodeDynamics(dyns []render.Dyn) any {
+func encodeDynamics(dyns []render.DynamicSlot) any {
 	if len(dyns) == 0 {
 		return []any{}
 	}
@@ -132,10 +132,10 @@ func encodeDynamics(dyns []render.Dyn) any {
 	for _, dyn := range dyns {
 		slot := map[string]any{}
 		switch dyn.Kind {
-		case render.DynText:
+		case render.DynamicText:
 			slot["k"] = "text"
 			slot["text"] = dyn.Text
-		case render.DynAttrs:
+		case render.DynamicAttrs:
 			slot["k"] = "attrs"
 			attrs := make([]map[string]string, 0, len(dyn.Attrs))
 			if len(dyn.Attrs) > 0 {
@@ -152,7 +152,7 @@ func encodeDynamics(dyns []render.Dyn) any {
 				}
 			}
 			slot["attrs"] = attrs
-		case render.DynList:
+		case render.DynamicList:
 			slot["k"] = "list"
 			rows := make([]map[string]any, 0, len(dyn.List))
 			for _, row := range dyn.List {

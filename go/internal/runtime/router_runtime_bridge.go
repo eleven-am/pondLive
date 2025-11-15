@@ -12,6 +12,8 @@ func init() {
 			update.Replace = target
 		} else if last.T == "nav" {
 			update.Push = target
+		} else if last.T == "back" {
+			update.Back = true
 		}
 		return update
 	})

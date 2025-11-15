@@ -202,14 +202,14 @@ var LiveUIModule = (() => {
         ClientActions2["LEAVE_CHANNEL"] = "LEAVE_CHANNEL";
         ClientActions2["BROADCAST"] = "BROADCAST";
       })(ClientActions || (exports.ClientActions = ClientActions = {}));
-      var ChannelState;
-      (function(ChannelState2) {
-        ChannelState2["IDLE"] = "IDLE";
-        ChannelState2["JOINING"] = "JOINING";
-        ChannelState2["JOINED"] = "JOINED";
-        ChannelState2["STALLED"] = "STALLED";
-        ChannelState2["CLOSED"] = "CLOSED";
-      })(ChannelState || (exports.ChannelState = ChannelState = {}));
+      var ChannelState2;
+      (function(ChannelState3) {
+        ChannelState3["IDLE"] = "IDLE";
+        ChannelState3["JOINING"] = "JOINING";
+        ChannelState3["JOINED"] = "JOINED";
+        ChannelState3["STALLED"] = "STALLED";
+        ChannelState3["CLOSED"] = "CLOSED";
+      })(ChannelState2 || (exports.ChannelState = ChannelState2 = {}));
       var ErrorTypes;
       (function(ErrorTypes2) {
         ErrorTypes2["UNAUTHORIZED_CONNECTION"] = "UNAUTHORIZED_CONNECTION";
@@ -1155,1358 +1155,599 @@ var LiveUIModule = (() => {
   // src/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
-    ComputedSignal: () => ComputedSignal,
-    Signal: () => Signal,
-    applyOps: () => applyOps,
-    bootClient: () => bootClient,
-    clearPatcherCaches: () => clearPatcherCaches,
-    configurePatcher: () => configurePatcher,
-    default: () => index_default,
-    dom: () => dom_index_exports,
-    getPatcherConfig: () => getPatcherConfig,
-    getPatcherStats: () => getPatcherStats,
-    getRefElement: () => getRefElement,
-    getRefMeta: () => getRefMeta,
-    morphElement: () => morphElement
+    LiveRuntime: () => LiveRuntime,
+    LiveUI: () => LiveUI,
+    bootClient: () => bootClient
   });
 
-  // src/index.ts
+  // src/runtime.ts
   var import_pondsocket_client = __toESM(require_pondsocket_client(), 1);
 
-  // src/dom-index.ts
-  var dom_index_exports = {};
-  __export(dom_index_exports, {
-    deleteRow: () => deleteRow,
-    ensureList: () => ensureList,
-    getRow: () => getRow,
-    getSlot: () => getSlot,
-    initLists: () => initLists,
-    registerList: () => registerList,
-    registerSlot: () => registerSlot,
-    reset: () => reset,
-    setRow: () => setRow,
-    unregisterList: () => unregisterList,
-    unregisterSlot: () => unregisterSlot
-  });
+  // src/logger.ts
+  var _Logger = class _Logger {
+    static configure(options) {
+      _Logger.debugEnabled = Boolean(options?.debug);
+    }
+    static debug(...args) {
+      if (!_Logger.debugEnabled) {
+        return;
+      }
+      _Logger.emit("log", "debug", args);
+    }
+    static info(...args) {
+      _Logger.emit("log", "info", args);
+    }
+    static warn(...args) {
+      _Logger.emit("warn", "warn", args);
+    }
+    static error(...args) {
+      _Logger.emit("error", "error", args);
+    }
+    static emit(method, level, args) {
+      if (typeof console === "undefined") {
+        return;
+      }
+      const emitter = console[method] ?? console.log;
+      emitter(`[LiveUI][${level}]`, ...args);
+    }
+  };
+  _Logger.debugEnabled = false;
+  var Logger = _Logger;
 
-  // src/refs.ts
-  var registry = /* @__PURE__ */ new Map();
-  var elementRefMap = /* @__PURE__ */ new WeakMap();
-  function ensureRecord(id, meta) {
-    let record = registry.get(id);
-    if (!record) {
-      record = {
-        id,
-        meta: meta ?? { tag: "" },
-        element: null
+  // src/boot.ts
+  var BootLoader = class {
+    constructor(options) {
+      this.payload = null;
+      this.options = {
+        debug: options?.debug ?? false,
+        scriptId: options?.scriptId ?? "live-boot"
       };
-      registry.set(id, record);
-    } else if (meta) {
-      record.meta = meta;
     }
-    return record;
-  }
-  function collectRefEventProps(meta, eventType) {
-    if (!meta || !meta.events) {
-      return [];
-    }
-    const selectors = [];
-    const seen = /* @__PURE__ */ new Set();
-    for (const [primary, eventMeta] of Object.entries(meta.events)) {
-      if (!eventMeta) {
-        continue;
-      }
-      const listens = Array.isArray(eventMeta.listen) ? eventMeta.listen : [];
-      if (primary !== eventType && !listens.includes(eventType)) {
-        continue;
-      }
-      if (!Array.isArray(eventMeta.props)) {
-        continue;
-      }
-      for (const prop of eventMeta.props) {
-        if (typeof prop !== "string" || prop.length === 0) {
-          continue;
-        }
-        if (seen.has(prop)) {
-          continue;
-        }
-        seen.add(prop);
-        selectors.push(prop);
-      }
-    }
-    return selectors;
-  }
-  function resolveRefEventContext(element, eventType) {
-    if (!element || !eventType) {
-      return null;
-    }
-    const refElement = findClosestRefElement(element);
-    if (!refElement) {
-      return null;
-    }
-    const id = getPrimaryRefId(refElement);
-    if (!id) {
-      return null;
-    }
-    const record = ensureRecord(id);
-    record.element = refElement;
-    if (!refSupportsEvent(record.meta, eventType)) {
-      return null;
-    }
-    const props = collectRefEventProps(record.meta, eventType);
-    return {
-      id,
-      element: refElement,
-      props,
-      notify(payload) {
-        if (!record.lastPayloads) {
-          record.lastPayloads = /* @__PURE__ */ Object.create(null);
-        }
-        record.lastPayloads[eventType] = { ...payload };
-      }
-    };
-  }
-  function attachRef(id, element) {
-    if (!id) {
-      return;
-    }
-    const record = ensureRecord(id);
-    if (record.element && record.element !== element) {
-      removeRefFromElement(record.element, id);
-    }
-    record.element = element;
-    if (!record.meta.tag) {
-      record.meta = { ...record.meta, tag: element.tagName.toLowerCase() };
-    }
-    addRefToElement(element, id);
-  }
-  function detachRef(id, element) {
-    const record = registry.get(id);
-    if (!record) {
-      return;
-    }
-    if (!element || record.element === element) {
-      if (record.element) {
-        removeRefFromElement(record.element, id);
-      }
-      record.element = null;
-    }
-  }
-  function addRefToElement(element, id) {
-    let ids = elementRefMap.get(element);
-    if (!ids) {
-      ids = /* @__PURE__ */ new Set();
-      elementRefMap.set(element, ids);
-    }
-    ids.add(id);
-  }
-  function removeRefFromElement(element, id) {
-    const ids = elementRefMap.get(element);
-    if (!ids) {
-      return;
-    }
-    ids.delete(id);
-    if (ids.size === 0) {
-      elementRefMap.delete(element);
-    }
-  }
-  function getPrimaryRefId(element) {
-    if (!element) {
-      return null;
-    }
-    const ids = elementRefMap.get(element);
-    if (ids && ids.size > 0) {
-      const first = ids.values().next();
-      if (!first.done) {
-        return first.value ?? null;
-      }
-    }
-    return null;
-  }
-  function clearRefs() {
-    registry.clear();
-    elementRefMap = /* @__PURE__ */ new WeakMap();
-  }
-  function registerRefs(refs) {
-    if (!refs) {
-      return;
-    }
-    for (const [id, meta] of Object.entries(refs)) {
-      if (!id) {
-        continue;
-      }
-      ensureRecord(id, meta);
-    }
-  }
-  function unregisterRefs(ids) {
-    if (!Array.isArray(ids)) {
-      return;
-    }
-    for (const id of ids) {
-      if (!id) {
-        continue;
-      }
-      registry.delete(id);
-    }
-  }
-  function unbindRefsInTree(root) {
-    if (!root || typeof document === "undefined") {
-      return;
-    }
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-    let current = root;
-    while (current) {
-      if (current instanceof Element) {
-        const ids = elementRefMap.get(current);
-        if (ids && ids.size > 0) {
-          for (const id of Array.from(ids)) {
-            detachRef(id, current);
-          }
-        }
-      }
-      current = walker.nextNode();
-    }
-  }
-  function getRefElement(id) {
-    const record = registry.get(id);
-    return record?.element ?? null;
-  }
-  function getRefMeta(id) {
-    const record = registry.get(id);
-    return record?.meta ?? null;
-  }
-  function attachRefToElement(refId, element) {
-    if (!refId) {
-      return;
-    }
-    if (!element) {
-      detachRef(refId, null);
-      return;
-    }
-    attachRef(refId, element);
-  }
-  function findClosestRefElement(element) {
-    let current = element;
-    while (current) {
-      if (getPrimaryRefId(current)) {
-        return current;
-      }
-      current = current.parentElement;
-    }
-    return null;
-  }
-  function refSupportsEvent(meta, eventType) {
-    if (!meta || !meta.events) {
-      return false;
-    }
-    for (const [primary, eventMeta] of Object.entries(meta.events)) {
-      if (primary === eventType) {
-        return true;
-      }
-      if (eventMeta?.listen && eventMeta.listen.includes(eventType)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // src/dom.ts
-  function pickSource(scope, ctx) {
-    switch (scope) {
-      case "event":
-        return ctx.event ?? void 0;
-      case "target":
-        return ctx.target ?? void 0;
-      case "currentTarget":
-        if (ctx.handlerElement) {
-          return ctx.handlerElement;
-        }
-        return ctx.event && "currentTarget" in ctx.event ? ctx.event.currentTarget ?? void 0 : void 0;
-      case "element":
-      case "ref":
-        return ctx.refElement ?? ctx.handlerElement ?? ctx.target ?? void 0;
-      default:
-        return void 0;
-    }
-  }
-  function resolvePath(source, parts) {
-    let value = source;
-    for (const part of parts) {
-      if (!part) {
-        continue;
-      }
-      if (value == null) {
-        return void 0;
-      }
-      try {
-        value = value[part];
-      } catch (_error) {
-        return void 0;
-      }
-    }
-    return value;
-  }
-  function resolvePropertySelector(selector, ctx) {
-    if (typeof selector !== "string") {
-      return void 0;
-    }
-    const trimmed = selector.trim();
-    if (!trimmed) {
-      return void 0;
-    }
-    const parts = trimmed.split(".");
-    if (parts.length === 0) {
-      return void 0;
-    }
-    const scope = parts.shift();
-    if (!scope) {
-      return void 0;
-    }
-    const source = pickSource(scope, ctx);
-    if (source === void 0) {
-      return void 0;
-    }
-    return resolvePath(source, parts);
-  }
-  function domGetSync(selectors, ctx) {
-    if (!Array.isArray(selectors) || selectors.length === 0) {
-      return null;
-    }
-    const result = {};
-    for (const selector of selectors) {
-      if (typeof selector !== "string" || selector.length === 0) {
-        continue;
-      }
-      const raw = resolvePropertySelector(selector, ctx);
-      if (raw === void 0) {
-        continue;
-      }
-      const normalized = normalizePropertyValue(raw);
-      if (normalized !== void 0) {
-        result[selector] = normalized;
-      }
-    }
-    return Object.keys(result).length > 0 ? result : null;
-  }
-  function normalizePropertyValue(value) {
-    if (value === null) {
-      return null;
-    }
-    const type = typeof value;
-    if (type === "string" || type === "number" || type === "boolean") {
-      return value;
-    }
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-    if (typeof FileList !== "undefined" && value instanceof FileList) {
-      return serializeFileList(value);
-    }
-    if (typeof File !== "undefined" && value instanceof File) {
-      return { name: value.name, size: value.size, type: value.type };
-    }
-    if (typeof DOMTokenList !== "undefined" && value instanceof DOMTokenList) {
-      return Array.from(value);
-    }
-    if (typeof TimeRanges !== "undefined" && value instanceof TimeRanges) {
-      const ranges = [];
-      for (let i = 0; i < value.length; i++) {
-        try {
-          ranges.push({ start: value.start(i), end: value.end(i) });
-        } catch (_error) {
-        }
-      }
-      return ranges;
-    }
-    if (Array.isArray(value)) {
-      return value.map((item) => normalizePropertyValue(item)).filter((item) => item !== void 0);
-    }
-    if (value && typeof value === "object") {
-      try {
-        return JSON.parse(JSON.stringify(value));
-      } catch (_error) {
-        return void 0;
-      }
-    }
-    return void 0;
-  }
-  function serializeFileList(list) {
-    const files = [];
-    for (let i = 0; i < list.length; i++) {
-      const file = list.item(i);
-      if (file) {
-        files.push({ name: file.name, size: file.size, type: file.type });
-      }
-    }
-    return files;
-  }
-  function callElementMethod(refId, method, args = [], options) {
-    const element = refId ? getRefElement(refId) : null;
-    if (!element) {
-      if (!options?.allowMissing) {
-        console.warn("[LiveUI] DOMCall target missing", { refId, method });
-      }
-      return { ok: false, reason: "missing_element" };
-    }
-    const fn = element[method];
-    if (typeof fn !== "function") {
-      console.warn("[LiveUI] DOMCall method missing", { refId, method });
-      return { ok: false, reason: "missing_method" };
-    }
-    try {
-      const result = fn.apply(element, Array.isArray(args) ? args : []);
-      if (result && typeof result.then === "function") {
-        result.catch((error) => {
-          console.warn("[LiveUI] DOMCall promise rejected", {
-            refId,
-            method,
-            error
+    load(explicit) {
+      const candidate = explicit ?? this.readWindowPayload() ?? this.readScriptPayload();
+      if (candidate && typeof candidate.sid === "string") {
+        this.payload = candidate;
+        this.cacheToWindow(candidate);
+        if (this.options.debug) {
+          Logger.debug("[boot]", "payload loaded", {
+            sid: candidate.sid,
+            version: candidate.ver,
+            hasHtml: Boolean(candidate.html)
           });
-        });
-      }
-      return { ok: true };
-    } catch (error) {
-      console.error("[LiveUI] DOMCall failed", { refId, method, error });
-      return { ok: false, reason: "invoke_failed", error };
-    }
-  }
-  function setElementProperty(refId, prop, value) {
-    const element = refId ? getRefElement(refId) : null;
-    if (!element) {
-      console.warn("[LiveUI] DOMSet target missing", { refId, prop });
-      return { ok: false, reason: "missing_element" };
-    }
-    const name = typeof prop === "string" ? prop.trim() : "";
-    if (!name) {
-      return { ok: false, reason: "missing_property" };
-    }
-    try {
-      element[name] = value;
-      return { ok: true };
-    } catch (error) {
-      console.error("[LiveUI] DOMSet failed", { refId, prop: name, error });
-      return { ok: false, reason: "set_failed", error };
-    }
-  }
-  function setBooleanProperty(refId, prop, value) {
-    if (typeof value !== "boolean") {
-      return { ok: false, reason: "invalid_value" };
-    }
-    return setElementProperty(refId, prop, value);
-  }
-  function toggleElementClass(refId, className, on) {
-    const element = refId ? getRefElement(refId) : null;
-    if (!element) {
-      console.warn("[LiveUI] DOMClass target missing", { refId, className });
-      return { ok: false, reason: "missing_element" };
-    }
-    const token = typeof className === "string" ? className.trim() : "";
-    if (!token) {
-      return { ok: false, reason: "missing_class" };
-    }
-    if (!("classList" in element)) {
-      return { ok: false, reason: "classlist_missing" };
-    }
-    try {
-      if (on === void 0) {
-        element.classList.toggle(token);
-      } else {
-        element.classList.toggle(token, on);
-      }
-      return { ok: true };
-    } catch (error) {
-      console.error("[LiveUI] DOMClass failed", {
-        refId,
-        className: token,
-        error
-      });
-      return { ok: false, reason: "class_toggle_failed", error };
-    }
-  }
-  function scrollElementIntoView(refId, options) {
-    const element = refId ? getRefElement(refId) : null;
-    if (!element) {
-      console.warn("[LiveUI] DOMScroll target missing", { refId });
-      return { ok: false, reason: "missing_element" };
-    }
-    const scrollFn = element.scrollIntoView;
-    if (typeof scrollFn !== "function") {
-      return { ok: false, reason: "missing_scroll" };
-    }
-    try {
-      if (options && Object.keys(options).length > 0) {
-        scrollFn.call(element, options);
-      } else {
-        scrollFn.call(element);
-      }
-      return { ok: true };
-    } catch (error) {
-      console.error("[LiveUI] DOMScroll failed", { refId, error });
-      return { ok: false, reason: "scroll_failed", error };
-    }
-  }
-
-  // src/events.ts
-  var handlers = /* @__PURE__ */ new Map();
-  var eventUsageCounts = /* @__PURE__ */ new Map();
-  var installedListeners = /* @__PURE__ */ new Map();
-  var handlerBindings = /* @__PURE__ */ new WeakMap();
-  var slotBindingSpecs = /* @__PURE__ */ new Map();
-  var slotElements = /* @__PURE__ */ new Map();
-  var routerBindings = /* @__PURE__ */ new WeakMap();
-  var DATA_ROUTER_ATTR_PREFIX = "data-router-";
-  var ALWAYS_ACTIVE_EVENTS = ["click", "input", "change", "submit"];
-  var CAPTURE_EVENTS = /* @__PURE__ */ new Set([
-    "blur",
-    "focus",
-    "mouseenter",
-    "mouseleave",
-    "pointerenter",
-    "pointerleave"
-  ]);
-  function setRouterMetaValue(element, field, value) {
-    let meta = routerBindings.get(element);
-    if (value === null || value === void 0 || value === "") {
-      if (!meta) {
-        return;
-      }
-      delete meta[field];
-      if (!meta.path && !meta.query && !meta.hash && !meta.replace) {
-        routerBindings.delete(element);
-      }
-      return;
-    }
-    if (!meta) {
-      meta = {};
-      routerBindings.set(element, meta);
-    }
-    meta[field] = value;
-  }
-  function applyRouterAttribute(element, key, value) {
-    if (!element || typeof key !== "string" || key.length === 0) {
-      return;
-    }
-    switch (key) {
-      case "path":
-      case "query":
-      case "hash":
-      case "replace":
-        setRouterMetaValue(element, key, value);
-        break;
-      default:
-        break;
-    }
-  }
-  function clearRouterAttributes(element) {
-    if (!element) {
-      return;
-    }
-    routerBindings.delete(element);
-  }
-  function cloneSlotBindingList(specs) {
-    if (!Array.isArray(specs)) {
-      return [];
-    }
-    return specs.map((spec) => {
-      const clone = {
-        event: spec?.event || "",
-        handler: spec?.handler || ""
-      };
-      if (Array.isArray(spec?.listen) && spec.listen.length > 0) {
-        clone.listen = [...spec.listen];
-      }
-      if (Array.isArray(spec?.props) && spec.props.length > 0) {
-        clone.props = [...spec.props];
-      }
-      return clone;
-    });
-  }
-  function applySlotBindings(slotId) {
-    const element = slotElements.get(slotId);
-    if (!element) {
-      return;
-    }
-    const specs = slotBindingSpecs.get(slotId) ?? [];
-    if (!Array.isArray(specs) || specs.length === 0) {
-      handlerBindings.delete(element);
-      return;
-    }
-    const map = /* @__PURE__ */ new Map();
-    for (const spec of specs) {
-      if (!spec || typeof spec.event !== "string" || typeof spec.handler !== "string") {
-        continue;
-      }
-      const eventName = spec.event.trim();
-      const handlerId = spec.handler.trim();
-      if (eventName.length === 0 || handlerId.length === 0) {
-        continue;
-      }
-      map.set(eventName, handlerId);
-    }
-    if (map.size === 0) {
-      handlerBindings.delete(element);
-      return;
-    }
-    handlerBindings.set(element, map);
-  }
-  function primeSlotBindings(table) {
-    slotBindingSpecs.clear();
-    if (table && typeof table === "object") {
-      for (const [key, value] of Object.entries(table)) {
-        const slotId = Number(key);
-        if (Number.isNaN(slotId)) {
-          continue;
         }
-        slotBindingSpecs.set(slotId, cloneSlotBindingList(value));
+        return this.payload;
       }
-    }
-    slotElements.forEach((_element, slotId) => {
-      applySlotBindings(slotId);
-    });
-  }
-  function registerBindingsForSlot(slotId, specs) {
-    if (!Number.isFinite(slotId)) {
-      return;
-    }
-    if (!Array.isArray(specs)) {
-      slotBindingSpecs.set(slotId, []);
-    } else {
-      slotBindingSpecs.set(slotId, cloneSlotBindingList(specs));
-    }
-    applySlotBindings(slotId);
-  }
-  function getRegisteredSlotBindings(slotId) {
-    const specs = slotBindingSpecs.get(slotId);
-    if (!specs) {
-      return void 0;
-    }
-    return cloneSlotBindingList(specs);
-  }
-  function onSlotRegistered(slotId, node) {
-    if (!Number.isFinite(slotId) || !node) {
-      return;
-    }
-    if (node instanceof Element) {
-      slotElements.set(slotId, node);
-      applySlotBindings(slotId);
-      return;
-    }
-    slotElements.delete(slotId);
-  }
-  function onSlotUnregistered(slotId) {
-    const element = slotElements.get(slotId);
-    if (element) {
-      handlerBindings.delete(element);
-      clearRouterAttributes(element);
-    }
-    slotElements.delete(slotId);
-  }
-  function mergeSelectorLists(primary, secondary) {
-    const merged = [];
-    const seen = /* @__PURE__ */ new Set();
-    const add = (list) => {
-      if (!Array.isArray(list)) {
-        return;
+      if (this.options.debug) {
+        this.log("boot payload unavailable");
       }
-      for (const value of list) {
-        if (typeof value !== "string" || value.length === 0) {
-          continue;
-        }
-        if (seen.has(value)) {
-          continue;
-        }
-        seen.add(value);
-        merged.push(value);
-      }
-    };
-    add(primary);
-    add(secondary);
-    return merged.length > 0 ? merged : void 0;
-  }
-  function isLiveAnchor(element) {
-    const hasHref = element.hasAttribute("href") || element.hasAttribute("xlink:href");
-    if (!hasHref) {
-      return false;
+      return this.payload;
     }
-    const isHtmlAnchor = element instanceof HTMLAnchorElement;
-    const isSvgAnchor = element.namespaceURI === "http://www.w3.org/2000/svg" && element.tagName.toLowerCase() === "a";
-    return isHtmlAnchor || isSvgAnchor;
-  }
-  function registerHandlers(handlerMap) {
-    if (!handlerMap) return;
-    for (const [id, meta] of Object.entries(handlerMap)) {
-      const previous = handlers.get(id);
-      if (previous) {
-        for (const eventName of collectEventTypes(previous)) {
-          decrementEventUsage(eventName);
-        }
-      }
-      handlers.set(id, meta);
-      for (const eventName of collectEventTypes(meta)) {
-        incrementEventUsage(eventName);
-      }
+    get() {
+      return this.payload;
     }
-  }
-  function unregisterHandlers(handlerIds) {
-    if (!Array.isArray(handlerIds)) return;
-    for (const id of handlerIds) {
-      const handler = handlers.get(id);
-      handlers.delete(id);
-      if (handler) {
-        for (const eventName of collectEventTypes(handler)) {
-          decrementEventUsage(eventName);
-        }
+    ensure() {
+      const boot = this.payload ?? this.load();
+      if (!boot || typeof boot.sid !== "string") {
+        throw new Error("[LiveUI] boot payload is required before connecting");
       }
+      return boot;
     }
-  }
-  function clearHandlers() {
-    handlers.clear();
-    eventUsageCounts.clear();
-    syncEventListeners();
-  }
-  var sendEventCallback = null;
-  var navigationHandler = null;
-  var uploadDelegate = null;
-  function setupEventDelegation(sendEvent) {
-    sendEventCallback = sendEvent;
-    ALWAYS_ACTIVE_EVENTS.forEach((eventType) => {
-      installListener(eventType);
-    });
-  }
-  function teardownEventDelegation() {
-    installedListeners.forEach((listener, eventType) => {
-      const useCapture = eventType === "blur" || eventType === "focus";
-      document.removeEventListener(eventType, listener, useCapture);
-    });
-    installedListeners.clear();
-    sendEventCallback = null;
-    uploadDelegate = null;
-  }
-  function registerUploadDelegate(delegate) {
-    uploadDelegate = delegate;
-  }
-  function registerNavigationHandler(handler) {
-    navigationHandler = handler;
-    if (!installedListeners.has("click")) {
-      installListener("click");
+    readWindowPayload() {
+      if (typeof window === "undefined") {
+        return null;
+      }
+      const globalAny = window;
+      const payload = globalAny.__LIVEUI_BOOT__;
+      if (payload && typeof payload.sid === "string") {
+        return payload;
+      }
+      return null;
     }
-  }
-  function unregisterNavigationHandler() {
-    navigationHandler = null;
-  }
-  function shouldUseCapture(eventType) {
-    return CAPTURE_EVENTS.has(eventType);
-  }
-  function installListener(eventType) {
-    if (installedListeners.has(eventType)) return;
-    const useCapture = shouldUseCapture(eventType);
-    const listener = (e) => {
-      if (sendEventCallback) {
-        handleEvent(e, eventType, sendEventCallback);
+    readScriptPayload() {
+      if (typeof document === "undefined") {
+        return null;
       }
-    };
-    document.addEventListener(eventType, listener, useCapture);
-    installedListeners.set(eventType, listener);
-  }
-  function removeListener(eventType) {
-    const listener = installedListeners.get(eventType);
-    if (!listener) return;
-    const useCapture = shouldUseCapture(eventType);
-    document.removeEventListener(eventType, listener, useCapture);
-    installedListeners.delete(eventType);
-  }
-  function syncEventListeners() {
-    eventUsageCounts.forEach((_, eventType) => {
-      installListener(eventType);
-    });
-    installedListeners.forEach((_, eventType) => {
-      if (!eventUsageCounts.has(eventType) && !ALWAYS_ACTIVE_EVENTS.includes(eventType)) {
-        removeListener(eventType);
+      const script = document.getElementById(this.options.scriptId);
+      const content = script?.textContent;
+      if (!content) {
+        return null;
       }
-    });
-  }
-  function handleEvent(e, eventType, sendEvent) {
-    const target = e.target;
-    if (!target || !(target instanceof Element)) return;
-    if (uploadDelegate) {
       try {
-        uploadDelegate(e, eventType);
+        return JSON.parse(content);
       } catch (error) {
-        console.error("[LiveUI] upload delegate error", error);
+        this.log("failed to parse boot payload", error);
+        return null;
       }
     }
-    const handlerInfo = findHandlerInfo(target, eventType);
-    if (handlerInfo) {
-      const handler = handlers.get(handlerInfo.id);
-      if (handler && handlerSupportsEvent(handler, eventType)) {
-        const refContext2 = resolveRefEventContext(handlerInfo.element, eventType);
-        const combinedProps = mergeSelectorLists(handler.props, refContext2?.props);
-        const payload = extractEventPayload(
-          e,
-          target,
-          combinedProps,
-          handlerInfo.element,
-          refContext2?.element ?? null
-        );
-        const routerMeta = routerBindings.get(handlerInfo.element);
-        if (routerMeta) {
-          if (routerMeta.path !== void 0 && payload["currentTarget.dataset.routerPath"] === void 0) {
-            payload["currentTarget.dataset.routerPath"] = routerMeta.path;
-          }
-          if (routerMeta.query !== void 0 && payload["currentTarget.dataset.routerQuery"] === void 0) {
-            payload["currentTarget.dataset.routerQuery"] = routerMeta.query;
-          }
-          if (routerMeta.hash !== void 0 && payload["currentTarget.dataset.routerHash"] === void 0) {
-            payload["currentTarget.dataset.routerHash"] = routerMeta.hash;
-          }
-          if (routerMeta.replace !== void 0 && payload["currentTarget.dataset.routerReplace"] === void 0) {
-            payload["currentTarget.dataset.routerReplace"] = routerMeta.replace;
-          }
-        }
-        if (refContext2) {
-          refContext2.notify(payload);
-        }
-        if (eventType === "submit") {
-          e.preventDefault();
-        }
-        if (eventType === "click") {
-          const anchor = findAnchorElement(target);
-          if (anchor && shouldInterceptNavigation(e, anchor)) {
-            e.preventDefault();
-          }
-        }
-        sendEvent({
-          hid: handlerInfo.id,
-          payload
-        });
+    cacheToWindow(payload) {
+      if (typeof window === "undefined") {
         return;
       }
+      const globalAny = window;
+      globalAny.__LIVEUI_BOOT__ = payload;
     }
-    const refContext = resolveRefEventContext(target, eventType);
-    if (refContext) {
-      const payload = extractEventPayload(
-        e,
-        target,
-        refContext.props,
-        refContext.element,
-        refContext.element
-      );
-      refContext.notify(payload);
-      sendEvent({
-        hid: refContext.id,
-        // Use ref ID as handler ID for ref-only events
-        payload
+    log(message, error) {
+      if (!this.options.debug) {
+        return;
+      }
+      if (error) {
+        Logger.warn("[boot]", message, error);
+      } else {
+        Logger.warn("[boot]", message);
+      }
+    }
+  };
+
+  // src/emitter.ts
+  var TypedEventEmitter = class {
+    constructor() {
+      this.listeners = /* @__PURE__ */ new Map();
+    }
+    on(event, listener) {
+      const bucket = this.listeners.get(event) ?? /* @__PURE__ */ new Set();
+      bucket.add(listener);
+      this.listeners.set(event, bucket);
+      return () => this.off(event, listener);
+    }
+    once(event, listener) {
+      const unsubscribe = this.on(event, (payload) => {
+        unsubscribe();
+        listener(payload);
       });
-      return;
+      return unsubscribe;
     }
-    if (eventType === "click" && navigationHandler && e instanceof MouseEvent) {
-      const anchor = findAnchorElement(target);
-      if (anchor && shouldInterceptNavigation(e, anchor)) {
-        const href = anchor.getAttribute("href") ?? anchor.getAttribute("xlink:href");
-        if (href) {
-          try {
-            const url = new URL(href, window.location.href);
-            const path = url.pathname;
-            const query = url.search.substring(1);
-            const hash = url.hash.startsWith("#") ? url.hash.substring(1) : url.hash;
-            if (navigationHandler(path, query, hash)) {
-              e.preventDefault();
-              e.stopPropagation();
-              return;
+    off(event, listener) {
+      const bucket = this.listeners.get(event);
+      if (!bucket) {
+        return;
+      }
+      bucket.delete(listener);
+      if (bucket.size === 0) {
+        this.listeners.delete(event);
+      }
+    }
+    emit(event, payload) {
+      const bucket = this.listeners.get(event);
+      if (!bucket) {
+        return;
+      }
+      for (const listener of Array.from(bucket)) {
+        try {
+          listener(payload);
+        } catch (error) {
+          Logger.error("event listener error", event, error);
+        }
+      }
+    }
+    clear() {
+      this.listeners.clear();
+    }
+  };
+
+  // src/runtime.ts
+  var DEFAULT_OPTIONS = {
+    endpoint: "/live",
+    uploadEndpoint: "/pondlive/upload/",
+    autoConnect: true,
+    debug: false,
+    reconnect: true,
+    reconnectDelay: 1e3,
+    maxReconnectAttempts: 5
+  };
+  var LiveRuntime = class {
+    constructor(options) {
+      this.events = new TypedEventEmitter();
+      this.client = null;
+      this.channel = null;
+      this.bootPayload = null;
+      this.connectPromise = null;
+      this.reconnectTimer = null;
+      this.reconnectAttempts = 0;
+      this.disposed = false;
+      this.state = { status: "disconnected" };
+      this.lastAck = 0;
+      this.sessionId = null;
+      this.version = 0;
+      this.options = {
+        ...DEFAULT_OPTIONS,
+        ...options ?? {}
+      };
+      Logger.configure({ debug: this.options.debug });
+      this.bootLoader = new BootLoader({ debug: this.options.debug });
+      this.bootPayload = this.options.boot ? this.bootLoader.load(this.options.boot) : this.bootLoader.load();
+      this.sessionId = this.bootPayload?.sid ?? null;
+      this.version = this.bootPayload?.ver ?? 0;
+      Logger.debug("[Runtime]", "initialized", {
+        sessionId: this.sessionId,
+        version: this.version,
+        hasBoot: Boolean(this.bootPayload)
+      });
+      if (this.options.autoConnect && this.bootPayload) {
+        void this.connect();
+      }
+    }
+    on(event, listener) {
+      return this.events.on(event, listener);
+    }
+    once(event, listener) {
+      return this.events.once(event, listener);
+    }
+    off(event, listener) {
+      this.events.off(event, listener);
+    }
+    getState() {
+      return this.state;
+    }
+    getBootPayload() {
+      return this.bootPayload;
+    }
+    getSessionId() {
+      return this.sessionId ?? this.bootPayload?.sid ?? null;
+    }
+    getUploadEndpoint() {
+      return this.bootPayload?.client?.upload ?? this.options.uploadEndpoint;
+    }
+    sendUploadMessage(payload) {
+      const sid = this.getSessionId();
+      if (!this.channel || !sid || !payload.id) {
+        return;
+      }
+      const message = {
+        t: "upload",
+        sid,
+        id: payload.id,
+        op: payload.op
+      };
+      if (payload.meta) {
+        message.meta = payload.meta;
+      }
+      if (typeof payload.loaded === "number") {
+        message.loaded = payload.loaded;
+      }
+      if (typeof payload.total === "number") {
+        message.total = payload.total;
+      }
+      if (payload.error) {
+        message.error = payload.error;
+      }
+      Logger.debug("[Runtime]", "\u2192 sending upload message", message);
+      this.channel.sendMessage("upload", message);
+    }
+    sendDOMResponse(payload) {
+      const sid = this.getSessionId();
+      if (!this.channel || !sid || !payload.id) {
+        return;
+      }
+      const message = {
+        t: "domres",
+        sid,
+        id: payload.id
+      };
+      if (payload.values) {
+        message.values = payload.values;
+      }
+      if (payload.result !== void 0) {
+        message.result = payload.result;
+      }
+      if (payload.error) {
+        message.error = payload.error;
+      }
+      Logger.debug("[Runtime]", "\u2192 sending domres", message);
+      this.channel.sendMessage("domres", message);
+    }
+    async connect() {
+      if (this.disposed) {
+        throw new Error("[LiveUI] runtime disposed");
+      }
+      Logger.debug("[Runtime]", "connect requested", {
+        hasBoot: Boolean(this.bootPayload),
+        disposed: this.disposed,
+        state: this.state.status
+      });
+      if (this.channel && this.state.status === "connected") {
+        return;
+      }
+      if (this.connectPromise) {
+        return this.connectPromise;
+      }
+      this.connectPromise = new Promise((resolve, reject) => {
+        try {
+          const boot = this.bootPayload ?? this.bootLoader.load();
+          if (!boot || typeof boot.sid !== "string") {
+            throw new Error("[LiveUI] missing boot payload; call load() before connecting");
+          }
+          this.bootPayload = boot;
+          this.updateState({ status: "connecting" });
+          Logger.debug("[Runtime]", "opening socket", { endpoint: this.options.endpoint });
+          const client = new import_pondsocket_client.PondClient(this.options.endpoint);
+          this.client = client;
+          const joinPayload = this.buildJoinPayload(boot);
+          Logger.debug("[Runtime]", "joining channel", {
+            sid: boot.sid,
+            ack: joinPayload.ack,
+            version: joinPayload.ver
+          });
+          const channel = client.createChannel(`live/${boot.sid}`, joinPayload);
+          this.channel = channel;
+          channel.onChannelStateChange((state) => {
+            Logger.debug("[Runtime]", "channel state changed", state);
+            if (state === import_pondsocket_client.ChannelState.JOINED) {
+              this.reconnectAttempts = 0;
+              this.sessionId = boot.sid;
+              this.version = boot.ver ?? 0;
+              this.updateState({ status: "connected", sessionId: boot.sid, version: this.version });
+              this.events.emit("connected", { sid: boot.sid, version: this.version });
+              Logger.debug("[Runtime]", "session joined", { sid: boot.sid, version: this.version });
+              resolve();
+              this.connectPromise = null;
             }
-          } catch (err) {
-          }
+          });
+          channel.onMessage((_event, payload) => {
+            Logger.debug("[Runtime]", "\u2190 received message", payload);
+            this.routeMessage(payload);
+          });
+          channel.onLeave(() => {
+            this.handleChannelLeave();
+          });
+          client.connect();
+          channel.join();
+        } catch (error) {
+          Logger.debug("[Runtime]", "connect failed", error);
+          this.connectPromise = null;
+          this.handleErrorEvent(error);
+          reject(error);
         }
-      }
+      });
+      return this.connectPromise;
     }
-  }
-  function findHandlerInfo(element, eventType) {
-    let current = element;
-    while (current && current !== document.documentElement) {
-      const binding = handlerBindings.get(current);
-      if (binding && binding.size > 0) {
-        const directId = binding.get(eventType);
-        if (directId) {
-          const meta = handlers.get(directId);
-          if (!meta || handlerSupportsEvent(meta, eventType)) {
-            return { id: directId, element: current };
-          }
+    disconnect() {
+      this.clearReconnectTimer();
+      this.reconnectAttempts = 0;
+      this.connectPromise = null;
+      if (this.channel) {
+        try {
+          this.channel.leave();
+        } catch (error) {
+          Logger.debug("[Runtime]", "channel leave error", error);
         }
-        for (const [registeredEvent, handlerId] of binding.entries()) {
-          if (registeredEvent === eventType) {
-            continue;
-          }
-          const meta = handlers.get(handlerId);
-          if (meta && handlerSupportsEvent(meta, eventType)) {
-            return { id: handlerId, element: current };
-          }
+        this.channel = null;
+      }
+      if (this.client) {
+        try {
+          this.client.disconnect();
+        } catch (error) {
+          Logger.debug("[Runtime]", "client disconnect error", error);
         }
+        this.client = null;
       }
-      current = current.parentElement;
+      this.updateState({ status: "disconnected" });
+      this.events.emit("disconnected", void 0);
     }
-    return null;
-  }
-  function autoCaptureEventProperties(e) {
-    const captured = {};
-    for (const key in e) {
-      try {
-        const value = e[key];
-        if (typeof value === "function" || value instanceof Node || value instanceof Window || key === "target" || // Too large, causes circular refs
-        key === "currentTarget" || key === "srcElement") {
-          continue;
+    destroy() {
+      this.disposed = true;
+      this.disconnect();
+      this.events.clear();
+    }
+    sendEvent(hid, payload, cseq) {
+      const sid = this.sessionId ?? this.bootPayload?.sid;
+      if (!this.channel || !sid) {
+        return;
+      }
+      Logger.debug("[Runtime]", "send event", { handler: hid, cseq });
+      const message = {
+        t: "evt",
+        sid,
+        hid,
+        payload,
+        cseq
+      };
+      Logger.debug("[Runtime]", "\u2192 sending event", message);
+      this.channel.sendMessage("evt", message);
+    }
+    sendNavigation(path, q, hash = "") {
+      const sid = this.sessionId ?? this.bootPayload?.sid;
+      if (!this.channel || !sid) {
+        return;
+      }
+      Logger.debug("[Runtime]", "send navigation", { path, q, hash });
+      const message = {
+        t: "nav",
+        sid,
+        path,
+        q,
+        hash
+      };
+      Logger.debug("[Runtime]", "\u2192 sending navigation", message);
+      this.channel.sendMessage("nav", message);
+    }
+    sendPopNavigation(path, q, hash = "") {
+      const sid = this.sessionId ?? this.bootPayload?.sid;
+      if (!this.channel || !sid) {
+        return;
+      }
+      Logger.debug("[Runtime]", "send pop navigation", { path, q, hash });
+      const message = {
+        t: "pop",
+        sid,
+        path,
+        q,
+        hash
+      };
+      Logger.debug("[Runtime]", "\u2192 sending pop navigation", message);
+      this.channel.sendMessage("pop", message);
+    }
+    requestRecover() {
+      const sid = this.sessionId ?? this.bootPayload?.sid;
+      if (!this.channel || !sid) {
+        return;
+      }
+      Logger.debug("[Runtime]", "request recover", { sid });
+      const payload = {
+        t: "recover",
+        sid
+      };
+      Logger.debug("[Runtime]", "\u2192 sending recover", payload);
+      this.channel.sendMessage("recover", payload);
+    }
+    buildJoinPayload(boot) {
+      const ack = this.lastAck || boot.seq || 0;
+      return {
+        sid: boot.sid,
+        ver: boot.ver ?? 0,
+        ack,
+        loc: {
+          path: boot.location?.path ?? "/",
+          q: boot.location?.q ?? "",
+          hash: boot.location?.hash ?? ""
         }
-        if (value !== null && typeof value === "object") {
-          try {
-            JSON.stringify(value);
-            captured[key] = value;
-          } catch {
-            continue;
-          }
-        } else {
-          captured[key] = value;
+      };
+    }
+    routeMessage(msg) {
+      if (!msg || typeof msg.t !== "string") {
+        return;
+      }
+      Logger.debug("[Runtime]", "received message", { type: msg?.t });
+      this.events.emit("message", msg);
+      switch (msg.t) {
+        case "init":
+          this.handleInit(msg);
+          break;
+        case "frame":
+          this.handleFrame(msg);
+          break;
+        case "template":
+          this.events.emit("template", msg);
+          break;
+        case "resume":
+          this.events.emit("resume", msg);
+          break;
+        case "join":
+          this.events.emit("join", msg);
+          break;
+        case "diagnostic":
+          this.events.emit("diagnostic", msg);
+          break;
+        case "error":
+          this.handleErrorMessage(msg);
+          break;
+        case "upload":
+          this.events.emit("upload", msg);
+          break;
+        case "domreq":
+          this.events.emit("domreq", msg);
+          break;
+        default:
+          break;
+      }
+    }
+    handleInit(msg) {
+      this.sessionId = msg.sid;
+      this.version = msg.ver;
+      Logger.debug("[Runtime]", "init received", { sid: msg.sid, version: msg.ver, seq: msg.seq });
+      if (typeof msg.seq === "number") {
+        this.lastAck = msg.seq;
+        this.sendAck(msg.seq);
+      }
+      this.events.emit("init", msg);
+    }
+    handleFrame(msg) {
+      this.version = msg.ver;
+      Logger.debug("[Runtime]", "frame received", {
+        version: msg.ver,
+        seq: msg.seq,
+        ops: Array.isArray(msg.patch) ? msg.patch.length : 0
+      });
+      if (typeof msg.seq === "number") {
+        this.lastAck = msg.seq;
+        this.sendAck(msg.seq);
+      }
+      this.events.emit("frame", msg);
+    }
+    handleErrorMessage(msg) {
+      const error = new Error(msg.message ?? "server error");
+      error.name = msg.code ?? "ServerError";
+      this.handleErrorEvent(error);
+    }
+    handleChannelLeave() {
+      Logger.debug("[Runtime]", "channel left, cleaning up");
+      this.channel = null;
+      this.sessionId = null;
+      this.version = 0;
+      if (this.client) {
+        try {
+          this.client.disconnect();
+        } catch (error) {
+          Logger.debug("[Runtime]", "client disconnect error", error);
         }
-      } catch {
-        continue;
+        this.client = null;
+      }
+      this.updateState({ status: "disconnected" });
+      this.events.emit("disconnected", void 0);
+      if (!this.disposed && this.options.reconnect) {
+        this.scheduleReconnect();
       }
     }
-    return captured;
-  }
-  function extractEventPayload(e, target, props, handlerElement, refElement) {
-    const payload = {
-      type: e.type
-    };
-    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
-      payload.value = target.value;
-      if (target instanceof HTMLInputElement) {
-        if (target.type === "checkbox" || target.type === "radio") {
-          payload.checked = target.checked;
-        }
+    scheduleReconnect() {
+      if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
+        return;
+      }
+      if (this.reconnectTimer) {
+        return;
+      }
+      this.reconnectAttempts += 1;
+      const delay = this.options.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+      Logger.debug("[Runtime]", "scheduling reconnect", {
+        attempt: this.reconnectAttempts,
+        delay
+      });
+      this.updateState({ status: "reconnecting", attempt: this.reconnectAttempts });
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
+        void this.connect();
+      }, delay);
+    }
+    clearReconnectTimer() {
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
       }
     }
-    if (e instanceof KeyboardEvent) {
-      payload.key = e.key;
-      payload.keyCode = e.keyCode;
-      payload.altKey = e.altKey;
-      payload.ctrlKey = e.ctrlKey;
-      payload.metaKey = e.metaKey;
-      payload.shiftKey = e.shiftKey;
-    }
-    if (e instanceof MouseEvent) {
-      payload.clientX = e.clientX;
-      payload.clientY = e.clientY;
-    }
-    if (Array.isArray(props)) {
-      if (props.includes("*")) {
-        const captured = autoCaptureEventProperties(e);
-        Object.assign(payload, captured);
-      } else {
-        const domValues = domGetSync(props, {
-          event: e,
-          target,
-          handlerElement: handlerElement ?? null,
-          refElement: refElement ?? null
-        });
-        if (domValues) {
-          Object.assign(payload, domValues);
-        }
+    sendAck(seq) {
+      const sid = this.sessionId ?? this.bootPayload?.sid;
+      if (!this.channel || !sid) {
+        return;
       }
+      Logger.debug("[Runtime]", "acknowledging frame", { seq });
+      const payload = {
+        t: "ack",
+        sid,
+        seq
+      };
+      Logger.debug("[Runtime]", "\u2192 sending ack", payload);
+      this.channel.sendMessage("ack", payload);
     }
-    return payload;
-  }
-  function findAnchorElement(element) {
-    let current = element;
-    while (current && current !== document.documentElement) {
-      if (isLiveAnchor(current)) {
-        return current;
-      }
-      current = current.parentElement;
+    handleErrorEvent(error) {
+      Logger.warn("[Runtime]", "runtime error", error);
+      this.events.emit("error", { error });
+      this.updateState({ status: "error", error });
     }
-    return null;
-  }
-  function shouldInterceptNavigation(e, anchor) {
-    if (e.button !== 0) {
-      return false;
+    updateState(next) {
+      this.state = next;
+      this.events.emit("state", next);
     }
-    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) {
-      return false;
-    }
-    if (!isLiveAnchor(anchor)) {
-      return false;
-    }
-    const href = anchor.getAttribute("href") ?? anchor.getAttribute("xlink:href") ?? void 0;
-    if (!href) {
-      return false;
-    }
-    const target = anchor.getAttribute("target");
-    if (target && target !== "_self") {
-      return false;
-    }
-    try {
-      const url = new URL(href, window.location.href);
-      if (url.origin !== window.location.origin) {
-        return false;
-      }
-      if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) {
-        return false;
-      }
-      return true;
-    } catch (err) {
-      return false;
-    }
-  }
-  function incrementEventUsage(eventType) {
-    const current = eventUsageCounts.get(eventType) ?? 0;
-    eventUsageCounts.set(eventType, current + 1);
-  }
-  function decrementEventUsage(eventType) {
-    const current = eventUsageCounts.get(eventType);
-    if (!current) {
-      return;
-    }
-    if (current <= 1) {
-      eventUsageCounts.delete(eventType);
-    } else {
-      eventUsageCounts.set(eventType, current - 1);
-    }
-  }
-  function collectEventTypes(meta) {
-    if (!meta) {
-      return [];
-    }
-    const seen = /* @__PURE__ */ new Set();
-    const order = [];
-    if (meta.event) {
-      seen.add(meta.event);
-      order.push(meta.event);
-    }
-    if (Array.isArray(meta.listen)) {
-      for (const evt of meta.listen) {
-        if (typeof evt !== "string" || evt.length === 0) {
-          continue;
-        }
-        if (!seen.has(evt)) {
-          seen.add(evt);
-          order.push(evt);
-        }
-      }
-    }
-    return order;
-  }
-  function handlerSupportsEvent(meta, eventType) {
-    if (!meta) {
-      return false;
-    }
-    if (meta.event === eventType) {
-      return true;
-    }
-    if (Array.isArray(meta.listen)) {
-      return meta.listen.includes(eventType);
-    }
-    return false;
-  }
-
-  // src/dom-index.ts
-  var slotMap = /* @__PURE__ */ new Map();
-  var listMap = /* @__PURE__ */ new Map();
-  function collectRows(container) {
-    const rows = /* @__PURE__ */ new Map();
-    if (!container) return rows;
-    const elements = container.querySelectorAll("[data-row-key]");
-    elements.forEach((el) => {
-      const key = el.getAttribute("data-row-key");
-      if (!key) return;
-      rows.set(key, el);
-    });
-    return rows;
-  }
-  function registerSlot(index, node) {
-    if (!node) return;
-    slotMap.set(index, node);
-    onSlotRegistered(index, node);
-  }
-  function getSlot(index) {
-    return slotMap.get(index) ?? null;
-  }
-  function unregisterSlot(index) {
-    onSlotUnregistered(index);
-    slotMap.delete(index);
-  }
-  function unregisterList(slotIndex) {
-    listMap.delete(slotIndex);
-  }
-  function reset() {
-    slotMap.forEach((_node, index) => {
-      onSlotUnregistered(index);
-    });
-    slotMap.clear();
-    listMap.clear();
-  }
-  function initLists(slotIndexes, containers) {
-    if (!Array.isArray(slotIndexes)) return;
-    const lookup = (slotIndex) => {
-      if (containers instanceof Map) {
-        const candidate = containers.get(slotIndex);
-        return candidate instanceof Element ? candidate : null;
-      }
-      if (containers && typeof containers === "object") {
-        const key = String(slotIndex);
-        const candidate = containers[key];
-        return candidate instanceof Element ? candidate : null;
-      }
-      return null;
-    };
-    for (const slotIndex of slotIndexes) {
-      if (listMap.has(slotIndex) && listMap.get(slotIndex)?.container instanceof Element) {
-        continue;
-      }
-      const container = lookup(slotIndex);
-      if (container) {
-        registerList(slotIndex, container);
-      }
-    }
-  }
-  function ensureList(slotIndex) {
-    const record = listMap.get(slotIndex);
-    if (!record || !record.container) {
-      throw new Error(`liveui: list slot ${slotIndex} not registered`);
-    }
-    return record;
-  }
-  function registerList(slotIndex, container, rows) {
-    if (!container) return;
-    listMap.set(slotIndex, { container, rows: rows ?? collectRows(container) });
-  }
-  function setRow(slotIndex, key, root) {
-    const list = ensureList(slotIndex);
-    list.rows.set(key, root);
-  }
-  function getRow(slotIndex, key) {
-    const list = ensureList(slotIndex);
-    return list.rows.get(key) ?? null;
-  }
-  function deleteRow(slotIndex, key) {
-    const list = ensureList(slotIndex);
-    list.rows.delete(key);
-  }
-
-  // src/componentRanges.ts
-  var rangeIndex = /* @__PURE__ */ new Map();
-  function resetComponentRanges() {
-    rangeIndex.clear();
-  }
-  function registerComponentRange(id, range) {
-    if (!id || !range || !range.container) return null;
-    const { container } = range;
-    let { startIndex, endIndex } = range;
-    if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) {
-      return null;
-    }
-    const normalizedStart = Math.max(0, Math.trunc(startIndex));
-    let normalizedEnd = Math.trunc(endIndex);
-    if (!Number.isFinite(normalizedEnd)) {
-      return null;
-    }
-    if (normalizedEnd < normalizedStart) {
-      normalizedEnd = normalizedStart - 1;
-    }
-    const normalized = {
-      container,
-      startIndex: normalizedStart,
-      endIndex: normalizedEnd
-    };
-    rangeIndex.set(id, normalized);
-    return normalized;
-  }
-  function registerComponentRanges(descriptors) {
-    if (!descriptors) return;
-    if (descriptors instanceof Map) {
-      for (const [id, range] of Array.from(descriptors.entries())) {
-        const normalized = registerComponentRange(id, range);
-        if (normalized) {
-          descriptors.set(id, normalized);
-        } else {
-          descriptors.delete(id);
-        }
-      }
-      return;
-    }
-    for (const [id, range] of Object.entries(descriptors)) {
-      const normalized = registerComponentRange(id, range);
-      if (normalized) {
-        descriptors[id] = normalized;
-      } else {
-        delete descriptors[id];
-      }
-    }
-  }
-  function getComponentRange(id) {
-    if (!id) return null;
-    return rangeIndex.get(id) ?? null;
-  }
+  };
 
   // src/manifest.ts
-  function debugLog(...args) {
-    if (typeof console === "undefined") {
-      return;
-    }
-    console.log("[liveui][manifest]", ...args);
-  }
-  function debugWarn(...args) {
-    if (typeof console === "undefined") {
-      return;
-    }
-    console.warn("[liveui][manifest]", ...args);
-  }
-  function ensureArray(path) {
-    if (!Array.isArray(path)) {
-      return [];
-    }
-    return path.filter((index) => Number.isInteger(index));
-  }
-  function getRootContainer(root) {
-    if (root && root instanceof Document) {
-      return root.body ?? root;
-    }
-    if (root && "childNodes" in root) {
-      return root;
-    }
-    if (typeof document !== "undefined") {
-      return document.body ?? document;
-    }
-    throw new Error("liveui: unable to resolve root container for manifest resolution");
-  }
-  function clampIndex(container, index) {
-    const maxIndex = container.childNodes.length - 1;
-    if (maxIndex < 0) {
-      return 0;
-    }
-    if (index < 0) {
-      return 0;
-    }
-    if (index > maxIndex) {
-      return maxIndex;
-    }
-    return index;
-  }
-  function computeBaseRange(root) {
-    const count = root.childNodes.length;
-    return {
-      container: root,
-      startIndex: 0,
-      endIndex: count > 0 ? count - 1 : -1
-    };
-  }
-  function deriveRangeFromDescriptor(descriptor, parentRange) {
-    if (!parentRange || parentRange.endIndex < parentRange.startIndex) {
-      return null;
-    }
-    const anchorPath = ensureArray(descriptor.parentPath);
-    const anchor = resolveNodeInRange(parentRange, anchorPath);
-    if (!anchor) {
-      return null;
-    }
-    const container = anchor.parentNode ?? parentRange.container;
-    const startIndex = getNodeIndex(container, anchor);
-    if (startIndex < 0) {
-      return null;
-    }
-    return {
-      container,
-      startIndex,
-      endIndex: startIndex
-    };
-  }
-  function getNodeIndex(container, target) {
-    if (!container || !target) {
-      return -1;
-    }
-    const nodes = container.childNodes;
-    for (let i = 0; i < nodes.length; i++) {
-      if (nodes.item(i) === target) {
-        return i;
+  var componentRanges = /* @__PURE__ */ new Map();
+  function registerComponentRanges(ranges) {
+    ranges.forEach((range, id) => {
+      if (id) {
+        componentRanges.set(id, range);
       }
-    }
-    return -1;
+    });
   }
-  function computeComponentRanges(descriptors, options) {
-    const ranges = /* @__PURE__ */ new Map();
-    if (!Array.isArray(descriptors) || descriptors.length === 0) {
-      return ranges;
-    }
-    const rootContainer = getRootContainer(options?.root ?? null);
-    const defaultRange = options?.baseRange ?? computeBaseRange(rootContainer);
-    const baseId = options?.baseId ?? "";
-    if (options?.baseRange && baseId) {
-      ranges.set(baseId, options.baseRange);
-    }
-    const pending = /* @__PURE__ */ new Map();
-    for (const descriptor of descriptors) {
-      if (!descriptor || typeof descriptor.componentId !== "string") continue;
-      pending.set(descriptor.componentId, descriptor);
-    }
-    let progressed = true;
-    while (pending.size > 0 && progressed) {
-      progressed = false;
-      for (const [id, descriptor] of Array.from(pending.entries())) {
-        const parentId = descriptor.parentId ?? "";
-        let parentRange = null;
-        if (parentId) {
-          parentRange = ranges.get(parentId) ?? getComponentRange(parentId);
-        } else {
-          parentRange = baseId ? ranges.get(baseId) ?? null : null;
-          if (!parentRange) {
-            parentRange = defaultRange;
-          }
-        }
-        if (!parentRange) {
-          continue;
-        }
-        const derived = deriveRangeFromDescriptor(descriptor, parentRange);
-        if (!derived) {
-          pending.delete(id);
-          continue;
-        }
-        ranges.set(id, derived);
-        pending.delete(id);
-        progressed = true;
-      }
-    }
-    return ranges;
-  }
-  function resolveComponentPathNode(componentId, path, options) {
-    let range = null;
-    if (componentId && componentId.length > 0) {
-      range = options?.overrides?.get(componentId) ?? getComponentRange(componentId);
-    } else {
-      range = options?.fallbackRange ?? null;
-    }
-    if (!range) {
-      return null;
-    }
-    return resolveNodeInRange(range, path ?? void 0);
-  }
-  function resolveNodeInRange(range, path) {
-    if (!range || range.endIndex < range.startIndex) return null;
-    const steps = ensureArray(path);
-    const rootIndex = clampIndex(range.container, range.startIndex);
-    let current = range.container.childNodes.item(rootIndex) ?? null;
-    if (!current) {
-      return null;
-    }
-    if (steps.length === 0) {
-      return current;
-    }
-    for (const step of steps) {
-      if (!(current instanceof Element || current instanceof DocumentFragment)) {
-        return null;
-      }
-      const childIndex = clampIndex(current, step);
-      current = current.childNodes.item(childIndex) ?? null;
-      if (!current) {
-        return null;
-      }
-    }
-    return current;
+  function getComponentRange(id) {
+    return componentRanges.get(id);
   }
   function resolveSlotAnchors(descriptors, overrides) {
     const anchors = /* @__PURE__ */ new Map();
@@ -2521,17 +1762,10 @@ var LiveUIModule = (() => {
       }
       const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
       if (!range) {
-        debugWarn(
-          "slot range missing",
-          descriptor.componentId,
-          descriptor,
-          Array.from(overrides?.keys() ?? [])
-        );
         continue;
       }
-      const anchor = resolveNodeInRange(range, descriptor.elementPath);
+      const anchor = resolveNodeBySegments(range, descriptor.path);
       if (!anchor) {
-        debugWarn("slot anchor not found", descriptor, range);
         continue;
       }
       let target = anchor;
@@ -2540,3864 +1774,1996 @@ var LiveUIModule = (() => {
         if (anchor instanceof Text) {
           target = anchor;
         } else if (anchor instanceof Element || anchor instanceof DocumentFragment) {
-          let textNode = anchor.childNodes.item(textIndex) ?? null;
-          if (!textNode && typeof document !== "undefined") {
-            textNode = document.createTextNode("");
-            const before = textIndex < anchor.childNodes.length ? anchor.childNodes.item(textIndex) : null;
+          const existing = anchor.childNodes.item(textIndex);
+          if (existing) {
+            target = existing;
+          } else if (typeof document !== "undefined") {
+            const textNode = document.createTextNode("");
+            const before = anchor.childNodes.item(textIndex) ?? null;
             anchor.insertBefore(textNode, before);
+            target = textNode;
           }
-          target = textNode;
         } else {
           target = null;
         }
       }
       if (!target) {
-        debugWarn("slot target missing", descriptor, {
-          anchorName: anchor instanceof Element ? anchor.tagName : anchor?.nodeName
-        });
         continue;
       }
-      debugLog("slot resolved", slotId, descriptor.componentId);
       anchors.set(slotId, target);
     }
     return anchors;
   }
   function resolveListContainers(descriptors, overrides) {
-    const lists = /* @__PURE__ */ new Map();
+    const containers = /* @__PURE__ */ new Map();
     if (!Array.isArray(descriptors)) {
-      return lists;
+      return containers;
     }
     for (const descriptor of descriptors) {
       if (!descriptor) continue;
       const slotId = Number(descriptor.slot);
-      if (!Number.isInteger(slotId) || slotId < 0 || lists.has(slotId)) {
+      if (!Number.isInteger(slotId) || slotId < 0 || containers.has(slotId)) {
         continue;
       }
       const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
       if (!range) {
-        debugWarn(
-          "list range missing",
-          descriptor.componentId,
-          descriptor,
-          Array.from(overrides?.keys() ?? [])
-        );
         continue;
       }
-      const node = resolveNodeInRange(range, descriptor.elementPath);
+      if (descriptor.atRoot) {
+        const element = resolveRangeContainerElement(range);
+        if (element) {
+          containers.set(slotId, element);
+        }
+        continue;
+      }
+      const node = resolveNodeBySegments(range, descriptor.path);
       if (!(node instanceof Element)) {
-        debugWarn("list container not found", descriptor, range);
         continue;
       }
-      debugLog("list container resolved", slotId, descriptor.componentId);
-      lists.set(slotId, node);
+      containers.set(slotId, node);
     }
-    return lists;
+    return containers;
   }
   function applyComponentRanges(descriptors, options) {
     const ranges = computeComponentRanges(descriptors, options);
     registerComponentRanges(ranges);
     return ranges;
   }
-  function resolveNodeInComponent(componentId, path, overrides) {
-    if (typeof componentId !== "string" || componentId.length === 0) {
-      return null;
+  function computeComponentRanges(descriptors, options) {
+    const ranges = /* @__PURE__ */ new Map();
+    if (!Array.isArray(descriptors)) {
+      return ranges;
     }
+    const root = options?.root ?? document.body ?? document;
+    const baseRange = root ? { container: root, startIndex: 0, endIndex: root.childNodes.length - 1 } : null;
+    const pending = /* @__PURE__ */ new Map();
+    descriptors.forEach((descriptor) => {
+      if (descriptor && typeof descriptor.componentId === "string") {
+        pending.set(descriptor.componentId, descriptor);
+      }
+    });
+    let progressed = true;
+    while (pending.size > 0 && progressed) {
+      progressed = false;
+      for (const [id, descriptor] of Array.from(pending.entries())) {
+        const parentRange = descriptor.parentId ? ranges.get(descriptor.parentId) : baseRange;
+        if (!parentRange) {
+          continue;
+        }
+        Logger.debug("[Manifest]", "computing component range", {
+          id,
+          parentId: descriptor.parentId,
+          parentPath: descriptor.parentPath,
+          firstChild: descriptor.firstChild,
+          lastChild: descriptor.lastChild,
+          parentRangeContainer: parentRange.container.nodeName,
+          parentRangeStart: parentRange.startIndex,
+          parentRangeEnd: parentRange.endIndex
+        });
+        const firstNode = resolveNodeForComponent(parentRange, descriptor.parentPath, descriptor.firstChild);
+        const lastNode = resolveNodeForComponent(parentRange, descriptor.parentPath, descriptor.lastChild);
+        Logger.debug("[Manifest]", "resolved boundary nodes", {
+          id,
+          firstNode: firstNode?.nodeName,
+          lastNode: lastNode?.nodeName
+        });
+        const container = chooseComponentContainer(firstNode, lastNode, parentRange.container);
+        const topLevelFirst = ascendToContainer(firstNode, container) ?? firstNode;
+        const topLevelLast = ascendToContainer(lastNode, container) ?? lastNode ?? topLevelFirst;
+        let startIndex = topLevelFirst ? getNodeIndex(container, topLevelFirst) : parentRange.startIndex;
+        if (startIndex < 0) {
+          startIndex = parentRange.startIndex;
+        }
+        let endIndex = topLevelLast ? getNodeIndex(container, topLevelLast) : startIndex;
+        if (endIndex < startIndex) {
+          endIndex = startIndex;
+        }
+        Logger.debug("[Manifest]", "computed component range", {
+          id,
+          container: container.nodeName,
+          startIndex,
+          endIndex
+        });
+        ranges.set(id, { container, startIndex, endIndex });
+        pending.delete(id);
+        progressed = true;
+      }
+    }
+    return ranges;
+  }
+  function resolveNodeInComponent(componentId, path, overrides) {
     const range = overrides?.get(componentId) ?? getComponentRange(componentId);
     if (!range) {
       return null;
     }
-    return resolveNodeInRange(range, path);
+    return resolveNodeBySegments(range, path);
   }
-
-  // src/bindings.ts
-  function resolveBindingTarget(componentId, path, options) {
-    const node = resolveComponentPathNode(componentId, path, {
-      overrides: options?.overrides,
-      fallbackRange: options?.fallbackRange ?? null
+  function resolveNodeBySegments(range, segments) {
+    if (!range || range.endIndex < range.startIndex) {
+      Logger.debug("[Manifest]", "resolveNodeBySegments: invalid range", { range });
+      return null;
+    }
+    const container = range.container;
+    if (!container) {
+      Logger.debug("[Manifest]", "resolveNodeBySegments: no container", { range });
+      return null;
+    }
+    Logger.debug("[Manifest]", "resolveNodeBySegments START", {
+      segments,
+      rangeInfo: {
+        containerNodeName: container.nodeName,
+        startIndex: range.startIndex,
+        endIndex: range.endIndex,
+        childCount: container.childNodes.length
+      }
     });
-    if (node instanceof Element) {
+    if (!Array.isArray(segments) || segments.length === 0) {
+      const root = resolveRangeRoot(range);
+      Logger.debug("[Manifest]", "resolveNodeBySegments: using range root", { result: root?.nodeName });
+      return root;
+    }
+    let current = null;
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      if (!segment) {
+        continue;
+      }
+      if (segment.kind === "range") {
+        current = resolveRangeChild(range, segment.index);
+        Logger.debug("[Manifest]", "resolveNodeBySegments: range segment", {
+          step: i,
+          offset: segment.index,
+          node: current?.nodeName
+        });
+        if (!current) {
+          return null;
+        }
+        continue;
+      }
+      if (!current) {
+        current = resolveRangeChild(range, segment.index);
+        Logger.debug("[Manifest]", "resolveNodeBySegments: selecting top-level child", {
+          step: i,
+          offset: segment.index,
+          node: current?.nodeName
+        });
+        if (!current) {
+          return null;
+        }
+        continue;
+      }
+      if (!(current instanceof Element || current instanceof DocumentFragment)) {
+        Logger.debug("[Manifest]", "resolveNodeBySegments: current not Element/Fragment", {
+          step: i,
+          current: current?.nodeName
+        });
+        return null;
+      }
+      const clamped = clampIndex(current, segment.index);
+      const next = current.childNodes.item(clamped) ?? null;
+      Logger.debug("[Manifest]", "resolveNodeBySegments: navigating dom segment", {
+        step: i,
+        index: segment.index,
+        clamped,
+        currentNodeName: current.nodeName,
+        nextNodeName: next?.nodeName
+      });
+      current = next;
+      if (!current) {
+        return null;
+      }
+    }
+    Logger.debug("[Manifest]", "resolveNodeBySegments END", { result: current?.nodeName });
+    return current ?? resolveRangeRoot(range);
+  }
+  function resolveNodeForComponent(range, parentPath, childPath) {
+    const combined = combineSegments(parentPath, childPath);
+    if (combined) {
+      return resolveNodeBySegments(range, combined);
+    }
+    return resolveNodeBySegments(range, parentPath) ?? resolveNodeBySegments(range, childPath);
+  }
+  function combineSegments(base, extra) {
+    const result = [];
+    if (Array.isArray(base) && base.length > 0) {
+      result.push(...base);
+    }
+    if (Array.isArray(extra) && extra.length > 0) {
+      result.push(...extra);
+    }
+    return result.length > 0 ? result : void 0;
+  }
+  function chooseComponentContainer(firstNode, lastNode, fallback) {
+    const firstAncestors = collectAncestorParents(firstNode);
+    if (!lastNode) {
+      return firstAncestors[0] ?? fallback;
+    }
+    const lastAncestors = collectAncestorParents(lastNode);
+    for (const ancestor of firstAncestors) {
+      if (lastAncestors.includes(ancestor)) {
+        return ancestor;
+      }
+    }
+    return firstAncestors[0] ?? lastAncestors[0] ?? fallback;
+  }
+  function collectAncestorParents(node) {
+    const parents = [];
+    let current = node;
+    while (current && current.parentNode) {
+      const parent = current.parentNode;
+      parents.push(parent);
+      current = parent;
+    }
+    return parents;
+  }
+  function ascendToContainer(node, container) {
+    if (!node || !container) {
       return node;
+    }
+    let current = node;
+    while (current && current.parentNode && current.parentNode !== container) {
+      current = current.parentNode;
+    }
+    return current;
+  }
+  function clampIndex(container, index) {
+    const max = container.childNodes.length - 1;
+    if (max < 0) {
+      return 0;
+    }
+    if (index < 0) {
+      return 0;
+    }
+    if (index > max) {
+      return max;
+    }
+    return index;
+  }
+  function getNodeIndex(container, node) {
+    if (!container || !node) {
+      return -1;
+    }
+    const nodes = container.childNodes;
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes.item(i) === node) {
+        return i;
+      }
+    }
+    return -1;
+  }
+  function resolveRangeRoot(range) {
+    return resolveRangeChild(range, 0);
+  }
+  function resolveRangeChild(range, offset) {
+    const container = range.container;
+    if (!container || container.childNodes.length === 0) {
+      return null;
+    }
+    const start = clampIndex(container, range.startIndex);
+    const end = Math.max(start, clampIndex(container, range.endIndex));
+    const span = end - start;
+    const normalizedOffset = Number.isFinite(offset) ? offset : 0;
+    const clampedOffset = normalizedOffset <= 0 ? 0 : normalizedOffset >= span ? span : normalizedOffset;
+    const index = start + clampedOffset;
+    return container.childNodes.item(index) ?? null;
+  }
+  function resolveRangeContainerElement(range) {
+    const container = range.container;
+    if (container instanceof Element) {
+      return container;
+    }
+    if (container instanceof Document) {
+      return container.body ?? container.documentElement ?? null;
+    }
+    if (container instanceof DocumentFragment) {
+      const first = container.firstElementChild;
+      return first ?? null;
     }
     return null;
   }
-  function applyRouterBindings(bindings, options) {
-    if (!Array.isArray(bindings) || bindings.length === 0) {
-      return;
+
+  // src/dom-registry.ts
+  var DomRegistry = class {
+    constructor() {
+      this.slots = /* @__PURE__ */ new Map();
+      this.lists = /* @__PURE__ */ new Map();
     }
-    for (const binding of bindings) {
-      if (!binding) {
+    reset() {
+      this.slots.clear();
+      this.lists.clear();
+      Logger.debug("[DomRegistry]", "reset");
+    }
+    prime(componentPaths, options) {
+      return applyComponentRanges(componentPaths, options);
+    }
+    registerSlotAnchors(descriptors, overrides) {
+      const anchors = resolveSlotAnchors(descriptors, overrides);
+      anchors.forEach((node, id) => this.slots.set(id, node));
+      Logger.debug("[DomRegistry]", "registered slot anchors", { count: anchors.size });
+    }
+    registerListContainers(descriptors, overrides, rowMeta) {
+      const containers = resolveListContainers(descriptors, overrides);
+      containers.forEach((element, id) => {
+        const info = rowMeta?.get(id);
+        const { rows, order } = collectRows(element, info);
+        this.lists.set(id, { container: element, rows, order });
+      });
+      Logger.debug("[DomRegistry]", "registered list containers", { count: containers.size });
+    }
+    registerSlots(slotDescriptors) {
+      if (!Array.isArray(slotDescriptors)) {
+        return;
+      }
+      slotDescriptors.forEach((slot) => {
+        if (slot && typeof slot.anchorId === "number" && !this.slots.has(slot.anchorId)) {
+          const placeholder = typeof document !== "undefined" ? document.createTextNode("") : null;
+          if (placeholder) {
+            this.slots.set(slot.anchorId, placeholder);
+          }
+        }
+      });
+      Logger.debug("[DomRegistry]", "registered additional slots", { total: this.slots.size });
+    }
+    getSlot(id) {
+      return this.slots.get(id);
+    }
+    registerLists(listDescriptors, overrides, rowMeta) {
+      this.registerListContainers(listDescriptors, overrides, rowMeta);
+    }
+    getList(id) {
+      return this.lists.get(id)?.container;
+    }
+    getRow(slotId, key) {
+      return this.lists.get(slotId)?.rows.get(key);
+    }
+    insertRow(slotId, key, nodes, index) {
+      if (!key || nodes.length === 0) {
+        return;
+      }
+      const list = this.lists.get(slotId);
+      if (!list) {
+        return;
+      }
+      list.rows.set(key, { nodes: [...nodes] });
+      const clamped = clampIndex2(list.order.length, index);
+      list.order.splice(clamped, 0, key);
+      Logger.debug("[DomRegistry]", "inserted row", { slotId, key, index: clamped });
+    }
+    deleteRow(slotId, key) {
+      const list = this.lists.get(slotId);
+      if (!list) {
+        return;
+      }
+      list.rows.delete(key);
+      const idx = list.order.indexOf(key);
+      if (idx >= 0) {
+        list.order.splice(idx, 1);
+      }
+      Logger.debug("[DomRegistry]", "deleted row", { slotId, key });
+    }
+    moveRow(slotId, key, toIndex) {
+      const list = this.lists.get(slotId);
+      if (!list) {
+        return;
+      }
+      const current = list.order.indexOf(key);
+      if (current === -1) {
+        return;
+      }
+      list.order.splice(current, 1);
+      const clamped = clampIndex2(list.order.length, toIndex);
+      list.order.splice(clamped, 0, key);
+      Logger.debug("[DomRegistry]", "moved row", { slotId, key, to: clamped });
+    }
+    getRowKeyAt(slotId, index) {
+      const list = this.lists.get(slotId);
+      if (!list) {
+        return void 0;
+      }
+      const order = list.order ?? [];
+      if (index < 0 || index >= order.length) {
+        return void 0;
+      }
+      return order[index];
+    }
+    getRowFirstNode(slotId, key) {
+      const record = this.getRow(slotId, key);
+      return record?.nodes[0];
+    }
+  };
+  function collectRows(container, meta) {
+    const rows = /* @__PURE__ */ new Map();
+    const order = [];
+    if (!container || !Array.isArray(meta) || meta.length === 0) {
+      return { rows, order };
+    }
+    const nodes = Array.from(container.childNodes);
+    let cursor = 0;
+    for (const info of meta) {
+      if (!info || !info.key) {
         continue;
       }
-      const element = resolveBindingTarget(
-        binding.componentId ?? "",
-        binding.path ?? void 0,
-        options
-      );
-      if (!element) {
+      const count = Math.max(1, Number(info.count) || 1);
+      const span = [];
+      for (let i = 0; i < count && cursor < nodes.length; i += 1, cursor += 1) {
+        const node = nodes[cursor];
+        if (node) {
+          span.push(node);
+        }
+      }
+      if (span.length === 0) {
         continue;
       }
-      if (binding.pathValue !== void 0) {
-        applyRouterAttribute(element, "path", binding.pathValue ?? "");
-      }
-      if (binding.query !== void 0) {
-        applyRouterAttribute(element, "query", binding.query ?? "");
-      }
-      if (binding.hash !== void 0) {
-        applyRouterAttribute(element, "hash", binding.hash ?? "");
-      }
-      if (binding.replace !== void 0) {
-        applyRouterAttribute(element, "replace", binding.replace ?? "");
-      }
+      rows.set(info.key, { nodes: span });
+      order.push(info.key);
     }
+    return { rows, order };
   }
-  function applyRefBindings(bindings, options) {
-    if (!Array.isArray(bindings) || bindings.length === 0) {
-      return;
+  function clampIndex2(length, index) {
+    if (!Number.isFinite(index) || index < 0) {
+      return 0;
     }
-    for (const binding of bindings) {
-      if (!binding || typeof binding.refId !== "string" || binding.refId.length === 0) {
-        continue;
+    if (index > length) {
+      return length;
+    }
+    return index;
+  }
+
+  // src/event-detail.ts
+  function extractEventDetail(event, props, options) {
+    if (!Array.isArray(props) || props.length === 0) {
+      return void 0;
+    }
+    const detail = {};
+    props.forEach((path) => {
+      if (typeof path !== "string" || path.length === 0) {
+        return;
       }
-      const element = resolveBindingTarget(
-        binding.componentId ?? "",
-        binding.path ?? void 0,
-        options
-      );
-      if (!element) {
-        continue;
+      const value = resolvePath(path, event, options);
+      if (value !== void 0) {
+        detail[path] = value;
       }
-      attachRefToElement(binding.refId, element);
+    });
+    return Object.keys(detail).length > 0 ? detail : void 0;
+  }
+  function resolvePath(path, event, options) {
+    const segments = path.split(".").map((segment) => segment.trim()).filter(Boolean);
+    if (segments.length === 0) {
+      return void 0;
+    }
+    const root = segments.shift();
+    let current;
+    switch (root) {
+      case "event":
+        current = event;
+        break;
+      case "target":
+        current = event.target ?? null;
+        break;
+      case "currentTarget":
+        current = event.currentTarget ?? null;
+        break;
+      case "element":
+      case "ref":
+        current = options?.refElement ?? (event.currentTarget instanceof Element ? event.currentTarget : null);
+        break;
+      default:
+        return void 0;
+    }
+    for (const segment of segments) {
+      if (current == null) {
+        return void 0;
+      }
+      try {
+        current = current[segment];
+      } catch {
+        return void 0;
+      }
+    }
+    return serializeValue(current);
+  }
+  function serializeValue(value) {
+    if (value === null || value === void 0) {
+      return null;
+    }
+    const type = typeof value;
+    if (type === "string" || type === "number" || type === "boolean") {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      const mapped = value.map(serializeValue).filter((entry) => entry !== void 0);
+      return mapped.length > 0 ? mapped : null;
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (value instanceof DOMTokenList) {
+      return Array.from(value);
+    }
+    if (value instanceof Node) {
+      return void 0;
+    }
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return void 0;
     }
   }
 
-  // src/uploads.ts
-  var elementBindings = /* @__PURE__ */ new WeakMap();
-  var idToElement = /* @__PURE__ */ new Map();
-  var componentUploadIds = /* @__PURE__ */ new Map();
-  function removeUploadIdFromComponents(uploadId) {
-    for (const [componentId, ids] of componentUploadIds.entries()) {
-      if (ids.delete(uploadId) && ids.size === 0) {
-        componentUploadIds.delete(componentId);
-      }
-    }
+  // src/refs.ts
+  var refEventObservers = /* @__PURE__ */ new Set();
+  var registeredRefEvents = /* @__PURE__ */ new Set();
+  function observeRefEvents(observer) {
+    refEventObservers.add(observer);
+    return () => refEventObservers.delete(observer);
   }
-  function detachUploadBinding(uploadId) {
-    if (typeof uploadId !== "string" || uploadId.length === 0) {
+  function getRegisteredRefEvents() {
+    return Array.from(registeredRefEvents);
+  }
+  function registerRefEvents(events) {
+    if (!Array.isArray(events)) {
       return;
     }
-    const element = idToElement.get(uploadId);
-    if (element) {
-      elementBindings.delete(element);
-      idToElement.delete(uploadId);
+    const newlyAdded = [];
+    events.forEach((event) => {
+      if (!event) {
+        return;
+      }
+      if (!registeredRefEvents.has(event)) {
+        registeredRefEvents.add(event);
+        newlyAdded.push(event);
+      }
+    });
+    if (newlyAdded.length === 0) {
+      return;
     }
-    removeUploadIdFromComponents(uploadId);
+    newlyAdded.forEach((event) => {
+      refEventObservers.forEach((observer) => {
+        try {
+          observer(event);
+        } catch {
+        }
+      });
+    });
   }
-  function setInputAttributes(input, descriptor) {
-    if (Array.isArray(descriptor.accept) && descriptor.accept.length > 0) {
-      input.setAttribute("accept", descriptor.accept.join(","));
-    } else {
-      input.removeAttribute("accept");
+  var RefRegistry = class {
+    constructor(runtime) {
+      this.runtime = runtime;
+      this.meta = /* @__PURE__ */ new Map();
+      this.bindings = /* @__PURE__ */ new Map();
     }
-    if (descriptor.multiple) {
-      input.setAttribute("multiple", "multiple");
-    } else {
-      input.removeAttribute("multiple");
+    clear() {
+      Array.from(this.bindings.keys()).forEach((id) => this.detach(id));
+      this.meta.clear();
+      Logger.debug("[Refs]", "cleared all bindings");
     }
+    apply(delta) {
+      if (!delta) {
+        return;
+      }
+      if (Array.isArray(delta.del)) {
+        for (const id of delta.del) {
+          this.detach(id);
+          this.meta.delete(id);
+        }
+      }
+      if (delta.add) {
+        for (const [id, meta] of Object.entries(delta.add)) {
+          if (id) {
+            this.meta.set(id, meta);
+            registerRefEvents(Object.keys(meta.events ?? {}));
+          }
+        }
+      }
+      Logger.debug("[Refs]", "applied ref delta", {
+        added: delta.add ? Object.keys(delta.add).length : 0,
+        removed: delta.del?.length ?? 0
+      });
+    }
+    registerBindings(descriptors, overrides) {
+      if (!Array.isArray(descriptors)) {
+        return;
+      }
+      Logger.debug("[Refs]", "registering ref bindings", { count: descriptors.length });
+      descriptors.forEach((descriptor, index) => {
+        if (!descriptor || typeof descriptor.refId !== "string" || descriptor.refId.length === 0) {
+          return;
+        }
+        Logger.debug("[Refs]", "processing ref binding", {
+          index,
+          descriptor: {
+            componentId: descriptor.componentId,
+            path: descriptor.path,
+            refId: descriptor.refId
+          },
+          hasRefId: !!descriptor.refId,
+          refIdLength: descriptor.refId?.length ?? 0
+        });
+        Logger.debug("[Refs]", "resolving node for ref", {
+          refId: descriptor.refId,
+          componentId: descriptor.componentId,
+          path: descriptor.path
+        });
+        const node = resolveNodeInComponent(descriptor.componentId, descriptor.path, overrides);
+        Logger.debug("[Refs]", "node resolved", {
+          refId: descriptor.refId,
+          node,
+          isElement: node instanceof Element,
+          nodeType: node?.nodeType,
+          nodeName: node?.nodeName
+        });
+        if (node instanceof Element) {
+          Logger.debug("[Refs]", "attaching ref", { refId: descriptor.refId, node });
+          this.attach(descriptor.refId, node);
+        } else {
+          Logger.debug("[Refs]", "node is not Element, detaching", { refId: descriptor.refId, node });
+          this.detach(descriptor.refId);
+        }
+      });
+    }
+    get(id) {
+      return this.bindings.get(id)?.element;
+    }
+    attach(refId, element) {
+      const meta = this.meta.get(refId);
+      if (!meta) {
+        return;
+      }
+      const existing = this.bindings.get(refId);
+      if (existing && existing.element === element) {
+        return;
+      }
+      this.detach(refId);
+      const listeners = /* @__PURE__ */ new Map();
+      const events = meta.events ?? {};
+      registerRefEvents(Object.keys(events));
+      Object.entries(events).forEach(([eventName, spec]) => {
+        if (!eventName) {
+          return;
+        }
+        const listener = (event) => {
+          const detail = extractEventDetail(event, spec?.props, { refElement: element });
+          const payload = detail ? { name: eventName, detail } : { name: eventName };
+          const handlerKey = spec?.handler || `${refId}/${eventName}`;
+          this.runtime.sendEvent(handlerKey, payload);
+        };
+        element.addEventListener(eventName, listener);
+        listeners.set(eventName, listener);
+      });
+      this.bindings.set(refId, { element, listeners });
+      Logger.debug("[Refs]", "attached ref", {
+        refId,
+        tag: element.tagName,
+        events: Object.keys(events).length
+      });
+    }
+    detach(refId) {
+      const binding = this.bindings.get(refId);
+      if (!binding) {
+        return;
+      }
+      binding.listeners.forEach((listener, event) => {
+        binding.element.removeEventListener(event, listener);
+      });
+      this.bindings.delete(refId);
+      Logger.debug("[Refs]", "detached ref", { refId });
+    }
+  };
+
+  // src/events.ts
+  var slotTable = /* @__PURE__ */ new Map();
+  var eventSlots = /* @__PURE__ */ new Map();
+  var eventObservers = /* @__PURE__ */ new Set();
+  function registerSlotTable(table) {
+    slotTable.clear();
+    eventSlots.clear();
+    if (!table) {
+      Logger.debug("[Events]", "cleared slot table");
+      return;
+    }
+    for (const [key, value] of Object.entries(table)) {
+      const slotId = Number(key);
+      if (Number.isNaN(slotId)) {
+        continue;
+      }
+      const bindings = cloneBindings(value);
+      slotTable.set(slotId, bindings);
+      addEventIndex(slotId, bindings);
+    }
+    Logger.debug("[Events]", "registered slot table", { slots: slotTable.size });
   }
-  function attachUploadDescriptor(descriptor, overrides) {
-    if (!descriptor || typeof descriptor.uploadId !== "string") {
-      return false;
+  function registerBindingsForSlot(slotId, specs) {
+    if (!Number.isFinite(slotId)) {
+      return;
     }
-    const node = resolveNodeInComponent(
-      descriptor.componentId,
-      descriptor.path,
-      overrides
-    );
-    if (!(node instanceof HTMLInputElement)) {
-      return false;
+    slotTable.delete(slotId);
+    eventSlots.forEach((set) => set.delete(slotId));
+    if (!Array.isArray(specs)) {
+      return;
     }
-    if (node.type && node.type.toLowerCase() !== "file") {
-      node.type = "file";
-    }
-    detachUploadBinding(descriptor.uploadId);
-    setInputAttributes(node, descriptor);
-    const meta = {
-      id: descriptor.uploadId,
-      multiple: !!descriptor.multiple
-    };
-    if (Array.isArray(descriptor.accept) && descriptor.accept.length > 0) {
-      meta.accept = [...descriptor.accept];
-    }
-    if (typeof descriptor.maxSize === "number" && !Number.isNaN(descriptor.maxSize)) {
-      meta.maxSize = descriptor.maxSize;
-    }
-    elementBindings.set(node, meta);
-    idToElement.set(descriptor.uploadId, node);
-    return true;
+    const bindings = cloneBindings(specs);
+    slotTable.set(slotId, bindings);
+    addEventIndex(slotId, bindings);
+    Logger.debug("[Events]", "registered slot bindings", { slotId, count: bindings.length });
   }
-  function getUploadBinding(element) {
+  function getSlotBindings(slotId) {
+    const bindings = slotTable.get(slotId);
+    return bindings ? cloneBindings(bindings) : void 0;
+  }
+  function getSlotsForEvent(event) {
+    const set = eventSlots.get(event);
+    return set ? Array.from(set) : [];
+  }
+  function getRegisteredSlotEvents() {
+    return Array.from(eventSlots.keys());
+  }
+  function observeSlotEvents(observer) {
+    eventObservers.add(observer);
+    return () => eventObservers.delete(observer);
+  }
+  function addEventIndex(slotId, bindings) {
+    bindings.forEach((binding) => {
+      const event = binding.event;
+      if (!event) {
+        return;
+      }
+      const set = eventSlots.get(event) ?? /* @__PURE__ */ new Set();
+      const hadEvent = set.size > 0;
+      set.add(slotId);
+      eventSlots.set(event, set);
+      if (!hadEvent && set.size === 1) {
+        notifyObservers([event]);
+      }
+      Logger.debug("[Events]", "indexed event", { event, slotId, totalSlots: set.size });
+    });
+  }
+  function notifyObservers(events) {
+    if (!Array.isArray(events)) {
+      return;
+    }
+    events.forEach((event) => {
+      if (!event) {
+        return;
+      }
+      eventObservers.forEach((observer) => {
+        try {
+          observer(event);
+        } catch {
+        }
+      });
+    });
+  }
+  function cloneBindings(specs) {
+    if (!Array.isArray(specs)) {
+      return [];
+    }
+    return specs.map((spec) => ({
+      event: spec?.event ?? "",
+      handler: spec?.handler ?? "",
+      listen: Array.isArray(spec?.listen) ? [...spec.listen] : void 0,
+      props: Array.isArray(spec?.props) ? [...spec.props] : void 0
+    }));
+  }
+
+  // src/router-bindings.ts
+  var routerMeta = /* @__PURE__ */ new WeakMap();
+  function applyRouterBindings(descriptors, overrides) {
+    if (!Array.isArray(descriptors)) {
+      return;
+    }
+    let applied = 0;
+    descriptors.forEach((descriptor) => {
+      if (!descriptor || typeof descriptor.componentId !== "string") {
+        return;
+      }
+      const node = resolveNodeInComponent(descriptor.componentId, descriptor.path, overrides);
+      if (!(node instanceof Element)) {
+        return;
+      }
+      routerMeta.set(node, {
+        path: descriptor.pathValue ?? void 0,
+        query: descriptor.query ?? void 0,
+        hash: descriptor.hash ?? void 0,
+        replace: descriptor.replace ?? void 0
+      });
+      applied += 1;
+    });
+    Logger.debug("[Router]", "applied router bindings", { count: applied });
+  }
+  function getRouterMeta(element) {
     if (!element) {
       return void 0;
     }
-    return elementBindings.get(element) ?? void 0;
+    let current = element;
+    while (current) {
+      const meta = routerMeta.get(current);
+      if (meta?.path) {
+        return meta;
+      }
+      current = current.parentElement;
+    }
+    return void 0;
   }
-  function replaceUploadBindingsForComponent(componentId, descriptors, overrides) {
-    if (typeof componentId !== "string" || componentId.length === 0) {
-      return;
-    }
-    const existing = componentUploadIds.get(componentId);
-    if (existing) {
-      existing.forEach((id) => detachUploadBinding(id));
-      componentUploadIds.delete(componentId);
-    }
-    if (!Array.isArray(descriptors) || descriptors.length === 0) {
-      return;
-    }
-    const next = /* @__PURE__ */ new Set();
-    for (const descriptor of descriptors) {
-      if (!descriptor || typeof descriptor.uploadId !== "string") {
-        continue;
-      }
-      const normalized = {
-        ...descriptor,
-        componentId
-      };
-      if (attachUploadDescriptor(normalized, overrides)) {
-        next.add(descriptor.uploadId);
-      }
-    }
-    if (next.size > 0) {
-      componentUploadIds.set(componentId, next);
-    }
-  }
-  function applyUploadBindings(descriptors, overrides) {
-    if (!Array.isArray(descriptors) || descriptors.length === 0) {
-      return;
-    }
-    const grouped = /* @__PURE__ */ new Map();
-    for (const descriptor of descriptors) {
-      if (!descriptor || typeof descriptor.componentId !== "string") {
-        continue;
-      }
-      const list = grouped.get(descriptor.componentId) ?? [];
-      list.push(descriptor);
-      grouped.set(descriptor.componentId, list);
-    }
-    for (const [componentId, list] of grouped.entries()) {
-      replaceUploadBindingsForComponent(componentId, list, overrides);
-    }
-  }
-  function primeUploadBindings(descriptors, overrides) {
-    componentUploadIds.forEach((ids) => {
-      ids.forEach((id) => detachUploadBinding(id));
-    });
-    componentUploadIds.clear();
-    idToElement.clear();
-    if (!Array.isArray(descriptors) || descriptors.length === 0) {
-      return;
-    }
-    applyUploadBindings(descriptors, overrides);
-  }
-  var UploadManager = class {
-    constructor(options) {
-      this.uploads = /* @__PURE__ */ new Map();
-      this.options = options;
-      registerUploadDelegate((event, type) => this.handleDomEvent(event, type));
-    }
-    dispose() {
-      registerUploadDelegate(null);
-      this.abortAll();
-    }
-    onDisconnect() {
-      this.abortAll();
-    }
-    handleControl(message) {
-      if (!message || message.op !== "cancel") {
-        return;
-      }
-      const active = this.uploads.get(message.id);
-      if (active?.xhr) {
-        active.xhr.abort();
-      }
-    }
-    handleDomEvent(event, eventType) {
-      if (eventType !== "change") {
-        return;
-      }
-      const target = event.target;
-      if (!target) {
-        return;
-      }
-      const input = this.resolveInput(target);
-      if (!input) {
-        return;
-      }
-      const binding = getUploadBinding(input);
-      const uploadId = binding?.id;
-      if (!uploadId) {
-        return;
-      }
-      const files = input.files;
-      if (!files || files.length === 0) {
-        return;
-      }
-      const file = files[0];
-      const sessionId = this.options.getSessionId();
-      if (!sessionId || !this.options.isConnected()) {
-        console.warn(
-          "[LiveUI] upload ignored because the session is not connected"
-        );
-        if (sessionId) {
-          this.sendMessage({
-            t: "upload",
-            sid: sessionId,
-            id: uploadId,
-            op: "error" /* Error */,
-            error: "not connected"
-          });
-        }
-        return;
-      }
-      this.sendMessage({
-        t: "upload",
-        sid: sessionId,
-        id: uploadId,
-        op: "change" /* Change */,
-        meta: this.buildMeta(file)
-      });
-      this.startUpload(sessionId, uploadId, file, input);
-    }
-    startUpload(sessionId, uploadId, file, input) {
-      const current = this.uploads.get(uploadId);
-      if (current?.xhr) {
-        current.xhr.abort();
-      }
-      const endpoint = this.options.getEndpoint();
-      if (!endpoint) {
-        console.warn("[LiveUI] upload endpoint missing; aborting file upload");
-        this.sendMessage({
-          t: "upload",
-          sid: sessionId,
-          id: uploadId,
-          op: "error" /* Error */,
-          error: "upload endpoint missing"
-        });
-        return;
-      }
-      const url = this.buildUploadURL(endpoint, sessionId, uploadId);
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", url, true);
-      xhr.upload.onprogress = (evt) => {
-        if (!evt.lengthComputable) {
-          return;
-        }
-        const sid = this.options.getSessionId();
-        if (!sid) {
-          return;
-        }
-        this.sendMessage({
-          t: "upload",
-          sid,
-          id: uploadId,
-          op: "progress" /* Progress */,
-          loaded: evt.loaded,
-          total: evt.total
-        });
-      };
-      const finalize = () => {
-        const active = this.uploads.get(uploadId);
-        if (active?.xhr === xhr) {
-          this.uploads.delete(uploadId);
-        }
-      };
-      xhr.onload = () => {
-        finalize();
-        if (xhr.status >= 200 && xhr.status < 300) {
-          return;
-        }
-        const sid = this.options.getSessionId();
-        if (!sid) {
-          return;
-        }
-        this.sendMessage({
-          t: "upload",
-          sid,
-          id: uploadId,
-          op: "error" /* Error */,
-          error: `HTTP ${xhr.status}`
-        });
-      };
-      xhr.onerror = () => {
-        finalize();
-        const sid = this.options.getSessionId();
-        if (!sid) {
-          return;
-        }
-        this.sendMessage({
-          t: "upload",
-          sid,
-          id: uploadId,
-          op: "error" /* Error */,
-          error: "network error"
-        });
-      };
-      xhr.onabort = () => {
-        finalize();
-        const sid = this.options.getSessionId();
-        if (!sid) {
-          return;
-        }
-        this.sendMessage({
-          t: "upload",
-          sid,
-          id: uploadId,
-          op: "cancelled" /* Cancelled */
-        });
-      };
-      const data = new FormData();
-      data.append("file", file, file.name);
-      xhr.send(data);
-      this.uploads.set(uploadId, { xhr, input });
-      input.value = "";
-    }
-    buildUploadURL(base, sid, uploadId) {
-      const normalized = base.endsWith("/") ? base : `${base}/`;
-      return `${normalized}${encodeURIComponent(sid)}/${encodeURIComponent(uploadId)}`;
-    }
-    buildMeta(file) {
-      return {
-        name: file.name,
-        size: file.size,
-        type: file.type || void 0
-      };
-    }
-    resolveInput(target) {
-      if (target instanceof HTMLInputElement) {
-        return target;
-      }
-      if (target.closest) {
-        const match = target.closest('input[type="file"][data-pond-upload]');
-        return match instanceof HTMLInputElement ? match : null;
-      }
-      return null;
-    }
-    sendMessage(payload) {
-      try {
-        this.options.send(payload);
-      } catch (error) {
-        console.error("[LiveUI] failed to send upload message", error);
-      }
-    }
-    abortAll() {
-      for (const [, active] of this.uploads) {
-        try {
-          active.xhr.abort();
-        } catch (error) {
-          console.error("[LiveUI] failed to abort upload", error);
-        }
-      }
-      this.uploads.clear();
-    }
-  };
 
   // src/patcher.ts
-  var config = {
-    enableDirtyChecking: true,
-    enableBatching: true,
-    enableFragmentPooling: true,
-    enableMemoization: true,
-    enableVirtualScrolling: true,
-    virtualScrollThreshold: 100,
-    // Start virtual scrolling after 100 items
-    memoizationCacheSize: 1e3
-  };
-  var DATA_EVENT_ATTR_PREFIX = "data-on";
-  var templateCache = document.createElement("template");
-  var htmlCache = /* @__PURE__ */ new Map();
-  function createFragment(html) {
-    if (config.enableFragmentPooling && htmlCache.has(html)) {
-      return htmlCache.get(html).cloneNode(true);
+  var Patcher = class {
+    constructor(dom, refs, uploads) {
+      this.dom = dom;
+      this.refs = refs;
+      this.uploads = uploads;
     }
-    templateCache.innerHTML = html;
-    const fragment = templateCache.content.cloneNode(true);
-    if (config.enableFragmentPooling && htmlCache.size < 50) {
-      htmlCache.set(html, fragment.cloneNode(true));
+    applyFrame(frame) {
+      if (!Array.isArray(frame.patch)) {
+        return;
+      }
+      Logger.debug("[Patcher]", "applying frame patch", { opCount: frame.patch.length });
+      this.applyOps(frame.patch);
     }
-    return fragment;
-  }
-  var PatchMemoizer = class {
-    constructor(maxSize) {
-      this.cache = /* @__PURE__ */ new Map();
-      this.maxSize = maxSize;
-    }
-    key(op, slotIndex, value) {
-      return `${op}:${slotIndex}:${JSON.stringify(value)}`;
-    }
-    has(key) {
-      return this.cache.has(key);
-    }
-    get(key) {
-      return this.cache.get(key);
-    }
-    set(key, value) {
-      if (this.cache.size >= this.maxSize) {
-        const firstKey = this.cache.keys().next().value;
-        if (firstKey !== void 0) {
-          this.cache.delete(firstKey);
+    applyOps(ops) {
+      Logger.debug("[Patcher]", "applying ops", { count: ops.length });
+      for (const op of ops) {
+        if (!Array.isArray(op) || op.length === 0) {
+          continue;
+        }
+        const kind = op[0];
+        switch (kind) {
+          case "setText":
+            this.applySetText(op[1], op[2]);
+            break;
+          case "setAttrs":
+            this.applySetAttrs(op[1], op[2] || {});
+            break;
+          case "list":
+            this.applyList(op[1], op.slice(2));
+            break;
         }
       }
-      this.cache.set(key, value);
     }
-    clear() {
-      this.cache.clear();
-    }
-  };
-  var memoizer = new PatchMemoizer(config.memoizationCacheSize);
-  var DOMBatcher = class {
-    constructor() {
-      this.batch = { reads: [], writes: [] };
-      this.scheduled = false;
-    }
-    scheduleRead(fn) {
-      this.batch.reads.push(fn);
-      this.schedule();
-    }
-    scheduleWrite(fn) {
-      this.batch.writes.push(fn);
-      this.schedule();
-    }
-    schedule() {
-      if (this.scheduled) return;
-      this.scheduled = true;
-      requestAnimationFrame(() => {
-        this.flush();
-      });
-    }
-    flush() {
-      this.batch.reads.forEach((fn) => fn());
-      this.batch.writes.forEach((fn) => fn());
-      this.batch = { reads: [], writes: [] };
-      this.scheduled = false;
-    }
-    immediate() {
-      if (this.scheduled) {
-        this.flush();
+    applySetText(slotId, value) {
+      const node = this.dom.getSlot(slotId);
+      if (!node) {
+        Logger.debug("[Patcher]", "setText skipped (missing slot)", { slotId });
+        return;
+      }
+      if (node instanceof Text) {
+        node.textContent = value ?? "";
+        Logger.debug("[Patcher]", "setText applied", { slotId, nodeType: "Text" });
+        return;
+      }
+      if (node instanceof Element) {
+        node.textContent = value ?? "";
+        Logger.debug("[Patcher]", "setText applied", { slotId, nodeType: node.tagName });
       }
     }
-  };
-  var batcher = new DOMBatcher();
-  var virtualScrollStates = /* @__PURE__ */ new Map();
-  function initVirtualScroll(slotIndex, container) {
-    if (!config.enableVirtualScrolling) return;
-    const state = {
-      container,
-      totalItems: 0,
-      visibleRange: { start: 0, end: 50 },
-      itemHeight: 0
-    };
-    state.observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const target = entry.target;
-            if (target instanceof HTMLElement || target instanceof SVGElement) {
-              target.style.display = "";
-            }
-          }
-        });
-      },
-      { root: container, threshold: 0.1 }
-    );
-    virtualScrollStates.set(slotIndex, state);
-  }
-  function shouldVirtualize(_slotIndex, itemCount) {
-    return config.enableVirtualScrolling && itemCount > config.virtualScrollThreshold;
-  }
-  function ensureTextNode(node, slotIndex) {
-    if (!node) {
-      throw new Error(`liveui: slot ${slotIndex} not registered`);
-    }
-    return node;
-  }
-  function applySetText(slotIndex, text) {
-    const node = ensureTextNode(getSlot(slotIndex), slotIndex);
-    if (config.enableDirtyChecking && node.textContent === text) {
-      return;
-    }
-    if (config.enableBatching) {
-      batcher.scheduleWrite(() => {
-        node.textContent = text;
-      });
-    } else {
-      node.textContent = text;
-    }
-  }
-  function applySetAttrs(slotIndex, upsert, remove) {
-    const node = getSlot(slotIndex);
-    if (!(node instanceof Element)) {
-      throw new Error(`liveui: slot ${slotIndex} is not an element`);
-    }
-    const existingBindings = getRegisteredSlotBindings(slotIndex) ?? [];
-    const bindingMap = /* @__PURE__ */ new Map();
-    for (const spec of existingBindings) {
-      if (!spec || typeof spec.event !== "string") continue;
-      bindingMap.set(spec.event, {
-        handler: spec.handler,
-        listen: spec.listen ? [...spec.listen] : void 0,
-        props: spec.props ? [...spec.props] : void 0
-      });
-    }
-    const parseTokens = (value) => {
-      if (typeof value !== "string") {
-        return void 0;
+    applySetAttrs(slotId, attrs) {
+      const node = this.dom.getSlot(slotId);
+      if (!(node instanceof Element)) {
+        Logger.debug("[Patcher]", "setAttrs skipped (non-element)", { slotId });
+        return;
       }
-      const tokens = value.split(/\s+/).map((token) => token.trim()).filter((token) => token.length > 0);
-      return tokens.length > 0 ? tokens : void 0;
-    };
-    let bindingChanged = false;
-    if (upsert) {
-      for (const key of Object.keys(upsert)) {
-        if (typeof key === "string" && key.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
-          const routerKey = key.slice(DATA_ROUTER_ATTR_PREFIX.length);
-          applyRouterAttribute(node, routerKey, upsert[key]);
-          delete upsert[key];
-          continue;
-        }
-        if (typeof key !== "string" || !key.startsWith(DATA_EVENT_ATTR_PREFIX)) {
-          continue;
-        }
-        bindingChanged = true;
-        const value = upsert[key];
-        delete upsert[key];
-        let remainder = key.slice(DATA_EVENT_ATTR_PREFIX.length);
-        if (remainder.startsWith("-")) {
-          remainder = remainder.slice(1);
-        }
-        if (remainder.length === 0) {
-          continue;
-        }
-        let metaType = "";
-        const dashIndex = remainder.indexOf("-");
-        if (dashIndex !== -1) {
-          metaType = remainder.slice(dashIndex + 1);
-          remainder = remainder.slice(0, dashIndex);
-        }
-        const eventName = remainder.trim();
-        if (eventName.length === 0) {
-          continue;
-        }
-        const entry = bindingMap.get(eventName) ?? {};
-        if (metaType === "listen") {
-          entry.listen = parseTokens(value);
-        } else if (metaType === "props") {
-          entry.props = parseTokens(value);
+      Object.entries(attrs ?? {}).forEach(([key, value]) => {
+        if (value === null || value === void 0 || value === "") {
+          node.removeAttribute(key);
         } else {
-          entry.handler = typeof value === "string" ? value : value != null ? String(value) : "";
+          node.setAttribute(key, value);
         }
-        bindingMap.set(eventName, entry);
-      }
+      });
+      Logger.debug("[Patcher]", "setAttrs applied", { slotId, keys: Object.keys(attrs ?? {}) });
     }
-    if (Array.isArray(remove) && remove.length > 0) {
-      for (let i = remove.length - 1; i >= 0; i--) {
-        const attrName = remove[i];
-        if (typeof attrName === "string" && attrName.startsWith(DATA_ROUTER_ATTR_PREFIX)) {
-          const routerKey = attrName.slice(DATA_ROUTER_ATTR_PREFIX.length);
-          applyRouterAttribute(node, routerKey, void 0);
-          remove.splice(i, 1);
-          continue;
-        }
-        if (typeof attrName !== "string" || !attrName.startsWith(DATA_EVENT_ATTR_PREFIX)) {
-          continue;
-        }
-        bindingChanged = true;
-        remove.splice(i, 1);
-        let remainder = attrName.slice(DATA_EVENT_ATTR_PREFIX.length);
-        if (remainder.startsWith("-")) {
-          remainder = remainder.slice(1);
-        }
-        if (remainder.length === 0) {
-          continue;
-        }
-        const dashIndex = remainder.indexOf("-");
-        if (dashIndex !== -1) {
-          remainder = remainder.slice(0, dashIndex);
-        }
-        const eventName = remainder.trim();
-        if (eventName.length === 0) {
-          continue;
-        }
-        bindingMap.delete(eventName);
+    applyList(slotId, childOps) {
+      const container = this.dom.getList(slotId);
+      if (!(container instanceof Element)) {
+        Logger.debug("[Patcher]", "list op skipped (no container)", { slotId });
+        return;
       }
-    }
-    if (bindingChanged) {
-      const specs = [];
-      bindingMap.forEach((info, eventName) => {
-        const handlerId = info.handler?.trim();
-        if (!handlerId) {
+      Logger.debug("[Patcher]", "list patch", { slotId, opCount: childOps.length });
+      childOps.forEach((op) => {
+        if (!Array.isArray(op)) {
           return;
         }
-        const spec = { event: eventName, handler: handlerId };
-        if (info.listen && info.listen.length > 0) {
-          spec.listen = [...info.listen];
-        }
-        if (info.props && info.props.length > 0) {
-          spec.props = [...info.props];
-        }
-        specs.push(spec);
-      });
-      registerBindingsForSlot(slotIndex, specs);
-    }
-    const applyAttrs = () => {
-      if (upsert) {
-        for (const [k, v] of Object.entries(upsert)) {
-          if (v === void 0 || v === null) continue;
-          if (config.enableDirtyChecking && node.getAttribute(k) === String(v)) {
-            continue;
-          }
-          node.setAttribute(k, String(v));
-        }
-      }
-      if (remove) {
-        for (const key of remove) {
-          if (node.hasAttribute(key)) {
-            node.removeAttribute(key);
-          }
-        }
-      }
-    };
-    if (config.enableBatching) {
-      batcher.scheduleWrite(applyAttrs);
-    } else {
-      applyAttrs();
-    }
-  }
-  function morphElement(fromEl, toEl) {
-    const fromAttrs = fromEl.attributes;
-    const toAttrs = toEl.attributes;
-    for (let i = fromAttrs.length - 1; i >= 0; i--) {
-      const attr = fromAttrs[i];
-      if (!toEl.hasAttribute(attr.name)) {
-        fromEl.removeAttribute(attr.name);
-      }
-    }
-    for (let i = 0; i < toAttrs.length; i++) {
-      const attr = toAttrs[i];
-      if (fromEl.getAttribute(attr.name) !== attr.value) {
-        fromEl.setAttribute(attr.name, attr.value);
-      }
-    }
-    if (fromEl.childNodes.length === 1 && fromEl.firstChild?.nodeType === Node.TEXT_NODE) {
-      if (toEl.childNodes.length === 1 && toEl.firstChild?.nodeType === Node.TEXT_NODE) {
-        if (fromEl.firstChild.textContent !== toEl.firstChild.textContent) {
-          fromEl.firstChild.textContent = toEl.firstChild.textContent;
-        }
-      }
-    }
-  }
-  function registerRowSlots(row, fragment, overrides) {
-    if (!row) {
-      return;
-    }
-    const requestedSlots = Array.isArray(row.slots) ? row.slots.filter((value) => Number.isInteger(value) && value >= 0) : [];
-    const pendingSlots = new Set(requestedSlots);
-    const slotAnchors = resolveSlotAnchors(row.slotPaths, overrides);
-    if (slotAnchors.size > 0) {
-      if (pendingSlots.size > 0) {
-        for (const slotId of Array.from(pendingSlots)) {
-          const node = slotAnchors.get(slotId);
-          if (node) {
-            registerSlot(slotId, node);
-            pendingSlots.delete(slotId);
-          }
-        }
-      } else {
-        for (const [slotId, node] of slotAnchors.entries()) {
-          registerSlot(slotId, node);
-        }
-      }
-    }
-    const listAnchors = resolveListContainers(row.listPaths, overrides);
-    for (const [slotId, element] of listAnchors.entries()) {
-      registerList(slotId, element);
-    }
-    if (pendingSlots.size > 0 && requestedSlots.length > 0) {
-      pendingSlots.forEach((idx) => {
-        console.warn(`liveui: slot ${idx} not resolved in inserted row`);
-      });
-    }
-  }
-  function applyList(slotIndex, childOps) {
-    if (!Array.isArray(childOps) || childOps.length === 0) return;
-    const record = ensureList(slotIndex);
-    const container = record.container;
-    const children = config.enableBatching ? Array.from(container.children) : null;
-    let itemCount = record.rows.size;
-    for (const op of childOps) {
-      if (!op || !op.length) continue;
-      const kind = op[0];
-      switch (kind) {
-        case "del": {
-          const key = op[1];
-          const row = getRow(slotIndex, key);
-          if (row && row.parentNode === container) {
-            const removeNode = () => {
-              unbindRefsInTree(row);
-              container.removeChild(row);
-            };
-            if (config.enableBatching) {
-              batcher.scheduleWrite(removeNode);
-            } else {
-              removeNode();
-            }
-          }
-          deleteRow(slotIndex, key);
-          itemCount--;
-          break;
-        }
-        case "ins": {
-          const pos = op[1];
-          const payload = op[2] || { key: "", html: "" };
-          const rowBindings = payload && typeof payload === "object" ? payload.bindings ?? null : null;
-          if (rowBindings?.slots) {
-            for (const [slotKey, specs] of Object.entries(rowBindings.slots)) {
-              const slotId = Number(slotKey);
-              if (Number.isNaN(slotId)) {
-                continue;
-              }
-              registerBindingsForSlot(slotId, specs ?? []);
-            }
-          }
-          const memoKey = memoizer.key("ins", slotIndex, payload.html);
-          let fragment;
-          if (config.enableMemoization && memoizer.has(memoKey)) {
-            fragment = memoizer.get(memoKey).cloneNode(true);
-          } else {
-            fragment = createFragment(payload.html || "");
-            if (config.enableMemoization) {
-              memoizer.set(memoKey, fragment.cloneNode(true));
-            }
-          }
-          const nodes = Array.from(fragment.childNodes);
-          if (nodes.length === 0) {
-            console.warn("live: insertion payload missing nodes for key", payload.key);
+        switch (op[0]) {
+          case "del":
+            this.applyListDelete(slotId, container, op);
             break;
-          }
-          const insertNode = () => {
-            const refNode = config.enableBatching ? children[pos] || null : container.children[pos] || null;
-            container.insertBefore(fragment, refNode);
-            const root = nodes[0];
-            if (root instanceof Element) {
-              setRow(slotIndex, payload.key, root);
-              const rangeOverrides = applyComponentRanges(payload.componentPaths);
-              registerRowSlots(payload, root, rangeOverrides);
-              const bindingOptions = { overrides: rangeOverrides };
-              applyRouterBindings(rowBindings?.router ?? null, bindingOptions);
-              applyRefBindings(rowBindings?.refs ?? null, bindingOptions);
-              applyUploadBindings(rowBindings?.uploads ?? null, rangeOverrides);
-              if (shouldVirtualize(slotIndex, itemCount)) {
-                const state = virtualScrollStates.get(slotIndex);
-                if (state && (pos < state.visibleRange.start || pos > state.visibleRange.end)) {
-                  if (root instanceof HTMLElement || root instanceof SVGElement) {
-                    root.style.display = "none";
-                  }
-                }
-              }
-            } else {
-              console.warn("live: row root is not an element for key", payload.key);
-            }
-          };
-          if (config.enableBatching) {
-            batcher.scheduleWrite(insertNode);
-          } else {
-            insertNode();
-          }
-          itemCount++;
-          break;
+          case "ins":
+            this.applyListInsert(slotId, container, op);
+            break;
+          case "mov":
+            this.applyListMove(slotId, container, op);
+            break;
         }
-        case "mov": {
-          const from = op[1];
-          const to = op[2];
-          if (from === to) break;
-          const moveNode = () => {
-            const childArray = config.enableBatching ? children : Array.from(container.children);
-            const child = childArray[from];
-            if (child) {
-              const refNode = to < childArray.length ? childArray[to] : null;
-              container.insertBefore(child, refNode);
-            }
-          };
-          if (config.enableBatching) {
-            batcher.scheduleWrite(moveNode);
-          } else {
-            moveNode();
-          }
-          break;
-        }
-        default:
-          console.warn("live: unknown list child op", op);
-      }
-    }
-    if (shouldVirtualize(slotIndex, itemCount)) {
-      const state = virtualScrollStates.get(slotIndex);
-      if (state) {
-        state.totalItems = itemCount;
-      } else {
-        initVirtualScroll(slotIndex, container);
-      }
-    }
-  }
-  function applyOps(ops) {
-    if (!Array.isArray(ops)) return;
-    for (const op of ops) {
-      if (!op || op.length === 0) continue;
-      const kind = op[0];
-      switch (kind) {
-        case "setText":
-          applySetText(op[1], op[2]);
-          break;
-        case "setAttrs":
-          applySetAttrs(op[1], op[2] || {}, op[3] || []);
-          break;
-        case "list":
-          applyList(op[1], op.slice(2));
-          break;
-        default:
-          console.warn("live: unknown op", op);
-      }
-    }
-    if (config.enableBatching) {
-      batcher.immediate();
-    }
-  }
-  function configurePatcher(options) {
-    Object.assign(config, options);
-  }
-  function getPatcherConfig() {
-    return { ...config };
-  }
-  function clearPatcherCaches() {
-    htmlCache.clear();
-    memoizer.clear();
-    virtualScrollStates.clear();
-  }
-  function getPatcherStats() {
-    return {
-      htmlCacheSize: htmlCache.size,
-      memoizerCacheSize: memoizer["cache"].size,
-      virtualScrollCount: virtualScrollStates.size
-    };
-  }
-  function computeInverseOps(patches) {
-    const inverseOps = [];
-    for (const patch of patches) {
-      const [opType, slotId, ...args] = patch;
-      if (opType === "setText") {
-        const element = getSlot(slotId);
-        if (element) {
-          const currentText = element.textContent || "";
-          inverseOps.push(["setText", slotId, currentText]);
-        }
-      } else if (opType === "setAttrs") {
-        const element = getSlot(slotId);
-        if (element && element instanceof Element) {
-          const [newAttrs, removeKeys] = args;
-          const oldAttrs = {};
-          const keysToRemove = [];
-          for (const key of Object.keys(newAttrs)) {
-            const currentValue = element.getAttribute(key);
-            if (currentValue !== null) {
-              oldAttrs[key] = currentValue;
-            } else {
-              keysToRemove.push(key);
-            }
-          }
-          for (const key of removeKeys) {
-            const currentValue = element.getAttribute(key);
-            if (currentValue !== null) {
-              oldAttrs[key] = currentValue;
-            }
-          }
-          inverseOps.push(["setAttrs", slotId, oldAttrs, keysToRemove]);
-        }
-      } else if (opType === "list") {
-        const childOps = args;
-        const inverseChildOps = [];
-        for (const childOp of childOps) {
-          const [childOpType, ...childArgs] = childOp;
-          if (childOpType === "ins") {
-            const [, { key }] = childArgs;
-            inverseChildOps.push(["del", key]);
-          } else if (childOpType === "del") {
-          } else if (childOpType === "mov") {
-            const [fromIdx, toIdx] = childArgs;
-            inverseChildOps.push(["mov", toIdx, fromIdx]);
-          }
-        }
-        if (inverseChildOps.length > 0) {
-          inverseOps.push(["list", slotId, ...inverseChildOps.reverse()]);
-        }
-      }
-    }
-    return inverseOps.reverse();
-  }
-
-  // src/reactive.ts
-  var Signal = class {
-    constructor(initial) {
-      this.subscribers = /* @__PURE__ */ new Set();
-      this.value = initial;
-    }
-    get() {
-      return this.value;
-    }
-    set(newValue) {
-      if (this.value !== newValue) {
-        this.value = newValue;
-        this.notify();
-      }
-    }
-    update(updater) {
-      this.set(updater(this.value));
-    }
-    subscribe(fn) {
-      this.subscribers.add(fn);
-      fn(this.value);
-      return () => this.subscribers.delete(fn);
-    }
-    notify() {
-      this.subscribers.forEach((fn) => fn(this.value));
-    }
-  };
-  var ComputedSignal = class {
-    constructor(compute, dependencies) {
-      this.subscribers = /* @__PURE__ */ new Set();
-      this.unsubscribers = [];
-      this.value = compute();
-      dependencies.forEach((dep) => {
-        const unsub = dep.subscribe(() => {
-          const newValue = compute();
-          if (this.value !== newValue) {
-            this.value = newValue;
-            this.notify();
-          }
-        });
-        this.unsubscribers.push(unsub);
       });
     }
-    get() {
-      return this.value;
+    applyListDelete(slotId, container, op) {
+      const key = op[1];
+      const record = this.dom.getRow(slotId, key);
+      if (!record) {
+        Logger.debug("[Patcher]", "list delete skipped (missing row)", { slotId, key });
+        return;
+      }
+      record.nodes.forEach((node) => {
+        if (node.parentNode === container) {
+          container.removeChild(node);
+        }
+      });
+      this.dom.deleteRow(slotId, key);
+      Logger.debug("[Patcher]", "list delete applied", { slotId, key });
     }
-    subscribe(fn) {
-      this.subscribers.add(fn);
-      fn(this.value);
-      return () => this.subscribers.delete(fn);
+    applyListInsert(slotId, container, op) {
+      const [_, index, payload] = op;
+      const html = payload?.html ?? "";
+      if (!html) {
+        Logger.debug("[Patcher]", "list insert skipped (no html)", { slotId, index });
+        return;
+      }
+      const template = document.createElement("template");
+      template.innerHTML = html;
+      const fragment = template.content;
+      const nodes = Array.from(fragment.childNodes);
+      if (nodes.length === 0) {
+        Logger.debug("[Patcher]", "list insert skipped (no nodes)", { slotId, index });
+        return;
+      }
+      const beforeKey = this.dom.getRowKeyAt(slotId, index);
+      const before = beforeKey ? this.dom.getRowFirstNode(slotId, beforeKey) : null;
+      container.insertBefore(fragment, before ?? null);
+      this.dom.insertRow(slotId, payload?.key ?? "", nodes, index);
+      const root = nodes.find((node) => node instanceof Element) ?? null;
+      if (root) {
+        this.registerRowMetadata(
+          root,
+          payload?.componentPaths ?? [],
+          payload?.slotPaths,
+          payload?.listPaths,
+          payload?.bindings
+        );
+      }
+      Logger.debug("[Patcher]", "list insert applied", {
+        slotId,
+        index,
+        key: payload?.key,
+        nodeCount: nodes.length
+      });
     }
-    destroy() {
-      this.unsubscribers.forEach((unsub) => unsub());
-      this.unsubscribers = [];
-      this.subscribers.clear();
+    applyListMove(slotId, container, op) {
+      const from = op[1];
+      const to = op[2];
+      if (from === to) {
+        return;
+      }
+      const currentKey = this.dom.getRowKeyAt(slotId, from);
+      if (!currentKey) {
+        Logger.debug("[Patcher]", "list move skipped (missing source key)", { slotId, from, to });
+        return;
+      }
+      const record = this.dom.getRow(slotId, currentKey);
+      if (!record) {
+        Logger.debug("[Patcher]", "list move skipped (missing record)", { slotId, from, to });
+        return;
+      }
+      const targetKey = this.dom.getRowKeyAt(slotId, to);
+      const beforeNode = targetKey ? this.dom.getRowFirstNode(slotId, targetKey) : null;
+      record.nodes.forEach((node) => {
+        if (node.parentNode !== container) {
+          return;
+        }
+        container.insertBefore(node, beforeNode ?? null);
+      });
+      this.dom.moveRow(slotId, currentKey, to);
+      Logger.debug("[Patcher]", "list move applied", { slotId, from, to, key: currentKey });
     }
-    notify() {
-      this.subscribers.forEach((fn) => fn(this.value));
+    registerRowMetadata(root, componentPaths, slotPaths, listPaths, bindings) {
+      const overrides = applyComponentRanges(componentPaths ?? [], { root });
+      this.dom.registerSlotAnchors(slotPaths ?? void 0, overrides);
+      this.dom.registerLists(listPaths ?? void 0, overrides);
+      if (bindings?.slots) {
+        Object.entries(bindings.slots).forEach(([slot, specs]) => {
+          registerBindingsForSlot(Number(slot), specs);
+        });
+      }
+      if (bindings?.router) {
+        applyRouterBindings(bindings.router, overrides);
+      }
+      if (bindings?.refs) {
+        this.refs?.registerBindings(bindings.refs, overrides);
+      }
+      if (bindings?.uploads) {
+        this.uploads?.registerBindings(bindings.uploads, overrides, { replace: false });
+      }
+      Logger.debug("[Patcher]", "row metadata registered", {
+        slots: bindings?.slots ? Object.keys(bindings.slots).length : 0,
+        routers: bindings?.router?.length ?? 0,
+        refs: bindings?.refs?.length ?? 0,
+        uploads: bindings?.uploads?.length ?? 0
+      });
     }
   };
 
-  // src/emitter.ts
-  var EventEmitter = class {
-    constructor() {
-      this.listeners = /* @__PURE__ */ new Map();
+  // src/uploads.ts
+  var UploadManager = class {
+    constructor(runtime) {
+      this.runtime = runtime;
+      this.bindings = /* @__PURE__ */ new Map();
+      this.elementToUpload = /* @__PURE__ */ new WeakMap();
+      this.active = /* @__PURE__ */ new Map();
+      this.componentBindings = /* @__PURE__ */ new Map();
     }
-    on(event, handler) {
-      if (!this.listeners.has(event)) {
-        this.listeners.set(event, /* @__PURE__ */ new Set());
+    clear() {
+      this.bindings.forEach((binding) => {
+        binding.element.removeEventListener("change", binding.changeHandler);
+      });
+      this.bindings.clear();
+      this.componentBindings.clear();
+      this.active.forEach((upload) => upload.xhr.abort());
+      this.active.clear();
+      Logger.debug("[Uploads]", "cleared bindings and active uploads");
+    }
+    prime(descriptors, overrides) {
+      this.clear();
+      this.registerBindings(descriptors, overrides);
+      Logger.debug("[Uploads]", "primed upload bindings", { count: descriptors?.length ?? 0 });
+    }
+    registerBindings(descriptors, overrides, options) {
+      if (!Array.isArray(descriptors)) {
+        return;
       }
-      this.listeners.get(event).add(handler);
-      return () => this.off(event, handler);
+      Logger.debug("[Uploads]", "register bindings", {
+        count: descriptors.length,
+        replace: options?.replace !== false
+      });
+      if (options?.replace === false) {
+        descriptors.forEach((descriptor) => {
+          if (!descriptor || typeof descriptor.uploadId !== "string" || descriptor.uploadId.length === 0) {
+            return;
+          }
+          this.attachDescriptor(descriptor, overrides);
+        });
+        return;
+      }
+      const grouped = /* @__PURE__ */ new Map();
+      descriptors.forEach((descriptor) => {
+        if (!descriptor || typeof descriptor.uploadId !== "string" || descriptor.uploadId.length === 0) {
+          return;
+        }
+        const componentId = descriptor.componentId || "__root__";
+        const list = grouped.get(componentId) ?? [];
+        list.push(descriptor);
+        grouped.set(componentId, list);
+      });
+      grouped.forEach((list, componentId) => {
+        this.replaceBindingsForComponent(componentId, list, overrides);
+      });
     }
-    off(event, handler) {
-      const handlers2 = this.listeners.get(event);
-      if (handlers2) {
-        handlers2.delete(handler);
-        if (handlers2.size === 0) {
-          this.listeners.delete(event);
+    replaceBindingsForComponent(componentId, descriptors, overrides) {
+      const id = componentId || "__root__";
+      const existing = this.componentBindings.get(id);
+      if (existing) {
+        existing.forEach((uploadId) => this.detachBinding(uploadId));
+        this.componentBindings.delete(id);
+      }
+      if (!descriptors || descriptors.length === 0) {
+        return;
+      }
+      const next = /* @__PURE__ */ new Set();
+      descriptors.forEach((descriptor) => {
+        if (!descriptor || typeof descriptor.uploadId !== "string" || descriptor.uploadId.length === 0) {
+          return;
+        }
+        this.attachDescriptor(descriptor, overrides);
+        next.add(descriptor.uploadId);
+      });
+      if (next.size > 0) {
+        this.componentBindings.set(id, next);
+      }
+      Logger.debug("[Uploads]", "component bindings replaced", {
+        componentId: id,
+        count: descriptors?.length ?? 0
+      });
+    }
+    handleControl(message) {
+      if (!message || !message.id) {
+        return;
+      }
+      Logger.debug("[Uploads]", "control message", { op: message.op, id: message.id });
+      if (message.op === "cancel") {
+        this.abortUpload(message.id, true);
+      } else if (message.op === "error") {
+        this.abortUpload(message.id, true);
+      }
+    }
+    attachDescriptor(descriptor, overrides) {
+      const node = resolveNodeInComponent(descriptor.componentId, descriptor.path, overrides);
+      const element = this.resolveInput(node);
+      if (!element) {
+        return;
+      }
+      const uploadId = descriptor.uploadId;
+      this.detachBinding(uploadId);
+      const handler = () => this.handleInputChange(uploadId, element, descriptor);
+      element.addEventListener("change", handler);
+      this.syncAttributes(element, descriptor);
+      this.bindings.set(uploadId, { id: uploadId, element, descriptor, changeHandler: handler });
+      this.elementToUpload.set(element, uploadId);
+      const componentId = descriptor.componentId || "__root__";
+      const set = this.componentBindings.get(componentId) ?? /* @__PURE__ */ new Set();
+      set.add(uploadId);
+      this.componentBindings.set(componentId, set);
+      Logger.debug("[Uploads]", "attached upload descriptor", {
+        uploadId,
+        componentId,
+        multiple: Boolean(descriptor.multiple)
+      });
+    }
+    detachBinding(uploadId) {
+      const binding = this.bindings.get(uploadId);
+      if (!binding) {
+        return;
+      }
+      binding.element.removeEventListener("change", binding.changeHandler);
+      this.bindings.delete(uploadId);
+      this.elementToUpload.delete(binding.element);
+      this.abortUpload(uploadId, false);
+      const componentId = binding.descriptor.componentId || "__root__";
+      const set = this.componentBindings.get(componentId);
+      if (set) {
+        set.delete(uploadId);
+        if (set.size === 0) {
+          this.componentBindings.delete(componentId);
         }
       }
     }
-    emit(event, data) {
-      const handlers2 = this.listeners.get(event);
-      if (handlers2) {
-        handlers2.forEach((handler) => {
-          try {
-            handler(data);
-          } catch (error) {
-            console.error(`Error in event handler for ${String(event)}:`, error);
-          }
-        });
-      }
-    }
-    once(event, handler) {
-      const wrappedHandler = (data) => {
-        handler(data);
-        this.off(event, wrappedHandler);
-      };
-      return this.on(event, wrappedHandler);
-    }
-    removeAllListeners(event) {
-      if (event) {
-        this.listeners.delete(event);
-      } else {
-        this.listeners.clear();
-      }
-    }
-    listenerCount(event) {
-      return this.listeners.get(event)?.size ?? 0;
-    }
-  };
-
-  // src/optimistic.ts
-  var OptimisticUpdateManager = class {
-    constructor(options) {
-      this.updates = /* @__PURE__ */ new Map();
-      this.nextId = 0;
-      this.debug = false;
-      this.onRollback = options?.onRollback;
-      this.onError = options?.onError;
-      this.debug = options?.debug || false;
-    }
-    /**
-     * Apply optimistic update
-     */
-    apply(patches) {
-      const id = `opt_${this.nextId++}`;
-      const inverseOps = computeInverseOps(patches);
-      const update = {
-        id,
-        patches,
-        inverseOps,
-        timestamp: Date.now()
-      };
-      this.updates.set(id, update);
-      applyOps(patches);
-      if (this.debug) {
-        console.log("[optimistic] Applied update:", id, "patches:", patches.length);
-      }
-      return id;
-    }
-    /**
-     * Commit optimistic update (server confirmed)
-     */
-    commit(id) {
-      if (this.updates.delete(id) && this.debug) {
-        console.log("[optimistic] Committed update:", id);
-      }
-    }
-    /**
-     * Rollback optimistic update (server rejected)
-     */
-    rollback(id) {
-      const update = this.updates.get(id);
-      if (!update) return;
-      if (this.debug) {
-        console.log("[optimistic] Rolling back update:", id, "inverse ops:", update.inverseOps.length);
-      }
-      try {
-        applyOps(update.inverseOps);
-        this.onRollback?.(id, update.patches);
-      } catch (error) {
-        console.error("[optimistic] Rollback error:", error);
-        this.onError?.(error, "rollback");
-      }
-      this.updates.delete(id);
-    }
-    /**
-     * Get pending update count
-     */
-    getPendingCount() {
-      return this.updates.size;
-    }
-    /**
-     * Clear all pending updates
-     */
-    clear() {
-      this.updates.clear();
-    }
-  };
-
-  // src/boot.ts
-  var BootHandler = class {
-    constructor(options) {
-      this.boot = null;
-      this.debug = false;
-      this.debug = options?.debug || false;
-    }
-    /**
-     * Load boot payload from explicit source or auto-detect
-     */
-    load(explicit) {
-      const candidate = explicit ?? this.detect();
-      if (!candidate || typeof candidate.sid !== "string" || candidate.sid.length === 0) {
-        this.log("No boot payload detected or payload invalid");
+    resolveInput(node) {
+      if (!node) {
         return null;
       }
-      this.apply(candidate);
-      return candidate;
-    }
-    /**
-     * Detect boot payload from window or DOM
-     */
-    detect() {
-      if (typeof window !== "undefined") {
-        const globalBoot = window.__LIVEUI_BOOT__;
-        if (globalBoot && typeof globalBoot === "object" && typeof globalBoot.sid === "string") {
-          return globalBoot;
-        }
+      if (node instanceof HTMLInputElement) {
+        return node;
       }
-      if (typeof document !== "undefined") {
-        const script = document.getElementById("live-boot");
-        const payload = script?.textContent;
-        if (payload) {
-          try {
-            return JSON.parse(payload);
-          } catch (error) {
-            this.log("Failed to parse boot payload from DOM", error);
-          }
+      if (node instanceof Element) {
+        if (node.tagName.toLowerCase() === "input" && node.getAttribute("type") === "file") {
+          return node;
+        }
+        const descendant = node.querySelector('input[type="file"]');
+        if (descendant instanceof HTMLInputElement) {
+          return descendant;
         }
       }
       return null;
     }
-    /**
-     * Apply boot payload: register handlers, slots, and sync location
-     */
-    apply(boot) {
-      this.boot = boot;
-      if (boot.handlers) {
-        clearHandlers();
-        registerHandlers(boot.handlers);
-        syncEventListeners();
+    syncAttributes(element, descriptor) {
+      if (Array.isArray(descriptor.accept) && descriptor.accept.length > 0) {
+        element.setAttribute("accept", descriptor.accept.join(","));
+      } else {
+        element.removeAttribute("accept");
       }
-      primeSlotBindings(boot.bindings?.slots ?? null);
-      clearRefs();
-      registerRefs(boot.refs?.add ?? null);
-      let rangeOverrides;
-      let rootRange = null;
-      if (typeof document !== "undefined") {
-        resetComponentRanges();
-        rangeOverrides = applyComponentRanges(boot.componentPaths, { root: document });
-        rootRange = this.computeRootRange();
-      }
-      this.registerInitialDom(boot);
-      const bindingOptions = { overrides: rangeOverrides, fallbackRange: rootRange };
-      applyRouterBindings(boot.bindings?.router ?? null, bindingOptions);
-      applyRefBindings(boot.bindings?.refs ?? null, bindingOptions);
-      primeUploadBindings(boot.bindings?.uploads ?? null, rangeOverrides);
-      if (typeof window !== "undefined" && boot.location) {
-        const queryPart = boot.location.q ? `?${boot.location.q}` : "";
-        const hashPart = boot.location.hash ? `#${boot.location.hash}` : "";
-        const target = `${boot.location.path}${queryPart}${hashPart}`;
-        const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-        if (target && current !== target) {
-          window.history.replaceState({}, "", target);
-        }
+      if (descriptor.multiple) {
+        element.multiple = true;
+      } else {
+        element.multiple = false;
+        element.removeAttribute("multiple");
       }
     }
-    /**
-     * Register initial DOM slots from boot payload
-     */
-    registerInitialDom(boot) {
+    handleInputChange(uploadId, element, descriptor) {
+      const files = element.files;
+      if (!files || files.length === 0) {
+        this.sendUploadMessage({ op: "cancelled", id: uploadId });
+        this.abortUpload(uploadId, true);
+        return;
+      }
+      const file = typeof files.item === "function" ? files.item(0) : files[0] ?? null;
+      if (!file) {
+        this.sendUploadMessage({ op: "cancelled", id: uploadId });
+        return;
+      }
+      if (typeof descriptor.maxSize === "number" && descriptor.maxSize > 0 && file.size > descriptor.maxSize) {
+        this.sendUploadMessage({
+          op: "error",
+          id: uploadId,
+          error: `File exceeds maximum size (${descriptor.maxSize} bytes)`
+        });
+        element.value = "";
+        return;
+      }
+      const meta = { name: file.name, size: file.size, type: file.type };
+      this.sendUploadMessage({ op: "change", id: uploadId, meta });
+      this.startUpload(uploadId, file, element);
+      Logger.debug("[Uploads]", "input change processed", {
+        uploadId,
+        file: file.name,
+        size: file.size
+      });
+    }
+    startUpload(uploadId, file, element) {
+      const sid = this.runtime.getSessionId();
+      if (!sid) {
+        return;
+      }
+      const base = this.runtime.getUploadEndpoint();
+      const target = this.buildUploadURL(base, sid, uploadId);
+      this.abortUpload(uploadId, false);
+      const xhr = new XMLHttpRequest();
+      xhr.upload.onprogress = (event) => {
+        const loaded = event.loaded ?? 0;
+        const total = event.lengthComputable ? event.total : file.size;
+        this.sendUploadMessage({ op: "progress", id: uploadId, loaded, total });
+      };
+      xhr.onerror = () => {
+        this.active.delete(uploadId);
+        this.sendUploadMessage({ op: "error", id: uploadId, error: "Upload failed" });
+      };
+      xhr.onabort = () => {
+        this.active.delete(uploadId);
+        this.sendUploadMessage({ op: "cancelled", id: uploadId });
+      };
+      xhr.onload = () => {
+        this.active.delete(uploadId);
+        if (xhr.status < 200 || xhr.status >= 300) {
+          this.sendUploadMessage({
+            op: "error",
+            id: uploadId,
+            error: `Upload failed (${xhr.status})`
+          });
+        } else {
+          this.sendUploadMessage({ op: "progress", id: uploadId, loaded: file.size, total: file.size });
+          element.value = "";
+        }
+      };
+      const form = new FormData();
+      form.append("file", file);
+      xhr.open("POST", target, true);
+      xhr.send(form);
+      this.active.set(uploadId, { xhr, element });
+      Logger.debug("[Uploads]", "upload started", { uploadId, target });
+    }
+    abortUpload(uploadId, clearInput) {
+      const active = this.active.get(uploadId);
+      if (!active) {
+        return;
+      }
+      active.xhr.abort();
+      if (clearInput) {
+        active.element.value = "";
+      }
+      this.active.delete(uploadId);
+      Logger.debug("[Uploads]", "upload aborted", { uploadId, cleared: clearInput });
+    }
+    sendUploadMessage(payload) {
+      if (!payload.id) {
+        return;
+      }
+      this.runtime.sendUploadMessage(payload);
+      Logger.debug("[Uploads]", "sent upload message", payload);
+    }
+    buildUploadURL(base, sid, uploadId) {
+      const normalized = (base && base.length > 0 ? base : "/pondlive/upload/").replace(/\/+$/, "");
+      return `${normalized}/${encodeURIComponent(sid)}/${encodeURIComponent(uploadId)}`;
+    }
+  };
+
+  // src/metadata.ts
+  var MetadataManager = class {
+    constructor() {
+      this.metaTags = /* @__PURE__ */ new Map();
+      this.linkTags = /* @__PURE__ */ new Map();
+      this.scriptTags = /* @__PURE__ */ new Map();
+      this.descriptionMeta = null;
+      this.indexExistingTags();
+    }
+    indexExistingTags() {
       if (typeof document === "undefined") {
         return;
       }
-      reset();
-      const slotAnchors = resolveSlotAnchors(boot.slotPaths);
-      if (this.debug) {
-        console.log(
-          "[liveui][boot]",
-          "slotAnchors",
-          slotAnchors.size,
-          "boot slots",
-          Array.isArray(boot.slots) ? boot.slots.length : 0
-        );
-      }
-      if (Array.isArray(boot.slots) && boot.slots.length > 0) {
-        for (const slot of boot.slots) {
-          if (!slot || typeof slot.anchorId !== "number") continue;
-          const node = slotAnchors.get(slot.anchorId);
-          if (node) {
-            registerSlot(slot.anchorId, node);
-          } else if (this.debug) {
-            console.warn(
-              "[liveui][boot]",
-              `slot ${slot.anchorId} not registered during boot`,
-              slot,
-              "available anchors",
-              Array.from(slotAnchors.keys())
-            );
+      document.querySelectorAll("meta[data-live-key]").forEach((el) => {
+        if (el instanceof HTMLMetaElement) {
+          const key = el.getAttribute("data-live-key");
+          if (key) {
+            this.metaTags.set(key, el);
+            if (el.name === "description") {
+              this.descriptionMeta = el;
+            }
           }
         }
-      } else {
-        for (const [slotId, node] of slotAnchors.entries()) {
-          registerSlot(slotId, node);
+      });
+      document.querySelectorAll("link[data-live-key]").forEach((el) => {
+        if (el instanceof HTMLLinkElement) {
+          const key = el.getAttribute("data-live-key");
+          if (key) {
+            this.linkTags.set(key, el);
+          }
+        }
+      });
+      document.querySelectorAll("script[data-live-key]").forEach((el) => {
+        if (el instanceof HTMLScriptElement) {
+          const key = el.getAttribute("data-live-key");
+          if (key) {
+            this.scriptTags.set(key, el);
+          }
+        }
+      });
+    }
+    applyEffect(effect) {
+      if (typeof document === "undefined") {
+        return;
+      }
+      Logger.debug("[Metadata]", "applying effect", effect);
+      if (effect.title !== void 0) {
+        document.title = effect.title;
+      }
+      if (effect.description !== void 0) {
+        this.updateDescription(effect.description);
+      } else if (effect.clearDescription) {
+        this.clearDescription();
+      }
+      if (effect.metaRemove) {
+        for (const key of effect.metaRemove) {
+          this.removeMeta(key);
         }
       }
-      const listContainers = resolveListContainers(boot.listPaths);
-      for (const [slotId, element] of listContainers.entries()) {
-        registerList(slotId, element);
+      if (effect.metaAdd) {
+        for (const payload of effect.metaAdd) {
+          this.addOrUpdateMeta(payload);
+        }
+      }
+      if (effect.linkRemove) {
+        for (const key of effect.linkRemove) {
+          this.removeLink(key);
+        }
+      }
+      if (effect.linkAdd) {
+        for (const payload of effect.linkAdd) {
+          this.addOrUpdateLink(payload);
+        }
+      }
+      if (effect.scriptRemove) {
+        for (const key of effect.scriptRemove) {
+          this.removeScript(key);
+        }
+      }
+      if (effect.scriptAdd) {
+        for (const payload of effect.scriptAdd) {
+          this.addOrUpdateScript(payload);
+        }
       }
     }
-    computeRootRange() {
+    updateDescription(content) {
+      if (!this.descriptionMeta) {
+        this.descriptionMeta = document.createElement("meta");
+        this.descriptionMeta.name = "description";
+        this.descriptionMeta.setAttribute("data-live-managed", "true");
+        document.head.appendChild(this.descriptionMeta);
+      }
+      this.descriptionMeta.content = content;
+    }
+    clearDescription() {
+      if (this.descriptionMeta && this.descriptionMeta.hasAttribute("data-live-managed")) {
+        this.descriptionMeta.remove();
+        this.descriptionMeta = null;
+      }
+    }
+    addOrUpdateMeta(payload) {
+      let el = this.metaTags.get(payload.key);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("data-live-key", payload.key);
+        document.head.appendChild(el);
+        this.metaTags.set(payload.key, el);
+      }
+      if (payload.name) el.name = payload.name;
+      if (payload.content !== void 0) el.content = payload.content;
+      if (payload.property) el.setAttribute("property", payload.property);
+      if (payload.charset) el.setAttribute("charset", payload.charset);
+      if (payload.httpEquiv) el.setAttribute("http-equiv", payload.httpEquiv);
+      if (payload.itemProp) el.setAttribute("itemprop", payload.itemProp);
+      if (payload.attrs) {
+        for (const [key, value] of Object.entries(payload.attrs)) {
+          el.setAttribute(key, value);
+        }
+      }
+      if (payload.name === "description") {
+        this.descriptionMeta = el;
+      }
+    }
+    removeMeta(key) {
+      const el = this.metaTags.get(key);
+      if (el) {
+        if (el === this.descriptionMeta) {
+          this.descriptionMeta = null;
+        }
+        el.remove();
+        this.metaTags.delete(key);
+      }
+    }
+    addOrUpdateLink(payload) {
+      let el = this.linkTags.get(payload.key);
+      if (!el) {
+        el = document.createElement("link");
+        el.setAttribute("data-live-key", payload.key);
+        document.head.appendChild(el);
+        this.linkTags.set(payload.key, el);
+      }
+      if (payload.rel) el.rel = payload.rel;
+      if (payload.href) el.href = payload.href;
+      if (payload.type) el.type = payload.type;
+      if (payload.as) el.setAttribute("as", payload.as);
+      if (payload.media) el.media = payload.media;
+      if (payload.hreflang) el.hreflang = payload.hreflang;
+      if (payload.title) el.title = payload.title;
+      if (payload.crossorigin) el.setAttribute("crossorigin", payload.crossorigin);
+      if (payload.integrity) el.integrity = payload.integrity;
+      if (payload.referrerpolicy) el.setAttribute("referrerpolicy", payload.referrerpolicy);
+      if (payload.sizes) el.setAttribute("sizes", payload.sizes);
+      if (payload.attrs) {
+        for (const [key, value] of Object.entries(payload.attrs)) {
+          el.setAttribute(key, value);
+        }
+      }
+    }
+    removeLink(key) {
+      const el = this.linkTags.get(key);
+      if (el) {
+        el.remove();
+        this.linkTags.delete(key);
+      }
+    }
+    addOrUpdateScript(payload) {
+      const existing = this.scriptTags.get(payload.key);
+      if (existing) {
+        existing.remove();
+        this.scriptTags.delete(payload.key);
+      }
+      const el = document.createElement("script");
+      el.setAttribute("data-live-key", payload.key);
+      if (payload.src) el.src = payload.src;
+      if (payload.type) el.type = payload.type;
+      if (payload.async) el.async = true;
+      if (payload.defer) el.defer = true;
+      if (payload.module) el.type = "module";
+      if (payload.noModule) el.setAttribute("nomodule", "");
+      if (payload.crossorigin) el.setAttribute("crossorigin", payload.crossorigin);
+      if (payload.integrity) el.integrity = payload.integrity;
+      if (payload.referrerpolicy) el.setAttribute("referrerpolicy", payload.referrerpolicy);
+      if (payload.nonce) el.nonce = payload.nonce;
+      if (payload.inner) el.textContent = payload.inner;
+      if (payload.attrs) {
+        for (const [key, value] of Object.entries(payload.attrs)) {
+          el.setAttribute(key, value);
+        }
+      }
+      document.head.appendChild(el);
+      this.scriptTags.set(payload.key, el);
+    }
+    removeScript(key) {
+      const el = this.scriptTags.get(key);
+      if (el) {
+        el.remove();
+        this.scriptTags.delete(key);
+      }
+    }
+    dispose() {
+      this.metaTags.forEach((el) => {
+        if (el.hasAttribute("data-live-key")) {
+          el.remove();
+        }
+      });
+      this.linkTags.forEach((el) => {
+        if (el.hasAttribute("data-live-key")) {
+          el.remove();
+        }
+      });
+      this.scriptTags.forEach((el) => {
+        if (el.hasAttribute("data-live-key")) {
+          el.remove();
+        }
+      });
+      this.metaTags.clear();
+      this.linkTags.clear();
+      this.scriptTags.clear();
+      this.descriptionMeta = null;
+    }
+  };
+
+  // src/hydration.ts
+  var HydrationManager = class {
+    constructor(runtime, options) {
+      this.dom = new DomRegistry();
+      this.runtime = runtime;
+      this.options = options ?? {};
+      this.uploads = new UploadManager(runtime);
+      this.refs = new RefRegistry(runtime);
+      this.metadata = new MetadataManager();
+      this.patcher = new Patcher(this.dom, this.refs, this.uploads);
+      this.runtime.on("init", (msg) => this.applyTemplate(msg));
+      this.runtime.on("template", (msg) => this.applyTemplate(msg));
+      this.runtime.on("frame", (msg) => this.applyFrame(msg));
+      this.runtime.on("upload", (msg) => this.uploads.handleControl(msg));
+      this.runtime.on("domreq", (msg) => this.handleDOMRequest(msg));
+      const boot = this.runtime.getBootPayload();
+      if (boot) {
+        this.applyTemplate(boot);
+      }
+    }
+    applyTemplate(payload) {
       if (typeof document === "undefined") {
+        return;
+      }
+      if (typeof payload.html !== "string") {
+        return;
+      }
+      const root = this.resolveRoot();
+      if (!root) {
+        return;
+      }
+      const componentPaths = payload.componentPaths;
+      Logger.debug("[Hydration]", "applying template", {
+        slotPaths: payload.slotPaths?.length ?? 0,
+        listPaths: payload.listPaths?.length ?? 0,
+        componentPaths: componentPaths?.length ?? 0,
+        htmlLength: payload.html?.length ?? 0
+      });
+      if (root instanceof Document) {
+        const container = root.body ?? root.documentElement ?? root;
+        if (container) {
+          container.innerHTML = payload.html;
+          pruneWhitespace(container);
+        }
+        const overrides2 = this.dom.prime(componentPaths, { root });
+        this.componentRanges = overrides2;
+        this.primeRegistries(payload, container ?? root, overrides2);
+        return;
+      }
+      if (root instanceof ShadowRoot) {
+        root.innerHTML = payload.html;
+        pruneWhitespace(root);
+        const overrides2 = this.dom.prime(componentPaths, { root });
+        this.componentRanges = overrides2;
+        this.primeRegistries(payload, root, overrides2);
+        return;
+      }
+      root.innerHTML = payload.html;
+      pruneWhitespace(root);
+      const overrides = this.dom.prime(componentPaths, { root });
+      this.componentRanges = overrides;
+      this.primeRegistries(payload, root, overrides);
+    }
+    applyFrame(frame) {
+      Logger.debug("[Hydration]", "applying frame", {
+        seq: frame.seq,
+        ver: frame.ver,
+        patchOps: Array.isArray(frame.patch) ? frame.patch.length : 0,
+        effects: frame.effects?.length ?? 0
+      });
+      this.patcher.applyFrame(frame);
+      if (frame.bindings?.slots) {
+        registerSlotTable(frame.bindings.slots);
+      }
+      if (frame.bindings?.router) {
+        applyRouterBindings(frame.bindings.router, this.componentRanges);
+      }
+      if (frame.bindings?.refs) {
+        this.refs.registerBindings(frame.bindings.refs, this.componentRanges);
+      }
+      if (frame.bindings?.uploads) {
+        this.uploads.registerBindings(frame.bindings.uploads, this.componentRanges);
+      }
+      if (frame.bindings?.slots === void 0 && frame.bindings?.router) {
+      }
+      this.refs.apply(frame.refs);
+      if (frame.effects) {
+        this.applyEffects(frame.effects);
+      }
+      if (frame.nav) {
+        this.applyNavigation(frame.nav);
+      }
+      Logger.debug("[Hydration]", "frame applied", {
+        hasSlots: Boolean(frame.bindings?.slots),
+        hasRouter: Boolean(frame.bindings?.router?.length),
+        hasRefs: Boolean(frame.bindings?.refs?.length),
+        hasUploads: Boolean(frame.bindings?.uploads?.length),
+        refDeltaAdd: frame.refs?.add ? Object.keys(frame.refs.add).length : 0,
+        refDeltaDel: frame.refs?.del?.length ?? 0,
+        effectsApplied: frame.effects?.length ?? 0,
+        navApplied: Boolean(frame.nav?.push || frame.nav?.replace)
+      });
+    }
+    applyEffects(effects) {
+      for (const effect of effects) {
+        if (effect.type === "metadata") {
+          this.metadata.applyEffect(effect);
+        } else if (effect.type === "dom") {
+          this.applyDOMAction(effect);
+        } else if (effect.type === "cookies") {
+          this.applyCookieEffect(effect);
+        }
+      }
+    }
+    applyDOMAction(effect) {
+      if (!effect.ref || !effect.kind) {
+        return;
+      }
+      const element = this.refs.get(effect.ref);
+      if (!element) {
+        Logger.debug("[Hydration]", "DOM action skipped (element not found)", { ref: effect.ref, kind: effect.kind });
+        return;
+      }
+      try {
+        const kind = effect.kind;
+        if (kind === "dom.call" && effect.method) {
+          if (typeof element[effect.method] === "function") {
+            const args = Array.isArray(effect.args) ? effect.args : [];
+            element[effect.method](...args);
+            Logger.debug("[Hydration]", "DOM action call", { ref: effect.ref, method: effect.method });
+          }
+        } else if (kind === "dom.set" && effect.prop) {
+          element[effect.prop] = effect.value;
+          Logger.debug("[Hydration]", "DOM action set", { ref: effect.ref, prop: effect.prop });
+        } else if (kind === "dom.toggle" && effect.prop) {
+          element[effect.prop] = effect.value;
+          Logger.debug("[Hydration]", "DOM action toggle", { ref: effect.ref, prop: effect.prop, value: effect.value });
+        } else if (kind === "dom.class" && effect.class && element instanceof Element) {
+          if (effect.on === true) {
+            element.classList.add(effect.class);
+          } else {
+            element.classList.remove(effect.class);
+          }
+          Logger.debug("[Hydration]", "DOM action class", { ref: effect.ref, class: effect.class, on: effect.on });
+        } else if (kind === "dom.scroll" && element instanceof Element) {
+          const options = {};
+          if (effect.behavior) options.behavior = effect.behavior;
+          if (effect.block) options.block = effect.block;
+          if (effect.inline) options.inline = effect.inline;
+          element.scrollIntoView(options);
+          Logger.debug("[Hydration]", "DOM action scroll", { ref: effect.ref, options });
+        }
+      } catch (error) {
+        Logger.warn("[Hydration]", "DOM action failed", { ref: effect.ref, kind: effect.kind, error });
+      }
+    }
+    applyCookieEffect(effect) {
+      if (typeof window === "undefined" || typeof fetch !== "function") {
+        return;
+      }
+      if (!effect.endpoint || !effect.sid || !effect.token) {
+        Logger.debug("[Hydration]", "Cookie effect skipped (missing required fields)", effect);
+        return;
+      }
+      const method = effect.method || "POST";
+      Logger.debug("[Hydration]", "Applying cookie effect", { endpoint: effect.endpoint, method });
+      fetch(effect.endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sid: effect.sid,
+          token: effect.token
+        }),
+        credentials: "include"
+      }).then((response) => {
+        if (response.ok) {
+          Logger.debug("[Hydration]", "Cookie effect succeeded", { endpoint: effect.endpoint });
+        } else {
+          Logger.warn("[Hydration]", "Cookie effect failed", { endpoint: effect.endpoint, status: response.status });
+        }
+      }).catch((error) => {
+        Logger.warn("[Hydration]", "Cookie effect error", { endpoint: effect.endpoint, error });
+      });
+    }
+    applyNavigation(nav) {
+      if (typeof window === "undefined" || typeof history === "undefined") {
+        return;
+      }
+      if (!nav.push && !nav.replace && !nav.back) {
+        return;
+      }
+      if (nav.back) {
+        try {
+          history.back();
+          Logger.debug("[Hydration]", "Navigation back");
+        } catch (error) {
+          Logger.warn("[Hydration]", "Navigation back failed", { error });
+        }
+        return;
+      }
+      const url = nav.replace || nav.push;
+      if (!url || typeof url !== "string") {
+        Logger.debug("[Hydration]", "Navigation skipped (invalid URL)", nav);
+        return;
+      }
+      try {
+        if (nav.replace) {
+          history.replaceState(null, "", nav.replace);
+          Logger.debug("[Hydration]", "Navigation replace", { url: nav.replace });
+        } else {
+          history.pushState(null, "", nav.push);
+          Logger.debug("[Hydration]", "Navigation push", { url: nav.push });
+        }
+      } catch (error) {
+        Logger.warn("[Hydration]", "Navigation failed", { url, error });
+      }
+    }
+    resolveRoot() {
+      const root = this.options.root ?? document.body ?? document;
+      if (!root) {
         return null;
       }
-      const container = document.body ?? document;
-      const count = container.childNodes.length;
-      return {
-        container,
-        startIndex: 0,
-        endIndex: count > 0 ? count - 1 : -1
-      };
-    }
-    /**
-     * Get current boot payload
-     */
-    get() {
-      return this.boot;
-    }
-    /**
-     * Ensure boot payload exists, throw if missing
-     */
-    ensure() {
-      if (!this.boot || !this.boot.sid) {
-        throw new Error("LiveUI: boot payload is required before connecting");
+      if (root instanceof Element || root instanceof Document || root instanceof ShadowRoot) {
+        return root;
       }
-      return this.boot;
+      return document.body ?? document;
     }
-    /**
-     * Get join location from browser or boot fallback
-     */
-    getJoinLocation() {
-      const fallback = this.boot?.location ?? { path: "/", q: "", hash: "" };
-      if (typeof window === "undefined") {
-        return fallback;
+    primeRegistries(payload, root, overrides) {
+      if (!root) {
+        return;
       }
-      const path = window.location.pathname || fallback.path || "/";
-      const rawQuery = window.location.search ?? "";
-      const query = rawQuery.startsWith("?") ? rawQuery.substring(1) : rawQuery;
-      const rawHash = window.location.hash ?? "";
-      const hash = rawHash.startsWith("#") ? rawHash.substring(1) : rawHash;
-      return {
-        path,
-        q: query,
-        hash
-      };
+      this.dom.reset();
+      this.refs.clear();
+      this.refs.apply(payload.refs);
+      if (payload.bindings?.slots) {
+        registerSlotTable(payload.bindings.slots);
+      } else {
+        registerSlotTable(void 0);
+      }
+      const listRowIndex = buildListRowIndex(payload);
+      this.dom.registerSlotAnchors(payload.slotPaths, overrides);
+      if (Array.isArray(payload.slots)) {
+        this.dom.registerSlots(payload.slots);
+      }
+      this.dom.registerListContainers(payload.listPaths, overrides, listRowIndex);
+      if (payload.bindings?.router) {
+        applyRouterBindings(payload.bindings.router, overrides);
+      }
+      if (payload.bindings?.refs) {
+        this.refs.registerBindings(payload.bindings.refs, overrides);
+      }
+      this.uploads.prime(payload.bindings?.uploads ?? null, overrides);
+      Logger.debug("[Hydration]", "registries primed", {
+        slots: payload.slotPaths?.length ?? 0,
+        lists: payload.listPaths?.length ?? 0,
+        routers: payload.bindings?.router?.length ?? 0,
+        refs: payload.bindings?.refs?.length ?? 0,
+        uploads: payload.bindings?.uploads?.length ?? 0
+      });
     }
-    log(...args) {
-      if (this.debug) {
-        console.log("[boot]", ...args);
+    handleDOMRequest(msg) {
+      if (!msg || !msg.id || !msg.ref) {
+        this.runtime.sendDOMResponse({ id: msg?.id ?? "", error: "invalid request" });
+        return;
+      }
+      const element = this.refs.get(msg.ref);
+      if (!element) {
+        this.runtime.sendDOMResponse({ id: msg.id, error: "element not found" });
+        return;
+      }
+      try {
+        let result;
+        const values = {};
+        if (msg.method && typeof element[msg.method] === "function") {
+          const args = Array.isArray(msg.args) ? msg.args : [];
+          result = element[msg.method](...args);
+        }
+        if (Array.isArray(msg.props)) {
+          msg.props.forEach((prop) => {
+            if (prop) {
+              values[prop] = element[prop];
+            }
+          });
+        }
+        this.runtime.sendDOMResponse({
+          id: msg.id,
+          result,
+          values: Object.keys(values).length > 0 ? values : void 0
+        });
+      } catch (error) {
+        this.runtime.sendDOMResponse({
+          id: msg.id,
+          error: error instanceof Error ? error.message : "unknown error"
+        });
+      }
+    }
+    getRegistry() {
+      return this.dom;
+    }
+  };
+  function pruneWhitespace(root) {
+    if (!root || typeof Node === "undefined") {
+      return;
+    }
+    const doc = (root instanceof Document ? root : root.ownerDocument) ?? document;
+    if (!doc || typeof doc.createTreeWalker !== "function") {
+      return;
+    }
+    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const removals = [];
+    let current = walker.nextNode();
+    while (current) {
+      if (current.nodeType === Node.TEXT_NODE) {
+        const text = current.textContent ?? "";
+        if (!text.trim()) {
+          removals.push(current);
+        }
+      }
+      current = walker.nextNode();
+    }
+    removals.forEach((node) => {
+      if (node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
+    });
+  }
+  function buildListRowIndex(payload) {
+    const map = /* @__PURE__ */ new Map();
+    if (!payload || !Array.isArray(payload.d)) {
+      return map;
+    }
+    const slots = Array.isArray(payload.slots) ? payload.slots : [];
+    payload.d.forEach((slot, index) => {
+      if (!slot || slot.kind !== "list" || !Array.isArray(slot.list) || slot.list.length === 0) {
+        return;
+      }
+      const entries = slot.list.map((row) => {
+        if (!row || typeof row.key !== "string" || row.key.length === 0) {
+          return void 0;
+        }
+        const count = Math.max(1, Number(row.rootCount) || 1);
+        return { key: row.key, count };
+      }).filter((entry) => Boolean(entry));
+      if (entries.length === 0) {
+        return;
+      }
+      const slotId = slots[index]?.anchorId ?? index;
+      map.set(slotId, entries);
+    });
+    return map;
+  }
+
+  // src/event-delegation.ts
+  var EventDelegation = class {
+    constructor(dom, runtime) {
+      this.dom = dom;
+      this.runtime = runtime;
+      this.handlers = /* @__PURE__ */ new Map();
+    }
+    setup() {
+      if (typeof document === "undefined") {
+        return;
+      }
+      this.registerEvents(["click"]);
+      this.registerEvents(getRegisteredSlotEvents());
+      this.registerEvents(getRegisteredRefEvents());
+      this.stopSlotObserver = observeSlotEvents((event) => this.bind(event));
+      this.stopRefObserver = observeRefEvents((event) => this.bind(event));
+      Logger.debug("[Delegation]", "event delegation setup complete", {
+        handlers: this.handlers.size
+      });
+    }
+    teardown() {
+      if (typeof document === "undefined") {
+        return;
+      }
+      if (this.stopSlotObserver) {
+        this.stopSlotObserver();
+        this.stopSlotObserver = void 0;
+      }
+      if (this.stopRefObserver) {
+        this.stopRefObserver();
+        this.stopRefObserver = void 0;
+      }
+      this.handlers.forEach((listener, event) => {
+        document.removeEventListener(event, listener, true);
+      });
+      this.handlers.clear();
+      Logger.debug("[Delegation]", "event delegation torn down");
+    }
+    registerEvents(events) {
+      events.forEach((event) => this.bind(event));
+    }
+    bind(event) {
+      if (this.handlers.has(event) || typeof document === "undefined") {
+        return;
+      }
+      const listener = (e) => this.handleEvent(event, e);
+      document.addEventListener(event, listener, true);
+      this.handlers.set(event, listener);
+      Logger.debug("[Delegation]", "bound event listener", { event });
+    }
+    handleEvent(event, e) {
+      const target = e.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const router = getRouterMeta(target);
+      if (router && router.path && event === "click") {
+        Logger.debug("[Delegation]", "router navigation triggered", {
+          path: router.path,
+          hash: router.hash
+        });
+        this.runtime.sendNavigation(router.path, router.query ?? "", router.hash ?? "");
+        e.preventDefault();
+        return;
+      }
+      const slotIds = getSlotsForEvent(event);
+      for (const slotId of slotIds) {
+        const specs = getSlotBindings(slotId) ?? [];
+        const node = this.dom.getSlot(slotId);
+        if (node instanceof Element && (node === target || node.contains(target))) {
+          const binding = specs.find((spec) => spec.event === event);
+          if (binding) {
+            const detail = extractEventDetail(e, binding.props);
+            this.runtime.sendEvent(binding.handler, detail ? { name: event, detail } : { name: event });
+            Logger.debug("[Delegation]", "slot event dispatched", {
+              slotId,
+              handler: binding.handler,
+              event
+            });
+            break;
+          }
+        }
       }
     }
   };
 
   // src/index.ts
-  var isServerMessage = (value) => {
-    if (value === null || typeof value !== "object") {
-      return false;
+  var LiveUI = class {
+    constructor(options) {
+      this.runtime = new LiveRuntime(options);
+      this._hydration = new HydrationManager(this.runtime);
+      this.events = new EventDelegation(this._hydration.getRegistry(), this.runtime);
+      this.events.setup();
     }
-    const candidate = value;
-    return typeof candidate.t === "string";
-  };
-  var DEFAULT_COOKIE_ENDPOINT = "/pondlive/cookie";
-  var LiveUI = class extends EventEmitter {
-    constructor(options = {}) {
-      super();
-      this.client = null;
-      this.channel = null;
-      this.pubsubChannels = /* @__PURE__ */ new Map();
-      // Reactive state
-      this.connectionState = new Signal({
-        status: "disconnected"
-      });
-      this.sessionId = new Signal(null);
-      this.version = new Signal(0);
-      this.lastAck = 0;
-      this.hasBootPayload = false;
-      this.autoConnectCleanup = null;
-      // Frame sequence validation
-      this.expectedSeq = null;
-      this.frameBuffer = /* @__PURE__ */ new Map();
-      this.MAX_FRAME_BUFFER_SIZE = 50;
-      this.eventQueue = [];
-      // Frame batching for patch operations
-      this.patchQueue = [];
-      this.batchScheduled = false;
-      this.rafHandle = null;
-      this.rafUsesTimeoutFallback = false;
-      this.pendingUploadBindings = [];
-      this.cookieRequests = /* @__PURE__ */ new Set();
-      this.templateCache = /* @__PURE__ */ new Map();
-      this.MAX_TEMPLATE_CACHE_SIZE = 100;
-      // Reconnection
-      this.reconnectAttempts = 0;
-      this.reconnectTimer = null;
-      this.isReconnecting = false;
-      // Runtime diagnostics
-      this.diagnostics = [];
-      this.errorOverlay = null;
-      this.errorListEl = null;
-      this.errorOverlayVisible = false;
-      this.handleDebugKeydown = (event) => this.onDebugKeydown(event);
-      // Performance metrics
-      this.metrics = {
-        patchesApplied: 0,
-        averagePatchTime: 0,
-        framesReceived: 0,
-        eventsProcessed: 0,
-        reconnections: 0,
-        uptime: 0,
-        effectsMs: 0,
-        maxEffectMs: 0,
-        slowEffects: 0,
-        framesBuffered: 0,
-        framesDropped: 0,
-        sequenceGaps: 0
-      };
-      this.startTime = 0;
-      this.patchTimes = [];
-      this.patchTimeTotal = 0;
-      this.uploads = null;
-      // Navigation tracking (to prevent double pushState)
-      this.lastOptimisticNavTime = 0;
-      this.OPTIMISTIC_NAV_WINDOW = 100;
-      // ms
-      // Event debouncing
-      this.eventDebouncer = /* @__PURE__ */ new Map();
-      /**
-       * Handle browser back/forward navigation
-       */
-      this.handlePopState = () => {
-        const state = this.connectionState.get();
-        if (state.status !== "connected" || !this.channel) {
-          this.log("Not connected, cannot handle popstate");
-          return;
-        }
-        const path = window.location.pathname;
-        const query = window.location.search.substring(1);
-        const hash = window.location.hash.startsWith("#") ? window.location.hash.substring(1) : window.location.hash;
-        const msg = {
-          t: "pop",
-          sid: this.sessionId.get(),
-          path,
-          q: query,
-          hash
-        };
-        this.log("Sending popstate navigation:", msg);
-        this.channel.sendMessage("pop", msg);
-      };
-      this.bootHandler = new BootHandler({ debug: options.debug || false });
-      this.optimistic = new OptimisticUpdateManager({
-        onRollback: (id, patches) => this.emit("rollback", { id, patches }),
-        onError: (error, context) => this.emit("error", { error, context }),
-        debug: options.debug || false
-      });
-      this.uploads = new UploadManager({
-        getSessionId: () => this.sessionId.get(),
-        getEndpoint: () => this.options.uploadEndpoint ?? null,
-        send: (payload) => this.sendUploadMessage(payload),
-        isConnected: () => this.connectionState.get().status === "connected" && this.channel !== null
-      });
-      const baseOptions = { ...options ?? {} };
-      const providedBoot = baseOptions.boot ?? null;
-      delete baseOptions.boot;
-      this.options = {
-        endpoint: baseOptions.endpoint ?? "/live",
-        uploadEndpoint: baseOptions.uploadEndpoint ?? "/pondlive/upload/",
-        autoConnect: baseOptions.autoConnect !== false,
-        debug: baseOptions.debug ?? false,
-        reconnect: baseOptions.reconnect !== false,
-        maxReconnectAttempts: baseOptions.maxReconnectAttempts ?? 5,
-        reconnectDelay: baseOptions.reconnectDelay ?? 1e3,
-        ...baseOptions
-      };
-      if (providedBoot) {
-        this.options.boot = providedBoot;
-      }
-      const boot = this.bootHandler.load(providedBoot);
-      this.hasBootPayload = !!boot;
-      if (boot) {
-        if (boot.client?.endpoint && typeof boot.client.endpoint === "string") {
-          this.options.endpoint = boot.client.endpoint;
-        }
-        if (boot.client?.upload && typeof boot.client.upload === "string") {
-          this.options.uploadEndpoint = boot.client.upload;
-        }
-        if (typeof boot.client?.debug === "boolean") {
-          this.options.debug = boot.client.debug;
-        }
-        this.sessionId.set(boot.sid);
-        this.version.set(boot.ver ?? 0);
-        this.lastAck = boot.seq ?? 0;
-        if (boot.errors && boot.errors.length > 0) {
-          for (const err of boot.errors) {
-            this.recordDiagnostic(err);
-          }
-        }
-      }
-      this.connectionState.subscribe((state) => {
-        this.log("Connection state changed:", state);
-      });
-      if (this.options.debug && typeof window !== "undefined") {
-        window.addEventListener("keydown", this.handleDebugKeydown);
-      }
-      this.setupAutoConnect();
+    connect() {
+      return this.runtime.connect();
     }
-    /**
-     * Initialize and connect to the server
-     */
-    async connect() {
-      this.clearAutoConnect();
-      const currentState = this.connectionState.get();
-      if (currentState.status === "connected" || currentState.status === "connecting") {
-        this.log("Already connected or connecting");
-        return;
-      }
-      let boot;
-      try {
-        boot = this.bootHandler.ensure();
-      } catch (error) {
-        this.log("Boot payload error:", error);
-        this.setState({ status: "error", error });
-        this.emit("error", { error, context: "boot" });
-        return;
-      }
-      if (boot.client?.endpoint && typeof boot.client.endpoint === "string") {
-        this.options.endpoint = boot.client.endpoint;
-      }
-      if (boot.client?.upload && typeof boot.client.upload === "string") {
-        this.options.uploadEndpoint = boot.client.upload;
-      }
-      this.setState({ status: "connecting" });
-      this.startTime = Date.now();
-      try {
-        this.log("Connecting to", this.options.endpoint);
-        const sid = boot.sid;
-        const joinLocation = this.bootHandler.getJoinLocation();
-        const joinPayload = {
-          sid,
-          ver: boot.ver ?? 0,
-          ack: this.lastAck ?? boot.seq ?? 0,
-          loc: {
-            path: joinLocation.path,
-            q: joinLocation.q,
-            hash: joinLocation.hash
-          }
-        };
-        this.client = new import_pondsocket_client.PondClient(this.options.endpoint);
-        if (typeof document !== "undefined") {
-          setupEventDelegation((event) => this.sendEvent(event));
-        }
-        if (typeof document !== "undefined") {
-          registerNavigationHandler(
-            (path, query, hash) => this.sendNavigation(path, query, hash)
-          );
-        }
-        if (typeof window !== "undefined") {
-          window.addEventListener("popstate", this.handlePopState);
-        }
-        const topic = `live/${sid}`;
-        this.channel = this.client.createChannel(
-          topic,
-          joinPayload
-        );
-        this.channel.onChannelStateChange((state) => {
-          this.log("Channel state changed:", state);
-          if (state === "JOINED") {
-            this.onConnected();
-          }
-        });
-        this.channel.onMessage((event, message) => {
-          if (isServerMessage(message)) {
-            this.handleMessage(message);
-          } else {
-            this.log("Ignoring non-server payload", event, message);
-          }
-        });
-        this.channel.onLeave(() => {
-          this.log("Channel left");
-          this.onDisconnected();
-        });
-        this.client.connect();
-        this.channel.join();
-      } catch (error) {
-        this.log("Connection error:", error);
-        this.setState({ status: "error", error });
-        this.emit("error", { error, context: "connect" });
-        if (this.options.reconnect && !this.isReconnecting) {
-          this.scheduleReconnect();
-        }
-      }
-    }
-    /**
-     * Disconnect from the server
-     */
     disconnect() {
-      this.clearReconnectTimer();
-      this.isReconnecting = false;
-      this.cancelScheduledBatch();
-      this.patchQueue = [];
-      this.pendingUploadBindings = [];
-      for (const entry of this.pubsubChannels.values()) {
-        try {
-          entry.dispose();
-          entry.channel.leave();
-        } catch (err) {
-          this.log("Error leaving pubsub channel", err);
-        }
-      }
-      this.pubsubChannels.clear();
-      if (this.channel) {
-        this.channel.leave();
-        this.channel = null;
-      }
-      if (this.client) {
-        this.client.disconnect();
-        this.client = null;
-      }
-      if (typeof window !== "undefined") {
-        window.removeEventListener("popstate", this.handlePopState);
-      }
-      this.setState({ status: "disconnected" });
-      this.sessionId.set(null);
-      this.version.set(0);
-      clearHandlers();
-      clearRefs();
-      teardownEventDelegation();
-      unregisterNavigationHandler();
-      this.uploads?.onDisconnect();
-      this.emit("disconnected", void 0);
+      this.runtime.disconnect();
+      this.events.teardown();
     }
-    setupAutoConnect() {
-      if (!this.options.autoConnect) {
-        return;
-      }
-      if (!this.hasBootPayload) {
-        this.log("Auto-connect skipped: no boot payload detected");
-        return;
-      }
-      const connectSafely = () => {
-        this.clearAutoConnect();
-        this.log("Auto-connecting after DOM ready");
-        this.connect().catch((error) => {
-          this.log("Auto-connect failed:", error);
-        });
-      };
-      if (typeof document === "undefined") {
-        connectSafely();
-        return;
-      }
-      if (document.readyState === "loading") {
-        const onReady = () => {
-          document.removeEventListener("DOMContentLoaded", onReady);
-          connectSafely();
-        };
-        document.addEventListener("DOMContentLoaded", onReady);
-        this.autoConnectCleanup = () => {
-          document.removeEventListener("DOMContentLoaded", onReady);
-        };
-        return;
-      }
-      if (typeof queueMicrotask === "function") {
-        queueMicrotask(connectSafely);
-      } else {
-        Promise.resolve().then(connectSafely);
-      }
+    destroy() {
+      this.runtime.destroy();
+      this.events.teardown();
     }
-    clearAutoConnect() {
-      if (this.autoConnectCleanup) {
-        this.autoConnectCleanup();
-        this.autoConnectCleanup = null;
-      }
+    getState() {
+      return this.runtime.getState();
     }
-    /**
-     * Get current connection state
-     */
-    getConnectionState() {
-      return this.connectionState.get();
+    getBootPayload() {
+      return this.runtime.getBootPayload();
     }
-    /**
-     * Get current metrics
-     */
-    getMetrics() {
-      return {
-        ...this.metrics,
-        uptime: this.startTime ? Date.now() - this.startTime : 0
-      };
+    on(event, listener) {
+      return this.runtime.on(event, listener);
     }
-    /**
-     * Subscribe to connection state changes
-     */
-    onStateChange(callback) {
-      return this.connectionState.subscribe(callback);
+    once(event, listener) {
+      return this.runtime.once(event, listener);
     }
-    /**
-     * Subscribe to session ID changes
-     */
-    onSessionIdChange(callback) {
-      return this.sessionId.subscribe(callback);
+    off(event, listener) {
+      this.runtime.off(event, listener);
     }
-    /**
-     * Subscribe to version changes
-     */
-    onVersionChange(callback) {
-      return this.version.subscribe(callback);
+    sendEvent(handlerId, payload, cseq) {
+      this.runtime.sendEvent(handlerId, payload, cseq);
     }
-    /**
-     * Send event with optional debouncing
-     */
-    sendEventDebounced(event, delay = 300) {
-      const existing = this.eventDebouncer.get(event.hid);
-      if (existing) {
-        clearTimeout(existing);
-      }
-      const timer = setTimeout(() => {
-        this.sendEvent(event);
-        this.eventDebouncer.delete(event.hid);
-      }, delay);
-      this.eventDebouncer.set(event.hid, timer);
+    sendNavigation(path, q, hash) {
+      this.runtime.sendNavigation(path, q, hash);
     }
-    /**
-     * Apply optimistic update
-     */
-    applyOptimistic(patches) {
-      return this.optimistic.apply(patches);
-    }
-    /**
-     * Commit optimistic update (server confirmed)
-     */
-    commitOptimistic(id) {
-      this.optimistic.commit(id);
-    }
-    /**
-     * Rollback optimistic update (server rejected)
-     */
-    rollbackOptimistic(id) {
-      this.optimistic.rollback(id);
-    }
-    // ========================================================================
-    // Private methods
-    // ========================================================================
-    setState(newState) {
-      const oldState = this.connectionState.get();
-      if (!this.hasStateChanged(oldState, newState)) {
-        return;
-      }
-      this.connectionState.set(newState);
-      this.emit("stateChanged", { from: oldState, to: newState });
-    }
-    onConnected() {
-      const sid = this.sessionId.get();
-      const ver = this.version.get();
-      if (sid) {
-        if (this.isReconnecting) {
-          this.isReconnecting = false;
-          this.reconnectAttempts = 0;
-          this.emit("reconnected", { sessionId: sid });
-        }
-        this.setState({ status: "connected", sessionId: sid, version: ver });
-        this.emit("connected", { sessionId: sid, version: ver });
-        this.flushEventQueue();
-      }
-    }
-    onDisconnected() {
-      this.setState({ status: "disconnected" });
-      if (this.options.reconnect && !this.isReconnecting) {
-        this.scheduleReconnect();
-      }
-      this.uploads?.onDisconnect();
-    }
-    scheduleReconnect() {
-      if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
-        this.log("Max reconnect attempts reached");
-        this.emit("error", {
-          error: new Error("Max reconnect attempts reached"),
-          context: "reconnect"
-        });
-        return;
-      }
-      this.isReconnecting = true;
-      this.reconnectAttempts++;
-      const delay = this.options.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-      this.log(
-        `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.options.maxReconnectAttempts})`
-      );
-      this.setState({ status: "reconnecting", attempt: this.reconnectAttempts });
-      this.emit("reconnecting", { attempt: this.reconnectAttempts });
-      this.reconnectTimer = setTimeout(() => {
-        this.metrics.reconnections++;
-        this.connect();
-      }, delay);
-    }
-    clearReconnectTimer() {
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
-    }
-    /**
-     * Handle incoming messages from the server
-     */
-    handleMessage(msg) {
-      if (!msg || !msg.t) {
-        this.log("Invalid message", msg);
-        return;
-      }
-      this.log("Received message:", msg.t, msg);
-      switch (msg.t) {
-        case "init":
-          this.handleInit(msg);
-          break;
-        case "frame":
-          this.handleFrame(msg);
-          break;
-        case "template":
-          this.handleTemplate(msg);
-          break;
-        case "join":
-          this.handleJoin(msg);
-          break;
-        case "resume":
-          this.handleResume(msg);
-          break;
-        case "error":
-          this.handleError(msg);
-          break;
-        case "diagnostic":
-          this.handleDiagnostic(msg);
-          break;
-        case "pubsub":
-          this.handlePubsub(msg);
-          break;
-        case "upload":
-          this.uploads?.handleControl(msg);
-          break;
-        case "domreq":
-          this.handleDOMRequest(msg);
-          break;
-        default:
-          this.log("Unknown message type:", msg.t);
-      }
-    }
-    /**
-     * Handle init message
-     */
-    handleInit(msg) {
-      this.sessionId.set(msg.sid);
-      this.version.set(msg.ver);
-      this.expectedSeq = msg.seq !== void 0 ? msg.seq + 1 : null;
-      this.frameBuffer.clear();
-      if (Array.isArray(msg.errors) && msg.errors.length > 0) {
-        for (const err of msg.errors) {
-          this.recordDiagnostic(err);
-        }
-      }
-      if (msg.handlers) {
-        registerHandlers(msg.handlers);
-        syncEventListeners();
-      }
-      primeSlotBindings(msg.bindings?.slots ?? null);
-      clearRefs();
-      if (msg.refs?.add) {
-        registerRefs(msg.refs.add);
-      }
-      let initOverrides;
-      let initRootRange = null;
-      if (typeof document !== "undefined") {
-        const rootContainer = document.body ?? document;
-        const childCount = rootContainer.childNodes.length;
-        initRootRange = {
-          container: rootContainer,
-          startIndex: 0,
-          endIndex: childCount > 0 ? childCount - 1 : -1
-        };
-        resetComponentRanges();
-        initOverrides = applyComponentRanges(msg.componentPaths, { root: document });
-      }
-      const initBindingOptions = { overrides: initOverrides, fallbackRange: initRootRange };
-      applyRouterBindings(msg.bindings?.router ?? null, initBindingOptions);
-      applyRefBindings(msg.bindings?.refs ?? null, initBindingOptions);
-      primeUploadBindings(msg.bindings?.uploads ?? null, initOverrides);
-      if (msg.seq !== void 0) {
-        this.lastAck = msg.seq;
-        this.sendAck(msg.seq);
-      }
-      this.log("Session initialized:", msg.sid, "version:", msg.ver);
-      this.onConnected();
-    }
-    /**
-     * Handle frame message with sequence validation
-     */
-    handleFrame(msg) {
-      const sid = this.sessionId.get();
-      if (msg.sid !== sid) {
-        this.log("Session mismatch, ignoring frame");
-        return;
-      }
-      this.metrics.framesReceived++;
-      if (msg.seq !== void 0) {
-        if (this.expectedSeq === null) {
-          this.expectedSeq = msg.seq + 1;
-          this.applyFrame(msg);
-          this.drainFrameBuffer();
-          return;
-        }
-        if (msg.seq === this.expectedSeq) {
-          this.expectedSeq = msg.seq + 1;
-          this.applyFrame(msg);
-          this.drainFrameBuffer();
-          return;
-        }
-        if (msg.seq > this.expectedSeq) {
-          this.metrics.sequenceGaps++;
-          this.log("Frame arrived out of order", {
-            expected: this.expectedSeq,
-            received: msg.seq,
-            gap: msg.seq - this.expectedSeq
-          });
-          if (this.frameBuffer.size >= this.MAX_FRAME_BUFFER_SIZE) {
-            this.metrics.framesDropped++;
-            this.log("Frame buffer full, dropping oldest frame");
-            const oldestSeq = Math.min(...this.frameBuffer.keys());
-            this.frameBuffer.delete(oldestSeq);
-          }
-          this.frameBuffer.set(msg.seq, msg);
-          this.metrics.framesBuffered++;
-          return;
-        }
-        if (msg.seq < this.expectedSeq) {
-          this.metrics.framesDropped++;
-          this.log("Dropping duplicate/late frame", {
-            expected: this.expectedSeq,
-            received: msg.seq
-          });
-          return;
-        }
-      } else {
-        this.applyFrame(msg);
-      }
-    }
-    /**
-     * Apply a frame's contents (extracted for reuse)
-     */
-    applyFrame(msg) {
-      this.version.set(msg.ver);
-      if (msg.patch && msg.patch.length > 0) {
-        this.log("Queueing", msg.patch.length, "operations");
-        this.patchQueue.push(...msg.patch);
-        this.scheduleBatch();
-      }
-      if (msg.handlers) {
-        if (msg.handlers.add) {
-          registerHandlers(msg.handlers.add);
-        }
-        if (msg.handlers.del) {
-          unregisterHandlers(msg.handlers.del);
-        }
-        syncEventListeners();
-      }
-      if (msg.bindings?.slots) {
-        for (const [slotKey, specs] of Object.entries(msg.bindings.slots)) {
-          const slotId = Number(slotKey);
-          if (!Number.isInteger(slotId) || slotId < 0) {
-            continue;
-          }
-          if (Array.isArray(specs)) {
-            registerBindingsForSlot(slotId, specs);
-          } else {
-            registerBindingsForSlot(slotId, []);
-          }
-        }
-      }
-      if (msg.bindings?.uploads) {
-        applyUploadBindings(msg.bindings.uploads);
-      }
-      if (msg.bindings?.router) {
-        applyRouterBindings(msg.bindings.router);
-      }
-      if (msg.bindings?.refs) {
-        applyRefBindings(msg.bindings.refs);
-      }
-      if (Array.isArray(msg.bindings?.uploads)) {
-        if (this.batchScheduled || this.patchQueue.length > 0) {
-          this.pendingUploadBindings.push(msg.bindings.uploads);
-        } else {
-          applyUploadBindings(msg.bindings.uploads);
-        }
-      }
-      if (msg.refs) {
-        if (msg.refs.del) {
-          unregisterRefs(msg.refs.del);
-        }
-        if (msg.refs.add) {
-          registerRefs(msg.refs.add);
-        }
-      }
-      if (msg.nav) {
-        const now = Date.now();
-        const wasOptimistic = now - this.lastOptimisticNavTime < this.OPTIMISTIC_NAV_WINDOW;
-        if (msg.nav.push) {
-          if (wasOptimistic) {
-            window.history.replaceState({}, "", msg.nav.push);
-          } else {
-            window.history.pushState({}, "", msg.nav.push);
-          }
-        } else if (msg.nav.replace) {
-          window.history.replaceState({}, "", msg.nav.replace);
-        }
-        this.lastOptimisticNavTime = 0;
-      }
-      if (msg.effects && msg.effects.length > 0) {
-        this.applyEffects(msg.effects);
-      }
-      if (msg.seq !== void 0) {
-        this.sendAck(msg.seq);
-      }
-      if (msg.metrics) {
-        this.log("Frame metrics:", msg.metrics);
-        if (typeof msg.metrics.effectsMs === "number") {
-          this.metrics.effectsMs = msg.metrics.effectsMs;
-        }
-        if (typeof msg.metrics.maxEffectMs === "number") {
-          this.metrics.maxEffectMs = msg.metrics.maxEffectMs;
-        }
-        if (typeof msg.metrics.slowEffects === "number") {
-          this.metrics.slowEffects = msg.metrics.slowEffects;
-        }
-      }
-    }
-    handleTemplate(msg) {
-      if (!msg) {
-        return;
-      }
-      const sid = this.sessionId.get();
-      if (msg.sid && sid && msg.sid !== sid) {
-        this.log("Template message for different session", msg.sid);
-        return;
-      }
-      if (!msg.scope) {
-        this.applyRootTemplatePayload(msg);
-        return;
-      }
-      this.applyComponentTemplatePayload(msg, msg.scope);
-    }
-    handleDiagnostic(msg) {
-      if (!msg) {
-        return;
-      }
-      this.recordDiagnostic(msg);
-    }
-    /**
-     * Drain buffered frames that are now in sequence
-     */
-    drainFrameBuffer() {
-      while (this.expectedSeq !== null && this.frameBuffer.has(this.expectedSeq)) {
-        const bufferedFrame = this.frameBuffer.get(this.expectedSeq);
-        this.frameBuffer.delete(this.expectedSeq);
-        this.expectedSeq = bufferedFrame.seq + 1;
-        this.log("Draining buffered frame", { seq: bufferedFrame.seq });
-        this.applyFrame(bufferedFrame);
-      }
-    }
-    /**
-     * Apply effects from server
-     */
-    applyEffects(effects) {
-      if (!effects || effects.length === 0) {
-        return;
-      }
-      if (this.patchQueue.length > 0 || this.batchScheduled) {
-        if (this.batchScheduled) {
-          this.cancelScheduledBatch();
-        }
-        this.flushBatch();
-      }
-      for (const effect of effects) {
-        try {
-          this.log("Applying effect:", effect);
-          this.emit("effect", { effect });
-          const effectType = typeof effect.type === "string" ? effect.type.toLowerCase() : "";
-          switch (effectType) {
-            case "boot":
-              this.applyBootEffect(effect);
-              break;
-            case "componentboot":
-              this.applyComponentBootEffect(effect);
-              break;
-            case "dom":
-              this.applyDOMActionEffect(effect);
-              break;
-            case "domcall":
-              this.applyLegacyDOMCallEffect(effect);
-              break;
-            case "scroll":
-            case "scrolltop":
-              this.applyScrollEffect(effect);
-              break;
-            case "focus":
-              this.applyFocusEffect(effect);
-              break;
-            case "alert":
-              window.alert(effect.message);
-              break;
-            case "toast":
-              this.applyToastEffect(effect);
-              break;
-            case "push":
-              this.applyPushEffect(effect);
-              break;
-            case "replace":
-              this.applyReplaceEffect(effect);
-              break;
-            case "dispatch":
-              this.dispatchCustomEvent(
-                effect.eventName,
-                effect.detail
-              );
-              break;
-            case "metadata":
-              this.applyMetadataEffect(effect);
-              break;
-            case "cookies":
-              this.handleCookieEffect(effect);
-              break;
-            case "custom":
-              break;
-            default:
-              this.log("Unknown effect type:", effect.type);
-              break;
-          }
-        } catch (error) {
-          this.log("Error applying effect:", effect, error);
-          this.emit("error", { error, context: "effect" });
-        }
-      }
-    }
-    applyRootTemplatePayload(payload) {
-      if (typeof document === "undefined") {
-        return;
-      }
-      clearRefs();
-      const markup = this.getTemplateMarkup(payload, "__root__");
-      clearPatcherCaches();
-      reset();
-      if (document.body) {
-        document.body.innerHTML = markup;
-      } else if (document.documentElement) {
-        document.documentElement.innerHTML = markup;
-      }
-      const rootContainer = document.body ?? document;
-      clearHandlers();
-      if (payload.handlers && Object.keys(payload.handlers).length > 0) {
-        registerHandlers(payload.handlers);
-      }
-      syncEventListeners();
-      primeSlotBindings(payload.bindings?.slots ?? null);
-      if (payload.refs?.del) {
-        unregisterRefs(payload.refs.del);
-      }
-      if (payload.refs?.add) {
-        registerRefs(payload.refs.add);
-      }
-      resetComponentRanges();
-      const childCount = rootContainer.childNodes.length;
-      const range = {
-        container: rootContainer,
-        startIndex: 0,
-        endIndex: childCount > 0 ? childCount - 1 : -1
-      };
-      const overrides = applyComponentRanges(payload.componentPaths, { root: document });
-      this.registerTemplateAnchors(range, payload, overrides);
-      const bindingOptions = { overrides, fallbackRange: range };
-      applyRouterBindings(payload.bindings?.router ?? null, bindingOptions);
-      applyRefBindings(payload.bindings?.refs ?? null, bindingOptions);
-      primeUploadBindings(payload.bindings?.uploads ?? null, overrides);
-    }
-    applyComponentTemplatePayload(payload, scope) {
-      if (typeof document === "undefined") {
-        return;
-      }
-      if (!scope || !scope.componentId) {
-        return;
-      }
-      const range = this.findComponentRange(scope.componentId);
-      if (!range) {
-        if (this.options.debug) {
-          console.warn(
-            `liveui: component ${scope.componentId} range not found for template payload`
-          );
-        }
-        return;
-      }
-      const slotIds = this.extractSlotIds(payload.slots);
-      for (const slot of slotIds) {
-        unregisterSlot(slot);
-      }
-      const listSlotIds = this.extractListSlotIds(payload.listPaths);
-      for (const slot of listSlotIds) {
-        unregisterList(slot);
-      }
-      clearPatcherCaches();
-      const template = document.createElement("template");
-      const markup = this.getTemplateMarkup(payload, scope.componentId);
-      template.innerHTML = markup;
-      const fragment = template.content.cloneNode(true);
-      const insertedNodes = [];
-      for (let child = fragment.firstChild; child; child = child.nextSibling) {
-        insertedNodes.push(child);
-      }
-      const { container } = range;
-      const startIndex = range.startIndex;
-      const endIndex = range.endIndex;
-      const referenceNode = endIndex + 1 < container.childNodes.length ? container.childNodes.item(endIndex + 1) : null;
-      for (let index = endIndex; index >= startIndex; index--) {
-        const node = container.childNodes.item(index);
-        if (node) {
-          if (node instanceof Element || node instanceof DocumentFragment) {
-            unbindRefsInTree(node);
-          }
-          container.removeChild(node);
-        }
-      }
-      container.insertBefore(fragment, referenceNode);
-      const insertedCount = insertedNodes.length;
-      let refreshed = registerComponentRange(scope.componentId, {
-        container,
-        startIndex,
-        endIndex: insertedCount > 0 ? startIndex + insertedCount - 1 : startIndex - 1
-      });
-      if (!refreshed) {
-        refreshed = {
-          container,
-          startIndex,
-          endIndex: insertedCount > 0 ? startIndex + insertedCount - 1 : startIndex - 1
-        };
-      }
-      const overrides = applyComponentRanges(payload.componentPaths, {
-        baseId: scope.componentId,
-        baseRange: refreshed
-      });
-      this.registerTemplateAnchors(refreshed, payload, overrides);
-      const bindingOptions = { overrides, fallbackRange: refreshed };
-      applyRouterBindings(payload.bindings?.router ?? null, bindingOptions);
-      applyRefBindings(payload.bindings?.refs ?? null, bindingOptions);
-      replaceUploadBindingsForComponent(scope.componentId, payload.bindings?.uploads ?? null, overrides);
-      if (payload.handlers && Object.keys(payload.handlers).length > 0) {
-        registerHandlers(payload.handlers);
-        syncEventListeners();
-      }
-      if (payload.bindings?.slots) {
-        for (const [slotKey, specs] of Object.entries(payload.bindings.slots)) {
-          const slotId = Number(slotKey);
-          if (!Number.isInteger(slotId) || slotId < 0) {
-            continue;
-          }
-          registerBindingsForSlot(slotId, Array.isArray(specs) ? specs : []);
-        }
-      }
-      if (payload.refs?.del) {
-        unregisterRefs(payload.refs.del);
-      }
-      if (payload.refs?.add) {
-        registerRefs(payload.refs.add);
-      }
-    }
-    /**
-     * Serializes DOM objects into JSON-serializable format.
-     * Handles TimeRanges, DOMRect, DOMRectReadOnly, and other complex DOM types.
-     */
-    serializeDOMResult(result) {
-      if (result === null || result === void 0) {
-        return result;
-      }
-      if (typeof result === "object" && "length" in result && typeof result.start === "function" && typeof result.end === "function") {
-        const ranges = [];
-        for (let i = 0; i < result.length; i++) {
-          ranges.push({
-            start: result.start(i),
-            end: result.end(i)
-          });
-        }
-        return { length: result.length, ranges };
-      }
-      if (result instanceof DOMRect || result instanceof DOMRectReadOnly) {
-        return {
-          x: result.x,
-          y: result.y,
-          width: result.width,
-          height: result.height,
-          top: result.top,
-          right: result.right,
-          bottom: result.bottom,
-          left: result.left
-        };
-      }
-      if (result && typeof result === "object" && "length" in result && typeof result.contains === "function") {
-        return Array.from(result);
-      }
-      if (result instanceof NodeList || result instanceof HTMLCollection) {
-        return Array.from(result).map((node) => {
-          if (node instanceof Element) {
-            return { tagName: node.tagName, id: node.id, className: node.className };
-          }
-          return null;
-        }).filter(Boolean);
-      }
-      if (result && result.constructor && result.constructor.name === "CSSStyleDeclaration") {
-        const styles = {};
-        for (let i = 0; i < result.length; i++) {
-          const prop = result[i];
-          styles[prop] = result.getPropertyValue(prop);
-        }
-        return styles;
-      }
-      return result;
-    }
-    handleDOMRequest(msg) {
-      if (!msg || !msg.id) {
-        return;
-      }
-      const refId = msg.ref ?? "";
-      const selectors = Array.isArray(msg.props) ? msg.props : [];
-      const response = { t: "domres", id: msg.id };
-      if (!refId) {
-        response.error = "missing_ref";
-        this.sendDOMResponse(response);
-        return;
-      }
-      const element = getRefElement(refId);
-      if (!element) {
-        response.error = "not_found";
-        this.sendDOMResponse(response);
-        return;
-      }
-      if (msg.method) {
-        try {
-          const method = msg.method.trim();
-          if (!method) {
-            response.error = "empty_method";
-            this.sendDOMResponse(response);
-            return;
-          }
-          switch (method) {
-            case "getComputedStyle": {
-              const properties = Array.isArray(msg.args) && msg.args.length > 0 ? msg.args[0] : [];
-              const computed = window.getComputedStyle(element);
-              if (Array.isArray(properties) && properties.length > 0) {
-                const styles = {};
-                for (const prop of properties) {
-                  styles[prop] = computed.getPropertyValue(prop);
-                }
-                response.result = styles;
-              } else {
-                response.result = {
-                  display: computed.display,
-                  visibility: computed.visibility,
-                  opacity: computed.opacity,
-                  position: computed.position,
-                  zIndex: computed.zIndex,
-                  width: computed.width,
-                  height: computed.height,
-                  top: computed.top,
-                  left: computed.left,
-                  right: computed.right,
-                  bottom: computed.bottom,
-                  margin: computed.margin,
-                  padding: computed.padding,
-                  border: computed.border,
-                  backgroundColor: computed.backgroundColor,
-                  color: computed.color,
-                  fontSize: computed.fontSize,
-                  fontFamily: computed.fontFamily,
-                  fontWeight: computed.fontWeight,
-                  lineHeight: computed.lineHeight,
-                  textAlign: computed.textAlign,
-                  overflow: computed.overflow,
-                  transform: computed.transform
-                };
-              }
-              break;
-            }
-            default: {
-              const prop = element[method];
-              if (prop === void 0) {
-                response.error = "method_not_found";
-                this.sendDOMResponse(response);
-                return;
-              }
-              let result;
-              if (typeof prop === "function") {
-                const args = Array.isArray(msg.args) ? msg.args : [];
-                result = prop.apply(element, args);
-              } else {
-                result = prop;
-              }
-              response.result = this.serializeDOMResult(result);
-            }
-          }
-        } catch (error) {
-          response.error = error instanceof Error ? error.message : String(error);
-          this.sendDOMResponse(response);
-          return;
-        }
-      }
-      if (selectors.length > 0) {
-        try {
-          const values = domGetSync(selectors, {
-            event: null,
-            target: element,
-            handlerElement: element,
-            refElement: element
-          });
-          if (values && Object.keys(values).length > 0) {
-            response.values = values;
-          } else {
-            response.values = {};
-          }
-        } catch (error) {
-          response.error = error instanceof Error ? error.message : String(error);
-          this.sendDOMResponse(response);
-          return;
-        }
-      }
-      this.sendDOMResponse(response);
-    }
-    applyDOMActionEffect(effect) {
-      if (typeof document === "undefined") {
-        return;
-      }
-      const kind = (effect.kind ?? effect.Kind ?? "").toLowerCase();
-      const refId = (effect.ref ?? effect.Ref ?? "").trim();
-      if (!kind) {
-        this.reportDOMActionFailure(effect, "missing_kind");
-        return;
-      }
-      if (!refId) {
-        this.reportDOMActionFailure(effect, "missing_ref");
-        return;
-      }
-      switch (kind) {
-        case "dom.call": {
-          const method = (effect.method ?? effect.Method ?? "").trim();
-          if (!method) {
-            this.reportDOMActionFailure(effect, "missing_method");
-            return;
-          }
-          const args = this.normalizeDOMActionArgs(effect);
-          const result = callElementMethod(refId, method, args);
-          if (!result.ok) {
-            this.reportDOMActionFailure(
-              effect,
-              result.reason ?? "call_failed",
-              { method, argsLength: args.length },
-              result.error
-            );
-          }
-          break;
-        }
-        case "dom.set": {
-          const prop = (effect.prop ?? effect.Prop ?? "").trim();
-          if (!prop) {
-            this.reportDOMActionFailure(effect, "missing_property");
-            return;
-          }
-          const value = effect.value ?? effect.Value;
-          const result = setElementProperty(refId, prop, value);
-          if (!result.ok) {
-            this.reportDOMActionFailure(
-              effect,
-              result.reason ?? "set_failed",
-              { prop },
-              result.error
-            );
-          }
-          break;
-        }
-        case "dom.toggle": {
-          const prop = (effect.prop ?? effect.Prop ?? "").trim();
-          if (!prop) {
-            this.reportDOMActionFailure(effect, "missing_property");
-            return;
-          }
-          const value = effect.value ?? effect.Value;
-          if (typeof value !== "boolean") {
-            this.reportDOMActionFailure(effect, "invalid_toggle_value", { prop, value });
-            return;
-          }
-          const result = setBooleanProperty(refId, prop, value);
-          if (!result.ok) {
-            this.reportDOMActionFailure(
-              effect,
-              result.reason ?? "toggle_failed",
-              { prop, value },
-              result.error
-            );
-          }
-          break;
-        }
-        case "dom.class": {
-          const className = (effect["class"] ?? effect.Class ?? "").trim();
-          if (!className) {
-            this.reportDOMActionFailure(effect, "missing_class");
-            return;
-          }
-          const toggle = effect.on ?? effect.On;
-          const result = toggleElementClass(refId, className, toggle);
-          if (!result.ok) {
-            this.reportDOMActionFailure(
-              effect,
-              result.reason ?? "class_failed",
-              { className, toggle },
-              result.error
-            );
-          }
-          break;
-        }
-        case "dom.scroll": {
-          const options = {};
-          const behavior = effect.behavior ?? effect.Behavior;
-          const block = effect.block ?? effect.Block;
-          const inline = effect.inline ?? effect.Inline;
-          if (behavior) {
-            options.behavior = behavior;
-          }
-          if (block) {
-            options.block = block;
-          }
-          if (inline) {
-            options.inline = inline;
-          }
-          const result = scrollElementIntoView(
-            refId,
-            Object.keys(options).length > 0 ? options : null
-          );
-          if (!result.ok) {
-            this.reportDOMActionFailure(
-              effect,
-              result.reason ?? "scroll_failed",
-              void 0,
-              result.error
-            );
-          }
-          break;
-        }
-        default:
-          this.reportDOMActionFailure(effect, "unknown_kind", { kind });
-      }
-    }
-    applyLegacyDOMCallEffect(effect) {
-      const normalizedArgs = Array.isArray(effect.args) ? effect.args : Array.isArray(effect.Args) ? effect.Args : effect.args !== void 0 ? [effect.args] : effect.Args !== void 0 ? [effect.Args] : void 0;
-      const normalized = {
-        type: "dom",
-        kind: "dom.call",
-        ref: effect.ref ?? effect.Ref ?? void 0,
-        method: effect.method ?? effect.Method ?? void 0,
-        args: normalizedArgs
-      };
-      this.applyDOMActionEffect(normalized);
-    }
-    normalizeDOMActionArgs(effect) {
-      if (Array.isArray(effect.args)) {
-        return effect.args;
-      }
-      if (Array.isArray(effect.Args)) {
-        return effect.Args;
-      }
-      if (effect.args !== void 0) {
-        return [effect.args];
-      }
-      if (effect.Args !== void 0) {
-        return [effect.Args];
-      }
-      return [];
-    }
-    reportDOMActionFailure(effect, reason, metadata, error) {
-      const kind = effect.kind ?? effect.Kind ?? "";
-      const refId = effect.ref ?? effect.Ref ?? "" ?? "";
-      const message = `DOM action ${kind || "unknown"} failed: ${reason}`;
-      const detailsMetadata = {
-        kind,
-        ref: refId
-      };
-      if (metadata) {
-        Object.assign(detailsMetadata, metadata);
-      }
-      if (error instanceof Error) {
-        detailsMetadata.error = error.message;
-        if (error.stack) {
-          detailsMetadata.stack = error.stack;
-        }
-      } else if (error !== void 0) {
-        detailsMetadata.error = error;
-      }
-      console.warn("[LiveUI]", message, { effect, metadata: detailsMetadata });
-      const diagnostic = {
-        t: "diagnostic",
-        sid: this.sessionId.get() ?? "",
-        code: "dom_action_failed",
-        message,
-        details: {
-          phase: "dom_action",
-          metadata: detailsMetadata
-        }
-      };
-      this.recordDiagnostic(diagnostic);
-    }
-    sendDOMResponse(payload) {
-      if (!this.channel) {
-        this.log("Cannot send DOM response without channel", payload);
-        return;
-      }
-      try {
-        this.channel.sendMessage("domres", payload);
-      } catch (error) {
-        this.log("Failed to send DOM response", error);
-      }
-    }
-    applyScrollEffect(effect) {
-      const behavior = effect.behavior || "smooth";
-      const selector = effect.selector;
-      if (!selector || effect.type === "ScrollTop") {
-        window.scrollTo({ top: 0, behavior });
-        return;
-      }
-      const element = document.querySelector(selector);
-      if (element instanceof Element) {
-        element.scrollIntoView({
-          behavior,
-          block: effect.block || "start"
-        });
-      }
-    }
-    applyMetadataEffect(effect) {
-      if (typeof document === "undefined") {
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(effect, "title") && effect.title !== void 0) {
-        document.title = effect.title;
-      }
-      const head = document.head;
-      if (!head) {
-        return;
-      }
-      const keyAttr = "data-live-key";
-      const typeAttr = "data-live-head";
-      const removeByKeys = (keys) => {
-        if (!Array.isArray(keys) || keys.length === 0) {
-          return;
-        }
-        keys.forEach((key) => {
-          head.querySelectorAll(`[${keyAttr}="${key}"]`).forEach((node) => {
-            node.parentNode?.removeChild(node);
-          });
-        });
-      };
-      const resetAttributes = (el, preserve) => {
-        const keep = new Set(preserve);
-        Array.from(el.attributes).forEach((attr) => {
-          if (!keep.has(attr.name)) {
-            el.removeAttribute(attr.name);
-          }
-        });
-      };
-      const upsertMeta = (payload, typeValue) => {
-        if (!payload || !payload.key) {
-          return;
-        }
-        let element = head.querySelector(
-          `meta[${keyAttr}="${payload.key}"]`
-        );
-        if (!element) {
-          element = document.createElement("meta");
-          head.appendChild(element);
-        }
-        resetAttributes(element, [keyAttr]);
-        element.setAttribute(keyAttr, payload.key);
-        element.setAttribute(typeAttr, typeValue);
-        if (payload.name !== void 0)
-          element.setAttribute("name", payload.name);
-        if (payload.content !== void 0)
-          element.setAttribute("content", payload.content);
-        if (payload.property !== void 0)
-          element.setAttribute("property", payload.property);
-        if (payload.charset !== void 0)
-          element.setAttribute("charset", payload.charset);
-        if (payload.httpEquiv !== void 0)
-          element.setAttribute("http-equiv", payload.httpEquiv);
-        if (payload.itemProp !== void 0)
-          element.setAttribute("itemprop", payload.itemProp);
-        if (payload.attrs) {
-          for (const [k, v] of Object.entries(payload.attrs)) {
-            if (v != null) {
-              element.setAttribute(k, String(v));
-            }
-          }
-        }
-      };
-      const upsertLink = (payload) => {
-        if (!payload || !payload.key) {
-          return;
-        }
-        let element = head.querySelector(
-          `link[${keyAttr}="${payload.key}"]`
-        );
-        if (!element) {
-          element = document.createElement("link");
-          head.appendChild(element);
-        }
-        resetAttributes(element, [keyAttr]);
-        element.setAttribute(keyAttr, payload.key);
-        element.setAttribute(typeAttr, "link");
-        if (payload.rel !== void 0) element.setAttribute("rel", payload.rel);
-        if (payload.href !== void 0)
-          element.setAttribute("href", payload.href);
-        if (payload.type !== void 0)
-          element.setAttribute("type", payload.type);
-        if (payload.as !== void 0) element.setAttribute("as", payload.as);
-        if (payload.media !== void 0)
-          element.setAttribute("media", payload.media);
-        if (payload.hreflang !== void 0)
-          element.setAttribute("hreflang", payload.hreflang);
-        if (payload.title !== void 0)
-          element.setAttribute("title", payload.title);
-        if (payload.crossorigin !== void 0)
-          element.setAttribute("crossorigin", payload.crossorigin);
-        if (payload.integrity !== void 0)
-          element.setAttribute("integrity", payload.integrity);
-        if (payload.referrerpolicy !== void 0)
-          element.setAttribute("referrerpolicy", payload.referrerpolicy);
-        if (payload.sizes !== void 0)
-          element.setAttribute("sizes", payload.sizes);
-        if (payload.attrs) {
-          for (const [k, v] of Object.entries(payload.attrs)) {
-            if (v != null) {
-              element.setAttribute(k, String(v));
-            }
-          }
-        }
-      };
-      const upsertScript = (payload) => {
-        if (!payload || !payload.key) {
-          return;
-        }
-        let element = head.querySelector(
-          `script[${keyAttr}="${payload.key}"]`
-        );
-        if (!element) {
-          element = document.createElement("script");
-          head.appendChild(element);
-        }
-        resetAttributes(element, [keyAttr]);
-        element.setAttribute(keyAttr, payload.key);
-        element.setAttribute(typeAttr, "script");
-        if (payload.module) {
-          element.setAttribute("type", "module");
-        } else if (payload.type !== void 0) {
-          element.setAttribute("type", payload.type);
-        }
-        if (payload.src !== void 0) element.setAttribute("src", payload.src);
-        if (payload.async) element.setAttribute("async", "async");
-        if (payload.defer) element.setAttribute("defer", "defer");
-        if (payload.noModule) element.setAttribute("nomodule", "nomodule");
-        if (payload.crossorigin !== void 0)
-          element.setAttribute("crossorigin", payload.crossorigin);
-        if (payload.integrity !== void 0)
-          element.setAttribute("integrity", payload.integrity);
-        if (payload.referrerpolicy !== void 0)
-          element.setAttribute("referrerpolicy", payload.referrerpolicy);
-        if (payload.nonce !== void 0)
-          element.setAttribute("nonce", payload.nonce);
-        if (payload.attrs) {
-          for (const [k, v] of Object.entries(payload.attrs)) {
-            if (v != null) {
-              element.setAttribute(k, String(v));
-            }
-          }
-        }
-        if (payload.inner !== void 0) {
-          element.textContent = payload.inner;
-        }
-      };
-      if (effect.clearDescription) {
-        removeByKeys(["description"]);
-      }
-      if (Object.prototype.hasOwnProperty.call(effect, "description") && effect.description !== void 0) {
-        const content = effect.description;
-        if (content.trim().length > 0) {
-          upsertMeta(
-            { key: "description", name: "description", content },
-            "description"
-          );
-        } else {
-          removeByKeys(["description"]);
-        }
-      }
-      if (Array.isArray(effect.metaRemove)) {
-        removeByKeys(effect.metaRemove);
-      }
-      if (Array.isArray(effect.metaAdd)) {
-        for (const payload of effect.metaAdd) {
-          upsertMeta(payload, "meta");
-        }
-      }
-      if (Array.isArray(effect.linkRemove)) {
-        removeByKeys(effect.linkRemove);
-      }
-      if (Array.isArray(effect.linkAdd)) {
-        for (const payload of effect.linkAdd) {
-          upsertLink(payload);
-        }
-      }
-      if (Array.isArray(effect.scriptRemove)) {
-        removeByKeys(effect.scriptRemove);
-      }
-      if (Array.isArray(effect.scriptAdd)) {
-        for (const payload of effect.scriptAdd) {
-          upsertScript(payload);
-        }
-      }
-    }
-    handleCookieEffect(effect) {
-      void this.performCookieSync(effect);
-    }
-    async performCookieSync(effect) {
-      const token = effect.token ?? effect.Token;
-      if (!token) {
-        this.log("Cookie effect missing token", effect);
-        return;
-      }
-      if (this.cookieRequests.has(token)) {
-        return;
-      }
-      const endpoint = effect.endpoint ?? effect.Endpoint ?? DEFAULT_COOKIE_ENDPOINT;
-      if (!endpoint) {
-        this.log("Cookie effect missing endpoint", effect);
-        return;
-      }
-      const sid = effect.sid ?? effect.SID ?? this.sessionId.get();
-      if (!sid) {
-        this.log("Cookie effect missing session identifier", effect);
-        return;
-      }
-      const method = (effect.method ?? effect.Method ?? "POST").toUpperCase();
-      this.cookieRequests.add(token);
-      try {
-        const response = await fetch(endpoint, {
-          method,
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json"
-          },
-          body: JSON.stringify({ sid, token })
-        });
-        if (!response.ok && response.status !== 204) {
-          this.log("Cookie negotiation failed", {
-            endpoint,
-            status: response.status,
-            statusText: response.statusText
-          });
-        }
-      } catch (error) {
-        this.log("Cookie negotiation error", error);
-        this.emit("error", { error, context: "cookies" });
-      } finally {
-        this.cookieRequests.delete(token);
-      }
-    }
-    applyFocusEffect(effect) {
-      const selector = effect.selector || effect.Selector;
-      if (!selector) return;
-      const element = document.querySelector(selector);
-      if (element && (element instanceof HTMLElement || element instanceof SVGElement) && typeof element.focus === "function") {
-        element.focus();
-      }
-    }
-    applyToastEffect(effect) {
-      const message = effect.message || effect.Message;
-      const duration = effect.duration || 3e3;
-      const variant = effect.variant || "info";
-      this.emit("effect", {
-        effect: {
-          type: "toast",
-          message,
-          duration,
-          variant
-        }
-      });
-      if (!this.listenerCount("effect")) {
-        console.info(`[Toast ${variant}] ${message}`);
-      }
-    }
-    applyPushEffect(effect) {
-      const url = effect.url || effect.URL;
-      if (url) {
-        window.history.pushState({}, "", url);
-      }
-    }
-    applyReplaceEffect(effect) {
-      const url = effect.url || effect.URL;
-      if (url) {
-        window.history.replaceState({}, "", url);
-      }
-    }
-    applyBootEffect(effect) {
-      const boot = effect?.boot;
-      if (!boot) {
-        return;
-      }
-      this.applyRootTemplatePayload(boot);
-      this.bootHandler.load(boot);
-    }
-    applyComponentBootEffect(effect) {
-      if (typeof document === "undefined") return;
-      if (!effect || !effect.componentId) return;
-      const { componentId, html, slots, listSlots, bindings, slotPaths, listPaths } = effect;
-      const bounds = this.findComponentRange(componentId);
-      if (!bounds) {
-        if (this.options.debug) {
-          console.warn(`liveui: component ${componentId} bounds not found for componentBoot effect`);
-        }
-        return;
-      }
-      if (Array.isArray(slots)) {
-        for (const slot of slots) {
-          unregisterSlot(slot);
-        }
-      }
-      if (Array.isArray(listSlots)) {
-        for (const slot of listSlots) {
-          unregisterList(slot);
-        }
-      }
-      clearPatcherCaches();
-      const template = document.createElement("template");
-      template.innerHTML = html || "";
-      const fragment = template.content.cloneNode(true);
-      const insertedNodes = [];
-      for (let child = fragment.firstChild; child; child = child.nextSibling) {
-        insertedNodes.push(child);
-      }
-      const container = bounds.container;
-      const afterIndex = bounds.endIndex + 1;
-      const referenceNode = afterIndex < container.childNodes.length ? container.childNodes.item(afterIndex) : null;
-      for (let index = bounds.endIndex; index >= bounds.startIndex; index--) {
-        const node = container.childNodes.item(index);
-        if (node) {
-          container.removeChild(node);
-        }
-      }
-      container.insertBefore(fragment, referenceNode ?? null);
-      const insertedCount = insertedNodes.length;
-      let refreshed = null;
-      if (insertedCount > 0) {
-        const endIndex = bounds.startIndex + insertedCount - 1;
-        refreshed = registerComponentRange(componentId, {
-          container,
-          startIndex: bounds.startIndex,
-          endIndex
-        });
-      } else {
-        refreshed = registerComponentRange(componentId, {
-          container,
-          startIndex: bounds.startIndex,
-          endIndex: bounds.startIndex - 1
-        });
-      }
-      if (!refreshed) {
-        refreshed = { container, startIndex: bounds.startIndex, endIndex: bounds.startIndex - 1 };
-      }
-      const rangeOverrides = applyComponentRanges(effect.componentPaths, {
-        baseId: componentId,
-        baseRange: refreshed
-      });
-      const slotBindingTable = bindings?.slots ?? bindings;
-      if (slotBindingTable && typeof slotBindingTable === "object") {
-        for (const [slotKey, specs] of Object.entries(slotBindingTable)) {
-          const slotId = Number(slotKey);
-          if (Number.isNaN(slotId)) {
-            continue;
-          }
-          registerBindingsForSlot(slotId, Array.isArray(specs) ? specs : []);
-        }
-      }
-      this.registerComponentAnchors(
-        refreshed,
-        Array.isArray(slots) ? slots : [],
-        Array.isArray(listSlots) ? listSlots : [],
-        Array.isArray(slotPaths) ? slotPaths : void 0,
-        Array.isArray(listPaths) ? listPaths : void 0,
-        rangeOverrides
-      );
-      const uploadBindings = bindings?.uploads ?? bindings?.uploads ?? null;
-      replaceUploadBindingsForComponent(componentId, uploadBindings, rangeOverrides);
-      if (Array.isArray(slotPaths) && slotPaths.length > 0) {
-        const anchors = resolveSlotAnchors(slotPaths, rangeOverrides);
-        anchors.forEach((node, slotId) => registerSlot(slotId, node));
-      }
-    }
-    registerTemplateAnchors(range, payload, overrides) {
-      if (!range) {
-        return;
-      }
-      const slotIds = this.extractSlotIds(payload.slots);
-      const listSlotIds = this.extractListSlotIds(payload.listPaths);
-      this.registerComponentAnchors(
-        range,
-        slotIds,
-        listSlotIds,
-        payload.slotPaths,
-        payload.listPaths,
-        overrides
-      );
-    }
-    extractSlotIds(slots) {
-      if (!Array.isArray(slots)) {
-        return [];
-      }
-      const ids = [];
-      for (const meta of slots) {
-        const id = Number(meta?.anchorId);
-        if (Number.isInteger(id) && id >= 0) {
-          ids.push(id);
-        }
-      }
-      return ids;
-    }
-    extractListSlotIds(descriptors) {
-      if (!Array.isArray(descriptors)) {
-        return [];
-      }
-      const seen = /* @__PURE__ */ new Set();
-      const ids = [];
-      for (const descriptor of descriptors) {
-        const id = Number(descriptor?.slot);
-        if (!Number.isInteger(id) || id < 0 || seen.has(id)) {
-          continue;
-        }
-        seen.add(id);
-        ids.push(id);
-      }
-      return ids;
-    }
-    getTemplateMarkup(payload, scopeKey) {
-      const scope = scopeKey && scopeKey.length > 0 ? scopeKey : "__root__";
-      const templateHash = typeof payload.templateHash === "string" ? payload.templateHash : "";
-      if (typeof payload.html === "string") {
-        this.cacheTemplateMarkup(scope, templateHash, payload.html);
-        return payload.html;
-      }
-      if (templateHash) {
-        const cached = this.lookupTemplateMarkup(scope, templateHash);
-        if (cached !== null) {
-          return cached;
-        }
-      }
-      if (Array.isArray(payload.s) && payload.s.length > 0) {
-        const markup = payload.s.join("");
-        this.cacheTemplateMarkup(scope, templateHash, markup);
-        return markup;
-      }
-      this.cacheTemplateMarkup(scope, templateHash, "");
-      return "";
-    }
-    buildTemplateCacheKey(scope, hash) {
-      return `${scope}::${hash}`;
-    }
-    cacheTemplateMarkup(scope, hash, markup) {
-      if (!hash) {
-        return;
-      }
-      const key = this.buildTemplateCacheKey(scope, hash);
-      if (this.templateCache.has(key)) {
-        this.templateCache.delete(key);
-      }
-      this.templateCache.set(key, markup);
-      if (this.templateCache.size > this.MAX_TEMPLATE_CACHE_SIZE) {
-        const oldest = this.templateCache.keys().next();
-        if (!oldest.done) {
-          this.templateCache.delete(oldest.value);
-        }
-      }
-    }
-    lookupTemplateMarkup(scope, hash) {
-      if (!hash) {
-        return null;
-      }
-      const key = this.buildTemplateCacheKey(scope, hash);
-      if (!this.templateCache.has(key)) {
-        return null;
-      }
-      const cached = this.templateCache.get(key);
-      return cached !== void 0 ? cached : null;
-    }
-    findComponentRange(id) {
-      if (typeof document === "undefined" || !id) return null;
-      return getComponentRange(id);
-    }
-    registerComponentAnchors(range, slots, listSlots, slotDescriptors, listDescriptors, overrides) {
-      if (!range || range.endIndex < range.startIndex) {
-        return;
-      }
-      const requestedSlots = Array.isArray(slots) ? slots.filter((value) => Number.isInteger(value) && value >= 0) : [];
-      const requestedLists = Array.isArray(listSlots) ? listSlots.filter((value) => Number.isInteger(value) && value >= 0) : [];
-      const pendingSlots = new Set(requestedSlots);
-      const pendingLists = new Set(requestedLists);
-      const slotAnchors = resolveSlotAnchors(slotDescriptors, overrides);
-      if (slotAnchors.size > 0) {
-        if (pendingSlots.size > 0) {
-          for (const slotId of Array.from(pendingSlots)) {
-            const node = slotAnchors.get(slotId);
-            if (node) {
-              registerSlot(slotId, node);
-              pendingSlots.delete(slotId);
-            }
-          }
-        } else {
-          for (const [slotId, node] of slotAnchors.entries()) {
-            registerSlot(slotId, node);
-          }
-        }
-      }
-      const listAnchors = resolveListContainers(listDescriptors, overrides);
-      if (listAnchors.size > 0) {
-        if (pendingLists.size > 0) {
-          for (const slotId of Array.from(pendingLists)) {
-            const element = listAnchors.get(slotId);
-            if (element) {
-              registerList(slotId, element);
-              pendingLists.delete(slotId);
-            }
-          }
-        } else {
-          for (const [slotId, element] of listAnchors.entries()) {
-            registerList(slotId, element);
-          }
-        }
-      }
-    }
-    dispatchCustomEvent(eventName, detail) {
-      const event = new CustomEvent(eventName, {
-        detail,
-        bubbles: true,
-        cancelable: true
-      });
-      document.dispatchEvent(event);
-    }
-    /**
-     * Schedule a batch to be applied on the next animation frame
-     */
-    scheduleBatch() {
-      if (this.batchScheduled) return;
-      this.batchScheduled = true;
-      if (typeof requestAnimationFrame === "function") {
-        this.rafUsesTimeoutFallback = false;
-        this.rafHandle = requestAnimationFrame(() => {
-          this.rafHandle = null;
-          this.flushBatch();
-        });
-        return;
-      }
-      this.rafUsesTimeoutFallback = true;
-      const handle = setTimeout(() => {
-        this.rafHandle = null;
-        this.flushBatch();
-      }, 16);
-      this.rafHandle = handle;
-    }
-    /**
-     * Apply all queued patches in a single batch
-     */
-    flushBatch() {
-      if (this.patchQueue.length === 0) {
-        this.batchScheduled = false;
-        this.rafHandle = null;
-        this.rafUsesTimeoutFallback = false;
-        if (this.pendingUploadBindings.length > 0) {
-          this.flushPendingUploadBindings();
-        }
-        return;
-      }
-      const startTime = performance.now();
-      this.log("Applying batched", this.patchQueue.length, "operations");
-      const patches = this.patchQueue;
-      this.patchQueue = [];
-      this.batchScheduled = false;
-      this.rafHandle = null;
-      this.rafUsesTimeoutFallback = false;
-      applyOps(patches);
-      this.flushPendingUploadBindings();
-      const duration = performance.now() - startTime;
-      this.metrics.patchesApplied += patches.length;
-      this.patchTimes.push(duration);
-      this.patchTimeTotal += duration;
-      if (this.patchTimes.length > 100) {
-        const removed = this.patchTimes.shift();
-        if (removed !== void 0) {
-          this.patchTimeTotal -= removed;
-        }
-      }
-      const windowLength = this.patchTimes.length;
-      this.metrics.averagePatchTime = windowLength ? this.patchTimeTotal / windowLength : 0;
-      this.emit("frameApplied", { operations: patches.length, duration });
-      this.emit("metricsUpdated", this.getMetrics());
-    }
-    cancelScheduledBatch() {
-      if (this.rafHandle === null) {
-        return;
-      }
-      if (this.rafUsesTimeoutFallback) {
-        clearTimeout(this.rafHandle);
-      } else if (typeof cancelAnimationFrame === "function") {
-        cancelAnimationFrame(this.rafHandle);
-      }
-      this.rafHandle = null;
-      this.batchScheduled = false;
-      this.rafUsesTimeoutFallback = false;
-    }
-    flushPendingUploadBindings() {
-      if (this.pendingUploadBindings.length === 0) {
-        return;
-      }
-      const pending = this.pendingUploadBindings;
-      this.pendingUploadBindings = [];
-      const descriptors = [];
-      for (const group of pending) {
-        if (!Array.isArray(group) || group.length === 0) {
-          continue;
-        }
-        descriptors.push(...group);
-      }
-      if (descriptors.length > 0) {
-        applyUploadBindings(descriptors);
-      }
-    }
-    hasStateChanged(oldState, newState) {
-      if (oldState.status !== newState.status) {
-        return true;
-      }
-      switch (newState.status) {
-        case "connected":
-          return oldState.status !== "connected" || oldState.sessionId !== newState.sessionId || oldState.version !== newState.version;
-        case "reconnecting":
-          return oldState.status !== "reconnecting" || oldState.attempt !== newState.attempt;
-        case "error":
-          return oldState.status !== "error" || oldState.error !== newState.error;
-        default:
-          return false;
-      }
-    }
-    /**
-     * Handle join message
-     */
-    handleJoin(msg) {
-      this.sessionId.set(msg.sid);
-      this.version.set(msg.ver);
-      if (typeof msg.ack === "number" && msg.ack > this.lastAck) {
-        this.lastAck = msg.ack;
-      }
-      this.log("Joined session:", msg.sid, "ack:", msg.ack);
-    }
-    /**
-     * Handle resume message
-     */
-    handleResume(msg) {
-      this.log("Resume from", msg.from, "to", msg.to);
-      const ack = msg.from > 0 ? msg.from - 1 : 0;
-      if (ack > this.lastAck) {
-        this.lastAck = ack;
-      }
-      this.expectedSeq = msg.from;
-      this.frameBuffer.clear();
-      if (Array.isArray(msg.errors) && msg.errors.length > 0) {
-        for (const err of msg.errors) {
-          this.recordDiagnostic(err);
-        }
-      }
-      this.emit("resumed", { from: msg.from, to: msg.to });
-      if (this.isReconnecting) {
-        this.flushEventQueue();
-      }
-    }
-    /**
-     * Handle error message
-     */
-    handleError(msg) {
-      const error = new Error(msg.message);
-      console.error("LiveUI error:", msg.code, msg.message);
-      this.emit("error", { error, context: msg.code });
-      this.recordDiagnostic(msg);
-    }
-    handlePubsub(msg) {
-      if (!msg.topic) {
-        return;
-      }
-      switch (msg.op) {
-        case "join":
-          void this.joinPubsubTopic(msg.topic);
-          break;
-        case "leave":
-          void this.leavePubsubTopic(msg.topic);
-          break;
-        default:
-          this.log("Unknown pubsub op:", msg);
-      }
-    }
-    normalizeDiagnosticMessage(msg) {
-      if (!msg) {
-        return {
-          t: "diagnostic",
-          sid: this.sessionId.get() ?? "",
-          code: "runtime_panic",
-          message: "Runtime diagnostic"
-        };
-      }
-      if (msg.t === "diagnostic") {
-        return msg;
-      }
-      return {
-        t: "diagnostic",
-        sid: msg.sid,
-        code: msg.code,
-        message: msg.message,
-        details: msg.details
-      };
-    }
-    recordDiagnostic(msg) {
-      const diagnostic = this.normalizeDiagnosticMessage(msg);
-      this.emit("diagnostic", { diagnostic });
-      if (msg.t === "diagnostic") {
-        console.warn(
-          "[LiveUI][diagnostic]",
-          diagnostic.code,
-          diagnostic.message,
-          diagnostic.details
-        );
-      }
-      if (!this.options.debug) {
-        return;
-      }
-      const key = this.buildDiagnosticKey(diagnostic);
-      const entry = {
-        key,
-        code: diagnostic.code ?? "runtime_panic",
-        message: diagnostic.message ?? "Runtime panic recovered",
-        details: diagnostic.details,
-        timestamp: Date.now()
-      };
-      const existingIndex = this.diagnostics.findIndex(
-        (item) => item.key === key
-      );
-      if (existingIndex >= 0) {
-        this.diagnostics[existingIndex] = entry;
-      } else {
-        this.diagnostics.push(entry);
-        if (this.diagnostics.length > 20) {
-          this.diagnostics.shift();
-        }
-      }
-      if (typeof document !== "undefined") {
-        this.renderErrorOverlay();
-      }
-    }
-    buildDiagnosticKey(msg) {
-      const details = msg.details;
-      const component = details?.componentId ?? details?.componentName ?? "";
-      const hook = details?.hook ?? "";
-      const phase = details?.phase ?? "";
-      const panic = details?.panic ?? "";
-      return [
-        msg.code ?? "",
-        msg.message ?? "",
-        component,
-        hook,
-        phase,
-        panic
-      ].join("|");
-    }
-    joinPubsubTopic(topic) {
-      if (!topic || !this.client) {
-        return;
-      }
-      if (this.pubsubChannels.has(topic)) {
-        return;
-      }
-      const channel = this.client.createChannel(
-        `pubsub/${topic}`,
-        {
-          sid: this.sessionId.get() ?? void 0
-        }
-      );
-      const dispose = channel.onLeave(() => {
-        this.pubsubChannels.delete(topic);
-      });
-      this.pubsubChannels.set(topic, { channel, dispose });
-      try {
-        channel.join();
-        this.log("Joined pubsub topic", topic);
-      } catch (error) {
-        this.pubsubChannels.delete(topic);
-        dispose();
-        this.log("Failed to join pubsub topic", topic, error);
-      }
-    }
-    leavePubsubTopic(topic) {
-      const entry = this.pubsubChannels.get(topic);
-      if (!entry) {
-        return;
-      }
-      this.pubsubChannels.delete(topic);
-      try {
-        entry.dispose();
-        entry.channel.leave();
-        this.log("Left pubsub topic", topic);
-      } catch (error) {
-        this.log("Failed to leave pubsub topic", topic, error);
-      }
-    }
-    ensureErrorOverlayElements() {
-      if (!this.options.debug || typeof document === "undefined") {
-        return;
-      }
-      if (this.errorOverlay) {
-        return;
-      }
-      const overlay = document.createElement("div");
-      overlay.id = "live-error-overlay";
-      overlay.setAttribute("role", "alertdialog");
-      overlay.setAttribute("aria-live", "assertive");
-      overlay.setAttribute("aria-modal", "true");
-      overlay.style.cssText = [
-        "position:fixed",
-        "inset:0",
-        "background:rgba(15,23,42,0.82)",
-        "color:#e2e8f0",
-        "z-index:2147483646",
-        "display:none",
-        "align-items:flex-start",
-        "justify-content:center",
-        "overflow-y:auto",
-        "padding:48px 24px",
-        "box-sizing:border-box",
-        "backdrop-filter:blur(6px)"
-      ].join(";");
-      overlay.addEventListener("click", (event) => {
-        if (event.target === overlay) {
-          this.hideErrorOverlay();
-        }
-      });
-      const panel = document.createElement("div");
-      panel.style.cssText = [
-        "width:min(960px,100%)",
-        "background:rgba(15,23,42,0.95)",
-        "border-radius:16px",
-        "border:1px solid rgba(148,163,184,0.35)",
-        "box-shadow:0 25px 50px -12px rgba(15,23,42,0.8)",
-        "display:flex",
-        "flex-direction:column",
-        "overflow:hidden",
-        'font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
-      ].join(";");
-      const header = document.createElement("header");
-      header.style.cssText = [
-        "display:flex",
-        "align-items:center",
-        "justify-content:space-between",
-        "gap:12px",
-        "padding:20px 24px",
-        "background:rgba(15,23,42,0.88)",
-        "border-bottom:1px solid rgba(148,163,184,0.28)",
-        "position:sticky",
-        "top:0",
-        "z-index:1"
-      ].join(";");
-      const title = document.createElement("h2");
-      title.textContent = "LiveUI Runtime Errors";
-      title.style.cssText = "margin:0;font-size:18px;font-weight:700;color:#f8fafc;";
-      const headerMeta = document.createElement("div");
-      headerMeta.style.cssText = "display:flex;flex-direction:column;gap:4px;";
-      headerMeta.appendChild(title);
-      const hint = document.createElement("span");
-      hint.textContent = "\u21E7\u2318E / \u21E7Ctrl+E to toggle \u2022 Esc to dismiss";
-      hint.style.cssText = "font-size:12px;color:#94a3b8;";
-      headerMeta.appendChild(hint);
-      const controls = document.createElement("div");
-      controls.style.cssText = "display:flex;align-items:center;gap:8px;";
-      const retryButton = document.createElement("button");
-      retryButton.type = "button";
-      retryButton.textContent = "Retry render";
-      retryButton.style.cssText = [
-        "padding:6px 12px",
-        "border-radius:6px",
-        "border:1px solid rgba(59,130,246,0.4)",
-        "background:rgba(37,99,235,0.18)",
-        "color:#bfdbfe",
-        "font-size:12px",
-        "font-weight:600",
-        "cursor:pointer"
-      ].join(";");
-      retryButton.addEventListener("click", () => this.requestRecovery());
-      const clearButton = document.createElement("button");
-      clearButton.type = "button";
-      clearButton.textContent = "Clear";
-      clearButton.style.cssText = [
-        "padding:6px 12px",
-        "border-radius:6px",
-        "border:1px solid rgba(34,197,94,0.45)",
-        "background:rgba(34,197,94,0.18)",
-        "color:#bbf7d0",
-        "font-size:12px",
-        "font-weight:600",
-        "cursor:pointer"
-      ].join(";");
-      clearButton.addEventListener("click", () => this.clearDiagnostics());
-      const closeButton = document.createElement("button");
-      closeButton.type = "button";
-      closeButton.textContent = "Close";
-      closeButton.style.cssText = [
-        "padding:6px 12px",
-        "border-radius:6px",
-        "border:1px solid rgba(248,113,113,0.4)",
-        "background:rgba(248,113,113,0.18)",
-        "color:#fecaca",
-        "font-size:12px",
-        "font-weight:600",
-        "cursor:pointer"
-      ].join(";");
-      closeButton.addEventListener("click", () => this.hideErrorOverlay());
-      controls.appendChild(retryButton);
-      controls.appendChild(clearButton);
-      controls.appendChild(closeButton);
-      header.appendChild(headerMeta);
-      header.appendChild(controls);
-      const list = document.createElement("div");
-      list.style.cssText = "padding:16px 24px 24px;display:flex;flex-direction:column;gap:16px;";
-      panel.appendChild(header);
-      panel.appendChild(list);
-      overlay.appendChild(panel);
-      document.body.appendChild(overlay);
-      this.errorOverlay = overlay;
-      this.errorListEl = list;
-    }
-    renderErrorOverlay() {
-      if (!this.options.debug || typeof document === "undefined") {
-        return;
-      }
-      this.ensureErrorOverlayElements();
-      if (!this.errorOverlay || !this.errorListEl) {
-        return;
-      }
-      const list = this.errorListEl;
-      list.innerHTML = "";
-      if (this.diagnostics.length === 0) {
-        const empty = document.createElement("div");
-        empty.textContent = "No runtime errors captured yet.";
-        empty.style.cssText = "font-size:14px;color:#94a3b8;";
-        list.appendChild(empty);
-      } else {
-        const ordered = [...this.diagnostics].sort(
-          (a, b) => b.timestamp - a.timestamp
-        );
-        for (const entry of ordered) {
-          list.appendChild(this.createDiagnosticElement(entry));
-        }
-      }
-      this.errorOverlay.style.display = "flex";
-      this.errorOverlayVisible = true;
-    }
-    createDiagnosticElement(entry) {
-      const container = document.createElement("article");
-      container.style.cssText = [
-        "background:rgba(15,23,42,0.65)",
-        "border:1px solid rgba(148,163,184,0.25)",
-        "border-radius:12px",
-        "padding:18px 20px",
-        "display:flex",
-        "flex-direction:column",
-        "gap:12px"
-      ].join(";");
-      const header = document.createElement("div");
-      header.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;";
-      const title = document.createElement("h3");
-      title.textContent = entry.message || "Runtime panic recovered";
-      title.style.cssText = "margin:0;font-size:16px;font-weight:700;color:#f8fafc;";
-      const badgeGroup = document.createElement("div");
-      badgeGroup.style.cssText = "display:flex;align-items:center;gap:8px;";
-      const badge = document.createElement("span");
-      badge.textContent = entry.code || "runtime_panic";
-      badge.style.cssText = [
-        "font-size:11px",
-        "font-weight:700",
-        "letter-spacing:0.08em",
-        "text-transform:uppercase",
-        "background:rgba(37,99,235,0.18)",
-        "color:#bfdbfe",
-        "border:1px solid rgba(37,99,235,0.35)",
-        "border-radius:9999px",
-        "padding:4px 10px"
-      ].join(";");
-      const timeEl = document.createElement("time");
-      const captured = entry.details?.capturedAt ? new Date(entry.details.capturedAt) : new Date(entry.timestamp);
-      if (!Number.isNaN(captured.getTime())) {
-        timeEl.dateTime = captured.toISOString();
-        timeEl.textContent = captured.toLocaleString();
-      } else {
-        timeEl.textContent = new Date(entry.timestamp).toLocaleString();
-      }
-      timeEl.style.cssText = "font-size:12px;color:#94a3b8;";
-      badgeGroup.appendChild(badge);
-      badgeGroup.appendChild(timeEl);
-      header.appendChild(title);
-      header.appendChild(badgeGroup);
-      container.appendChild(header);
-      const details = entry.details;
-      const metaContainer = document.createElement("div");
-      metaContainer.style.cssText = "display:flex;flex-direction:column;gap:4px;font-size:12px;color:#cbd5f5;";
-      const componentLabel = details?.componentName && details.componentId ? `${details.componentName} (${details.componentId})` : details?.componentName ?? details?.componentId ?? "";
-      this.appendMeta(metaContainer, "Component", componentLabel);
-      this.appendMeta(metaContainer, "Phase", details?.phase);
-      if (details?.hook) {
-        const hookInfo = details.hookIndex != null ? `${details.hook} (#${details.hookIndex})` : details.hook;
-        this.appendMeta(metaContainer, "Hook", hookInfo);
-      }
-      this.appendMeta(metaContainer, "Panic", details?.panic);
-      if (metaContainer.childNodes.length > 0) {
-        container.appendChild(metaContainer);
-      }
-      if (details?.suggestion) {
-        const suggestion = document.createElement("p");
-        suggestion.textContent = details.suggestion;
-        suggestion.style.cssText = "margin:0;padding:12px 14px;border-radius:8px;background:rgba(34,197,94,0.12);color:#bbf7d0;font-size:13px;border-left:3px solid rgba(34,197,94,0.45);";
-        container.appendChild(suggestion);
-      }
-      const metadata = details?.metadata;
-      if (metadata && Object.keys(metadata).length > 0) {
-        const dl = document.createElement("dl");
-        dl.style.cssText = "display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;padding:12px;border-radius:8px;background:rgba(15,23,42,0.5);";
-        for (const [key, value] of Object.entries(metadata)) {
-          const dt = document.createElement("dt");
-          dt.textContent = key;
-          dt.style.cssText = "font-weight:600;color:#e2e8f0;";
-          const dd = document.createElement("dd");
-          dd.textContent = this.formatMetadataValue(value);
-          dd.style.cssText = "margin:0;white-space:pre-wrap;color:#cbd5f5;";
-          dl.appendChild(dt);
-          dl.appendChild(dd);
-        }
-        container.appendChild(dl);
-      }
-      const componentId = typeof details?.componentId === "string" ? details.componentId.trim() : "";
-      if (componentId) {
-        const actions = document.createElement("div");
-        actions.style.cssText = "display:flex;justify-content:flex-end;margin-top:4px;";
-        const resetButton = document.createElement("button");
-        resetButton.type = "button";
-        resetButton.textContent = "Reset component";
-        resetButton.title = `Request router reset for ${componentId}`;
-        resetButton.style.cssText = [
-          "padding:6px 12px",
-          "border-radius:6px",
-          "border:1px solid rgba(59,130,246,0.45)",
-          "background:rgba(37,99,235,0.2)",
-          "color:#dbeafe",
-          "font-size:12px",
-          "font-weight:600",
-          "cursor:pointer"
-        ].join(";");
-        resetButton.addEventListener("click", () => {
-          this.requestRouterReset(componentId);
-        });
-        actions.appendChild(resetButton);
-        container.appendChild(actions);
-      }
-      if (details?.stack) {
-        const stack = document.createElement("pre");
-        stack.textContent = details.stack.trim();
-        stack.style.cssText = "margin:0;padding:12px;border-radius:8px;background:#020617;color:#f1f5f9;max-height:220px;overflow:auto;font-size:12px;line-height:1.45;";
-        container.appendChild(stack);
-      }
-      return container;
-    }
-    appendMeta(container, label, value) {
-      if (!value) {
-        return;
-      }
-      const row = document.createElement("div");
-      row.style.cssText = "display:flex;gap:6px;align-items:flex-start;";
-      const strong = document.createElement("span");
-      strong.textContent = `${label}:`;
-      strong.style.cssText = "font-weight:600;min-width:88px;color:#e2e8f0;";
-      const span = document.createElement("span");
-      span.textContent = value;
-      span.style.cssText = "flex:1;";
-      row.appendChild(strong);
-      row.appendChild(span);
-      container.appendChild(row);
-    }
-    formatMetadataValue(value) {
-      if (value === null || value === void 0) {
-        return "null";
-      }
-      if (typeof value === "string") {
-        return value;
-      }
-      if (typeof value === "number" || typeof value === "boolean") {
-        return String(value);
-      }
-      try {
-        return JSON.stringify(value, null, 2);
-      } catch {
-        return String(value);
-      }
-    }
-    hideErrorOverlay() {
-      if (!this.errorOverlay) {
-        return;
-      }
-      this.errorOverlay.style.display = "none";
-      this.errorOverlayVisible = false;
-    }
-    clearDiagnostics() {
-      this.diagnostics = [];
-      if (this.errorListEl) {
-        this.errorListEl.innerHTML = "";
-      }
-      this.hideErrorOverlay();
-    }
-    requestRecovery() {
-      const sid = this.sessionId.get();
-      if (!sid || !this.channel) {
-        this.log("Cannot request recovery without active session/channel");
-        return;
-      }
-      this.log("Requesting runtime recovery");
-      this.channel.sendMessage("recover", { t: "recover", sid });
-    }
-    onDebugKeydown(event) {
-      if (!this.options.debug) {
-        return;
-      }
-      if (event.key === "Escape" && this.errorOverlayVisible) {
-        this.hideErrorOverlay();
-        return;
-      }
-      if ((event.key === "e" || event.key === "E") && event.shiftKey && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        this.renderErrorOverlay();
-      }
-    }
-    /**
-     * Send event to the server
-     */
-    sendEvent(event) {
-      const state = this.connectionState.get();
-      if (state.status !== "connected" || !this.channel) {
-        this.log("Not connected, queueing event");
-        this.eventQueue.push(event);
-        return;
-      }
-      const msg = {
-        t: "evt",
-        sid: this.sessionId.get(),
-        hid: event.hid,
-        payload: event.payload
-      };
-      this.log("Sending event:", msg);
-      this.channel.sendMessage("evt", msg);
-      this.metrics.eventsProcessed++;
-    }
-    sendUploadMessage(payload) {
-      const state = this.connectionState.get();
-      if (state.status !== "connected" || !this.channel) {
-        this.log("Not connected, skipping upload message");
-        return;
-      }
-      this.channel.sendMessage("upload", payload);
-    }
-    /**
-     * Send navigation message to the server
-     * Returns true if navigation was sent, false if not connected
-     */
-    sendNavigation(path, query, hash) {
-      const state = this.connectionState.get();
-      if (state.status !== "connected" || !this.channel) {
-        this.log("Not connected, cannot navigate");
-        return false;
-      }
-      const msg = {
-        t: "nav",
-        sid: this.sessionId.get(),
-        path,
-        q: query,
-        hash
-      };
-      this.log("Sending navigation:", msg);
-      this.channel.sendMessage("nav", msg);
-      const queryPart = query ? `?${query}` : "";
-      const hashPart = hash ? `#${hash}` : "";
-      window.history.pushState({}, "", `${path}${queryPart}${hashPart}`);
-      this.lastOptimisticNavTime = Date.now();
-      return true;
-    }
-    requestRouterReset(componentId) {
-      const sid = this.sessionId.get();
-      if (!sid || !this.channel) {
-        this.log("Cannot request router reset without active session/channel");
-        return;
-      }
-      const trimmed = typeof componentId === "string" ? componentId.trim() : "";
-      if (!trimmed) {
-        this.log("Cannot request router reset without component id");
-        return;
-      }
-      const payload = {
-        t: "routerReset",
-        sid,
-        componentId: trimmed
-      };
-      this.log("Requesting router reset:", payload);
-      this.channel.sendMessage("routerReset", payload);
-    }
-    /**
-     * Send acknowledgement to the server
-     */
-    sendAck(seq) {
-      if (!this.channel) return;
-      const msg = {
-        t: "ack",
-        sid: this.sessionId.get(),
-        seq
-      };
-      this.channel.sendMessage("ack", msg);
-      if (typeof seq === "number" && seq > this.lastAck) {
-        this.lastAck = seq;
-      }
-    }
-    /**
-     * Flush queued events
-     */
-    flushEventQueue() {
-      if (this.eventQueue.length === 0) return;
-      this.log("Flushing", this.eventQueue.length, "queued events");
-      const queue = this.eventQueue;
-      this.eventQueue = [];
-      for (const event of queue) {
-        this.sendEvent(event);
-      }
-    }
-    /**
-     * Log helper
-     */
-    log(...args) {
-      if (this.options.debug) {
-        console.log("[LiveUI]", ...args);
-      }
+    getHydrationManager() {
+      return this._hydration;
     }
   };
   var index_default = LiveUI;
@@ -6411,15 +3777,14 @@ var LiveUIModule = (() => {
     return window;
   }
   function detectBootPayload(target) {
-    const existing = target.__LIVEUI_BOOT__;
-    if (existing && typeof existing === "object" && typeof existing.sid === "string") {
-      return existing;
+    if (target.__LIVEUI_BOOT__ && typeof target.__LIVEUI_BOOT__ === "object") {
+      return target.__LIVEUI_BOOT__;
     }
     if (typeof document === "undefined") {
       return null;
     }
     const script = document.getElementById("live-boot");
-    const content = script?.textContent;
+    const content = script?.textContent?.trim();
     if (!content) {
       return null;
     }
@@ -6428,26 +3793,15 @@ var LiveUIModule = (() => {
       target.__LIVEUI_BOOT__ = payload;
       return payload;
     } catch (error) {
-      console.error("[LiveUI] Failed to parse boot payload", error);
+      Logger.error("Failed to parse boot payload", error);
       return null;
     }
   }
   function attachGlobals(target, instance) {
-    const augmented = index_default;
-    Object.assign(augmented, {
-      instance,
-      dom: dom_index_exports,
-      applyOps,
-      patcher: {
-        configure: configurePatcher,
-        getConfig: getPatcherConfig,
-        clearCaches: clearPatcherCaches,
-        getStats: getPatcherStats,
-        morphElement
-      },
-      boot: bootClient
-    });
-    target.LiveUI = augmented;
+    const LiveUIExport = index_default;
+    LiveUIExport.boot = bootClient;
+    LiveUIExport.instance = instance;
+    target.LiveUI = LiveUIExport;
     target.LiveUIInstance = instance;
     if (target.__LIVEUI_DEVTOOLS__) {
       target.__LIVEUI_DEVTOOLS__.installed = true;
@@ -6457,32 +3811,31 @@ var LiveUIModule = (() => {
   function createClient(target) {
     const inlineOptions = { ...target.__LIVEUI_OPTIONS__ ?? {} };
     const bootPayload = detectBootPayload(target);
-    const inlineBoot = inlineOptions.boot;
-    const resolvedBootPayload = bootPayload ?? inlineBoot ?? null;
-    const shouldAutoConnect = inlineOptions.autoConnect !== false;
-    const options = { ...inlineOptions, autoConnect: false };
-    const bootDebug = typeof resolvedBootPayload?.client?.debug === "boolean" ? resolvedBootPayload.client.debug : void 0;
-    if (typeof bootDebug !== "undefined") {
-      options.debug = bootDebug;
-    } else if (typeof options.debug === "undefined") {
-      options.debug = true;
-    }
-    if (resolvedBootPayload) {
-      options.boot = resolvedBootPayload;
-      if (!bootPayload) {
-        target.__LIVEUI_BOOT__ = resolvedBootPayload;
+    const resolvedBoot = inlineOptions.boot ?? bootPayload ?? null;
+    if (resolvedBoot) {
+      inlineOptions.boot = resolvedBoot;
+      target.__LIVEUI_BOOT__ = resolvedBoot;
+      if (typeof resolvedBoot.client?.debug === "boolean") {
+        inlineOptions.debug = resolvedBoot.client.debug;
       }
     }
-    const client = new index_default(options);
+    if (typeof inlineOptions.debug === "undefined") {
+      inlineOptions.debug = false;
+    }
+    target.__LIVEUI_OPTIONS__ = inlineOptions;
+    const autoConnect = inlineOptions.autoConnect !== false;
+    inlineOptions.autoConnect = false;
+    const client = new index_default(inlineOptions);
     attachGlobals(target, client);
-    if (shouldAutoConnect) {
-      if (resolvedBootPayload) {
-        void client.connect().catch((error) => {
-          console.error("[LiveUI] Failed to connect during boot", error);
-        });
-      } else {
-        console.warn("[LiveUI] Boot payload missing; auto-connect skipped.");
-      }
+    Logger.debug("[Entry]", "LiveUI client created", {
+      autoConnect,
+      debug: inlineOptions.debug,
+      hasBoot: Boolean(resolvedBoot)
+    });
+    if (autoConnect && resolvedBoot) {
+      void client.connect().catch((error) => {
+        Logger.error("Failed to connect after boot", error);
+      });
     }
     return client;
   }
@@ -6493,7 +3846,6 @@ var LiveUIModule = (() => {
           const instance = createClient(target);
           resolve(instance);
         } catch (error) {
-          console.error("[LiveUI] Boot failed", error);
           reject(error);
         }
       };
@@ -6508,31 +3860,24 @@ var LiveUIModule = (() => {
       }
     });
   }
-  function bootClient({ force = false } = {}) {
-    const globalWindow = getWindow();
-    if (!globalWindow) {
-      return Promise.reject(new Error("LiveUI: window is not available for bootstrapping."));
+  function bootClient(options = {}) {
+    const target = getWindow();
+    if (!target) {
+      return Promise.reject(new Error("[LiveUI] window is not available in this environment"));
     }
-    if (force) {
+    if (options.force) {
       bootPromise = null;
     }
     if (!bootPromise) {
-      bootPromise = scheduleBoot(globalWindow);
+      bootPromise = scheduleBoot(target);
     }
     return bootPromise;
   }
   if (typeof window !== "undefined") {
-    void bootClient().catch(() => {
+    void bootClient().catch((error) => {
+      Logger.error("Boot failed", error);
     });
   }
   return __toCommonJS(entry_exports);
 })();
-
-// Export to global window object
-if (typeof window !== 'undefined') {
-  window.LiveUI = LiveUIModule.default;
-  window.LiveUI.dom = LiveUIModule.dom;
-  window.LiveUI.applyOps = LiveUIModule.applyOps;
-}
-
 //# sourceMappingURL=pondlive-dev.js.map

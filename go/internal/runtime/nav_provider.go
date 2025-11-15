@@ -8,11 +8,12 @@ import (
 type NavUpdate struct {
 	Push    string
 	Replace string
+	Back    bool
 }
 
 // Empty reports whether the update carries any navigation changes.
 func (u NavUpdate) Empty() bool {
-	return u.Push == "" && u.Replace == ""
+	return u.Push == "" && u.Replace == "" && !u.Back
 }
 
 var (

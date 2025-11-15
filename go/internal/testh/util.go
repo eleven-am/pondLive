@@ -22,7 +22,7 @@ func cloneStructured(in render.Structured) render.Structured {
 		out.S = append([]string(nil), in.S...)
 	}
 	if len(in.D) > 0 {
-		out.D = make([]render.Dyn, len(in.D))
+		out.D = make([]render.DynamicSlot, len(in.D))
 		for i, dyn := range in.D {
 			out.D[i] = cloneDyn(dyn)
 		}
@@ -30,8 +30,8 @@ func cloneStructured(in render.Structured) render.Structured {
 	return out
 }
 
-func cloneDyn(d render.Dyn) render.Dyn {
-	out := render.Dyn{Kind: d.Kind, Text: d.Text}
+func cloneDyn(d render.DynamicSlot) render.DynamicSlot {
+	out := render.DynamicSlot{Kind: d.Kind, Text: d.Text}
 	if d.Attrs != nil {
 		out.Attrs = make(map[string]string, len(d.Attrs))
 		keys := make([]string, 0, len(d.Attrs))
@@ -46,7 +46,7 @@ func cloneDyn(d render.Dyn) render.Dyn {
 	if len(d.List) > 0 {
 		out.List = make([]render.Row, len(d.List))
 		for i, row := range d.List {
-			copyRow := render.Row{Key: row.Key}
+			copyRow := render.Row{Key: row.Key, RootCount: row.RootCount}
 			if len(row.Slots) > 0 {
 				copyRow.Slots = append([]int(nil), row.Slots...)
 			}

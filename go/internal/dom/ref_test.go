@@ -99,19 +99,19 @@ func TestRefEventBindingKeyGeneration(t *testing.T) {
 			name:     "basic click event",
 			id:       "ref:0",
 			event:    "click",
-			expected: "ref:ref:0/click",
+			expected: "ref:0/click",
 		},
 		{
 			name:     "input event",
 			id:       "ref:1",
 			event:    "input",
-			expected: "ref:ref:1/input",
+			expected: "ref:1/input",
 		},
 		{
 			name:     "uppercase event is lowercased",
 			id:       "ref:2",
 			event:    "MouseDown",
-			expected: "ref:ref:2/mousedown",
+			expected: "ref:2/mousedown",
 		},
 		{
 			name:     "empty id returns empty",
@@ -149,7 +149,7 @@ func TestAddListenerSetsBindingKey(t *testing.T) {
 		t.Fatal("expected binding for click event")
 	}
 
-	expectedKey := "ref:ref:5/click"
+	expectedKey := "ref:5/click"
 	if binding.Key != expectedKey {
 		t.Errorf("binding.Key = %q, want %q", binding.Key, expectedKey)
 	}
@@ -170,16 +170,16 @@ func TestAddListenerMultipleEventsHaveUniqueKeys(t *testing.T) {
 	if !ok {
 		t.Fatal("expected binding for click event")
 	}
-	if clickBinding.Key != "ref:ref:6/click" {
-		t.Errorf("click binding.Key = %q, want %q", clickBinding.Key, "ref:ref:6/click")
+	if clickBinding.Key != "ref:6/click" {
+		t.Errorf("click binding.Key = %q, want %q", clickBinding.Key, "ref:6/click")
 	}
 
 	inputBinding, ok := snapshot["input"]
 	if !ok {
 		t.Fatal("expected binding for input event")
 	}
-	if inputBinding.Key != "ref:ref:6/input" {
-		t.Errorf("input binding.Key = %q, want %q", inputBinding.Key, "ref:ref:6/input")
+	if inputBinding.Key != "ref:6/input" {
+		t.Errorf("input binding.Key = %q, want %q", inputBinding.Key, "ref:6/input")
 	}
 
 	if clickBinding.Key == inputBinding.Key {

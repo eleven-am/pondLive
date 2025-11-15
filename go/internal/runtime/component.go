@@ -249,6 +249,9 @@ func (c *component) render() dom.Node {
 		node = carrier.BodyNode()
 	}
 	node = ensureComponentWrapper(c.id, node)
+	if compNode, ok := node.(*dom.ComponentNode); ok {
+		compNode.Key = c.key
+	}
 	c.endRender()
 	if atomic.SwapInt32(&c.pendingDescendantDirty, 0) == 1 {
 		c.markDescendantsDirtyLocked()

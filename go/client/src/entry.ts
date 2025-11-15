@@ -1,31 +1,8 @@
-import LiveUI, {
-  applyOps,
-  clearPatcherCaches,
-  configurePatcher,
-  dom,
-  getPatcherConfig,
-  getPatcherStats,
-  morphElement,
-} from './index';
-import type { BootPayload, LiveUIOptions } from './types';
+import LiveUI from './index';
+import type { LiveUIOptions, BootPayload } from './types';
+import { Logger } from './logger';
 
 type LiveUIInstance = InstanceType<typeof LiveUI>;
-
-type LiveUIPatcherExports = {
-  configure: typeof configurePatcher;
-  getConfig: typeof getPatcherConfig;
-  clearCaches: typeof clearPatcherCaches;
-  getStats: typeof getPatcherStats;
-  morphElement: typeof morphElement;
-};
-
-type LiveUIAugmented = typeof LiveUI & {
-  instance?: LiveUIInstance;
-  dom?: typeof dom;
-  applyOps?: typeof applyOps;
-  patcher?: LiveUIPatcherExports;
-  boot?: typeof bootClient;
-};
 
 type DevtoolsHook = {
   installed?: boolean;
@@ -33,7 +10,7 @@ type DevtoolsHook = {
 };
 
 type LiveUIWindow = Window & {
-  LiveUI?: LiveUIAugmented;
+  LiveUI?: typeof LiveUI & { boot?: typeof bootClient; instance?: LiveUIInstance };
   LiveUIInstance?: LiveUIInstance;
   __LIVEUI_BOOT__?: BootPayload;
   __LIVEUI_OPTIONS__?: LiveUIOptions;
@@ -50,51 +27,33 @@ function getWindow(): LiveUIWindow | null {
 }
 
 function detectBootPayload(target: LiveUIWindow): BootPayload | null {
-  const existing = target.__LIVEUI_BOOT__;
-  if (existing && typeof existing === 'object' && typeof existing.sid === 'string') {
-    return existing;
+  if (target.__LIVEUI_BOOT__ && typeof target.__LIVEUI_BOOT__ === 'object') {
+    return target.__LIVEUI_BOOT__!;
   }
-
   if (typeof document === 'undefined') {
     return null;
   }
-
   const script = document.getElementById('live-boot');
-  const content = script?.textContent;
+  const content = script?.textContent?.trim();
   if (!content) {
     return null;
   }
-
   try {
     const payload = JSON.parse(content) as BootPayload;
     target.__LIVEUI_BOOT__ = payload;
     return payload;
   } catch (error) {
-    console.error('[LiveUI] Failed to parse boot payload', error);
+    Logger.error('Failed to parse boot payload', error);
     return null;
   }
 }
 
 function attachGlobals(target: LiveUIWindow, instance: LiveUIInstance): void {
-  const augmented = (LiveUI as LiveUIAugmented);
-
-  Object.assign(augmented, {
-    instance,
-    dom,
-    applyOps,
-    patcher: {
-      configure: configurePatcher,
-      getConfig: getPatcherConfig,
-      clearCaches: clearPatcherCaches,
-      getStats: getPatcherStats,
-      morphElement,
-    } satisfies LiveUIPatcherExports,
-    boot: bootClient,
-  });
-
-  target.LiveUI = augmented;
+  const LiveUIExport = LiveUI as typeof LiveUI & { boot?: typeof bootClient; instance?: LiveUIInstance };
+  LiveUIExport.boot = bootClient;
+  LiveUIExport.instance = instance;
+  target.LiveUI = LiveUIExport;
   target.LiveUIInstance = instance;
-
   if (target.__LIVEUI_DEVTOOLS__) {
     target.__LIVEUI_DEVTOOLS__.installed = true;
     target.__LIVEUI_DEVTOOLS__.instance = instance;
@@ -104,39 +63,34 @@ function attachGlobals(target: LiveUIWindow, instance: LiveUIInstance): void {
 function createClient(target: LiveUIWindow): LiveUIInstance {
   const inlineOptions = { ...(target.__LIVEUI_OPTIONS__ ?? {}) } as LiveUIOptions;
   const bootPayload = detectBootPayload(target);
-  const inlineBoot = inlineOptions.boot;
-  const resolvedBootPayload = bootPayload ?? inlineBoot ?? null;
-  const shouldAutoConnect = inlineOptions.autoConnect !== false;
-
-  const options: LiveUIOptions = { ...inlineOptions, autoConnect: false };
-  const bootDebug =
-    typeof resolvedBootPayload?.client?.debug === 'boolean'
-      ? resolvedBootPayload.client.debug
-      : undefined;
-
-  if (typeof bootDebug !== 'undefined') {
-    options.debug = bootDebug;
-  } else if (typeof options.debug === 'undefined') {
-    options.debug = true;
-  }
-  if (resolvedBootPayload) {
-    options.boot = resolvedBootPayload;
-    if (!bootPayload) {
-      target.__LIVEUI_BOOT__ = resolvedBootPayload;
+  const resolvedBoot = inlineOptions.boot ?? bootPayload ?? null;
+  if (resolvedBoot) {
+    inlineOptions.boot = resolvedBoot;
+    target.__LIVEUI_BOOT__ = resolvedBoot;
+    if (typeof resolvedBoot.client?.debug === 'boolean') {
+      inlineOptions.debug = resolvedBoot.client.debug;
     }
   }
+  if (typeof inlineOptions.debug === 'undefined') {
+    inlineOptions.debug = false;
+  }
+  target.__LIVEUI_OPTIONS__ = inlineOptions;
 
-  const client = new LiveUI(options);
+  const autoConnect = inlineOptions.autoConnect !== false;
+  inlineOptions.autoConnect = false;
+
+  const client = new LiveUI(inlineOptions);
   attachGlobals(target, client);
+  Logger.debug('[Entry]', 'LiveUI client created', {
+    autoConnect,
+    debug: inlineOptions.debug,
+    hasBoot: Boolean(resolvedBoot),
+  });
 
-  if (shouldAutoConnect) {
-    if (resolvedBootPayload) {
-      void client.connect().catch((error) => {
-        console.error('[LiveUI] Failed to connect during boot', error);
-      });
-    } else {
-      console.warn('[LiveUI] Boot payload missing; auto-connect skipped.');
-    }
+  if (autoConnect && resolvedBoot) {
+    void client.connect().catch((error) => {
+      Logger.error('Failed to connect after boot', error);
+    });
   }
 
   return client;
@@ -149,11 +103,9 @@ function scheduleBoot(target: LiveUIWindow): Promise<LiveUIInstance> {
         const instance = createClient(target);
         resolve(instance);
       } catch (error) {
-        console.error('[LiveUI] Boot failed', error);
         reject(error);
       }
     };
-
     if (typeof document !== 'undefined' && document.readyState === 'loading') {
       const handler = () => {
         document.removeEventListener('DOMContentLoaded', handler);
@@ -166,28 +118,24 @@ function scheduleBoot(target: LiveUIWindow): Promise<LiveUIInstance> {
   });
 }
 
-export function bootClient({ force = false }: { force?: boolean } = {}): Promise<LiveUIInstance> {
-  const globalWindow = getWindow();
-  if (!globalWindow) {
-    return Promise.reject(new Error('LiveUI: window is not available for bootstrapping.'));
+export function bootClient(options: { force?: boolean } = {}): Promise<LiveUIInstance> {
+  const target = getWindow();
+  if (!target) {
+    return Promise.reject(new Error('[LiveUI] window is not available in this environment'));
   }
-
-  if (force) {
+  if (options.force) {
     bootPromise = null;
   }
-
   if (!bootPromise) {
-    bootPromise = scheduleBoot(globalWindow);
+    bootPromise = scheduleBoot(target);
   }
-
   return bootPromise;
 }
 
 if (typeof window !== 'undefined') {
-  void bootClient().catch(() => {
-    /* Error already logged in scheduleBoot */
+  void bootClient().catch((error) => {
+    Logger.error('Boot failed', error);
   });
 }
 
 export * from './index';
-export { default } from './index';

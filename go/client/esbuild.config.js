@@ -25,16 +25,6 @@ const baseConfig = {
     banner: {
         js: `// LiveUI Client v1.0.0 - Built with esbuild`,
     },
-    footer: {
-        js: `
-// Export to global window object
-if (typeof window !== 'undefined') {
-  window.LiveUI = LiveUIModule.default;
-  window.LiveUI.dom = LiveUIModule.dom;
-  window.LiveUI.applyOps = LiveUIModule.applyOps;
-}
-`,
-    },
 };
 
 const targets = [

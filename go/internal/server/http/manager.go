@@ -175,6 +175,18 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	node := session.RenderRoot()
 	meta := session.Metadata()
 	body := render.RenderHTML(node, session.Registry())
+
+	structured, err := render.ToStructuredWithOptions(node, render.StructuredOptions{
+		Handlers:   session.Registry(),
+		Promotions: session.ComponentSession(),
+	})
+	if err != nil {
+		http.Error(w, "live: failed to structure DOM", http.StatusInternalServerError)
+		return
+	}
+	session.SetPrev(structured)
+	session.RebuildSnapshot(structured)
+
 	boot := session.BuildBoot(body)
 
 	m.registry.Put(session)

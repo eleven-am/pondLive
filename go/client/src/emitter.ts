@@ -1,64 +1,53 @@
-/**
- * Event Emitter
- *
- * Simple type-safe event emitter for lifecycle hooks
- */
+import {Logger} from './logger';
 
-export type EventHandler<T = any> = (data: T) => void;
+export type EventMap = Record<string, any>;
 
-export class EventEmitter<EventMap extends Record<string, any>> {
-    private listeners = new Map<keyof EventMap, Set<EventHandler>>();
+export type Listener<T> = (payload: T) => void;
 
-    on<K extends keyof EventMap>(event: K, handler: EventHandler<EventMap[K]>): () => void {
-        if (!this.listeners.has(event)) {
-            this.listeners.set(event, new Set());
-        }
-        this.listeners.get(event)!.add(handler);
+export class TypedEventEmitter<Events extends EventMap> {
+  private listeners: Map<keyof Events, Set<Listener<any>>> = new Map();
 
-        // Return unsubscribe function
-        return () => this.off(event, handler);
+  on<K extends keyof Events>(event: K, listener: Listener<Events[K]>): () => void {
+    const bucket = this.listeners.get(event) ?? new Set();
+    bucket.add(listener as Listener<any>);
+    this.listeners.set(event, bucket);
+    return () => this.off(event, listener);
+  }
+
+  once<K extends keyof Events>(event: K, listener: Listener<Events[K]>): () => void {
+    const unsubscribe = this.on(event, (payload) => {
+      unsubscribe();
+      listener(payload);
+    });
+    return unsubscribe;
+  }
+
+  off<K extends keyof Events>(event: K, listener: Listener<Events[K]>): void {
+    const bucket = this.listeners.get(event);
+    if (!bucket) {
+      return;
     }
-
-    off<K extends keyof EventMap>(event: K, handler: EventHandler<EventMap[K]>): void {
-        const handlers = this.listeners.get(event);
-        if (handlers) {
-            handlers.delete(handler);
-            if (handlers.size === 0) {
-                this.listeners.delete(event);
-            }
-        }
+    bucket.delete(listener as Listener<any>);
+    if (bucket.size === 0) {
+      this.listeners.delete(event);
     }
+  }
 
-    emit<K extends keyof EventMap>(event: K, data: EventMap[K]): void {
-        const handlers = this.listeners.get(event);
-        if (handlers) {
-            handlers.forEach(handler => {
-                try {
-                    handler(data);
-                } catch (error) {
-                    console.error(`Error in event handler for ${String(event)}:`, error);
-                }
-            });
-        }
+  emit<K extends keyof Events>(event: K, payload: Events[K]): void {
+    const bucket = this.listeners.get(event);
+    if (!bucket) {
+      return;
     }
+    for (const listener of Array.from(bucket)) {
+      try {
+        (listener as Listener<Events[K]>)(payload);
+      } catch (error) {
+        Logger.error('event listener error', event, error);
+      }
+    }
+  }
 
-    once<K extends keyof EventMap>(event: K, handler: EventHandler<EventMap[K]>): () => void {
-        const wrappedHandler = (data: EventMap[K]) => {
-            handler(data);
-            this.off(event, wrappedHandler);
-        };
-        return this.on(event, wrappedHandler);
-    }
-
-    removeAllListeners(event?: keyof EventMap): void {
-        if (event) {
-            this.listeners.delete(event);
-        } else {
-            this.listeners.clear();
-        }
-    }
-
-    listenerCount(event: keyof EventMap): number {
-        return this.listeners.get(event)?.size ?? 0;
-    }
+  clear(): void {
+    this.listeners.clear();
+  }
 }
