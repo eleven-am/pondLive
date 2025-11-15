@@ -87,6 +87,8 @@ type component struct {
 	dirty                  bool
 	rendering              int32
 	pendingDescendantDirty int32
+
+	handlers []dom.EventHandler
 }
 
 type attachmentResetter interface {
@@ -166,6 +168,7 @@ func (c *component) beginRender() {
 			}
 		}
 	}
+	c.handlers = nil
 }
 
 func (c *component) endRender() {
@@ -408,6 +411,24 @@ func ensureComponentWrapper(id string, node dom.Node) dom.Node {
 		node = existing.Child
 	}
 	return dom.WrapComponent(id, node)
+}
+
+func (c *component) RegisterHandler(handler dom.EventHandler) int {
+	if c == nil {
+		return -1
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	slotIdx := len(c.handlers)
+	c.handlers = append(c.handlers, handler)
+	return slotIdx
+}
+
+func (c *component) ComponentID() string {
+	if c == nil {
+		return ""
+	}
+	return c.id
 }
 
 // hookFrame tracks per-component hook state.

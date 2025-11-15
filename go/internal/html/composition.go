@@ -51,8 +51,9 @@ func (h *CompositionHandler) OnCompositionEnd(handler func(CompositionEvent) Upd
 }
 
 func buildCompositionEvent(evt Event) CompositionEvent {
+	detail := extractDetail(evt.Payload)
 	return CompositionEvent{
 		Event: evt,
-		Data:  PayloadString(evt.Payload, "event.data", ""),
+		Data:  PayloadString(detail, "event.data", ""),
 	}
 }

@@ -8,7 +8,6 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	"github.com/eleven-am/pondlive/go/internal/handlers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
@@ -186,7 +185,7 @@ func (e *Endpoint) onClientEvent(ctx *pond.EventContext) error {
 	}
 
 	go func() {
-		if err := session.DispatchEvent(handlers.ID(envelope.HID), wire.ToEvent(), envelope.CSeq); err != nil {
+		if err := session.DispatchEvent(envelope.HID, wire.ToEvent(), envelope.CSeq); err != nil {
 			_ = transport.SendServerError(serverError(session.ID(), "dispatch_failed", err))
 		}
 	}()

@@ -215,19 +215,8 @@ func (a *ComponentAnalyzer) shouldUseDynamicAttrs(el *h.Element) bool {
 	if el.RefID != "" {
 		return true
 	}
-	if el.Attrs != nil {
-		if _, hasPath := el.Attrs["data-router-path"]; hasPath {
-			return true
-		}
-		if _, hasQuery := el.Attrs["data-router-query"]; hasQuery {
-			return true
-		}
-		if _, hasHash := el.Attrs["data-router-hash"]; hasHash {
-			return true
-		}
-		if _, hasReplace := el.Attrs["data-router-replace"]; hasReplace {
-			return true
-		}
+	if el.RouterMeta != nil {
+		return true
 	}
 	return false
 }

@@ -51,8 +51,9 @@ func (h *LifecycleHandler) OnBeforeUnload(handler func(LifecycleEvent) Updates) 
 }
 
 func buildLifecycleEvent(evt Event) LifecycleEvent {
+	detail := extractDetail(evt.Payload)
 	return LifecycleEvent{
 		Event:     evt,
-		Persisted: payloadBool(evt.Payload, "event.persisted", false),
+		Persisted: payloadBool(detail, "event.persisted", false),
 	}
 }

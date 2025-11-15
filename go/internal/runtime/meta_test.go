@@ -88,7 +88,7 @@ func TestRenderResultUpdatesSessionMetadata(t *testing.T) {
 		})
 	}
 	sess := NewLiveSession("meta-session", 1, component, struct{}{}, nil)
-	_ = render.RenderHTML(sess.RenderRoot(), sess.Registry())
+	_ = render.RenderHTML(sess.RenderRoot())
 	meta := sess.Metadata()
 	if meta == nil {
 		t.Fatal("expected metadata to be recorded")

@@ -32,16 +32,17 @@ func (MediaEvent) props() []string {
 }
 
 func buildMediaEvent(evt Event) MediaEvent {
+	detail := extractDetail(evt.Payload)
 	return MediaEvent{
 		Event:        evt,
-		CurrentTime:  payloadFloat(evt.Payload, "target.currentTime", 0),
-		Duration:     payloadFloat(evt.Payload, "target.duration", 0),
-		Volume:       payloadFloat(evt.Payload, "target.volume", 0),
-		PlaybackRate: payloadFloat(evt.Payload, "target.playbackRate", 0),
-		Paused:       payloadBool(evt.Payload, "target.paused", false),
-		Ended:        payloadBool(evt.Payload, "target.ended", false),
-		Muted:        payloadBool(evt.Payload, "target.muted", false),
-		Seeking:      payloadBool(evt.Payload, "target.seeking", false),
+		CurrentTime:  payloadFloat(detail, "target.currentTime", 0),
+		Duration:     payloadFloat(detail, "target.duration", 0),
+		Volume:       payloadFloat(detail, "target.volume", 0),
+		PlaybackRate: payloadFloat(detail, "target.playbackRate", 0),
+		Paused:       payloadBool(detail, "target.paused", false),
+		Ended:        payloadBool(detail, "target.ended", false),
+		Muted:        payloadBool(detail, "target.muted", false),
+		Seeking:      payloadBool(detail, "target.seeking", false),
 	}
 }
 

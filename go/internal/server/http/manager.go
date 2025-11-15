@@ -174,11 +174,11 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	node := session.RenderRoot()
 	meta := session.Metadata()
-	body := render.RenderHTML(node, session.Registry())
+	body := render.RenderHTML(node)
 
 	structured, err := render.ToStructuredWithOptions(node, render.StructuredOptions{
-		Handlers:   session.Registry(),
 		Promotions: session.ComponentSession(),
+		Components: session.ComponentSession(),
 	})
 	if err != nil {
 		http.Error(w, "live: failed to structure DOM", http.StatusInternalServerError)

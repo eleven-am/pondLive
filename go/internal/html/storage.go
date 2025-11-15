@@ -40,12 +40,13 @@ func (h *StorageHandler) OnStorage(handler func(StorageEvent) Updates) {
 }
 
 func buildStorageEvent(evt Event) StorageEvent {
+	detail := extractDetail(evt.Payload)
 	return StorageEvent{
 		Event:       evt,
-		Key:         PayloadString(evt.Payload, "event.key", ""),
-		OldValue:    PayloadString(evt.Payload, "event.oldValue", ""),
-		NewValue:    PayloadString(evt.Payload, "event.newValue", ""),
-		URL:         PayloadString(evt.Payload, "event.url", ""),
-		StorageArea: PayloadString(evt.Payload, "event.storageArea", ""),
+		Key:         PayloadString(detail, "event.key", ""),
+		OldValue:    PayloadString(detail, "event.oldValue", ""),
+		NewValue:    PayloadString(detail, "event.newValue", ""),
+		URL:         PayloadString(detail, "event.url", ""),
+		StorageArea: PayloadString(detail, "event.storageArea", ""),
 	}
 }

@@ -132,11 +132,10 @@ func TestBindingsShareTypedPathsAcrossDescriptors(t *testing.T) {
 		Multiple: true,
 		MaxSize:  4096,
 	}}
-	if button.Attrs == nil {
-		button.Attrs = map[string]string{}
+	button.RouterMeta = &dom.RouterMeta{
+		Path:  "/drive",
+		Query: "tab=files",
 	}
-	button.Attrs["data-router-path"] = "/drive"
-	button.Attrs["data-router-query"] = "tab=files"
 
 	root := h.WrapComponent("root",
 		h.Section(
@@ -355,16 +354,13 @@ func TestFragmentWithMixedContent(t *testing.T) {
 
 func TestRouterBindingValidation(t *testing.T) {
 	validButton := h.Button(h.Text("valid"))
-	validButton.Attrs = map[string]string{
-		"data-router-path":  "/dashboard",
-		"data-router-query": "tab=settings",
+	validButton.RouterMeta = &dom.RouterMeta{
+		Path:  "/dashboard",
+		Query: "tab=settings",
 	}
 
 	emptyButton := h.Button(h.Text("empty"))
-	emptyButton.Attrs = map[string]string{
-		"data-router-path":  "",
-		"data-router-query": "",
-	}
+	emptyButton.RouterMeta = &dom.RouterMeta{}
 
 	root := h.WrapComponent("root",
 		h.Div(
@@ -806,11 +802,11 @@ func TestFragmentWithNoChildren(t *testing.T) {
 
 func TestRouterBindingWithAllFields(t *testing.T) {
 	link := h.A(h.Text("navigate"))
-	link.Attrs = map[string]string{
-		"data-router-path":    "/dashboard",
-		"data-router-query":   "tab=overview&filter=active",
-		"data-router-hash":    "#section-1",
-		"data-router-replace": "true",
+	link.RouterMeta = &dom.RouterMeta{
+		Path:    "/dashboard",
+		Query:   "tab=overview&filter=active",
+		Hash:    "#section-1",
+		Replace: "true",
 	}
 	root := h.WrapComponent("root", h.Div(link))
 

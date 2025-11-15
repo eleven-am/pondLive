@@ -22,6 +22,7 @@
 package render
 
 import (
+	"fmt"
 	"html"
 	"runtime"
 	"sort"
@@ -29,7 +30,6 @@ import (
 	"sync"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
-	"github.com/eleven-am/pondlive/go/internal/handlers"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -65,7 +65,7 @@ func ToStructuredWithHandlers(n h.Node, opts StructuredOptions) (Structured, err
 		return Structured{}, err
 	}
 
-	FinalizeWithHandlers(n, opts.Handlers)
+	finalizeNode(n, "", opts.Components)
 
 	if opts.RowConcurrencyThreshold <= 0 {
 		opts.RowConcurrencyThreshold = 10
@@ -1069,60 +1069,67 @@ func extractSlice[T any](slice []T, startIdx int) []T {
 
 // Finalization helpers – minimal versions scoped to this package.
 
-func FinalizeWithHandlers(n h.Node, reg handlers.Registry) h.Node {
-	finalizeNode(n, reg)
-	return n
-}
-
-func finalizeNode(n h.Node, reg handlers.Registry) {
+func finalizeNode(n h.Node, componentID string, componentLookup ComponentLookup) {
 	switch v := n.(type) {
 	case *h.Element:
-		finalizeElement(v, reg)
+		finalizeElement(v, componentID, componentLookup)
 		for _, child := range v.Children {
 			if child != nil {
-				finalizeNode(child, reg)
+				finalizeNode(child, componentID, componentLookup)
 			}
 		}
 	case *h.FragmentNode:
 		for _, child := range v.Children {
 			if child != nil {
-				finalizeNode(child, reg)
+				finalizeNode(child, componentID, componentLookup)
 			}
 		}
 	case *h.ComponentNode:
+		childComponentID := v.ID
+		if childComponentID == "" {
+			childComponentID = componentID
+		}
 		if v.Child != nil {
-			finalizeNode(v.Child, reg)
+			finalizeNode(v.Child, childComponentID, componentLookup)
 		}
 	}
 }
 
-func finalizeElement(e *h.Element, reg handlers.Registry) {
+func finalizeElement(e *h.Element, componentID string, componentLookup ComponentLookup) {
 	if e == nil {
 		return
 	}
-	attachHandlers(e, reg)
+	attachHandlers(e, componentID, componentLookup)
 }
 
-func attachHandlers(e *h.Element, reg handlers.Registry) {
-	if e == nil || len(e.Events) == 0 || reg == nil {
+func attachHandlers(e *h.Element, componentID string, componentLookup ComponentLookup) {
+	if e == nil || len(e.Events) == 0 {
+		return
+	}
+	if componentLookup == nil {
 		return
 	}
 	if e.HandlerAssignments == nil {
 		e.HandlerAssignments = map[string]dom.EventAssignment{}
 	}
+
+	component := componentLookup.LookupComponent(componentID)
+	if component == nil {
+		return
+	}
+
 	keys := make([]string, 0, len(e.Events))
 	for k := range e.Events {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+
 	for _, name := range keys {
 		binding := e.Events[name]
-		id := reg.Ensure(binding.Handler, binding.Key)
-		if id == "" {
-			continue
-		}
+		slotIdx := component.RegisterHandler(binding.Handler)
+		handlerID := fmt.Sprintf("%s:h%d", component.ComponentID(), slotIdx)
 		e.HandlerAssignments[name] = dom.EventAssignment{
-			ID:     string(id),
+			ID:     handlerID,
 			Listen: append([]string(nil), binding.Listen...),
 			Props:  append([]string(nil), binding.Props...),
 		}

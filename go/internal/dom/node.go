@@ -34,6 +34,8 @@ type Element struct {
 	HandlerAssignments map[string]EventAssignment
 
 	UploadBindings []UploadBinding
+
+	RouterMeta *RouterMeta
 }
 
 func (*Element) isNode()         {}
@@ -94,4 +96,11 @@ type UploadBinding struct {
 	Accept   []string
 	Multiple bool
 	MaxSize  int64
+}
+
+type RouterMeta struct {
+	Path    string
+	Query   string
+	Hash    string
+	Replace string
 }

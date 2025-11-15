@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 func TestWireEventToEvent(t *testing.T) {
@@ -49,7 +49,7 @@ func TestWireEventToEventEmpty(t *testing.T) {
 	if ev.Form == nil || len(ev.Form) != 0 {
 		t.Fatalf("expected empty form map, got %+v", ev.Form)
 	}
-	if ev.Mods != (handlers.Modifiers{}) {
+	if ev.Mods != (dom.Modifiers{}) {
 		t.Fatalf("expected zero modifiers, got %+v", ev.Mods)
 	}
 }

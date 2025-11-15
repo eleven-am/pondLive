@@ -173,7 +173,6 @@ func (a *ElementActions[T]) GetBoundingClientRect() (*DOMRect, error) {
 // Note: For non-scrollable elements, ScrollHeight/Width equals ClientHeight/Width and
 // ScrollTop/Left will be 0. Use this to detect if an element is scrollable.
 func (a *ElementActions[T]) GetScrollMetrics() (*ScrollMetrics, error) {
-
 	scrollTop, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollTop")
 	if err != nil {
 		return nil, err

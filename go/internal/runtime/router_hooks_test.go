@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
-	"github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -33,7 +33,6 @@ func usersApp(ctx Ctx, _ routerHooksProps) h.Node {
 func TestUseParamsUpdatesAfterNavigation(t *testing.T) {
 	lastUserParam = ""
 	sess := NewSession(usersApp, routerHooksProps{})
-	sess.SetRegistry(handlers.NewRegistry())
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
 
 	InternalSeedSessionLocation(sess, ParseHref("/users/1"))
@@ -79,7 +78,6 @@ func searchApp(ctx Ctx, _ routerHooksProps) h.Node {
 func TestUseSearchParamSetterTriggersRender(t *testing.T) {
 	searchRenderCount = 0
 	sess := NewSession(searchApp, routerHooksProps{})
-	sess.SetRegistry(handlers.NewRegistry())
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
 
 	InternalSeedSessionLocation(sess, ParseHref("/settings?tab=overview"))
@@ -95,7 +93,7 @@ func TestUseSearchParamSetterTriggersRender(t *testing.T) {
 		t.Fatal("expected click handler id")
 	}
 
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}); err != nil {
 		t.Fatalf("dispatch error: %v", err)
 	}
 
@@ -151,7 +149,6 @@ func TestRouterNavigateFromEventHandler(t *testing.T) {
 	routerNavLastCount = 0
 	routerNavLastUserID = ""
 	sess := NewSession(routerNavApp, routerHooksProps{})
-	sess.SetRegistry(handlers.NewRegistry())
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
 
 	InternalSeedSessionLocation(sess, ParseHref("/"))
@@ -164,7 +161,7 @@ func TestRouterNavigateFromEventHandler(t *testing.T) {
 		t.Fatal("expected click handler id")
 	}
 
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}); err != nil {
 		t.Fatalf("dispatch error: %v", err)
 	}
 

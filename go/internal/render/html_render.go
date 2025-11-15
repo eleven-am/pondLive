@@ -6,19 +6,15 @@ import (
 	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
-	"github.com/eleven-am/pondlive/go/internal/handlers"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
-// RenderHTML renders a node tree to HTML string while registering handlers.
-// This finalizes the tree and produces the final HTML output.
-func RenderHTML(n h.Node, reg handlers.Registry) string {
+func RenderHTML(n h.Node) string {
 	if n == nil {
 		return ""
 	}
 
 	n = normalizeForSSR(n)
-	FinalizeWithHandlers(n, reg)
 	var b strings.Builder
 	renderNode(&b, n)
 	return b.String()
@@ -114,6 +110,33 @@ func renderElement(b *strings.Builder, e *h.Element) {
 	}
 	b.WriteByte('<')
 	b.WriteString(e.Tag)
+	if len(e.Class) > 0 {
+		b.WriteString(" class=\"")
+		for i, class := range e.Class {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(html.EscapeString(class))
+		}
+		b.WriteByte('"')
+	}
+	if len(e.Style) > 0 {
+		b.WriteString(" style=\"")
+		keys := make([]string, 0, len(e.Style))
+		for k := range e.Style {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for i, k := range keys {
+			if i > 0 {
+				b.WriteString("; ")
+			}
+			b.WriteString(html.EscapeString(k))
+			b.WriteString(": ")
+			b.WriteString(html.EscapeString(e.Style[k]))
+		}
+		b.WriteByte('"')
+	}
 	if len(e.Attrs) > 0 {
 		keys := make([]string, 0, len(e.Attrs))
 		for k := range e.Attrs {

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
-	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
 	render "github.com/eleven-am/pondlive/go/internal/render"
 	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )
@@ -36,7 +35,6 @@ type engine struct {
 	protocol        ProtocolChannel
 
 	lookup HandlerRegistry
-	reg    handlers.Registry
 
 	prev  render.Structured
 	dirty bool
@@ -50,7 +48,6 @@ type engine struct {
 func (e *engine) Mount(renderFn func() html.Node) {
 	e.renderFn = renderFn
 	e.lookup = nil
-	e.reg = nil
 	e.prev = render.Structured{}
 	e.dirty = false
 	e.location.path = "/"
@@ -63,11 +60,6 @@ func (e *engine) Mount(renderFn func() html.Node) {
 	}
 
 	e.lookup = e.registryFactory.NewRegistry()
-	reg, ok := e.lookup.(handlers.Registry)
-	if !ok {
-		panic(fmt.Sprintf("testh: registry %T does not implement handlers.Registry", e.lookup))
-	}
-	e.reg = reg
 
 	structured, html := e.renderStructuredAndHTML()
 	e.prev = structured
@@ -155,20 +147,15 @@ func (e *engine) ResetOps() {
 }
 
 func (e *engine) renderStructuredAndHTML() (render.Structured, string) {
-	if e.reg == nil {
+	if e.lookup == nil {
 		e.lookup = e.registryFactory.NewRegistry()
-		reg, ok := e.lookup.(handlers.Registry)
-		if !ok {
-			panic(fmt.Sprintf("testh: registry %T does not implement handlers.Registry", e.lookup))
-		}
-		e.reg = reg
 	}
 	node := e.renderFn()
-	structured, err := render.ToStructuredWithHandlers(node, render.StructuredOptions{Handlers: e.reg})
+	structured, err := render.ToStructuredWithHandlers(node, render.StructuredOptions{})
 	if err != nil {
 		panic(fmt.Sprintf("testh: failed to structure DOM: %v", err))
 	}
-	html := render.RenderHTML(node, e.reg)
+	html := render.RenderHTML(node)
 	return cloneStructured(structured), html
 }
 

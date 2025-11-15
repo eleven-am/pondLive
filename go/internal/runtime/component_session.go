@@ -13,7 +13,6 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	"github.com/eleven-am/pondlive/go/internal/dom"
-	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	render "github.com/eleven-am/pondlive/go/internal/render"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
@@ -25,7 +24,6 @@ type ComponentSession struct {
 	root         *component
 	rootCallable componentCallable
 	rootProps    any
-	registry     handlers.Registry
 	sendPatch    func([]diff.Op) error
 
 	nextRefID   int
@@ -177,14 +175,6 @@ func NewSession[P any](root Component[P], props P) *ComponentSession {
 	return sess
 }
 
-// Registry exposes the handler registry, creating one if necessary.
-func (s *ComponentSession) Registry() handlers.Registry {
-	return s.ensureRegistry()
-}
-
-// SetRegistry injects a custom registry implementation.
-func (s *ComponentSession) SetRegistry(reg handlers.Registry) { s.registry = reg }
-
 // SetPatchSender installs the transport used to deliver diff operations.
 func (s *ComponentSession) SetPatchSender(fn func([]diff.Op) error) { s.sendPatch = fn }
 
@@ -239,26 +229,6 @@ func (s *ComponentSession) snapshotRefsLocked(ids []string) map[string]protocol.
 			continue
 		}
 		meta := protocol.RefMeta{Tag: ref.DescriptorTag()}
-		bindings := ref.BindingSnapshot()
-		if len(bindings) > 0 {
-			events := make(map[string]protocol.RefEventMeta, len(bindings))
-			for event, binding := range bindings {
-				eventMeta := protocol.RefEventMeta{}
-				if len(binding.Listen) > 0 {
-					eventMeta.Listen = append([]string(nil), binding.Listen...)
-				}
-				if len(binding.Props) > 0 {
-					eventMeta.Props = append([]string(nil), binding.Props...)
-				}
-				if refWithHandlers, ok := ref.(interface{ GetHandlerID(string) string }); ok {
-					if handlerID := refWithHandlers.GetHandlerID(event); handlerID != "" {
-						eventMeta.Handler = handlerID
-					}
-				}
-				events[event] = eventMeta
-			}
-			meta.Events = events
-		}
 		out[id] = meta
 	}
 	if len(out) == 0 {
@@ -273,19 +243,7 @@ func cloneRefMetaMap(src map[string]protocol.RefMeta) map[string]protocol.RefMet
 	}
 	out := make(map[string]protocol.RefMeta, len(src))
 	for id, meta := range src {
-		clone := protocol.RefMeta{Tag: meta.Tag}
-		if len(meta.Events) > 0 {
-			events := make(map[string]protocol.RefEventMeta, len(meta.Events))
-			for name, event := range meta.Events {
-				events[name] = protocol.RefEventMeta{
-					Handler: event.Handler,
-					Listen:  append([]string(nil), event.Listen...),
-					Props:   append([]string(nil), event.Props...),
-				}
-			}
-			clone.Events = events
-		}
-		out[id] = clone
+		out[id] = protocol.RefMeta{Tag: meta.Tag}
 	}
 	return out
 }
@@ -303,28 +261,6 @@ func refMetaMapsEqual(a, b map[string]protocol.RefMeta) bool {
 			return false
 		}
 		if metaA.Tag != metaB.Tag {
-			return false
-		}
-		if !refEventMapsEqual(metaA.Events, metaB.Events) {
-			return false
-		}
-	}
-	return true
-}
-
-func refEventMapsEqual(a, b map[string]protocol.RefEventMeta) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for name, metaA := range a {
-		metaB, ok := b[name]
-		if !ok {
-			return false
-		}
-		if !stringSliceEqual(metaA.Listen, metaB.Listen) {
-			return false
-		}
-		if !stringSliceEqual(metaA.Props, metaB.Props) {
 			return false
 		}
 	}
@@ -694,6 +630,10 @@ func (s *ComponentSession) componentByID(id string) *component {
 		return comp
 	}
 	return s.componentByIDSlow(id)
+}
+
+func (s *ComponentSession) LookupComponent(id string) render.ComponentHandlerTarget {
+	return s.componentByID(id)
 }
 
 func (s *ComponentSession) componentByIDSlow(id string) *component {
@@ -1140,10 +1080,9 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 		pubsubs    []pubsubTask
 	)
 	if err := s.withRecovery("initial", func() error {
-		reg := s.ensureRegistry()
 		node := s.root.render()
 		var err error
-		structured, err = render.ToStructuredWithOptions(node, render.StructuredOptions{Handlers: reg, Promotions: s})
+		structured, err = render.ToStructuredWithOptions(node, render.StructuredOptions{Promotions: s, Components: s})
 		if err != nil {
 			return err
 		}
@@ -1225,7 +1164,6 @@ func (s *ComponentSession) Flush() error {
 	}
 	s.flushing = true
 	s.mu.Unlock()
-	reg := s.ensureRegistry()
 	var (
 		cleanups         []cleanupTask
 		effects          []effectTask
@@ -1264,7 +1202,7 @@ func (s *ComponentSession) Flush() error {
 		}
 
 		node := root.render()
-		next, err := render.ToStructuredWithOptions(node, render.StructuredOptions{Handlers: reg, Promotions: s})
+		next, err := render.ToStructuredWithOptions(node, render.StructuredOptions{Promotions: s, Components: s})
 		if err != nil {
 			return err
 		}
@@ -1296,7 +1234,7 @@ func (s *ComponentSession) Flush() error {
 			var sanitized render.Structured
 			var prevAligned render.Structured
 			var ok bool
-			componentUpdates, sanitized, prevAligned, ok = s.prepareComponentBoots(requests, s.prev, next, reg)
+			componentUpdates, sanitized, prevAligned, ok = s.prepareComponentBoots(requests, s.prev, next)
 			if !ok {
 				forceTemplate = true
 				componentUpdates = nil
@@ -1312,7 +1250,7 @@ func (s *ComponentSession) Flush() error {
 			}
 		}
 		if forceTemplate {
-			html := render.RenderHTML(node, reg)
+			html := render.RenderHTML(node)
 			s.setTemplateUpdate(templateUpdate{structured: next, html: html})
 			opDiff = nil
 		} else if skipDiff {
@@ -1476,7 +1414,7 @@ func runEffects(tasks []effectTask) (total time.Duration, max time.Duration, slo
 	return
 }
 
-func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentBootRequest, prev, next render.Structured, reg handlers.Registry) ([]componentTemplateUpdate, render.Structured, render.Structured, bool) {
+func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentBootRequest, prev, next render.Structured) ([]componentTemplateUpdate, render.Structured, render.Structured, bool) {
 	if len(requests) == 0 {
 		return nil, next, render.Structured{}, true
 	}
@@ -1605,7 +1543,7 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		}
 		if req != nil && req.component != nil {
 			node := req.component.render()
-			if html := render.RenderHTML(node, reg); html != "" {
+			if html := render.RenderHTML(node); html != "" {
 				update.html = html
 			} else {
 				update.html = strings.Join(update.statics, "")
@@ -2275,7 +2213,7 @@ func (s *ComponentSession) clearDirty(c *component) {
 }
 
 // HandleEvent dispatches an event to a registered handler without flushing.
-func (s *ComponentSession) HandleEvent(id handlers.ID, ev handlers.Event) error {
+func (s *ComponentSession) HandleEvent(id string, ev dom.Event) error {
 	if s == nil {
 		return errors.New("runtime: session is nil")
 	}
@@ -2287,18 +2225,83 @@ func (s *ComponentSession) HandleEvent(id handlers.ID, ev handlers.Event) error 
 	}
 	phase := fmt.Sprintf("event:%s", id)
 	return s.withRecovery(phase, func() error {
-		registry := s.ensureRegistry()
-		handler, ok := registry.Get(id)
-		if !ok || handler == nil {
+		parts := strings.SplitN(id, ":", 2)
+		if len(parts) != 2 {
 			diag := Diagnostic{
 				Code:       "handler_not_found",
 				Phase:      phase,
-				Message:    fmt.Sprintf("runtime: handler %s not found", id),
-				Metadata:   map[string]any{"handlerId": string(id)},
-				Suggestion: "Ensure the event handler is registered before dispatching events.",
+				Message:    fmt.Sprintf("runtime: invalid handler ID format: %s", id),
+				Metadata:   map[string]any{"handlerId": id},
+				Suggestion: "Handler ID must be in format 'componentID:hN'.",
 			}
 			return DiagnosticError{diag: diag}
 		}
+
+		componentID := parts[0]
+		slotStr := parts[1]
+
+		if !strings.HasPrefix(slotStr, "h") {
+			diag := Diagnostic{
+				Code:       "handler_not_found",
+				Phase:      phase,
+				Message:    fmt.Sprintf("runtime: invalid handler slot format: %s", slotStr),
+				Metadata:   map[string]any{"handlerId": id},
+				Suggestion: "Handler slot must start with 'h'.",
+			}
+			return DiagnosticError{diag: diag}
+		}
+
+		slotIdx, err := strconv.Atoi(slotStr[1:])
+		if err != nil {
+			diag := Diagnostic{
+				Code:       "handler_not_found",
+				Phase:      phase,
+				Message:    fmt.Sprintf("runtime: invalid handler slot index: %s", slotStr),
+				Metadata:   map[string]any{"handlerId": id},
+				Suggestion: "Handler slot must be a valid integer.",
+			}
+			return DiagnosticError{diag: diag}
+		}
+
+		component := s.componentByID(componentID)
+		if component == nil {
+			diag := Diagnostic{
+				Code:       "handler_not_found",
+				Phase:      phase,
+				Message:    fmt.Sprintf("runtime: component not found: %s", componentID),
+				Metadata:   map[string]any{"handlerId": id, "componentId": componentID},
+				Suggestion: "Ensure the component exists before dispatching events.",
+			}
+			return DiagnosticError{diag: diag}
+		}
+
+		component.mu.Lock()
+		if slotIdx < 0 || slotIdx >= len(component.handlers) {
+			component.mu.Unlock()
+			diag := Diagnostic{
+				Code:       "handler_not_found",
+				Phase:      phase,
+				Message:    fmt.Sprintf("runtime: handler slot out of range: %d (component has %d handlers)", slotIdx, len(component.handlers)),
+				Metadata:   map[string]any{"handlerId": id, "slotIndex": slotIdx, "handlerCount": len(component.handlers)},
+				Suggestion: "Handler may have been cleared during render.",
+			}
+			return DiagnosticError{diag: diag}
+		}
+
+		handler := component.handlers[slotIdx]
+		component.mu.Unlock()
+
+		if handler == nil {
+			diag := Diagnostic{
+				Code:       "handler_not_found",
+				Phase:      phase,
+				Message:    fmt.Sprintf("runtime: handler is nil at slot %d", slotIdx),
+				Metadata:   map[string]any{"handlerId": id, "slotIndex": slotIdx},
+				Suggestion: "Handler may have been cleared or not registered properly.",
+			}
+			return DiagnosticError{diag: diag}
+		}
+
 		if updates := handler(ev); updates != nil {
 			s.markDirty(s.root)
 		}
@@ -2307,7 +2310,7 @@ func (s *ComponentSession) HandleEvent(id handlers.ID, ev handlers.Event) error 
 }
 
 // DispatchEvent routes an event and flushes if state changed.
-func (s *ComponentSession) DispatchEvent(id handlers.ID, ev handlers.Event) error {
+func (s *ComponentSession) DispatchEvent(id string, ev dom.Event) error {
 	if err := s.HandleEvent(id, ev); err != nil {
 		return err
 	}
@@ -2397,20 +2400,6 @@ func (s *ComponentSession) enqueuePubsub(fn func()) {
 	s.pendingPubsub = append(s.pendingPubsub, pubsubTask{run: fn})
 	s.pendingFlush = true
 	s.mu.Unlock()
-}
-
-func (s *ComponentSession) ensureRegistry() handlers.Registry {
-	if s == nil {
-		return nil
-	}
-	s.mu.Lock()
-	reg := s.registry
-	if reg == nil {
-		reg = handlers.NewRegistry()
-		s.registry = reg
-	}
-	s.mu.Unlock()
-	return reg
 }
 
 func (s *ComponentSession) subscribePubsub(topic string, provider PubsubProvider, handler func([]byte, map[string]string)) (string, error) {

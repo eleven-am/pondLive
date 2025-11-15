@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	render "github.com/eleven-am/pondlive/go/internal/render"
+	"github.com/eleven-am/pondlive/go/internal/testh"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -110,11 +111,11 @@ func awaitDOMRequest(t *testing.T, transport *stubTransport) protocol.DOMRequest
 	}
 }
 
-func findClickHandler(structured render.Structured) handlers.ID {
+func findClickHandler(structured render.Structured) string {
 	return findHandlerAttr(structured, "data-onclick")
 }
 
-func findHandlerAttr(structured render.Structured, attr string) handlers.ID {
+func findHandlerAttr(structured render.Structured, attr string) string {
 	event := strings.TrimPrefix(attr, "data-on")
 	if idx := strings.IndexByte(event, '-'); idx != -1 {
 		event = event[:idx]
@@ -125,7 +126,7 @@ func findHandlerAttr(structured render.Structured, attr string) handlers.ID {
 	}
 	for _, binding := range structured.Bindings {
 		if binding.Event == event && binding.Handler != "" {
-			return handlers.ID(binding.Handler)
+			return binding.Handler
 		}
 	}
 	return ""
@@ -176,7 +177,7 @@ func TestLiveSessionJoinAndReplay(t *testing.T) {
 		t.Fatal("expected click handler id")
 	}
 
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 1); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}, 1); err != nil {
 		t.Fatalf("dispatch event: %v", err)
 	}
 	if len(transport.frames) != 1 {
@@ -203,7 +204,7 @@ func TestLiveSessionJoinAndReplay(t *testing.T) {
 		t.Fatalf("expected join to remain side-effect free, saw %d resume sends", len(transport.resumes))
 	}
 
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 2); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}, 2); err != nil {
 		t.Fatalf("dispatch event 2: %v", err)
 	}
 	if len(transport.frames) != 2 {
@@ -270,11 +271,6 @@ func TestLiveSessionRefDeltaOnlyMetadata(t *testing.T) {
 	if len(sess.snapshot.Refs) != 1 {
 		t.Fatalf("expected one ref in initial snapshot, got %d", len(sess.snapshot.Refs))
 	}
-	var id string
-	for refID := range sess.snapshot.Refs {
-		id = refID
-		break
-	}
 	setListen([]string{"focus", "blur"})
 	setProps([]string{"target.value"})
 
@@ -282,35 +278,8 @@ func TestLiveSessionRefDeltaOnlyMetadata(t *testing.T) {
 		t.Fatalf("flush: %v", err)
 	}
 
-	if len(transport.frames) != 1 {
-		t.Fatalf("expected one frame, got %d", len(transport.frames))
-	}
-	frame := transport.frames[0]
-	if len(frame.Patch) != 0 {
-		t.Fatalf("expected no patch operations, got %d", len(frame.Patch))
-	}
-	if len(frame.Refs.Add) != 1 {
-		t.Fatalf("expected ref metadata addition, got %d entries", len(frame.Refs.Add))
-	}
-	meta, ok := frame.Refs.Add[id]
-	if !ok {
-		t.Fatalf("expected ref metadata for id %q", id)
-	}
-	focusMeta, ok := meta.Events["focus"]
-	if !ok {
-		t.Fatalf("expected focus event metadata, got %+v", meta.Events)
-	}
-	if len(focusMeta.Listen) != 2 || !containsString(focusMeta.Listen, "focus") || !containsString(focusMeta.Listen, "blur") {
-		t.Fatalf("expected listen metadata for ref, got %+v", focusMeta.Listen)
-	}
-	if len(focusMeta.Props) != 1 || focusMeta.Props[0] != "target.value" {
-		t.Fatalf("expected props metadata for ref, got %+v", focusMeta.Props)
-	}
-	if len(frame.Refs.Del) != 0 {
-		t.Fatalf("expected no ref deletions, got %v", frame.Refs.Del)
-	}
-	if current, ok := sess.snapshot.Refs[id]; !ok || !refMetaEqual(current, meta) {
-		t.Fatalf("expected snapshot refs updated, got %+v want %+v", sess.snapshot.Refs[id], meta)
+	if len(transport.frames) != 0 {
+		t.Fatalf("expected no frames since refs no longer include event metadata, got %d", len(transport.frames))
 	}
 }
 
@@ -552,7 +521,6 @@ func TestLiveSessionRefDeltaRemovesRef(t *testing.T) {
 }
 
 func TestExtractHandlerMetaIncludesListenAndProps(t *testing.T) {
-	reg := handlers.NewRegistry()
 	handler := func(h.Event) h.Updates { return h.Rerender() }
 	tree := h.Video(
 		h.OnWith("timeupdate", h.EventOptions{
@@ -562,36 +530,35 @@ func TestExtractHandlerMetaIncludesListenAndProps(t *testing.T) {
 		h.On("play", handler),
 	)
 
-	structured, err := render.ToStructuredWithHandlers(tree, render.StructuredOptions{Handlers: reg})
+	structured, err := render.ToStructuredWithHandlers(tree, render.StructuredOptions{
+		Components: testh.NewMockComponentLookup(),
+	})
 	if err != nil {
 		t.Fatalf("ToStructuredWithHandlers failed: %v", err)
 	}
 	meta := extractHandlerMeta(structured)
-	if len(meta) != 1 {
-		t.Fatalf("expected a single handler meta, got %d", len(meta))
+	if len(meta) != 2 {
+		t.Fatalf("expected two handler metas, got %d", len(meta))
 	}
-	var info protocol.HandlerMeta
+	var timeupdateMeta protocol.HandlerMeta
+	var foundTimeupdate, foundPlay bool
 	for _, m := range meta {
-		info = m
+		if m.Event == "timeupdate" {
+			timeupdateMeta = m
+			foundTimeupdate = true
+		} else if m.Event == "play" {
+			foundPlay = true
+		}
+	}
+	if !foundTimeupdate || !foundPlay {
+		t.Fatalf("expected both timeupdate and play handlers, got metas: %+v", meta)
 	}
 
-	if info.Event != "timeupdate" && info.Event != "play" {
-		t.Fatalf("unexpected primary event: %q", info.Event)
+	if !containsString(timeupdateMeta.Props, "target.currentTime") || !containsString(timeupdateMeta.Props, "event.detail") {
+		t.Fatalf("props were not captured for timeupdate: %+v", timeupdateMeta.Props)
 	}
-	if !containsString(info.Props, "target.currentTime") || !containsString(info.Props, "event.detail") {
-		t.Fatalf("props were not captured: %+v", info.Props)
-	}
-	if !containsString(info.Listen, "pause") {
-		t.Fatalf("expected pause in listen metadata: %+v", info.Listen)
-	}
-	if info.Event == "timeupdate" {
-		if !containsString(info.Listen, "play") {
-			t.Fatalf("expected play in listen metadata when primary is timeupdate: %+v", info.Listen)
-		}
-	} else {
-		if !containsString(info.Listen, "timeupdate") {
-			t.Fatalf("expected timeupdate in listen metadata when primary is play: %+v", info.Listen)
-		}
+	if !containsString(timeupdateMeta.Listen, "pause") || !containsString(timeupdateMeta.Listen, "play") {
+		t.Fatalf("expected pause and play in listen metadata for timeupdate: %+v", timeupdateMeta.Listen)
 	}
 }
 
@@ -604,10 +571,10 @@ func TestLiveSessionAckPrunesHistory(t *testing.T) {
 	}
 
 	sess.Join(1, 0)
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 1); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}, 1); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 2); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}, 2); err != nil {
 		t.Fatalf("dispatch2: %v", err)
 	}
 
@@ -635,14 +602,14 @@ func TestLiveSessionClientEventDedup(t *testing.T) {
 	}
 
 	sess.Join(1, 0)
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 1); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}, 1); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 	if len(transport.frames) != 1 {
 		t.Fatalf("expected first frame sent, got %d", len(transport.frames))
 	}
 
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 1); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}, 1); err != nil {
 		t.Fatalf("dispatch duplicate: %v", err)
 	}
 	if len(transport.frames) != 1 {
@@ -667,7 +634,7 @@ func TestMetricsRecorderReceivesFrames(t *testing.T) {
 		t.Fatal("expected handler id")
 	}
 
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 1); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}, 1); err != nil {
 		t.Fatalf("dispatch: %v", err)
 	}
 
@@ -705,7 +672,7 @@ func TestLiveSessionTTLExpiry(t *testing.T) {
 
 func TestLiveSessionBuildBoot(t *testing.T) {
 	sess := NewLiveSession("boot-session", 2, counterComponent, struct{}{}, nil)
-	html := render.RenderHTML(sess.RenderRoot(), sess.Registry())
+	html := render.RenderHTML(sess.RenderRoot())
 
 	boot := sess.BuildBoot(html)
 	if boot.T != "boot" {
@@ -745,7 +712,7 @@ func TestLiveSessionBuildBoot(t *testing.T) {
 func TestLiveSessionBootIncludesClientConfig(t *testing.T) {
 	cfg := &LiveSessionConfig{ClientConfig: &protocol.ClientConfig{Endpoint: "/ws"}}
 	sess := NewLiveSession("boot-client", 1, counterComponent, struct{}{}, cfg)
-	html := render.RenderHTML(sess.RenderRoot(), sess.Registry())
+	html := render.RenderHTML(sess.RenderRoot())
 
 	boot := sess.BuildBoot(html)
 	if boot.Client == nil {
@@ -758,7 +725,7 @@ func TestLiveSessionBootIncludesClientConfig(t *testing.T) {
 
 func TestLiveSessionBootEnablesClientDebugInDevMode(t *testing.T) {
 	sess := NewLiveSession("boot-client-debug", 1, counterComponent, struct{}{}, &LiveSessionConfig{DevMode: boolPtr(true)})
-	html := render.RenderHTML(sess.RenderRoot(), sess.Registry())
+	html := render.RenderHTML(sess.RenderRoot())
 
 	boot := sess.BuildBoot(html)
 	if boot.Client == nil {
@@ -776,7 +743,7 @@ func TestLiveSessionBootHonorsConfiguredClientDebug(t *testing.T) {
 		ClientConfig: &protocol.ClientConfig{Debug: &debug},
 	}
 	sess := NewLiveSession("boot-client-debug-override", 1, counterComponent, struct{}{}, cfg)
-	html := render.RenderHTML(sess.RenderRoot(), sess.Registry())
+	html := render.RenderHTML(sess.RenderRoot())
 
 	boot := sess.BuildBoot(html)
 	if boot.Client == nil {
@@ -882,7 +849,7 @@ func TestLiveSessionRecoverClearsError(t *testing.T) {
 		t.Fatal("expected component session to clear errored after recover")
 	}
 
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}, 1); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}, 1); err != nil {
 		t.Fatalf("dispatch after recovery failed: %v", err)
 	}
 }

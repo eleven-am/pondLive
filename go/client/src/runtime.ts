@@ -336,6 +336,13 @@ export class LiveRuntime {
       return;
     }
     Logger.debug('[Runtime]', 'send navigation', { path, q, hash });
+
+    const url = new URL(window.location.href);
+    url.pathname = path;
+    url.search = q;
+    url.hash = hash;
+    window.history.pushState({}, '', url.toString());
+
     const message: ClientNavMessage = {
       t: 'nav',
       sid,

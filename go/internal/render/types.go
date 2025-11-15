@@ -3,7 +3,6 @@ package render
 import (
 	"strings"
 
-	"github.com/eleven-am/pondlive/go/internal/handlers"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -119,9 +118,18 @@ type NodeVisitor interface {
 	VisitComment(comment *h.CommentNode) int
 }
 
+type ComponentLookup interface {
+	LookupComponent(id string) ComponentHandlerTarget
+}
+
+type ComponentHandlerTarget interface {
+	RegisterHandler(handler h.EventHandler) (slotIndex int)
+	ComponentID() string
+}
+
 type StructuredOptions struct {
-	Handlers                  handlers.Registry
 	Promotions                PromotionTracker
+	Components                ComponentLookup
 	ConcurrentRows            bool
 	RowConcurrencyThreshold   int
 	MaxRowWorkers             int

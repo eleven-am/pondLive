@@ -28,14 +28,15 @@ func (ScrollEvent) props() []string {
 }
 
 func buildScrollEvent(evt Event) ScrollEvent {
+	detail := extractDetail(evt.Payload)
 	return ScrollEvent{
 		Event:        evt,
-		ScrollTop:    payloadFloat(evt.Payload, "target.scrollTop", 0),
-		ScrollLeft:   payloadFloat(evt.Payload, "target.scrollLeft", 0),
-		ScrollHeight: payloadFloat(evt.Payload, "target.scrollHeight", 0),
-		ScrollWidth:  payloadFloat(evt.Payload, "target.scrollWidth", 0),
-		ClientHeight: payloadFloat(evt.Payload, "target.clientHeight", 0),
-		ClientWidth:  payloadFloat(evt.Payload, "target.clientWidth", 0),
+		ScrollTop:    payloadFloat(detail, "target.scrollTop", 0),
+		ScrollLeft:   payloadFloat(detail, "target.scrollLeft", 0),
+		ScrollHeight: payloadFloat(detail, "target.scrollHeight", 0),
+		ScrollWidth:  payloadFloat(detail, "target.scrollWidth", 0),
+		ClientHeight: payloadFloat(detail, "target.clientHeight", 0),
+		ClientWidth:  payloadFloat(detail, "target.clientWidth", 0),
 	}
 }
 

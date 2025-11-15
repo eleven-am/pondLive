@@ -35,9 +35,10 @@ func (h *VisibilityHandler) OnVisibilityChange(handler func(VisibilityEvent) Upd
 }
 
 func buildVisibilityEvent(evt Event) VisibilityEvent {
+	detail := extractDetail(evt.Payload)
 	return VisibilityEvent{
 		Event:           evt,
-		Hidden:          payloadBool(evt.Payload, "document.hidden", false),
-		VisibilityState: PayloadString(evt.Payload, "document.visibilityState", ""),
+		Hidden:          payloadBool(detail, "document.hidden", false),
+		VisibilityState: PayloadString(detail, "document.visibilityState", ""),
 	}
 }

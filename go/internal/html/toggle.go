@@ -33,7 +33,8 @@ func (h *ToggleHandler) OnToggle(handler func(ToggleEvent) Updates) {
 }
 
 func buildToggleEvent(evt Event) ToggleEvent {
-	open := payloadBool(evt.Payload, "target.open", false)
+	detail := extractDetail(evt.Payload)
+	open := payloadBool(detail, "target.open", false)
 	newState := "closed"
 	if open {
 		newState = "open"

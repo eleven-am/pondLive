@@ -1550,6 +1550,11 @@ var LiveUIModule = (() => {
         return;
       }
       Logger.debug("[Runtime]", "send navigation", { path, q, hash });
+      const url = new URL(window.location.href);
+      url.pathname = path;
+      url.search = q;
+      url.hash = hash;
+      window.history.pushState({}, "", url.toString());
       const message = {
         t: "nav",
         sid,
@@ -2229,123 +2234,7 @@ var LiveUIModule = (() => {
     return index;
   }
 
-  // src/event-detail.ts
-  function extractEventDetail(event, props, options) {
-    if (!Array.isArray(props) || props.length === 0) {
-      return void 0;
-    }
-    const detail = {};
-    props.forEach((path) => {
-      if (typeof path !== "string" || path.length === 0) {
-        return;
-      }
-      const value = resolvePath(path, event, options);
-      if (value !== void 0) {
-        detail[path] = value;
-      }
-    });
-    return Object.keys(detail).length > 0 ? detail : void 0;
-  }
-  function resolvePath(path, event, options) {
-    const segments = path.split(".").map((segment) => segment.trim()).filter(Boolean);
-    if (segments.length === 0) {
-      return void 0;
-    }
-    const root = segments.shift();
-    let current;
-    switch (root) {
-      case "event":
-        current = event;
-        break;
-      case "target":
-        current = event.target ?? null;
-        break;
-      case "currentTarget":
-        current = event.currentTarget ?? null;
-        break;
-      case "element":
-      case "ref":
-        current = options?.refElement ?? (event.currentTarget instanceof Element ? event.currentTarget : null);
-        break;
-      default:
-        return void 0;
-    }
-    for (const segment of segments) {
-      if (current == null) {
-        return void 0;
-      }
-      try {
-        current = current[segment];
-      } catch {
-        return void 0;
-      }
-    }
-    return serializeValue(current);
-  }
-  function serializeValue(value) {
-    if (value === null || value === void 0) {
-      return null;
-    }
-    const type = typeof value;
-    if (type === "string" || type === "number" || type === "boolean") {
-      return value;
-    }
-    if (Array.isArray(value)) {
-      const mapped = value.map(serializeValue).filter((entry) => entry !== void 0);
-      return mapped.length > 0 ? mapped : null;
-    }
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-    if (value instanceof DOMTokenList) {
-      return Array.from(value);
-    }
-    if (value instanceof Node) {
-      return void 0;
-    }
-    try {
-      return JSON.parse(JSON.stringify(value));
-    } catch {
-      return void 0;
-    }
-  }
-
   // src/refs.ts
-  var refEventObservers = /* @__PURE__ */ new Set();
-  var registeredRefEvents = /* @__PURE__ */ new Set();
-  function observeRefEvents(observer) {
-    refEventObservers.add(observer);
-    return () => refEventObservers.delete(observer);
-  }
-  function getRegisteredRefEvents() {
-    return Array.from(registeredRefEvents);
-  }
-  function registerRefEvents(events) {
-    if (!Array.isArray(events)) {
-      return;
-    }
-    const newlyAdded = [];
-    events.forEach((event) => {
-      if (!event) {
-        return;
-      }
-      if (!registeredRefEvents.has(event)) {
-        registeredRefEvents.add(event);
-        newlyAdded.push(event);
-      }
-    });
-    if (newlyAdded.length === 0) {
-      return;
-    }
-    newlyAdded.forEach((event) => {
-      refEventObservers.forEach((observer) => {
-        try {
-          observer(event);
-        } catch {
-        }
-      });
-    });
-  }
   var RefRegistry = class {
     constructor(runtime) {
       this.runtime = runtime;
@@ -2371,7 +2260,6 @@ var LiveUIModule = (() => {
         for (const [id, meta] of Object.entries(delta.add)) {
           if (id) {
             this.meta.set(id, meta);
-            registerRefEvents(Object.keys(meta.events ?? {}));
           }
         }
       }
@@ -2435,26 +2323,10 @@ var LiveUIModule = (() => {
       }
       this.detach(refId);
       const listeners = /* @__PURE__ */ new Map();
-      const events = meta.events ?? {};
-      registerRefEvents(Object.keys(events));
-      Object.entries(events).forEach(([eventName, spec]) => {
-        if (!eventName) {
-          return;
-        }
-        const listener = (event) => {
-          const detail = extractEventDetail(event, spec?.props, { refElement: element });
-          const payload = detail ? { name: eventName, detail } : { name: eventName };
-          const handlerKey = spec?.handler || `${refId}/${eventName}`;
-          this.runtime.sendEvent(handlerKey, payload);
-        };
-        element.addEventListener(eventName, listener);
-        listeners.set(eventName, listener);
-      });
       this.bindings.set(refId, { element, listeners });
       Logger.debug("[Refs]", "attached ref", {
         refId,
-        tag: element.tagName,
-        events: Object.keys(events).length
+        tag: element.tagName
       });
     }
     detach(refId) {
@@ -3636,6 +3508,87 @@ var LiveUIModule = (() => {
     return map;
   }
 
+  // src/event-detail.ts
+  function extractEventDetail(event, props, options) {
+    if (!Array.isArray(props) || props.length === 0) {
+      return void 0;
+    }
+    const detail = {};
+    props.forEach((path) => {
+      if (typeof path !== "string" || path.length === 0) {
+        return;
+      }
+      const value = resolvePath(path, event, options);
+      if (value !== void 0) {
+        detail[path] = value;
+      }
+    });
+    return Object.keys(detail).length > 0 ? detail : void 0;
+  }
+  function resolvePath(path, event, options) {
+    const segments = path.split(".").map((segment) => segment.trim()).filter(Boolean);
+    if (segments.length === 0) {
+      return void 0;
+    }
+    const root = segments.shift();
+    let current;
+    switch (root) {
+      case "event":
+        current = event;
+        break;
+      case "target":
+        current = event.target ?? null;
+        break;
+      case "currentTarget":
+        current = event.currentTarget ?? null;
+        break;
+      case "element":
+      case "ref":
+        current = options?.refElement ?? (event.currentTarget instanceof Element ? event.currentTarget : null);
+        break;
+      default:
+        return void 0;
+    }
+    for (const segment of segments) {
+      if (current == null) {
+        return void 0;
+      }
+      try {
+        current = current[segment];
+      } catch {
+        return void 0;
+      }
+    }
+    return serializeValue(current);
+  }
+  function serializeValue(value) {
+    if (value === null || value === void 0) {
+      return null;
+    }
+    const type = typeof value;
+    if (type === "string" || type === "number" || type === "boolean") {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      const mapped = value.map(serializeValue).filter((entry) => entry !== void 0);
+      return mapped.length > 0 ? mapped : null;
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (value instanceof DOMTokenList) {
+      return Array.from(value);
+    }
+    if (value instanceof Node) {
+      return void 0;
+    }
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return void 0;
+    }
+  }
+
   // src/event-delegation.ts
   var EventDelegation = class {
     constructor(dom, runtime) {
@@ -3649,9 +3602,7 @@ var LiveUIModule = (() => {
       }
       this.registerEvents(["click"]);
       this.registerEvents(getRegisteredSlotEvents());
-      this.registerEvents(getRegisteredRefEvents());
       this.stopSlotObserver = observeSlotEvents((event) => this.bind(event));
-      this.stopRefObserver = observeRefEvents((event) => this.bind(event));
       Logger.debug("[Delegation]", "event delegation setup complete", {
         handlers: this.handlers.size
       });
@@ -3663,10 +3614,6 @@ var LiveUIModule = (() => {
       if (this.stopSlotObserver) {
         this.stopSlotObserver();
         this.stopSlotObserver = void 0;
-      }
-      if (this.stopRefObserver) {
-        this.stopRefObserver();
-        this.stopRefObserver = void 0;
       }
       this.handlers.forEach((listener, event) => {
         document.removeEventListener(event, listener, true);

@@ -84,11 +84,10 @@ func (tv *TreeValidator) validateElement(el *h.Element) {
 		})
 	}
 
-	if el.Attrs != nil {
-		pathValue := el.Attrs["data-router-path"]
-		if pathValue != "" && pathValue[0] != '/' {
+	if meta := el.RouterMeta; meta != nil {
+		if meta.Path != "" && meta.Path[0] != '/' {
 			tv.addError(&ValidationError{
-				Message: fmt.Sprintf("router path must start with /, got: %s", pathValue),
+				Message: fmt.Sprintf("router path must start with /, got: %s", meta.Path),
 				Node:    el,
 			})
 		}

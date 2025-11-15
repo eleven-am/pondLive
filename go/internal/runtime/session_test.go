@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
-	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -46,7 +46,7 @@ func TestSessionUseStateAndFlush(t *testing.T) {
 	if handlerID == "" {
 		t.Fatal("expected click handler id")
 	}
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}); err != nil {
 		t.Fatalf("DispatchEvent: %v", err)
 	}
 	if len(sink.ops) != 1 {

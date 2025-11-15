@@ -4,14 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/handlers"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 func TestRenderHTMLBasicElement(t *testing.T) {
 	node := h.Div(h.Text("hello"))
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	if html != "<div>hello</div>" {
 		t.Errorf("expected '<div>hello</div>', got %q", html)
@@ -23,8 +21,7 @@ func TestRenderHTMLNestedElements(t *testing.T) {
 		h.Span(h.Text("first")),
 		h.Span(h.Text("second")),
 	)
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	expected := "<div><span>first</span><span>second</span></div>"
 	if html != expected {
@@ -38,8 +35,7 @@ func TestRenderHTMLWithAttributes(t *testing.T) {
 		h.Attr("id", "main"),
 		h.Text("content"),
 	)
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	if !strings.Contains(html, `class="container"`) {
 		t.Errorf("expected class attribute, got %q", html)
@@ -52,8 +48,7 @@ func TestRenderHTMLWithAttributes(t *testing.T) {
 func TestRenderHTMLComponent(t *testing.T) {
 	inner := h.P(h.Text("component content"))
 	node := h.WrapComponent("test-comp", inner)
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	expected := "<p>component content</p>"
 	if html != expected {
@@ -66,8 +61,7 @@ func TestRenderHTMLFragment(t *testing.T) {
 		h.Div(h.Text("first")),
 		h.Div(h.Text("second")),
 	)
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	expected := "<div>first</div><div>second</div>"
 	if html != expected {
@@ -77,8 +71,7 @@ func TestRenderHTMLFragment(t *testing.T) {
 
 func TestRenderHTMLVoidElement(t *testing.T) {
 	node := h.Input(h.Attr("type", "text"), h.Attr("value", "test"))
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	if strings.Contains(html, "</input>") {
 		t.Errorf("void element should not have closing tag, got %q", html)
@@ -90,8 +83,7 @@ func TestRenderHTMLVoidElement(t *testing.T) {
 
 func TestRenderHTMLEscapesText(t *testing.T) {
 	node := h.Div(h.Text("<script>alert('xss')</script>"))
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	if strings.Contains(html, "<script>") {
 		t.Errorf("text should be escaped, got %q", html)
@@ -103,8 +95,7 @@ func TestRenderHTMLEscapesText(t *testing.T) {
 
 func TestRenderHTMLEscapesAttributes(t *testing.T) {
 	node := h.Div(h.Attr("title", `"quoted" & special`))
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	hasQuoteEscaped := strings.Contains(html, "&quot;") || strings.Contains(html, "&#34;")
 	hasAmpEscaped := strings.Contains(html, "&amp;")
@@ -117,8 +108,7 @@ func TestRenderHTMLUnsafeContent(t *testing.T) {
 	unsafeContent := "<strong>raw html</strong>"
 	elem := h.Div()
 	elem.Unsafe = &unsafeContent
-	reg := handlers.NewRegistry()
-	html := RenderHTML(elem, reg)
+	html := RenderHTML(elem)
 
 	if !strings.Contains(html, "<strong>raw html</strong>") {
 		t.Errorf("unsafe content should be raw, got %q", html)
@@ -127,8 +117,7 @@ func TestRenderHTMLUnsafeContent(t *testing.T) {
 
 func TestRenderHTMLComment(t *testing.T) {
 	node := h.Comment("test comment")
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	expected := "<!--test comment-->"
 	if html != expected {
@@ -138,8 +127,7 @@ func TestRenderHTMLComment(t *testing.T) {
 
 func TestRenderHTMLCommentEscapesDoubleDash(t *testing.T) {
 	node := h.Comment("test -- comment")
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	if strings.Contains(html, "--") && !strings.HasPrefix(html, "<!--") {
 		t.Errorf("double dash should be escaped in comment, got %q", html)
@@ -151,8 +139,7 @@ func TestRenderHTMLCommentEscapesDoubleDash(t *testing.T) {
 }
 
 func TestRenderHTMLNilNode(t *testing.T) {
-	reg := handlers.NewRegistry()
-	html := RenderHTML(nil, reg)
+	html := RenderHTML(nil)
 
 	if html != "" {
 		t.Errorf("expected empty string for nil node, got %q", html)
@@ -165,8 +152,7 @@ func TestRenderHTMLEmptyAttributes(t *testing.T) {
 		h.Attr("data-empty", ""),
 		h.Text("content"),
 	)
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	if strings.Contains(html, `data-empty=""`) {
 		t.Errorf("empty attributes should be skipped, got %q", html)
@@ -189,8 +175,7 @@ func TestRenderHTMLComplexStructure(t *testing.T) {
 			h.P(h.Text("Footer text")),
 		),
 	)
-	reg := handlers.NewRegistry()
-	html := RenderHTML(node, reg)
+	html := RenderHTML(node)
 
 	if !strings.Contains(html, "<h1>Title</h1>") {
 		t.Errorf("missing h1 element, got %q", html)

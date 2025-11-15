@@ -3,13 +3,11 @@ import { getRouterMeta } from './router-bindings';
 import { DomRegistry } from './dom-registry';
 import type { LiveRuntime } from './runtime';
 import { extractEventDetail } from './event-detail';
-import { getRegisteredRefEvents, observeRefEvents } from './refs';
 import { Logger } from './logger';
 
 export class EventDelegation {
   private handlers = new Map<string, EventListener>();
   private stopSlotObserver?: () => void;
-  private stopRefObserver?: () => void;
 
   constructor(private dom: DomRegistry, private runtime: LiveRuntime) {}
 
@@ -19,9 +17,7 @@ export class EventDelegation {
     }
     this.registerEvents(['click']);
     this.registerEvents(getRegisteredSlotEvents());
-    this.registerEvents(getRegisteredRefEvents());
     this.stopSlotObserver = observeSlotEvents((event) => this.bind(event));
-    this.stopRefObserver = observeRefEvents((event) => this.bind(event));
     Logger.debug('[Delegation]', 'event delegation setup complete', {
       handlers: this.handlers.size,
     });
@@ -34,10 +30,6 @@ export class EventDelegation {
     if (this.stopSlotObserver) {
       this.stopSlotObserver();
       this.stopSlotObserver = undefined;
-    }
-    if (this.stopRefObserver) {
-      this.stopRefObserver();
-      this.stopRefObserver = undefined;
     }
     this.handlers.forEach((listener, event) => {
       document.removeEventListener(event, listener, true);

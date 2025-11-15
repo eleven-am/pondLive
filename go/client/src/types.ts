@@ -138,7 +138,6 @@ export interface RouterBindingDescriptor {
 
 export interface RefMeta {
   tag: string;
-  events?: Record<string, { handler?: string; listen?: string[]; props?: string[] }>;
 }
 
 export type RefMap = Record<string, RefMeta>;

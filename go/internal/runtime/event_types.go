@@ -1,6 +1,6 @@
 package runtime
 
-import handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+import "github.com/eleven-am/pondlive/go/internal/dom"
 
 // WireEvent represents the payload received from the client for an event.
 type WireEvent struct {
@@ -21,13 +21,13 @@ type WireModifiers struct {
 }
 
 // ToEvent converts a wire payload into the handler event type.
-func (w WireEvent) ToEvent() handlers.Event {
-	return handlers.Event{
+func (w WireEvent) ToEvent() dom.Event {
+	return dom.Event{
 		Name:    w.Name,
 		Value:   w.Value,
 		Payload: cloneAnyMap(w.Payload),
 		Form:    cloneStringMap(w.Form),
-		Mods: handlers.Modifiers{
+		Mods: dom.Modifiers{
 			Ctrl:   w.Mods.Ctrl,
 			Meta:   w.Mods.Meta,
 			Shift:  w.Mods.Shift,

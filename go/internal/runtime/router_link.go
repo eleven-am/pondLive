@@ -2,8 +2,8 @@ package runtime
 
 import (
 	"strconv"
-	"strings"
 
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -60,7 +60,7 @@ func renderLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
 		if next.Path == "" {
 			return nil
 		}
-		replace := strings.EqualFold(h.PayloadString(ev.Payload, "target.dataset.routerReplace", ""), "true")
+		replace := p.Replace
 
 		if LocEqual(current, next) {
 			return nil
@@ -73,22 +73,21 @@ func renderLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
 	encodedQuery := encodeQuery(target.Query)
 	items := []h.Item{
 		h.Href(href),
-		h.Data("router-path", target.Path),
-		h.Data("router-query", encodedQuery),
-		h.Data("router-hash", target.Hash),
-		h.Data("router-replace", replaceAttr),
 		h.OnWith("click", h.EventOptions{Props: []string{
-			"currentTarget.dataset.routerPath",
-			"currentTarget.dataset.routerQuery",
-			"currentTarget.dataset.routerHash",
-			"currentTarget.dataset.routerReplace",
 			"currentTarget.href",
 		}}, handler),
 	}
 	if len(children) > 0 {
 		items = append(items, children...)
 	}
-	return h.A(items...)
+	link := h.A(items...)
+	attachRouterMeta(link, dom.RouterMeta{
+		Path:    target.Path,
+		Query:   encodedQuery,
+		Hash:    target.Hash,
+		Replace: replaceAttr,
+	})
+	return link
 }
 
 func renderStaticLink(sess *ComponentSession, p LinkProps, children ...h.Item) h.Node {
@@ -96,7 +95,20 @@ func renderStaticLink(sess *ComponentSession, p LinkProps, children ...h.Item) h
 	items := make([]h.Item, 0, len(children)+1)
 	items = append(items, h.Href(href))
 	items = append(items, children...)
-	return h.A(items...)
+	link := h.A(items...)
+	target := Location{Path: p.To}
+	if sess != nil {
+		base := currentSessionLocation(sess)
+		resolved := resolveHref(base, p.To)
+		target = resolved
+	}
+	attachRouterMeta(link, dom.RouterMeta{
+		Path:    target.Path,
+		Query:   encodeQuery(target.Query),
+		Hash:    target.Hash,
+		Replace: strconv.FormatBool(p.Replace),
+	})
+	return link
 }
 
 func fallbackLinkHref(sess *ComponentSession, p LinkProps) string {
@@ -109,22 +121,16 @@ func fallbackLinkHref(sess *ComponentSession, p LinkProps) string {
 }
 
 func extractTargetFromEvent(ev h.Event, base Location) Location {
-	datasetPath := h.PayloadString(ev.Payload, "currentTarget.dataset.routerPath", "")
-	datasetQuery := h.PayloadString(ev.Payload, "currentTarget.dataset.routerQuery", "")
-	datasetHash := h.PayloadString(ev.Payload, "currentTarget.dataset.routerHash", "")
-
-	if datasetPath != "" {
-		target := Location{
-			Path:  datasetPath,
-			Query: parseQuery(datasetQuery),
-			Hash:  normalizeHash(datasetHash),
-		}
-		return canonicalizeLocation(target)
-	}
-
 	href := h.PayloadString(ev.Payload, "currentTarget.href", "")
 	if href == "" {
 		return Location{}
 	}
 	return resolveHref(base, href)
+}
+
+func attachRouterMeta(node h.Node, meta dom.RouterMeta) {
+	if el, ok := node.(*dom.Element); ok {
+		m := meta
+		el.RouterMeta = &m
+	}
 }

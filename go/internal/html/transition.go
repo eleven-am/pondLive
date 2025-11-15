@@ -64,10 +64,11 @@ func (h *TransitionHandler) OnTransitionCancel(handler func(TransitionEvent) Upd
 }
 
 func buildTransitionEvent(evt Event) TransitionEvent {
+	detail := extractDetail(evt.Payload)
 	return TransitionEvent{
 		Event:         evt,
-		PropertyName:  PayloadString(evt.Payload, "event.propertyName", ""),
-		ElapsedTime:   payloadFloat(evt.Payload, "event.elapsedTime", 0),
-		PseudoElement: PayloadString(evt.Payload, "event.pseudoElement", ""),
+		PropertyName:  PayloadString(detail, "event.propertyName", ""),
+		ElapsedTime:   payloadFloat(detail, "event.elapsedTime", 0),
+		PseudoElement: PayloadString(detail, "event.pseudoElement", ""),
 	}
 }

@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
-	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	render "github.com/eleven-am/pondlive/go/internal/render"
+	"github.com/eleven-am/pondlive/go/internal/testh"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -110,13 +111,12 @@ func asItem(node h.Node) h.Item {
 	return h.Fragment()
 }
 
-func findClickHandlerID(structured render.Structured) handlers.ID {
+func findClickHandlerID(structured render.Structured) string {
 	return findHandlerAttr(structured, "data-onclick")
 }
 
 func TestRouterOutletRerender(t *testing.T) {
 	sess := NewSession(settingsApp, routerRenderProps{})
-	sess.SetRegistry(handlers.NewRegistry())
 	var ops []diff.Op
 	sess.SetPatchSender(func(o []diff.Op) error {
 		ops = append([]diff.Op{}, o...)
@@ -189,7 +189,6 @@ func TestRouterOutletRerender(t *testing.T) {
 
 func TestLinkNoNavigationForSameHref(t *testing.T) {
 	sess := NewSession(linkApp, routerRenderProps{})
-	sess.SetRegistry(handlers.NewRegistry())
 	var ops []diff.Op
 	sess.SetPatchSender(func(o []diff.Op) error {
 		ops = append(ops, o...)
@@ -207,7 +206,7 @@ func TestLinkNoNavigationForSameHref(t *testing.T) {
 		t.Fatal("expected click handler to be registered")
 	}
 
-	if err := sess.DispatchEvent(handlerID, handlers.Event{Name: "click"}); err != nil {
+	if err := sess.DispatchEvent(handlerID, dom.Event{Name: "click"}); err != nil {
 		t.Fatalf("dispatch error: %v", err)
 	}
 
@@ -221,12 +220,11 @@ func TestLinkNoNavigationForSameHref(t *testing.T) {
 
 func TestRouterRendersNestedLinkDuringSSR(t *testing.T) {
 	sess := NewSession(nestedLinkApp, routerRenderProps{})
-	sess.SetRegistry(handlers.NewRegistry())
 
 	InternalSeedSessionLocation(sess, ParseHref("/root"))
 
 	node := sess.RenderNode()
-	html := render.RenderHTML(node, sess.Registry())
+	html := render.RenderHTML(node)
 
 	if !strings.Contains(html, "<a ") {
 		t.Fatalf("expected anchor element in SSR output, got %q", html)
@@ -237,7 +235,9 @@ func TestRouterRendersNestedLinkDuringSSR(t *testing.T) {
 	if strings.Contains(html, "data-onclick") {
 		t.Fatalf("expected sanitized SSR output without inline handler metadata, got %q", html)
 	}
-	structured, err := render.ToStructuredWithHandlers(node, render.StructuredOptions{Handlers: sess.Registry()})
+	structured, err := render.ToStructuredWithHandlers(node, render.StructuredOptions{
+		Components: testh.NewMockComponentLookup(),
+	})
 	if err != nil {
 		t.Fatalf("ToStructuredWithHandlers failed: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestRouterUsesSeededLocationDuringSSR(t *testing.T) {
 	InternalSeedSessionLocation(session.ComponentSession(), ParseHref("/about"))
 
 	node := session.RenderRoot()
-	html := render.RenderHTML(node, session.Registry())
+	html := render.RenderHTML(node)
 
 	if !strings.Contains(html, "page:about:/about") {
 		t.Fatalf("expected active route to render seeded location, got %q", html)
@@ -273,12 +273,11 @@ func TestRouterLinkRendersStaticAnchorWithoutRouter(t *testing.T) {
 	sess := NewSession(func(ctx Ctx, _ routerRenderProps) h.Node {
 		return RouterLink(ctx, LinkProps{To: "../settings"}, h.Text("Settings"))
 	}, routerRenderProps{})
-	sess.SetRegistry(handlers.NewRegistry())
 
 	InternalSeedSessionLocation(sess, ParseHref("/users/123/"))
 
 	node := sess.RenderNode()
-	html := render.RenderHTML(node, sess.Registry())
+	html := render.RenderHTML(node)
 
 	if !strings.Contains(html, "<a ") {
 		t.Fatalf("expected fallback anchor in SSR output, got %q", html)
@@ -293,12 +292,11 @@ func TestRouterLinkRendersStaticAnchorWithoutRouter(t *testing.T) {
 
 func TestRouterSSRPreservesDeveloperMarkup(t *testing.T) {
 	sess := NewSession(placeholderRouter, routerRenderProps{})
-	sess.SetRegistry(handlers.NewRegistry())
 
 	InternalSeedSessionLocation(sess, ParseHref("/refs"))
 
 	node := sess.RenderNode()
-	html := render.RenderHTML(node, sess.Registry())
+	html := render.RenderHTML(node)
 
 	if !strings.Contains(html, "refs route") {
 		t.Fatalf("expected refs route content, got %q", html)
@@ -313,7 +311,9 @@ func TestRouterSSRPreservesDeveloperMarkup(t *testing.T) {
 		t.Fatalf("expected SSR output to omit inline handler metadata, got %q", html)
 	}
 
-	structured, err := render.ToStructuredWithHandlers(node, render.StructuredOptions{Handlers: sess.Registry()})
+	structured, err := render.ToStructuredWithHandlers(node, render.StructuredOptions{
+		Components: testh.NewMockComponentLookup(),
+	})
 	if err != nil {
 		t.Fatalf("ToStructuredWithHandlers failed: %v", err)
 	}

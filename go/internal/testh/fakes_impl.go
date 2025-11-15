@@ -1,9 +1,54 @@
 package testh
 
 import (
-	handlers "github.com/eleven-am/pondlive/go/internal/handlers"
+	"github.com/eleven-am/pondlive/go/internal/render"
 	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )
+
+type mockComponent struct {
+	id       string
+	handlers []html.EventHandler
+}
+
+func (m *mockComponent) RegisterHandler(handler html.EventHandler) int {
+	if m == nil {
+		return -1
+	}
+	slotIdx := len(m.handlers)
+	m.handlers = append(m.handlers, handler)
+	return slotIdx
+}
+
+func (m *mockComponent) ComponentID() string {
+	if m == nil {
+		return ""
+	}
+	return m.id
+}
+
+type mockComponentLookup struct {
+	components map[string]*mockComponent
+}
+
+func NewMockComponentLookup() render.ComponentLookup {
+	return &mockComponentLookup{
+		components: map[string]*mockComponent{
+			"": &mockComponent{id: ""},
+		},
+	}
+}
+
+func (m *mockComponentLookup) LookupComponent(id string) render.ComponentHandlerTarget {
+	if m == nil {
+		return nil
+	}
+	if comp, ok := m.components[id]; ok {
+		return comp
+	}
+	comp := &mockComponent{id: id}
+	m.components[id] = comp
+	return comp
+}
 
 type registryFactory struct{}
 
@@ -13,23 +58,26 @@ func NewRegistryFactory() RegistryFactory {
 }
 
 func (registryFactory) NewRegistry() HandlerRegistry {
-	return &handlerRegistry{Registry: handlers.NewRegistry()}
+	return &handlerRegistry{handlers: make(map[string]any)}
 }
 
-// handlerRegistry adapts handlers.Registry to the HandlerRegistry contract.
+// handlerRegistry implements HandlerRegistry with a simple map.
 type handlerRegistry struct {
-	handlers.Registry
+	handlers map[string]any
 }
 
 func (r *handlerRegistry) Lookup(handlerID string) any {
 	if r == nil || handlerID == "" {
 		return nil
 	}
-	fn, ok := r.Registry.Get(handlers.ID(handlerID))
-	if !ok {
-		return nil
+	return r.handlers[handlerID]
+}
+
+func (r *handlerRegistry) Register(handlerID string, handler any) {
+	if r == nil || handlerID == "" {
+		return
 	}
-	return html.EventHandler(fn)
+	r.handlers[handlerID] = handler
 }
 
 type channel struct {

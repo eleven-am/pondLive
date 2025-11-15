@@ -80,9 +80,10 @@ func (h *LoadHandler) OnProgress(handler func(LoadEvent) Updates) {
 }
 
 func buildLoadEvent(evt Event) LoadEvent {
+	detail := extractDetail(evt.Payload)
 	return LoadEvent{
 		Event:  evt,
-		Loaded: payloadFloat(evt.Payload, "event.loaded", 0),
-		Total:  payloadFloat(evt.Payload, "event.total", 0),
+		Loaded: payloadFloat(detail, "event.loaded", 0),
+		Total:  payloadFloat(detail, "event.total", 0),
 	}
 }

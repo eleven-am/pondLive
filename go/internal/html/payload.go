@@ -106,6 +106,18 @@ func payloadInt(payload map[string]any, key string, fallback int) int {
 	return fallback
 }
 
+// extractDetail extracts the detail map from payload if present, otherwise returns the payload itself.
+// Client sends events as {name: "eventName", detail: {...}} so we need to unwrap the detail.
+func extractDetail(payload map[string]any) map[string]any {
+	if payload == nil {
+		return nil
+	}
+	if detail, ok := payload["detail"].(map[string]any); ok {
+		return detail
+	}
+	return payload
+}
+
 func PayloadString(payload map[string]any, key, fallback string) string {
 	if payload == nil {
 		return fallback

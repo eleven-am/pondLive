@@ -64,10 +64,11 @@ func (h *AnimationHandler) OnAnimationCancel(handler func(AnimationEvent) Update
 }
 
 func buildAnimationEvent(evt Event) AnimationEvent {
+	detail := extractDetail(evt.Payload)
 	return AnimationEvent{
 		Event:         evt,
-		AnimationName: PayloadString(evt.Payload, "event.animationName", ""),
-		ElapsedTime:   payloadFloat(evt.Payload, "event.elapsedTime", 0),
-		PseudoElement: PayloadString(evt.Payload, "event.pseudoElement", ""),
+		AnimationName: PayloadString(detail, "event.animationName", ""),
+		ElapsedTime:   payloadFloat(detail, "event.elapsedTime", 0),
+		PseudoElement: PayloadString(detail, "event.pseudoElement", ""),
 	}
 }

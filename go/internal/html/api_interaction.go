@@ -42,24 +42,25 @@ func (MouseEvent) props() []string {
 }
 
 func buildMouseEvent(evt Event) MouseEvent {
+	detail := extractDetail(evt.Payload)
 	return MouseEvent{
 		Event:     evt,
-		Button:    payloadInt(evt.Payload, "event.button", 0),
-		Buttons:   payloadInt(evt.Payload, "event.buttons", 0),
-		ClientX:   payloadFloat(evt.Payload, "event.clientX", 0),
-		ClientY:   payloadFloat(evt.Payload, "event.clientY", 0),
-		ScreenX:   payloadFloat(evt.Payload, "event.screenX", 0),
-		ScreenY:   payloadFloat(evt.Payload, "event.screenY", 0),
-		MovementX: payloadFloat(evt.Payload, "event.movementX", 0),
-		MovementY: payloadFloat(evt.Payload, "event.movementY", 0),
-		OffsetX:   payloadFloat(evt.Payload, "event.offsetX", 0),
-		OffsetY:   payloadFloat(evt.Payload, "event.offsetY", 0),
-		PageX:     payloadFloat(evt.Payload, "event.pageX", 0),
-		PageY:     payloadFloat(evt.Payload, "event.pageY", 0),
-		AltKey:    payloadBool(evt.Payload, "event.altKey", false),
-		CtrlKey:   payloadBool(evt.Payload, "event.ctrlKey", false),
-		ShiftKey:  payloadBool(evt.Payload, "event.shiftKey", false),
-		MetaKey:   payloadBool(evt.Payload, "event.metaKey", false),
+		Button:    payloadInt(detail, "event.button", 0),
+		Buttons:   payloadInt(detail, "event.buttons", 0),
+		ClientX:   payloadFloat(detail, "event.clientX", 0),
+		ClientY:   payloadFloat(detail, "event.clientY", 0),
+		ScreenX:   payloadFloat(detail, "event.screenX", 0),
+		ScreenY:   payloadFloat(detail, "event.screenY", 0),
+		MovementX: payloadFloat(detail, "event.movementX", 0),
+		MovementY: payloadFloat(detail, "event.movementY", 0),
+		OffsetX:   payloadFloat(detail, "event.offsetX", 0),
+		OffsetY:   payloadFloat(detail, "event.offsetY", 0),
+		PageX:     payloadFloat(detail, "event.pageX", 0),
+		PageY:     payloadFloat(detail, "event.pageY", 0),
+		AltKey:    payloadBool(detail, "event.altKey", false),
+		CtrlKey:   payloadBool(detail, "event.ctrlKey", false),
+		ShiftKey:  payloadBool(detail, "event.shiftKey", false),
+		MetaKey:   payloadBool(detail, "event.metaKey", false),
 	}
 }
 
@@ -96,23 +97,24 @@ func (ClickEvent) props() []string {
 }
 
 func buildClickEvent(evt Event) ClickEvent {
+	detail := extractDetail(evt.Payload)
 	return ClickEvent{
 		Event:    evt,
-		Detail:   payloadInt(evt.Payload, "event.detail", 0),
-		AltKey:   payloadBool(evt.Payload, "event.altKey", false),
-		CtrlKey:  payloadBool(evt.Payload, "event.ctrlKey", false),
-		ShiftKey: payloadBool(evt.Payload, "event.shiftKey", false),
-		MetaKey:  payloadBool(evt.Payload, "event.metaKey", false),
-		Button:   payloadInt(evt.Payload, "event.button", 0),
-		Buttons:  payloadInt(evt.Payload, "event.buttons", 0),
-		ClientX:  payloadFloat(evt.Payload, "event.clientX", 0),
-		ClientY:  payloadFloat(evt.Payload, "event.clientY", 0),
-		OffsetX:  payloadFloat(evt.Payload, "event.offsetX", 0),
-		OffsetY:  payloadFloat(evt.Payload, "event.offsetY", 0),
-		PageX:    payloadFloat(evt.Payload, "event.pageX", 0),
-		PageY:    payloadFloat(evt.Payload, "event.pageY", 0),
-		ScreenX:  payloadFloat(evt.Payload, "event.screenX", 0),
-		ScreenY:  payloadFloat(evt.Payload, "event.screenY", 0),
+		Detail:   payloadInt(detail, "event.detail", 0),
+		AltKey:   payloadBool(detail, "event.altKey", false),
+		CtrlKey:  payloadBool(detail, "event.ctrlKey", false),
+		ShiftKey: payloadBool(detail, "event.shiftKey", false),
+		MetaKey:  payloadBool(detail, "event.metaKey", false),
+		Button:   payloadInt(detail, "event.button", 0),
+		Buttons:  payloadInt(detail, "event.buttons", 0),
+		ClientX:  payloadFloat(detail, "event.clientX", 0),
+		ClientY:  payloadFloat(detail, "event.clientY", 0),
+		OffsetX:  payloadFloat(detail, "event.offsetX", 0),
+		OffsetY:  payloadFloat(detail, "event.offsetY", 0),
+		PageX:    payloadFloat(detail, "event.pageX", 0),
+		PageY:    payloadFloat(detail, "event.pageY", 0),
+		ScreenX:  payloadFloat(detail, "event.screenX", 0),
+		ScreenY:  payloadFloat(detail, "event.screenY", 0),
 	}
 }
 
@@ -152,17 +154,18 @@ func (KeyboardEvent) props() []string {
 }
 
 func buildKeyboardEvent(evt Event) KeyboardEvent {
+	detail := extractDetail(evt.Payload)
 	return KeyboardEvent{
 		Event:       evt,
-		Key:         PayloadString(evt.Payload, "event.key", ""),
-		Code:        PayloadString(evt.Payload, "event.code", ""),
-		Location:    payloadInt(evt.Payload, "event.location", 0),
-		Repeat:      payloadBool(evt.Payload, "event.repeat", false),
-		AltKey:      payloadBool(evt.Payload, "event.altKey", false),
-		CtrlKey:     payloadBool(evt.Payload, "event.ctrlKey", false),
-		ShiftKey:    payloadBool(evt.Payload, "event.shiftKey", false),
-		MetaKey:     payloadBool(evt.Payload, "event.metaKey", false),
-		IsComposing: payloadBool(evt.Payload, "event.isComposing", false),
+		Key:         PayloadString(detail, "event.key", ""),
+		Code:        PayloadString(detail, "event.code", ""),
+		Location:    payloadInt(detail, "event.location", 0),
+		Repeat:      payloadBool(detail, "event.repeat", false),
+		AltKey:      payloadBool(detail, "event.altKey", false),
+		CtrlKey:     payloadBool(detail, "event.ctrlKey", false),
+		ShiftKey:    payloadBool(detail, "event.shiftKey", false),
+		MetaKey:     payloadBool(detail, "event.metaKey", false),
+		IsComposing: payloadBool(detail, "event.isComposing", false),
 	}
 }
 
@@ -205,27 +208,28 @@ func (PointerEvent) props() []string {
 }
 
 func buildPointerEvent(evt Event) PointerEvent {
+	detail := extractDetail(evt.Payload)
 	return PointerEvent{
 		Event:       evt,
-		PointerType: PayloadString(evt.Payload, "event.pointerType", ""),
-		PointerID:   payloadInt(evt.Payload, "event.pointerId", 0),
-		Button:      payloadInt(evt.Payload, "event.button", 0),
-		Buttons:     payloadInt(evt.Payload, "event.buttons", 0),
-		ClientX:     payloadFloat(evt.Payload, "event.clientX", 0),
-		ClientY:     payloadFloat(evt.Payload, "event.clientY", 0),
-		MovementX:   payloadFloat(evt.Payload, "event.movementX", 0),
-		MovementY:   payloadFloat(evt.Payload, "event.movementY", 0),
-		OffsetX:     payloadFloat(evt.Payload, "event.offsetX", 0),
-		OffsetY:     payloadFloat(evt.Payload, "event.offsetY", 0),
-		PageX:       payloadFloat(evt.Payload, "event.pageX", 0),
-		PageY:       payloadFloat(evt.Payload, "event.pageY", 0),
-		ScreenX:     payloadFloat(evt.Payload, "event.screenX", 0),
-		ScreenY:     payloadFloat(evt.Payload, "event.screenY", 0),
-		IsPrimary:   payloadBool(evt.Payload, "event.isPrimary", false),
-		AltKey:      payloadBool(evt.Payload, "event.altKey", false),
-		CtrlKey:     payloadBool(evt.Payload, "event.ctrlKey", false),
-		ShiftKey:    payloadBool(evt.Payload, "event.shiftKey", false),
-		MetaKey:     payloadBool(evt.Payload, "event.metaKey", false),
+		PointerType: PayloadString(detail, "event.pointerType", ""),
+		PointerID:   payloadInt(detail, "event.pointerId", 0),
+		Button:      payloadInt(detail, "event.button", 0),
+		Buttons:     payloadInt(detail, "event.buttons", 0),
+		ClientX:     payloadFloat(detail, "event.clientX", 0),
+		ClientY:     payloadFloat(detail, "event.clientY", 0),
+		MovementX:   payloadFloat(detail, "event.movementX", 0),
+		MovementY:   payloadFloat(detail, "event.movementY", 0),
+		OffsetX:     payloadFloat(detail, "event.offsetX", 0),
+		OffsetY:     payloadFloat(detail, "event.offsetY", 0),
+		PageX:       payloadFloat(detail, "event.pageX", 0),
+		PageY:       payloadFloat(detail, "event.pageY", 0),
+		ScreenX:     payloadFloat(detail, "event.screenX", 0),
+		ScreenY:     payloadFloat(detail, "event.screenY", 0),
+		IsPrimary:   payloadBool(detail, "event.isPrimary", false),
+		AltKey:      payloadBool(detail, "event.altKey", false),
+		CtrlKey:     payloadBool(detail, "event.ctrlKey", false),
+		ShiftKey:    payloadBool(detail, "event.shiftKey", false),
+		MetaKey:     payloadBool(detail, "event.metaKey", false),
 	}
 }
 
@@ -245,12 +249,13 @@ func (TouchEvent) props() []string {
 }
 
 func buildTouchEvent(evt Event) TouchEvent {
+	detail := extractDetail(evt.Payload)
 	return TouchEvent{
 		Event:    evt,
-		AltKey:   payloadBool(evt.Payload, "event.altKey", false),
-		CtrlKey:  payloadBool(evt.Payload, "event.ctrlKey", false),
-		ShiftKey: payloadBool(evt.Payload, "event.shiftKey", false),
-		MetaKey:  payloadBool(evt.Payload, "event.metaKey", false),
+		AltKey:   payloadBool(detail, "event.altKey", false),
+		CtrlKey:  payloadBool(detail, "event.ctrlKey", false),
+		ShiftKey: payloadBool(detail, "event.shiftKey", false),
+		MetaKey:  payloadBool(detail, "event.metaKey", false),
 	}
 }
 
@@ -276,16 +281,17 @@ func (DragEvent) props() []string {
 }
 
 func buildDragEvent(evt Event) DragEvent {
+	detail := extractDetail(evt.Payload)
 	return DragEvent{
 		Event:    evt,
-		ClientX:  payloadFloat(evt.Payload, "event.clientX", 0),
-		ClientY:  payloadFloat(evt.Payload, "event.clientY", 0),
-		ScreenX:  payloadFloat(evt.Payload, "event.screenX", 0),
-		ScreenY:  payloadFloat(evt.Payload, "event.screenY", 0),
-		AltKey:   payloadBool(evt.Payload, "event.altKey", false),
-		CtrlKey:  payloadBool(evt.Payload, "event.ctrlKey", false),
-		ShiftKey: payloadBool(evt.Payload, "event.shiftKey", false),
-		MetaKey:  payloadBool(evt.Payload, "event.metaKey", false),
+		ClientX:  payloadFloat(detail, "event.clientX", 0),
+		ClientY:  payloadFloat(detail, "event.clientY", 0),
+		ScreenX:  payloadFloat(detail, "event.screenX", 0),
+		ScreenY:  payloadFloat(detail, "event.screenY", 0),
+		AltKey:   payloadBool(detail, "event.altKey", false),
+		CtrlKey:  payloadBool(detail, "event.ctrlKey", false),
+		ShiftKey: payloadBool(detail, "event.shiftKey", false),
+		MetaKey:  payloadBool(detail, "event.metaKey", false),
 	}
 }
 

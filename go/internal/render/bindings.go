@@ -1,8 +1,6 @@
 package render
 
-import (
-	"strings"
-)
+import "strings"
 
 // BindingExtractor handles extraction of all binding types from elements.
 type BindingExtractor struct {
@@ -192,23 +190,20 @@ func (be *BindingExtractor) ExtractRouterBinding(frame elementFrame) {
 
 func buildRouterBinding(frame elementFrame) *RouterBinding {
 	el := frame.element
-	if el == nil || len(el.Attrs) == 0 {
+	if el == nil || el.RouterMeta == nil {
 		return nil
 	}
-	pathValue := strings.TrimSpace(el.Attrs["data-router-path"])
-	query := strings.TrimSpace(el.Attrs["data-router-query"])
-	hash := strings.TrimSpace(el.Attrs["data-router-hash"])
-	replace := strings.TrimSpace(el.Attrs["data-router-replace"])
-	if pathValue == "" && query == "" && hash == "" && replace == "" {
+	meta := el.RouterMeta
+	if meta.Path == "" && meta.Query == "" && meta.Hash == "" && meta.Replace == "" {
 		return nil
 	}
 	return &RouterBinding{
 		ComponentID: frame.componentID,
 		Path:        combineTypedPath(frame.basePath, frame.componentPath),
-		PathValue:   pathValue,
-		Query:       query,
-		Hash:        hash,
-		Replace:     replace,
+		PathValue:   meta.Path,
+		Query:       meta.Query,
+		Hash:        meta.Hash,
+		Replace:     meta.Replace,
 	}
 }
 

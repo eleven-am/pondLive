@@ -2,48 +2,7 @@ import type { RefBindingDescriptor, RefDelta, RefMeta } from './types';
 import type { ComponentRange } from './manifest';
 import { resolveNodeInComponent } from './manifest';
 import type { LiveRuntime } from './runtime';
-import { extractEventDetail } from './event-detail';
 import { Logger } from './logger';
-
-const refEventObservers = new Set<(event: string) => void>();
-const registeredRefEvents = new Set<string>();
-
-export function observeRefEvents(observer: (event: string) => void): () => void {
-  refEventObservers.add(observer);
-  return () => refEventObservers.delete(observer);
-}
-
-export function getRegisteredRefEvents(): string[] {
-  return Array.from(registeredRefEvents);
-}
-
-function registerRefEvents(events: string[] | undefined): void {
-  if (!Array.isArray(events)) {
-    return;
-  }
-  const newlyAdded: string[] = [];
-  events.forEach((event) => {
-    if (!event) {
-      return;
-    }
-    if (!registeredRefEvents.has(event)) {
-      registeredRefEvents.add(event);
-      newlyAdded.push(event);
-    }
-  });
-  if (newlyAdded.length === 0) {
-    return;
-  }
-  newlyAdded.forEach((event) => {
-    refEventObservers.forEach((observer) => {
-      try {
-        observer(event);
-      } catch {
-        /* ignore */
-      }
-    });
-  });
-}
 
 interface RefListeners {
   element: Element;
@@ -76,7 +35,6 @@ export class RefRegistry {
       for (const [id, meta] of Object.entries(delta.add)) {
         if (id) {
           this.meta.set(id, meta);
-          registerRefEvents(Object.keys(meta.events ?? {}));
         }
       }
     }
@@ -143,26 +101,10 @@ export class RefRegistry {
     }
     this.detach(refId);
     const listeners = new Map<string, EventListener>();
-    const events = meta.events ?? {};
-    registerRefEvents(Object.keys(events));
-    Object.entries(events).forEach(([eventName, spec]) => {
-      if (!eventName) {
-        return;
-      }
-      const listener = (event: Event) => {
-        const detail = extractEventDetail(event, spec?.props, { refElement: element });
-        const payload = detail ? { name: eventName, detail } : { name: eventName };
-        const handlerKey = spec?.handler || `${refId}/${eventName}`;
-        this.runtime.sendEvent(handlerKey, payload);
-      };
-      element.addEventListener(eventName, listener);
-      listeners.set(eventName, listener);
-    });
     this.bindings.set(refId, { element, listeners });
     Logger.debug('[Refs]', 'attached ref', {
       refId,
       tag: element.tagName,
-      events: Object.keys(events).length,
     });
   }
 

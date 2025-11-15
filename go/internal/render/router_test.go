@@ -3,14 +3,13 @@ package render
 import (
 	"testing"
 
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 func TestRouterPathMustStartWithSlash(t *testing.T) {
 	button := h.Button(h.Text("click"))
-	button.Attrs = map[string]string{
-		"data-router-path": "relative/path",
-	}
+	button.RouterMeta = &dom.RouterMeta{Path: "relative/path"}
 	root := h.WrapComponent("root", h.Div(button))
 
 	_, err := ToStructured(root)
@@ -21,12 +20,7 @@ func TestRouterPathMustStartWithSlash(t *testing.T) {
 
 func TestRouterBindingEmptyAttributesAreIgnored(t *testing.T) {
 	button := h.Button(h.Text("noop"))
-	button.Attrs = map[string]string{
-		"data-router-path":    "",
-		"data-router-query":   "",
-		"data-router-hash":    "",
-		"data-router-replace": "",
-	}
+	button.RouterMeta = &dom.RouterMeta{}
 	root := h.WrapComponent("root", h.Div(button))
 
 	structured, err := ToStructured(root)

@@ -45,14 +45,15 @@ func (h *WheelHandler) OnWheel(handler func(WheelEvent) Updates) {
 }
 
 func buildWheelEvent(evt Event) WheelEvent {
+	detail := extractDetail(evt.Payload)
 	return WheelEvent{
 		Event:    evt,
-		DeltaX:   payloadFloat(evt.Payload, "event.deltaX", 0),
-		DeltaY:   payloadFloat(evt.Payload, "event.deltaY", 0),
-		DeltaZ:   payloadFloat(evt.Payload, "event.deltaZ", 0),
-		AltKey:   payloadBool(evt.Payload, "event.altKey", false),
-		CtrlKey:  payloadBool(evt.Payload, "event.ctrlKey", false),
-		ShiftKey: payloadBool(evt.Payload, "event.shiftKey", false),
-		MetaKey:  payloadBool(evt.Payload, "event.metaKey", false),
+		DeltaX:   payloadFloat(detail, "event.deltaX", 0),
+		DeltaY:   payloadFloat(detail, "event.deltaY", 0),
+		DeltaZ:   payloadFloat(detail, "event.deltaZ", 0),
+		AltKey:   payloadBool(detail, "event.altKey", false),
+		CtrlKey:  payloadBool(detail, "event.ctrlKey", false),
+		ShiftKey: payloadBool(detail, "event.shiftKey", false),
+		MetaKey:  payloadBool(detail, "event.metaKey", false),
 	}
 }

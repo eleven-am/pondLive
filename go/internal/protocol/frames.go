@@ -250,14 +250,7 @@ type RefDelta struct {
 }
 
 type RefMeta struct {
-	Tag    string                  `json:"tag"`
-	Events map[string]RefEventMeta `json:"events,omitempty"`
-}
-
-type RefEventMeta struct {
-	Handler string   `json:"handler,omitempty"`
-	Listen  []string `json:"listen,omitempty"`
-	Props   []string `json:"props,omitempty"`
+	Tag string `json:"tag"`
 }
 
 type Diagnostic struct {

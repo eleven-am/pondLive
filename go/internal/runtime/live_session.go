@@ -17,7 +17,6 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	"github.com/eleven-am/pondlive/go/internal/dom"
-	"github.com/eleven-am/pondlive/go/internal/handlers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	render "github.com/eleven-am/pondlive/go/internal/render"
 )
@@ -167,7 +166,6 @@ func mergeLiveSessionConfig(base LiveSessionConfig, cfg *LiveSessionConfig) Live
 // NewLiveSession constructs a session runtime for the given component tree.
 func NewLiveSession[P any](sid SessionID, version int, root Component[P], props P, cfg *LiveSessionConfig) *LiveSession {
 	component := NewSession(root, props)
-	component.SetRegistry(handlers.NewRegistry())
 
 	session := &LiveSession{
 		id:        sid,
@@ -401,7 +399,7 @@ func (s *LiveSession) Ack(seq int) {
 
 // DispatchEvent routes a client event through the component tree, performing
 // idempotency checks on the provided client sequence.
-func (s *LiveSession) DispatchEvent(id handlers.ID, ev handlers.Event, clientSeq int) error {
+func (s *LiveSession) DispatchEvent(id string, ev dom.Event, clientSeq int) error {
 	if !s.acceptClientEvent(clientSeq) {
 		return nil
 	}
@@ -898,9 +896,6 @@ func (s *LiveSession) RebuildSnapshot(structured render.Structured) {
 	s.mu.Unlock()
 }
 
-// Registry returns the handler registry backing this session.
-func (s *LiveSession) Registry() handlers.Registry { return s.component.Registry() }
-
 // MarkDirty schedules the root component for re-render.
 func (s *LiveSession) MarkDirty() {
 	if s.component == nil || s.component.root == nil {
@@ -911,6 +906,11 @@ func (s *LiveSession) MarkDirty() {
 
 func (s *LiveSession) flushAsync() {
 	if s == nil {
+		return
+	}
+	// During SSR (no transport), skip async flush to prevent deadlock.
+	// SSR doesn't need to flush changes to a client since we're just building the initial snapshot.
+	if s.transport == nil {
 		return
 	}
 	go func() {
@@ -1810,6 +1810,7 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 		}
 	}
 	protoLoc := protocol.Location{Path: loc.Path, Query: loc.Query}
+	bindings := encodeTemplateBindings(structured.Bindings, structured.UploadBindings, structured.RefBindings, structured.RouterBindings)
 	return snapshot{
 		Statics:        statics,
 		Dynamics:       dynamics,
@@ -1818,7 +1819,7 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 		ListPaths:      listPaths,
 		ComponentPaths: componentPaths,
 		Handlers:       handlers,
-		Bindings:       encodeTemplateBindings(structured.Bindings, structured.UploadBindings, structured.RefBindings, structured.RouterBindings),
+		Bindings:       bindings,
 		Refs:           refs,
 		Location:       protoLoc,
 		Metadata:       CloneMeta(meta),
@@ -2942,14 +2943,7 @@ type hashRefAddEntry struct {
 }
 
 type hashRefMeta struct {
-	Tag    string         `json:"tag"`
-	Events []hashRefEvent `json:"events,omitempty"`
-}
-
-type hashRefEvent struct {
-	Name   string   `json:"name"`
-	Listen []string `json:"listen,omitempty"`
-	Props  []string `json:"props,omitempty"`
+	Tag string `json:"tag"`
 }
 
 func computeTemplateHash(payload protocol.TemplatePayload) string {
@@ -3190,27 +3184,7 @@ func buildHashRefDelta(refs protocol.RefDelta) hashRefDelta {
 }
 
 func buildHashRefMeta(meta protocol.RefMeta) hashRefMeta {
-	result := hashRefMeta{Tag: meta.Tag}
-	if len(meta.Events) > 0 {
-		names := make([]string, 0, len(meta.Events))
-		for name := range meta.Events {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		events := make([]hashRefEvent, len(names))
-		for i, name := range names {
-			entry := hashRefEvent{Name: name}
-			if listeners := meta.Events[name].Listen; len(listeners) > 0 {
-				entry.Listen = append([]string(nil), listeners...)
-			}
-			if props := meta.Events[name].Props; len(props) > 0 {
-				entry.Props = append([]string(nil), props...)
-			}
-			events[i] = entry
-		}
-		result.Events = events
-	}
-	return result
+	return hashRefMeta{Tag: meta.Tag}
 }
 
 func cloneUploadBindings(bindings []protocol.UploadBinding) []protocol.UploadBinding {
@@ -3305,70 +3279,9 @@ func cloneRefs(refs map[string]protocol.RefMeta) map[string]protocol.RefMeta {
 }
 
 func cloneRefMeta(meta protocol.RefMeta) protocol.RefMeta {
-	clone := meta
-	if len(meta.Events) > 0 {
-		events := make(map[string]protocol.RefEventMeta, len(meta.Events))
-		for event, evMeta := range meta.Events {
-			events[event] = cloneRefEventMeta(evMeta)
-		}
-		clone.Events = events
-	}
-	return clone
-}
-
-func cloneRefEventMeta(meta protocol.RefEventMeta) protocol.RefEventMeta {
-	clone := meta
-	if len(meta.Listen) > 0 {
-		clone.Listen = append([]string(nil), meta.Listen...)
-	}
-	if len(meta.Props) > 0 {
-		clone.Props = append([]string(nil), meta.Props...)
-	}
-	return clone
+	return meta
 }
 
 func refMetaEqual(a, b protocol.RefMeta) bool {
-	if a.Tag != b.Tag {
-		return false
-	}
-	if len(a.Events) != len(b.Events) {
-		return false
-	}
-	if len(a.Events) == 0 {
-		return true
-	}
-	for event, metaA := range a.Events {
-		metaB, ok := b.Events[event]
-		if !ok {
-			return false
-		}
-		if !refEventMetaEqual(metaA, metaB) {
-			return false
-		}
-	}
-	return true
-}
-
-func refEventMetaEqual(a, b protocol.RefEventMeta) bool {
-	if len(a.Listen) != len(b.Listen) {
-		return false
-	}
-	if len(a.Listen) > 0 {
-		for i, v := range a.Listen {
-			if b.Listen[i] != v {
-				return false
-			}
-		}
-	}
-	if len(a.Props) != len(b.Props) {
-		return false
-	}
-	if len(a.Props) > 0 {
-		for i, v := range a.Props {
-			if b.Props[i] != v {
-				return false
-			}
-		}
-	}
-	return true
+	return a.Tag == b.Tag
 }

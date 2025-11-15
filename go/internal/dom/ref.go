@@ -187,9 +187,6 @@ func (r *ElementRef[T]) AddListener(event string, handler any, props []string) {
 			},
 		}
 	}
-	if binding.Key == "" {
-		binding.Key = refEventBindingKey(r.id, event)
-	}
 	binding.Props = mergeSelectorLists(binding.Props, props)
 	r.bindings[event] = binding
 	r.bindingsMu.Unlock()
