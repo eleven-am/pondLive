@@ -29,7 +29,7 @@ export class HydrationManager {
     this.runtime = runtime;
     this.options = options ?? {};
     this.uploads = new UploadManager(runtime);
-    this.refs = new RefRegistry(runtime);
+    this.refs = new RefRegistry();
     this.metadata = new MetadataManager();
     this.patcher = new Patcher(this.dom, this.refs, this.uploads);
     this.runtime.on('init', (msg) => this.applyTemplate(msg));

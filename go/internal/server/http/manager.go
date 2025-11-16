@@ -15,7 +15,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/render"
 	"github.com/eleven-am/pondlive/go/internal/route"
 	"github.com/eleven-am/pondlive/go/internal/router"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
 	"github.com/eleven-am/pondlive/go/internal/server/pondsocket"
 )

@@ -1,6 +1,6 @@
 package router
 
-import "github.com/eleven-am/pondlive/go/internal/runtime"
+import runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 
 func init() {
 	runtime.RegisterNavProvider(func(sess *runtime.ComponentSession) runtime.NavUpdate {

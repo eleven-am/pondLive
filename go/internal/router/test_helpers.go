@@ -5,7 +5,7 @@ import (
 
 	h "github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/render"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 // Test helper functions for HTML element creation

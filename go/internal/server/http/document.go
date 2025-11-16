@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 

@@ -11,6 +11,7 @@ export type MessageType =
   | 'diagnostic'
   | 'pubsub'
   | 'evt'
+  | 'evt-ack'
   | 'ack'
   | 'nav'
   | 'pop'
@@ -381,6 +382,12 @@ export interface ClientEventMessage {
   hid: string;
   payload: EventPayload;
   cseq?: number;
+}
+
+export interface EventAckMessage {
+  t: 'evt-ack';
+  sid: string;
+  cseq: number;
 }
 
 export interface EventPayload {

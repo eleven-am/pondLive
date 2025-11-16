@@ -5,7 +5,7 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/route"
 	"github.com/eleven-am/pondlive/go/internal/router"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 

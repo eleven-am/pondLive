@@ -1348,6 +1348,11 @@ var LiveUIModule = (() => {
       this.lastAck = 0;
       this.sessionId = null;
       this.version = 0;
+      this.nextEventSeq = 1;
+      this.lastEventAck = 0;
+      this.pendingEvents = [];
+      this.inFlightEvents = [];
+      this.maxInFlightEvents = 2;
       this.options = {
         ...DEFAULT_OPTIONS,
         ...options ?? {}
@@ -1533,16 +1538,9 @@ var LiveUIModule = (() => {
       if (!this.channel || !sid) {
         return;
       }
-      Logger.debug("[Runtime]", "send event", { handler: hid, cseq });
-      const message = {
-        t: "evt",
-        sid,
-        hid,
-        payload,
-        cseq
-      };
-      Logger.debug("[Runtime]", "\u2192 sending event", message);
-      this.channel.sendMessage("evt", message);
+      const seq = this.allocateEventSeq(cseq);
+      this.pendingEvents.push({ hid, payload, seq });
+      this.drainEventQueue();
     }
     sendNavigation(path, q, hash = "") {
       const sid = this.sessionId ?? this.bootPayload?.sid;
@@ -1629,6 +1627,9 @@ var LiveUIModule = (() => {
         case "join":
           this.events.emit("join", msg);
           break;
+        case "evt-ack":
+          this.handleEventAck(msg);
+          break;
         case "diagnostic":
           this.events.emit("diagnostic", msg);
           break;
@@ -1646,7 +1647,11 @@ var LiveUIModule = (() => {
       }
     }
     handleInit(msg) {
+      const prevSid = this.sessionId;
       this.sessionId = msg.sid;
+      if (!prevSid || prevSid !== msg.sid) {
+        this.resetEventSequencing();
+      }
       this.version = msg.ver;
       Logger.debug("[Runtime]", "init received", { sid: msg.sid, version: msg.ver, seq: msg.seq });
       if (typeof msg.seq === "number") {
@@ -1654,6 +1659,7 @@ var LiveUIModule = (() => {
         this.sendAck(msg.seq);
       }
       this.events.emit("init", msg);
+      this.markEventFrameApplied();
     }
     handleFrame(msg) {
       this.version = msg.ver;
@@ -1667,6 +1673,7 @@ var LiveUIModule = (() => {
         this.sendAck(msg.seq);
       }
       this.events.emit("frame", msg);
+      this.markEventFrameApplied();
     }
     handleErrorMessage(msg) {
       const error = new Error(msg.message ?? "server error");
@@ -1678,6 +1685,7 @@ var LiveUIModule = (() => {
       this.channel = null;
       this.sessionId = null;
       this.version = 0;
+      this.resetEventSequencing();
       if (this.client) {
         try {
           this.client.disconnect();
@@ -1730,6 +1738,94 @@ var LiveUIModule = (() => {
       };
       Logger.debug("[Runtime]", "\u2192 sending ack", payload);
       this.channel.sendMessage("ack", payload);
+    }
+    drainEventQueue() {
+      if (!this.channel) {
+        return;
+      }
+      const sid = this.sessionId ?? this.bootPayload?.sid;
+      if (!sid) {
+        return;
+      }
+      while (this.pendingEvents.length > 0 && this.inFlightEvents.length < this.maxInFlightEvents) {
+        const next = this.pendingEvents.shift();
+        if (!next) {
+          break;
+        }
+        this.transmitEvent(next, sid);
+      }
+    }
+    transmitEvent(event, sid) {
+      if (!this.channel) {
+        return;
+      }
+      Logger.debug("[Runtime]", "send event", { handler: event.hid, cseq: event.seq });
+      const message = {
+        t: "evt",
+        sid,
+        hid: event.hid,
+        payload: event.payload,
+        cseq: event.seq
+      };
+      Logger.debug("[Runtime]", "\u2192 sending event", message);
+      this.inFlightEvents.push({ seq: event.seq, acked: false, frameApplied: false });
+      this.channel.sendMessage("evt", message);
+    }
+    allocateEventSeq(forced) {
+      if (typeof forced === "number" && forced > 0) {
+        if (forced >= this.nextEventSeq) {
+          this.nextEventSeq = forced + 1;
+        }
+        return forced;
+      }
+      const seq = this.nextEventSeq;
+      this.nextEventSeq += 1;
+      return seq;
+    }
+    handleEventAck(msg) {
+      const ack = typeof msg.cseq === "number" ? msg.cseq : 0;
+      if (ack > this.lastEventAck) {
+        this.lastEventAck = ack;
+      }
+      if (ack >= this.nextEventSeq) {
+        this.nextEventSeq = ack + 1;
+      }
+      this.markEventAcked(ack);
+      this.events.emit("evtack", msg);
+    }
+    resetEventSequencing() {
+      this.nextEventSeq = 1;
+      this.lastEventAck = 0;
+      this.pendingEvents.length = 0;
+      this.inFlightEvents.length = 0;
+    }
+    markEventAcked(seq) {
+      for (const entry of this.inFlightEvents) {
+        if (entry.seq === seq) {
+          entry.acked = true;
+          break;
+        }
+      }
+      this.releaseCompletedEvent();
+    }
+    markEventFrameApplied() {
+      for (const entry of this.inFlightEvents) {
+        if (!entry.frameApplied) {
+          entry.frameApplied = true;
+          break;
+        }
+      }
+      this.releaseCompletedEvent();
+    }
+    releaseCompletedEvent() {
+      let released = false;
+      while (this.inFlightEvents.length > 0 && this.inFlightEvents[0].acked && this.inFlightEvents[0].frameApplied) {
+        this.inFlightEvents.shift();
+        released = true;
+      }
+      if (released) {
+        this.drainEventQueue();
+      }
     }
     handleErrorEvent(error) {
       Logger.warn("[Runtime]", "runtime error", error);
@@ -2236,8 +2332,7 @@ var LiveUIModule = (() => {
 
   // src/refs.ts
   var RefRegistry = class {
-    constructor(runtime) {
-      this.runtime = runtime;
+    constructor() {
       this.meta = /* @__PURE__ */ new Map();
       this.bindings = /* @__PURE__ */ new Map();
     }
@@ -3161,7 +3256,7 @@ var LiveUIModule = (() => {
       this.runtime = runtime;
       this.options = options ?? {};
       this.uploads = new UploadManager(runtime);
-      this.refs = new RefRegistry(runtime);
+      this.refs = new RefRegistry();
       this.metadata = new MetadataManager();
       this.patcher = new Patcher(this.dom, this.refs, this.uploads);
       this.runtime.on("init", (msg) => this.applyTemplate(msg));

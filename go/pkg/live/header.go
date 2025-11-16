@@ -1,6 +1,6 @@
 package live
 
-import "github.com/eleven-am/pondlive/go/internal/runtime"
+import runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 
 type HeaderState = runtime.HeaderState
 

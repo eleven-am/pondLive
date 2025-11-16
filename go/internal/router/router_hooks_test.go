@@ -7,7 +7,7 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
 	h "github.com/eleven-am/pondlive/go/internal/html"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 type routerHooksProps struct{}

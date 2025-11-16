@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 )
 
 type stubTransport struct {
+	mu          sync.Mutex
 	inits       []protocol.Init
 	resumes     []protocol.ResumeOK
 	frames      []protocol.Frame
@@ -27,46 +29,64 @@ type stubTransport struct {
 }
 
 func (s *stubTransport) SendInit(init protocol.Init) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.inits = append(s.inits, init)
 	return nil
 }
 
 func (s *stubTransport) SendResume(res protocol.ResumeOK) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.resumes = append(s.resumes, res)
 	return nil
 }
 
 func (s *stubTransport) SendFrame(frame protocol.Frame) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.frames = append(s.frames, frame)
 	return nil
 }
 
 func (s *stubTransport) SendTemplate(frame protocol.TemplateFrame) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.templates = append(s.templates, frame)
 	return nil
 }
 
 func (s *stubTransport) SendServerError(err protocol.ServerError) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.errors = append(s.errors, err)
 	return nil
 }
 
 func (s *stubTransport) SendDiagnostic(diag protocol.Diagnostic) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.diagnostics = append(s.diagnostics, diag)
 	return nil
 }
 
 func (s *stubTransport) SendPubsubControl(ctrl protocol.PubsubControl) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.controls = append(s.controls, ctrl)
 	return nil
 }
 
 func (s *stubTransport) SendUploadControl(ctrl protocol.UploadControl) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.uploads = append(s.uploads, ctrl)
 	return nil
 }
 
 func (s *stubTransport) SendDOMRequest(req protocol.DOMRequest) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.dom = append(s.dom, req)
 	return nil
 }
@@ -99,8 +119,16 @@ func awaitDOMRequest(t *testing.T, transport *stubTransport) protocol.DOMRequest
 	t.Helper()
 	deadline := time.After(time.Second)
 	for {
-		if len(transport.dom) > 0 {
-			return transport.dom[len(transport.dom)-1]
+		transport.mu.Lock()
+		domLen := len(transport.dom)
+		var result protocol.DOMRequest
+		if domLen > 0 {
+			result = transport.dom[domLen-1]
+		}
+		transport.mu.Unlock()
+
+		if domLen > 0 {
+			return result
 		}
 		select {
 		case <-deadline:

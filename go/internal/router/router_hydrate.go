@@ -1,6 +1,6 @@
 package router
 
-import "github.com/eleven-am/pondlive/go/internal/runtime"
+import runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 
 // InternalSeedSessionLocation primes a session with a router location during SSR.
 // For internal use by the LiveUI server stack.

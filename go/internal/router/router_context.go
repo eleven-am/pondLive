@@ -4,7 +4,7 @@ import (
 	"net/url"
 
 	"github.com/eleven-am/pondlive/go/internal/route"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 type Location = route.Location

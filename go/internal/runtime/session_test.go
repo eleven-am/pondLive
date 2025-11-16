@@ -119,6 +119,54 @@ func TestSessionDirtyReflectsPendingFlush(t *testing.T) {
 	}
 }
 
+func TestChildRerenderDoesNotTriggerParent(t *testing.T) {
+	type props struct{}
+	parentRenders := 0
+	childRenders := 0
+	var bumpChild func()
+
+	child := func(ctx Ctx, _ struct{}) h.Node {
+		childRenders++
+		value, setValue := UseState(ctx, 0)
+		bumpChild = func() {
+			setValue(value() + 1)
+		}
+		return h.Div(h.Textf("child:%d", value()))
+	}
+
+	parent := func(ctx Ctx, _ props) h.Node {
+		parentRenders++
+		return h.Div(Render(ctx, child, struct{}{}))
+	}
+
+	sess := NewSession(parent, props{})
+	sink := &patchSink{}
+	sess.SetPatchSender(sink.send)
+	sess.InitialStructured()
+
+	if parentRenders != 1 {
+		t.Fatalf("expected parent render count 1, got %d", parentRenders)
+	}
+	if childRenders != 1 {
+		t.Fatalf("expected child render count 1, got %d", childRenders)
+	}
+	if bumpChild == nil {
+		t.Fatal("child setter not initialized")
+	}
+
+	bumpChild()
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	if parentRenders != 1 {
+		t.Fatalf("expected parent render count to remain 1, got %d", parentRenders)
+	}
+	if childRenders != 2 {
+		t.Fatalf("expected child render count 2, got %d", childRenders)
+	}
+}
+
 func TestHookOrderMismatchPanics(t *testing.T) {
 	type props struct{}
 	toggle := true
@@ -134,7 +182,7 @@ func TestHookOrderMismatchPanics(t *testing.T) {
 	sess.SetPatchSender(func([]diff.Op) error { return nil })
 	sess.InitialStructured()
 	toggle = false
-	sess.dirtyRoot = true
+	sess.markDirty(sess.root)
 	err := sess.Flush()
 	if err == nil {
 		t.Fatal("expected flush to fail due to hook mismatch")

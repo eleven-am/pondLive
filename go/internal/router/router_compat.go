@@ -4,7 +4,7 @@ import (
 	"net/url"
 
 	h "github.com/eleven-am/pondlive/go/internal/html"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 // API compatibility wrappers for v2 router API.

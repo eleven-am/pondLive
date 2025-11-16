@@ -2,7 +2,7 @@ package router
 
 import (
 	"fmt"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	"strings"
 
 	h "github.com/eleven-am/pondlive/go/internal/html"

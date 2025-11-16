@@ -11,7 +11,7 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
 )
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	h "github.com/eleven-am/pondlive/go/internal/html"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 func noopComponent(ctx Ctx, _ struct{}) h.Node { return h.Fragment() }

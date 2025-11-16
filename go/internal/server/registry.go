@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server/store"
 )
 

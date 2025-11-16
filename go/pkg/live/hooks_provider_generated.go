@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	internalhtml "github.com/eleven-am/pondlive/go/internal/html"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 func init() {

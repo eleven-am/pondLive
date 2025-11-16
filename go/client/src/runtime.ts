@@ -14,6 +14,7 @@ import type {
     DOMRequestMessage,
     DOMResponseMessage,
     ErrorMessage,
+    EventAckMessage,
     FrameMessage,
     InitMessage,
     JoinMessage,
@@ -36,9 +37,22 @@ export type ServerMessage =
   | DiagnosticMessage
   | PubsubControlMessage
   | UploadControlMessage
-  | DOMRequestMessage;
+  | DOMRequestMessage
+  | EventAckMessage;
 
 type PondChannel = ReturnType<PondClient['createChannel']>;
+
+type PendingEvent = {
+  hid: string;
+  payload: ClientEventMessage['payload'];
+  seq: number;
+};
+
+type InFlightEvent = {
+  seq: number;
+  acked: boolean;
+  frameApplied: boolean;
+};
 
 type RuntimeEvents = {
   state: ConnectionState;
@@ -54,6 +68,7 @@ type RuntimeEvents = {
   diagnostic: DiagnosticMessage;
   upload: UploadControlMessage;
   domreq: DOMRequestMessage;
+  evtack: EventAckMessage;
 };
 
 export interface RuntimeOptions extends LiveUIOptions {
@@ -97,6 +112,11 @@ export class LiveRuntime {
   private lastAck = 0;
   private sessionId: string | null = null;
   private version = 0;
+  private nextEventSeq = 1;
+  private lastEventAck = 0;
+  private readonly pendingEvents: PendingEvent[] = [];
+  private readonly inFlightEvents: InFlightEvent[] = [];
+  private maxInFlightEvents = 2;
 
   constructor(options?: RuntimeOptions) {
     this.options = {
@@ -318,16 +338,9 @@ export class LiveRuntime {
     if (!this.channel || !sid) {
       return;
     }
-    Logger.debug('[Runtime]', 'send event', { handler: hid, cseq });
-    const message: ClientEventMessage = {
-      t: 'evt',
-      sid,
-      hid,
-      payload,
-      cseq,
-    };
-    Logger.debug('[Runtime]', '→ sending event', message);
-    this.channel.sendMessage('evt', message);
+    const seq = this.allocateEventSeq(cseq);
+    this.pendingEvents.push({ hid, payload, seq });
+    this.drainEventQueue();
   }
 
   sendNavigation(path: string, q: string, hash = ''): void {
@@ -421,6 +434,9 @@ export class LiveRuntime {
       case 'join':
         this.events.emit('join', msg as JoinMessage);
         break;
+      case 'evt-ack':
+        this.handleEventAck(msg as EventAckMessage);
+        break;
       case 'diagnostic':
         this.events.emit('diagnostic', msg as DiagnosticMessage);
         break;
@@ -439,7 +455,11 @@ export class LiveRuntime {
   }
 
   private handleInit(msg: InitMessage): void {
+    const prevSid = this.sessionId;
     this.sessionId = msg.sid;
+    if (!prevSid || prevSid !== msg.sid) {
+      this.resetEventSequencing();
+    }
     this.version = msg.ver;
     Logger.debug('[Runtime]', 'init received', { sid: msg.sid, version: msg.ver, seq: msg.seq });
     if (typeof msg.seq === 'number') {
@@ -447,6 +467,7 @@ export class LiveRuntime {
       this.sendAck(msg.seq);
     }
     this.events.emit('init', msg);
+    this.markEventFrameApplied();
   }
 
   private handleFrame(msg: FrameMessage): void {
@@ -461,6 +482,7 @@ export class LiveRuntime {
       this.sendAck(msg.seq);
     }
     this.events.emit('frame', msg);
+    this.markEventFrameApplied();
   }
 
   private handleErrorMessage(msg: ErrorMessage): void {
@@ -474,6 +496,7 @@ export class LiveRuntime {
     this.channel = null;
     this.sessionId = null;
     this.version = 0;
+    this.resetEventSequencing();
     if (this.client) {
       try {
         this.client.disconnect();
@@ -529,6 +552,102 @@ export class LiveRuntime {
     };
     Logger.debug('[Runtime]', '→ sending ack', payload);
     this.channel.sendMessage('ack', payload);
+  }
+
+  private drainEventQueue(): void {
+    if (!this.channel) {
+      return;
+    }
+    const sid = this.sessionId ?? this.bootPayload?.sid;
+    if (!sid) {
+      return;
+    }
+    while (this.pendingEvents.length > 0 && this.inFlightEvents.length < this.maxInFlightEvents) {
+      const next = this.pendingEvents.shift();
+      if (!next) {
+        break;
+      }
+      this.transmitEvent(next, sid);
+    }
+  }
+
+  private transmitEvent(event: PendingEvent, sid: string): void {
+    if (!this.channel) {
+      return;
+    }
+    Logger.debug('[Runtime]', 'send event', { handler: event.hid, cseq: event.seq });
+    const message: ClientEventMessage = {
+      t: 'evt',
+      sid,
+      hid: event.hid,
+      payload: event.payload,
+      cseq: event.seq,
+    };
+    Logger.debug('[Runtime]', '→ sending event', message);
+    this.inFlightEvents.push({ seq: event.seq, acked: false, frameApplied: false });
+    this.channel.sendMessage('evt', message);
+  }
+
+  private allocateEventSeq(forced?: number): number {
+    if (typeof forced === 'number' && forced > 0) {
+      if (forced >= this.nextEventSeq) {
+        this.nextEventSeq = forced + 1;
+      }
+      return forced;
+    }
+    const seq = this.nextEventSeq;
+    this.nextEventSeq += 1;
+    return seq;
+  }
+
+  private handleEventAck(msg: EventAckMessage): void {
+    const ack = typeof msg.cseq === 'number' ? msg.cseq : 0;
+    if (ack > this.lastEventAck) {
+      this.lastEventAck = ack;
+    }
+    if (ack >= this.nextEventSeq) {
+      this.nextEventSeq = ack + 1;
+    }
+    this.markEventAcked(ack);
+    this.events.emit('evtack', msg);
+  }
+
+  private resetEventSequencing(): void {
+    this.nextEventSeq = 1;
+    this.lastEventAck = 0;
+    this.pendingEvents.length = 0;
+    this.inFlightEvents.length = 0;
+  }
+
+  private markEventAcked(seq: number): void {
+    for (const entry of this.inFlightEvents) {
+      if (entry.seq === seq) {
+        entry.acked = true;
+        break;
+      }
+    }
+    this.releaseCompletedEvent();
+  }
+
+  private markEventFrameApplied(): void {
+    for (const entry of this.inFlightEvents) {
+      if (!entry.frameApplied) {
+        entry.frameApplied = true;
+        break;
+      }
+    }
+    this.releaseCompletedEvent();
+  }
+
+  private releaseCompletedEvent(): void {
+    let released = false;
+    while (this.inFlightEvents.length > 0 && this.inFlightEvents[0].acked && this.inFlightEvents[0].frameApplied) {
+      this.inFlightEvents.shift();
+      released = true;
+    }
+    if (released) {
+      this.drainEventQueue();
+    }
   }
 
   private handleErrorEvent(error: Error): void {

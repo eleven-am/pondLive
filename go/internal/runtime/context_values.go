@@ -46,7 +46,9 @@ func (c Context[T]) Provide(ctx Ctx, value T, render func() h.Node) h.Node {
 	entry.derived = false
 	entry.hasLast = false
 	if entry.assign != nil {
-		if entry.eq == nil || !entry.eq(entry.get(), value) {
+		prev := entry.get()
+		needsUpdate := entry.eq == nil || !entry.eq(prev, value)
+		if needsUpdate {
 			entry.assign(value)
 		}
 	}
@@ -205,12 +207,6 @@ func ensureProviderEntry[T any](ctx Ctx, c Context[T], initial T, activate bool)
 		ctx.comp.providers = make(map[contextID]any)
 	}
 	existing, providerExists := ctx.comp.providers[c.id]
-	comparer := c.eq
-	if comparer == nil {
-		comparer = defaultEqual[T]()
-	}
-	baseIdx := ctx.frame.idx
-	get, baseSet := UseState(ctx, initial, WithEqual(comparer))
 	if providerExists {
 		entry, ok := existing.(*providerEntry[T])
 		if !ok {
@@ -221,39 +217,27 @@ func ensureProviderEntry[T any](ctx Ctx, c Context[T], initial T, activate bool)
 		}
 		return entry
 	}
+	comparer := c.eq
+	if comparer == nil {
+		comparer = defaultEqual[T]()
+	}
+	baseIdx := ctx.frame.idx
+	get, baseSet := UseState(ctx, initial, WithEqual(comparer))
 	var cellPtr *stateCell[T]
 	if baseIdx < len(ctx.frame.cells) {
 		if cell, ok := ctx.frame.cells[baseIdx].(*stateCell[T]); ok {
 			cellPtr = cell
 		}
 	}
-	owner := ctx.comp
-	mark := func(prev, next T) {
-		if owner == nil {
-			return
-		}
-		if comparer != nil && comparer(prev, next) {
-			return
-		}
-		if atomic.LoadInt32(&owner.rendering) == 1 {
-			owner.markDescendantsDirtyLocked()
-			return
-		}
-		owner.markDescendantsDirty()
-	}
 	set := func(v T) {
-		prev := get()
 		baseSet(v)
-		mark(prev, v)
 	}
 	entry := &providerEntry[T]{
 		get: get,
 		set: set,
 		assign: func(v T) {
 			if cellPtr != nil {
-				prev := cellPtr.val
 				cellPtr.val = v
-				mark(prev, v)
 				return
 			}
 			set(v)

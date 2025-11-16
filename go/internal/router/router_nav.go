@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 func RouterNavigate(ctx runtime.Ctx, href string) {

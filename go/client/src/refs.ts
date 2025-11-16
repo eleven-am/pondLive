@@ -1,7 +1,6 @@
 import type { RefBindingDescriptor, RefDelta, RefMeta } from './types';
 import type { ComponentRange } from './manifest';
 import { resolveNodeInComponent } from './manifest';
-import type { LiveRuntime } from './runtime';
 import { Logger } from './logger';
 
 interface RefListeners {
@@ -13,7 +12,7 @@ export class RefRegistry {
   private meta = new Map<string, RefMeta>();
   private bindings = new Map<string, RefListeners>();
 
-  constructor(private runtime: LiveRuntime) {}
+  constructor() {}
 
   clear(): void {
     Array.from(this.bindings.keys()).forEach((id) => this.detach(id));

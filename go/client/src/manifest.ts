@@ -263,7 +263,7 @@ function resolveNodeBySegments(
       return null;
     }
     const clamped = clampIndex(current, segment.index);
-    const next = current.childNodes.item(clamped) ?? null;
+    const next: Node | null = current.childNodes.item(clamped) ?? null;
     Logger.debug('[Manifest]', 'resolveNodeBySegments: navigating dom segment', {
       step: i,
       index: segment.index,

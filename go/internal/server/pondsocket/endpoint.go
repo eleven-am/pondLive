@@ -9,7 +9,7 @@ import (
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
+	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
 )
 
@@ -194,6 +194,7 @@ func (e *Endpoint) onClientEvent(ctx *pond.EventContext) error {
 		SID:  string(session.ID()),
 		CSeq: envelope.CSeq,
 	}
+
 	return transport.SendEventAck(ack)
 }
 

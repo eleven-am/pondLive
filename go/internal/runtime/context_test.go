@@ -101,6 +101,9 @@ func TestContextProvideUsePair(t *testing.T) {
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush error: %v", err)
 	}
+	if html := render.RenderHTML(sess.root.node); html != "" {
+		t.Logf("root html after flush: %s", html)
+	}
 	if got := firstText(sess.prev); got != "dark" {
 		t.Fatalf("expected updated theme 'dark', got %q", got)
 	}
@@ -271,11 +274,22 @@ func TestContextNestedProviders(t *testing.T) {
 	}
 	// Update outer provider
 	var outerSetter func(string)
+	outerRenders := 0
+	innerRenders := 0
+	innerWithLogging := func(ctx Ctx, _ emptyProps) h.Node {
+		innerRenders++
+		val := theme.Use(ctx)
+		t.Logf("inner render %d value=%s", innerRenders, val)
+		return h.Span(h.Text(val))
+	}
 	outerWithState := func(ctx Ctx, _ emptyProps) h.Node {
+		outerRenders++
 		get, set := theme.UsePair(ctx)
+		val := get()
+		t.Logf("outer render %d value=%s", outerRenders, val)
 		outerSetter = set
-		return theme.Provide(ctx, get(), func() h.Node {
-			return Render(ctx, inner, emptyProps{})
+		return theme.Provide(ctx, val, func() h.Node {
+			return Render(ctx, innerWithLogging, emptyProps{})
 		})
 	}
 	wrapperWithState := func(ctx Ctx, _ emptyProps) h.Node {
@@ -290,8 +304,22 @@ func TestContextNestedProviders(t *testing.T) {
 		t.Fatalf("expected to capture setter from outer provider")
 	}
 	outerSetter("inner")
+	if !sess.Dirty() {
+		t.Fatal("expected session to be dirty after context update")
+	}
+	sess.mu.Lock()
+	for comp := range sess.dirty {
+		t.Logf("dirty component: %s depth=%d", comp.id, comp.depth)
+	}
+	sess.mu.Unlock()
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush error: %v", err)
+	}
+	t.Logf("outer renders: %d", outerRenders)
+	t.Logf("structured: %+v", sess.prev)
+	t.Logf("root html: %s", render.RenderHTML(sess.root.node))
+	if outerRenders != 2 {
+		t.Fatalf("expected outer component to rerender, got %d", outerRenders)
 	}
 	if got := firstText(sess.prev); got != "inner" {
 		t.Fatalf("expected nested provider update to propagate, got %q", got)

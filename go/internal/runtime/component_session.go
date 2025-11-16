@@ -33,7 +33,6 @@ type ComponentSession struct {
 	prev render.Structured
 
 	dirty          map[*component]struct{}
-	dirtyRoot      bool
 	pendingFlush   bool
 	suspend        int
 	flushing       bool
@@ -57,6 +56,7 @@ type ComponentSession struct {
 
 	reporter       DiagnosticReporter
 	renderStack    []*component
+	renderStackMu  sync.Mutex // Protects renderStack and currentPhase for concurrent rendering
 	currentPhase   string
 	errored        bool
 	lastDiagnostic *Diagnostic
@@ -85,6 +85,11 @@ type ComponentSession struct {
 	cachedLoc    atomic.Pointer[Location]
 	navHistory   []NavMsg
 	navHistoryMu sync.Mutex
+
+	// Concurrent rendering configuration
+	// If > 0, enables concurrent subtree rendering with specified worker count
+	// If <= 0, uses sequential rendering (default for backward compatibility)
+	concurrentWorkers int
 
 	mu sync.Mutex
 }
@@ -182,6 +187,18 @@ func NewSession[P any](root Component[P], props P) *ComponentSession {
 
 // SetPatchSender installs the transport used to deliver diff operations.
 func (s *ComponentSession) SetPatchSender(fn func([]diff.Op) error) { s.sendPatch = fn }
+
+// EnableConcurrentRendering configures the session to render subtrees concurrently.
+// workerCount specifies the number of concurrent workers; if <= 0, uses runtime.GOMAXPROCS(0).
+// Pass 0 to disable concurrent rendering and revert to sequential mode.
+func (s *ComponentSession) EnableConcurrentRendering(workerCount int) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.concurrentWorkers = workerCount
+}
 
 func (s *ComponentSession) setOwner(owner *LiveSession) { s.owner = owner }
 
@@ -332,32 +349,42 @@ func (s *ComponentSession) ResolveTextPromotion(componentID string, path []int, 
 	if s == nil {
 		return mutable
 	}
-	if mutable {
-		if componentID == "" {
-			return true
-		}
-		state := s.ensurePromotionState(componentID)
-		if state == nil {
-			return true
-		}
-		key := promotionPathKey(path)
-		slot, _ := state.ensureTextSlot(key)
-		slot.dynamic = true
-		slot.value = value
-		return true
-	}
-	if componentID == "" {
+	if componentID == "" && !mutable {
 		return false
 	}
 	state := s.ensurePromotionState(componentID)
 	if state == nil {
-		return false
+		return mutable
 	}
+
 	key := promotionPathKey(path)
-	slot, created := state.ensureTextSlot(key)
-	if created {
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	if state.texts == nil {
+		state.texts = make(map[string]*textPromotionSlot)
+	}
+	slot, ok := state.texts[key]
+	if !ok {
+		slot = &textPromotionSlot{}
+		state.texts[key] = slot
+		created := true
+		if mutable {
+			slot.dynamic = true
+			slot.value = value
+			return true
+		}
+		if created {
+			slot.value = value
+			return false
+		}
+	}
+
+	if mutable {
+		slot.dynamic = true
 		slot.value = value
-		return false
+		return true
 	}
 	if slot.dynamic {
 		slot.value = value
@@ -385,17 +412,38 @@ func (s *ComponentSession) ResolveAttrPromotion(componentID string, path []int, 
 	if state == nil {
 		return forceDynamic
 	}
+
 	key := promotionPathKey(path)
-	slot, created := state.ensureAttrSlot(key)
 	values := cloneStringMap(attrs)
+
+	// Lock state for entire slot access
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	// Ensure slot exists
+	if state.attrs == nil {
+		state.attrs = make(map[string]*attrPromotionSlot)
+	}
+	slot, ok := state.attrs[key]
+	if !ok {
+		slot = &attrPromotionSlot{}
+		state.attrs[key] = slot
+		created := true
+		if forceDynamic {
+			slot.dynamic = true
+			slot.values = values
+			return true
+		}
+		if created {
+			slot.values = values
+			return false
+		}
+	}
+
 	if forceDynamic {
 		slot.dynamic = true
 		slot.values = values
 		return true
-	}
-	if created {
-		slot.values = values
-		return false
 	}
 	if slot.dynamic {
 		slot.values = values
@@ -636,6 +684,11 @@ func (s *ComponentSession) unregisterComponentInstance(c *component) {
 		delete(s.componentBoots, c.id)
 	}
 	s.componentsMu.Unlock()
+	s.mu.Lock()
+	if s.dirty != nil {
+		delete(s.dirty, c)
+	}
+	s.mu.Unlock()
 	s.clearPromotionState(c.id)
 }
 
@@ -1000,7 +1053,7 @@ func (s *ComponentSession) InitialStructured() render.Structured {
 			return err
 		}
 		s.prev = structured
-		s.dirtyRoot = false
+		s.captureComponentSnapshots(structured)
 		s.pendingFlush = false
 		cleanups = append(cleanups, s.pendingCleanups...)
 		effects = append(effects, s.pendingEffects...)
@@ -1092,7 +1145,7 @@ func (s *ComponentSession) Flush() error {
 			}
 		}()
 
-		if !s.dirtyRoot && !s.pendingFlush {
+		if len(s.dirty) == 0 && !s.pendingFlush {
 			return nil
 		}
 		if s.root == nil {
@@ -1101,20 +1154,22 @@ func (s *ComponentSession) Flush() error {
 
 		start := time.Now()
 		root := s.root
-		shouldMarkRoot := s.dirtyRoot && root != nil
+		dirtyComponents := s.collectDirtyComponentsLocked()
 
 		s.mu.Unlock()
 		locked = false
 
-		if shouldMarkRoot {
-			root.markSelfDirty()
-		}
+		s.renderDirtyComponents(dirtyComponents)
 
-		node := root.render()
+		root.captureChildSlots(root.node)
+
+		node := root.node
 		next, err := render.ToStructuredWithOptions(node, render.StructuredOptions{Promotions: s, Components: s})
 		if err != nil {
 			return err
 		}
+
+		root.lastStructured = next
 
 		s.mu.Lock()
 		locked = true
@@ -1235,8 +1290,7 @@ func (s *ComponentSession) Flush() error {
 		s.pendingPubsub = nil
 		s.pendingComponentBoots = componentUpdates
 		s.prev = next
-		s.dirty = make(map[*component]struct{})
-		s.dirtyRoot = false
+		s.captureComponentSnapshots(next)
 		s.pendingFlush = false
 
 		if shouldSend {
@@ -1303,6 +1357,23 @@ func (s *ComponentSession) runPubsubTasks(tasks []pubsubTask) {
 		}); err != nil {
 
 			return
+		}
+	}
+}
+
+func (s *ComponentSession) captureComponentSnapshots(frame render.Structured) {
+	if s == nil {
+		return
+	}
+	s.componentsMu.RLock()
+	components := make([]*component, 0, len(s.components))
+	for _, comp := range s.components {
+		components = append(components, comp)
+	}
+	s.componentsMu.RUnlock()
+	for _, comp := range components {
+		if comp != nil {
+			comp.assignStructuredSnapshot(frame)
 		}
 	}
 }
@@ -1558,6 +1629,23 @@ func componentSpanValid(span render.ComponentSpan, staticsLen, dynamicsLen int) 
 	return true
 }
 
+func buildComponentStructured(frame render.Structured, id string, span render.ComponentSpan) render.Structured {
+	structured := render.Structured{}
+	if span.StaticsStart >= 0 && span.StaticsEnd <= len(frame.S) {
+		structured.S = append([]string(nil), frame.S[span.StaticsStart:span.StaticsEnd]...)
+	}
+	if span.DynamicsStart >= 0 && span.DynamicsEnd <= len(frame.D) {
+		structured.D = append([]render.DynamicSlot(nil), frame.D[span.DynamicsStart:span.DynamicsEnd]...)
+	}
+	structured.SlotPaths = filterSlotPathsForComponent(frame.SlotPaths, id, span)
+	structured.ListPaths = filterListPathsForComponent(frame.ListPaths, id, span)
+	structured.ComponentPaths = filterComponentPathsForSpan(frame.ComponentPaths, span, frame.Components)
+	structured.UploadBindings = filterRenderUploadBindingsForComponent(frame.UploadBindings, id)
+	structured.RefBindings = filterRenderRefBindingsForComponent(frame.RefBindings, id)
+	structured.RouterBindings = filterRenderRouterBindingsForComponent(frame.RouterBindings, id)
+	return structured
+}
+
 func filterSlotPathsForComponent(paths []render.SlotPath, componentID string, span render.ComponentSpan) []render.SlotPath {
 	if len(paths) == 0 {
 		return nil
@@ -1750,6 +1838,60 @@ func filterRouterBindingsForComponent(bindings []render.RouterBinding, component
 	return out
 }
 
+func filterRenderUploadBindingsForComponent(bindings []render.UploadBinding, componentID string) []render.UploadBinding {
+	if componentID == "" || len(bindings) == 0 {
+		return nil
+	}
+	out := make([]render.UploadBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.ComponentID != componentID || binding.UploadID == "" {
+			continue
+		}
+		clone := binding
+		if len(binding.Accept) > 0 {
+			clone.Accept = append([]string(nil), binding.Accept...)
+		}
+		out = append(out, clone)
+	}
+	return out
+}
+
+func filterRenderRefBindingsForComponent(bindings []render.RefBinding, componentID string) []render.RefBinding {
+	if componentID == "" || len(bindings) == 0 {
+		return nil
+	}
+	out := make([]render.RefBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.ComponentID != componentID || binding.RefID == "" {
+			continue
+		}
+		clone := binding
+		if len(binding.Path) > 0 {
+			clone.Path = append([]render.PathSegment(nil), binding.Path...)
+		}
+		out = append(out, clone)
+	}
+	return out
+}
+
+func filterRenderRouterBindingsForComponent(bindings []render.RouterBinding, componentID string) []render.RouterBinding {
+	if componentID == "" || len(bindings) == 0 {
+		return nil
+	}
+	out := make([]render.RouterBinding, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.ComponentID != componentID {
+			continue
+		}
+		clone := binding
+		if len(binding.Path) > 0 {
+			clone.Path = append([]render.PathSegment(nil), binding.Path...)
+		}
+		out = append(out, clone)
+	}
+	return out
+}
+
 func componentEqualStrings(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -1920,7 +2062,6 @@ func (s *ComponentSession) Reset() bool {
 	s.errored = false
 	s.lastDiagnostic = nil
 	s.pendingFlush = false
-	s.dirtyRoot = false
 	s.dirty = make(map[*component]struct{})
 	s.pendingEffects = nil
 	s.pendingCleanups = nil
@@ -1949,7 +2090,7 @@ func (s *ComponentSession) Reset() bool {
 			s.dirty = make(map[*component]struct{})
 		}
 		s.dirty[rebuilt] = struct{}{}
-		s.dirtyRoot = true
+		rebuilt.markSelfDirty()
 		s.pendingFlush = true
 	}
 	s.root = rebuilt
@@ -1965,9 +2106,15 @@ func (s *ComponentSession) withRecovery(phase string, fn func() error) (err erro
 	if s == nil {
 		return errors.New("runtime: session is nil")
 	}
+	s.renderStackMu.Lock()
 	prevPhase := s.currentPhase
 	s.currentPhase = phase
-	defer func() { s.currentPhase = prevPhase }()
+	s.renderStackMu.Unlock()
+	defer func() {
+		s.renderStackMu.Lock()
+		s.currentPhase = prevPhase
+		s.renderStackMu.Unlock()
+	}()
 	defer func() {
 		if rec := recover(); rec != nil {
 			err = s.handlePanic(phase, rec)
@@ -2010,7 +2157,6 @@ func (s *ComponentSession) handlePanic(phase string, value any) error {
 	s.errored = true
 	s.lastDiagnostic = &diag
 	s.pendingFlush = false
-	s.dirtyRoot = false
 	s.dirty = make(map[*component]struct{})
 	s.pendingEffects = nil
 	s.pendingCleanups = nil
@@ -2034,18 +2180,29 @@ func (s *ComponentSession) pushComponent(c *component) {
 	if s == nil || c == nil {
 		return
 	}
+	s.renderStackMu.Lock()
 	s.renderStack = append(s.renderStack, c)
+	s.renderStackMu.Unlock()
 }
 
 func (s *ComponentSession) popComponent() {
-	if s == nil || len(s.renderStack) == 0 {
+	if s == nil {
 		return
 	}
-	s.renderStack = s.renderStack[:len(s.renderStack)-1]
+	s.renderStackMu.Lock()
+	if len(s.renderStack) > 0 {
+		s.renderStack = s.renderStack[:len(s.renderStack)-1]
+	}
+	s.renderStackMu.Unlock()
 }
 
 func (s *ComponentSession) currentComponent() *component {
-	if s == nil || len(s.renderStack) == 0 {
+	if s == nil {
+		return nil
+	}
+	s.renderStackMu.Lock()
+	defer s.renderStackMu.Unlock()
+	if len(s.renderStack) == 0 {
 		return nil
 	}
 	return s.renderStack[len(s.renderStack)-1]
@@ -2058,7 +2215,7 @@ func (s *ComponentSession) Dirty() bool {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.pendingFlush || s.dirtyRoot || len(s.dirty) > 0
+	return s.pendingFlush || len(s.dirty) > 0
 }
 
 func (s *ComponentSession) suspendFlushScheduling() func() {
@@ -2082,29 +2239,84 @@ func (s *ComponentSession) markDirty(c *component) {
 	if s == nil || c == nil {
 		return
 	}
-	if s.errored {
-		return
-	}
 	var (
 		owner    *LiveSession
 		schedule bool
 	)
 	s.mu.Lock()
+	if s.errored {
+		s.mu.Unlock()
+		return
+	}
 	if s.dirty == nil {
 		s.dirty = make(map[*component]struct{})
 	}
 	s.dirty[c] = struct{}{}
+	s.renderStackMu.Lock()
 	inEvent := strings.HasPrefix(s.currentPhase, "event:")
+	s.renderStackMu.Unlock()
 	if !s.pendingFlush && s.suspend == 0 && !s.flushing && !inEvent {
 		schedule = true
 	}
-	s.dirtyRoot = true
 	s.pendingFlush = true
 	owner = s.owner
 	s.mu.Unlock()
-	c.markDirtyChain()
+	c.markSelfDirty()
 	if schedule && owner != nil {
 		owner.flushAsync()
+	}
+}
+
+func (s *ComponentSession) collectDirtyComponentsLocked() []*component {
+	if len(s.dirty) == 0 {
+		return nil
+	}
+	components := make([]*component, 0, len(s.dirty))
+	for comp := range s.dirty {
+		components = append(components, comp)
+	}
+	s.dirty = make(map[*component]struct{})
+	return components
+}
+
+func sortComponentsByDepth(comps []*component) {
+	sort.Slice(comps, func(i, j int) bool {
+		ci := comps[i]
+		cj := comps[j]
+		if ci == nil || cj == nil {
+			return cj != nil
+		}
+		if ci.depth == cj.depth {
+			return ci.id < cj.id
+		}
+		return ci.depth < cj.depth
+	})
+}
+
+func (s *ComponentSession) renderDirtyComponents(comps []*component) {
+	if len(comps) == 0 {
+		return
+	}
+
+	s.mu.Lock()
+	concurrentWorkers := s.concurrentWorkers
+	s.mu.Unlock()
+
+	const concurrencyThreshold = 20
+
+	if concurrentWorkers > 0 && len(comps) >= concurrencyThreshold {
+
+		scheduler := NewRenderScheduler(s, concurrentWorkers)
+		scheduler.ScheduleComponents(comps)
+	} else {
+
+		sortComponentsByDepth(comps)
+		for _, comp := range comps {
+			if comp == nil {
+				continue
+			}
+			comp.render()
+		}
 	}
 }
 
@@ -2116,7 +2328,6 @@ func (s *ComponentSession) clearDirty(c *component) {
 	defer s.mu.Unlock()
 	delete(s.dirty, c)
 	if len(s.dirty) == 0 {
-		s.dirtyRoot = false
 		s.pendingFlush = false
 	}
 }
@@ -2286,6 +2497,8 @@ func (s *ComponentSession) enqueueEffect(comp *component, index int, setup func(
 	if s == nil {
 		return
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.errored {
 		return
 	}
@@ -2296,6 +2509,8 @@ func (s *ComponentSession) enqueueCleanup(comp *component, index int) {
 	if s == nil {
 		return
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.errored {
 		return
 	}
