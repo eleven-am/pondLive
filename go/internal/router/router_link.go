@@ -1,0 +1,131 @@
+package router
+
+import (
+	"strconv"
+	"strings"
+
+	h "github.com/eleven-am/pondlive/go/internal/html"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
+)
+
+type LinkProps struct {
+	To      string
+	Replace bool
+}
+
+func RouterLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
+	state := routerStateCtx.Use(ctx)
+	sess := ctx.Session()
+	if sessionRendering(sess) && state.getLoc != nil {
+		return renderLink(ctx, p, children...)
+	}
+	return newLinkPlaceholder(sess, p, children)
+}
+
+type linkNode struct {
+	*h.FragmentNode
+	props    LinkProps
+	children []h.Item
+}
+
+func newLinkPlaceholder(sess *runtime.ComponentSession, p LinkProps, children []h.Item) h.Node {
+	fragment := h.Fragment()
+	node := &linkNode{FragmentNode: fragment, props: p, children: children}
+	if sess != nil {
+		storeLinkPlaceholder(sess, fragment, node)
+	}
+	fragment.Children = append(fragment.Children, renderStaticLink(sess, p, children...))
+	return fragment
+}
+
+func consumeLinkPlaceholder(sess *runtime.ComponentSession, f *h.FragmentNode) (*linkNode, bool) {
+	if sess == nil {
+		return nil, false
+	}
+	return takeLinkPlaceholder(sess, f)
+}
+
+func renderLink(ctx Ctx, p LinkProps, children ...h.Item) h.Node {
+	state := requireRouterState(ctx)
+	base := state.getLoc()
+	target := resolveHref(base, p.To)
+	href := BuildHref(target.Path, target.Query, target.Hash)
+
+	handler := func(ev h.Event) h.Updates {
+		if ev.Mods.Ctrl || ev.Mods.Meta || ev.Mods.Shift || ev.Mods.Alt || ev.Mods.Button != 0 {
+			return nil
+		}
+		state := requireRouterState(ctx)
+		current := state.getLoc()
+		next := extractTargetFromEvent(ev, current)
+		if next.Path == "" {
+			return nil
+		}
+		replace := strings.EqualFold(h.PayloadString(ev.Payload, "target.dataset.routerReplace", ""), "true")
+
+		if LocEqual(current, next) {
+			return nil
+		}
+		performLocationUpdate(ctx, next, replace, true)
+		return nil
+	}
+
+	replaceAttr := strconv.FormatBool(p.Replace)
+	encodedQuery := encodeQuery(target.Query)
+	items := []h.Item{
+		h.Href(href),
+		h.Data("router-path", target.Path),
+		h.Data("router-query", encodedQuery),
+		h.Data("router-hash", target.Hash),
+		h.Data("router-replace", replaceAttr),
+		h.OnWith("click", h.EventOptions{Props: []string{
+			"currentTarget.dataset.routerPath",
+			"currentTarget.dataset.routerQuery",
+			"currentTarget.dataset.routerHash",
+			"currentTarget.dataset.routerReplace",
+			"currentTarget.href",
+		}}, handler),
+	}
+	if len(children) > 0 {
+		items = append(items, children...)
+	}
+	return h.El(h.HTMLAElement{}, "a", items...)
+}
+
+func renderStaticLink(sess *runtime.ComponentSession, p LinkProps, children ...h.Item) h.Node {
+	href := fallbackLinkHref(sess, p)
+	items := make([]h.Item, 0, len(children)+1)
+	items = append(items, h.Href(href))
+	items = append(items, children...)
+	return h.El(h.HTMLAElement{}, "a", items...)
+}
+
+func fallbackLinkHref(sess *runtime.ComponentSession, p LinkProps) string {
+	if sess == nil {
+		return p.To
+	}
+	base := currentSessionLocation(sess)
+	target := resolveHref(base, p.To)
+	return BuildHref(target.Path, target.Query, target.Hash)
+}
+
+func extractTargetFromEvent(ev h.Event, base Location) Location {
+	datasetPath := h.PayloadString(ev.Payload, "currentTarget.dataset.routerPath", "")
+	datasetQuery := h.PayloadString(ev.Payload, "currentTarget.dataset.routerQuery", "")
+	datasetHash := h.PayloadString(ev.Payload, "currentTarget.dataset.routerHash", "")
+
+	if datasetPath != "" {
+		target := Location{
+			Path:  datasetPath,
+			Query: parseQuery(datasetQuery),
+			Hash:  normalizeHash(datasetHash),
+		}
+		return canonicalizeLocation(target)
+	}
+
+	href := h.PayloadString(ev.Payload, "currentTarget.href", "")
+	if href == "" {
+		return Location{}
+	}
+	return resolveHref(base, href)
+}

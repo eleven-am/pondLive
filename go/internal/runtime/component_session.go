@@ -597,6 +597,21 @@ func (s *ComponentSession) requestTemplateReset() {
 	s.forceTemplate.Store(true)
 }
 
+// RequestTemplateReset forces the session to regenerate the full HTML template on next flush.
+// This is a public wrapper for requestTemplateReset for use by external packages like router.
+func (s *ComponentSession) RequestTemplateReset() {
+	s.requestTemplateReset()
+}
+
+// Owner returns the LiveSession that owns this ComponentSession, or nil if none.
+// This accessor is provided for external packages like router to access navigation methods.
+func (s *ComponentSession) Owner() *LiveSession {
+	if s == nil {
+		return nil
+	}
+	return s.owner
+}
+
 func (s *ComponentSession) registerComponentInstance(c *component) {
 	if s == nil || c == nil || c.id == "" {
 		return
