@@ -69,6 +69,35 @@ func (pc *PathCalculator) PopComponent() {
 	}
 }
 
+// SetComponentBoundaries sets the current component's start and end paths based on
+// its position in the parent (prevPath) and the width of content it renders.
+func (pc *PathCalculator) SetComponentBoundaries(width int) {
+	if len(pc.componentStack) == 0 {
+		return
+	}
+	frame := &pc.componentStack[len(pc.componentStack)-1]
+
+	if len(frame.prevPath) == 0 {
+
+		frame.startPath = []int{0}
+		if width <= 1 {
+			frame.endPath = []int{0}
+		} else {
+			frame.endPath = []int{width - 1}
+		}
+	} else {
+
+		frame.startPath = append([]int(nil), frame.prevPath...)
+
+		if width <= 1 {
+			frame.endPath = append([]int(nil), frame.prevPath...)
+		} else {
+			frame.endPath = append([]int(nil), frame.prevPath...)
+			frame.endPath[len(frame.endPath)-1] += width - 1
+		}
+	}
+}
+
 func (pc *PathCalculator) CurrentComponentID() string {
 	if len(pc.componentStack) == 0 {
 		return ""

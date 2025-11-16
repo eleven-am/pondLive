@@ -3,7 +3,7 @@ package runtime
 import (
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	render "github.com/eleven-am/pondlive/go/internal/render"
+	"github.com/eleven-am/pondlive/go/internal/render"
 )
 
 type SessionID string

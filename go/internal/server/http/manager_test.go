@@ -13,8 +13,12 @@ import (
 )
 
 func appComponent(ctx runtime.Ctx, _ struct{}) h.Node {
-	search := runtime.UseSearch(ctx)
-	tab := search.Get("tab")
+	// Access location directly from session for testing SSR
+	var tab string
+	if sess := ctx.Session(); sess != nil {
+		loc := runtime.InternalCurrentLocation(sess)
+		tab = loc.Query.Get("tab")
+	}
 	runtime.UseMetadata(ctx, &runtime.Meta{
 		Title:       "Profile",
 		Description: "Viewing profile for user",

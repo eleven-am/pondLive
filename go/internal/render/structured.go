@@ -187,6 +187,7 @@ func (b *structuredBuilder) VisitComponent(v *h.ComponentNode) int {
 	if v.Child != nil {
 		width = b.visit(v.Child)
 	}
+	b.pathCalc.SetComponentBoundaries(width)
 	b.pathCalc.PopComponent()
 	b.flush()
 	span := ComponentSpan{

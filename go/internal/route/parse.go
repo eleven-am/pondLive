@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-
-	"github.com/eleven-am/pondlive/go/internal/pathutil"
 )
 
 // Match represents the parsed route information passed to components.
@@ -31,7 +29,7 @@ func NormalizePattern(pattern string) string {
 // ":id?" parameters as well as "*rest" wildcards.
 func Parse(pattern string, path string, rawQuery string) (Match, error) {
 	normalizedPattern := normalizePattern(pattern)
-	parts := pathutil.NormalizeParts(path)
+	parts := NormalizeParts(path)
 	normalizedPath := parts.Path
 	if rawQuery == "" {
 		rawQuery = parts.RawQuery
@@ -179,7 +177,7 @@ func BestMatch(path string, rawQuery string, patterns []string) (Match, int, boo
 }
 
 func normalizePath(path string) string {
-	return pathutil.Normalize(path)
+	return Normalize(path)
 }
 
 func normalizePattern(pattern string) string {

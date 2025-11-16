@@ -908,8 +908,7 @@ func (s *LiveSession) flushAsync() {
 	if s == nil {
 		return
 	}
-	// During SSR (no transport), skip async flush to prevent deadlock.
-	// SSR doesn't need to flush changes to a client since we're just building the initial snapshot.
+
 	if s.transport == nil {
 		return
 	}

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
-	render "github.com/eleven-am/pondlive/go/internal/render"
+	"github.com/eleven-am/pondlive/go/internal/render"
 	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 

@@ -88,7 +88,8 @@ type component struct {
 	rendering              int32
 	pendingDescendantDirty int32
 
-	handlers []dom.EventHandler
+	handlers    []dom.EventHandler
+	newHandlers []dom.EventHandler // Built during render, swapped atomically after
 }
 
 type attachmentResetter interface {
@@ -168,7 +169,8 @@ func (c *component) beginRender() {
 			}
 		}
 	}
-	c.handlers = nil
+
+	c.newHandlers = nil
 }
 
 func (c *component) endRender() {
@@ -236,13 +238,15 @@ func (c *component) render() dom.Node {
 		return node
 	}
 	defer c.mu.Unlock()
+
+	atomic.StoreInt32(&c.rendering, 1)
+	defer atomic.StoreInt32(&c.rendering, 0)
+
 	c.beginRender()
 	if c.sess != nil {
 		c.sess.beginComponentMetadata(c)
 		defer c.sess.finishComponentMetadata(c)
 	}
-	atomic.StoreInt32(&c.rendering, 1)
-	defer atomic.StoreInt32(&c.rendering, 0)
 	ctx := Ctx{sess: c.sess, comp: c, frame: c.frame}
 	node := c.callable.call(ctx, c.props)
 	if carrier, ok := node.(componentMetaResult); ok {
@@ -259,6 +263,12 @@ func (c *component) render() dom.Node {
 	if atomic.SwapInt32(&c.pendingDescendantDirty, 0) == 1 {
 		c.markDescendantsDirtyLocked()
 	}
+
+	if c.newHandlers != nil {
+		c.handlers = c.newHandlers
+		c.newHandlers = nil
+	}
+
 	c.node = node
 	c.dirty = false
 	return node
@@ -419,6 +429,13 @@ func (c *component) RegisterHandler(handler dom.EventHandler) int {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if atomic.LoadInt32(&c.rendering) == 1 {
+		slotIdx := len(c.newHandlers)
+		c.newHandlers = append(c.newHandlers, handler)
+		return slotIdx
+	}
+
 	slotIdx := len(c.handlers)
 	c.handlers = append(c.handlers, handler)
 	return slotIdx

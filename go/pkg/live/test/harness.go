@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"github.com/eleven-am/pondlive/go/internal/diff"
-	render "github.com/eleven-am/pondlive/go/internal/render"
+	"github.com/eleven-am/pondlive/go/internal/render"
 	"github.com/eleven-am/pondlive/go/internal/testh"
 	"github.com/eleven-am/pondlive/go/pkg/live/html"
 )

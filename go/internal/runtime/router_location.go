@@ -1,145 +1,98 @@
 package runtime
 
 import (
-	"net/url"
-	"sort"
-	"strings"
+	"sync/atomic"
 
-	"github.com/eleven-am/pondlive/go/internal/pathutil"
+	"github.com/eleven-am/pondlive/go/internal/route"
 )
 
-func canonicalizeLocation(loc Location) Location {
-	parts := pathutil.NormalizeParts(loc.Path)
-	canon := Location{
-		Path:  parts.Path,
-		Query: canonicalizeValues(loc.Query),
-		Hash:  normalizeHash(loc.Hash),
-	}
-	if canon.Hash == "" && parts.Hash != "" {
-		canon.Hash = pathutil.NormalizeHash(parts.Hash)
-	}
-	return canon
+// Location is an alias to route.Location for router integration.
+type Location = route.Location
+
+// routerEntry holds the router callback handlers registered by router implementations.
+type routerEntry struct {
+	getLoc    atomic.Pointer[func() Location]
+	setLoc    atomic.Pointer[func(Location)]
+	assignLoc atomic.Pointer[func(Location)]
 }
 
-func cloneLocation(loc Location) Location {
-	canon := canonicalizeLocation(loc)
-	canon.Query = cloneValues(canon.Query)
-	return canon
+func (s *ComponentSession) ensureRouterEntry() *routerEntry {
+	if entry := s.loadRouterEntry(); entry != nil {
+		return entry
+	}
+	entry := &routerEntry{}
+	s.storeRouterEntry(entry)
+	return entry
 }
 
-func normalizePath(path string) string {
-	return pathutil.NormalizeParts(path).Path
+func (s *ComponentSession) loadRouterEntry() *routerEntry {
+	ptr := s.routerEntry.Load()
+	if ptr == nil {
+		return nil
+	}
+	return ptr
 }
 
-func normalizeHash(hash string) string {
-	return pathutil.NormalizeHash(hash)
+func (s *ComponentSession) storeRouterEntry(entry *routerEntry) {
+	s.routerEntry.Store(entry)
 }
 
-func cloneValues(q url.Values) url.Values {
-	if len(q) == 0 {
-		return url.Values{}
+// Bridge functions implementation
+
+func initialLocation(sess *ComponentSession) Location {
+	loc := sess.initLoc.Load()
+	if loc == nil {
+		return Location{Path: "/"}
 	}
-	out := make(url.Values, len(q))
-	for k, values := range q {
-		cp := make([]string, len(values))
-		copy(cp, values)
-		out[k] = cp
-	}
-	return out
+	return *loc
 }
 
-func canonicalizeValues(q url.Values) url.Values {
-	if len(q) == 0 {
-		return url.Values{}
-	}
-	keys := make([]string, 0, len(q))
-	for k := range q {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	out := make(url.Values, len(keys))
-	for _, key := range keys {
-		out[key] = canonicalizeList(q[key])
-	}
-	return out
+func storeSessionLocation(sess *ComponentSession, loc Location) {
+	sess.cachedLoc.Store(&loc)
 }
 
-func canonicalizeList(values []string) []string {
-	if len(values) == 0 {
-		return []string{}
-	}
-	cleaned := make([]string, 0, len(values))
-	for _, v := range values {
-		cleaned = append(cleaned, strings.TrimSpace(v))
-	}
-	sort.Strings(cleaned)
-	return cleaned
+func registerSessionEntry(sess *ComponentSession, get func() Location, set func(Location), assign func(Location)) {
+	entry := sess.ensureRouterEntry()
+	entry.getLoc.Store(&get)
+	entry.setLoc.Store(&set)
+	entry.assignLoc.Store(&assign)
 }
 
-func valuesEqual(a, b url.Values) bool {
-	ca := canonicalizeValues(a)
-	cb := canonicalizeValues(b)
-	if len(ca) != len(cb) {
-		return false
-	}
-	for key, av := range ca {
-		bv, ok := cb[key]
-		if !ok {
-			return false
-		}
-		if len(av) != len(bv) {
-			return false
-		}
-		for i := range av {
-			if av[i] != bv[i] {
-				return false
-			}
+func currentLocation(sess *ComponentSession) Location {
+	if entry := sess.loadRouterEntry(); entry != nil {
+		if get := entry.getLoc.Load(); get != nil {
+			fn := *get
+			return fn()
 		}
 	}
-	return true
+	if cached := sess.cachedLoc.Load(); cached != nil {
+		return *cached
+	}
+	return initialLocation(sess)
 }
 
-func encodeQuery(q url.Values) string {
-	if len(q) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(q))
-	for k := range q {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var builder strings.Builder
-	first := true
-	for _, key := range keys {
-		values := q[key]
-		if len(values) == 0 {
-			if !first {
-				builder.WriteByte('&')
-			}
-			builder.WriteString(url.QueryEscape(key))
-			builder.WriteString("=")
-			first = false
-			continue
-		}
-		for _, v := range values {
-			if !first {
-				builder.WriteByte('&')
-			}
-			builder.WriteString(url.QueryEscape(key))
-			builder.WriteByte('=')
-			builder.WriteString(url.QueryEscape(v))
-			first = false
-		}
-	}
-	return builder.String()
+func navHistory(sess *ComponentSession) []NavMsg {
+	sess.navHistoryMu.Lock()
+	defer sess.navHistoryMu.Unlock()
+	result := make([]NavMsg, len(sess.navHistory))
+	copy(result, sess.navHistory)
+	return result
 }
 
-func LocEqual(a, b Location) bool {
-	if a.Path != b.Path {
-		return false
-	}
-	if a.Hash != b.Hash {
-		return false
-	}
-	return valuesEqual(a.Query, b.Query)
+func clearNavHistory(sess *ComponentSession) {
+	sess.navHistoryMu.Lock()
+	defer sess.navHistoryMu.Unlock()
+	sess.navHistory = nil
+}
+
+// Context keys for router integration
+var (
+	LocationCtx = NewContext(Location{})
+	ParamsCtx   = NewContext(map[string]string{})
+)
+
+// InternalSeedSessionLocation seeds the initial location for testing.
+func InternalSeedSessionLocation(sess *ComponentSession, loc Location) {
+	sess.initLoc.Store(&loc)
+	sess.cachedLoc.Store(&loc)
 }

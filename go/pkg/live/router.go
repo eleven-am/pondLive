@@ -3,72 +3,75 @@ package live
 import (
 	"net/url"
 
+	"github.com/eleven-am/pondlive/go/internal/route"
+	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 type (
-	Location   = runtime.Location
-	RouteProps = runtime.RouteProps
-	LinkProps  = runtime.LinkProps
-	Match      = runtime.Match
+	Location   = route.Location
+	RouteProps = router.RouteProps
+	LinkProps  = router.LinkProps
+	Match      = route.Match
 	NavMsg     = runtime.NavMsg
 	PopMsg     = runtime.PopMsg
 )
 
 var (
-	Parse            = runtime.Parse
-	NormalizePattern = runtime.NormalizePattern
-	Prefer           = runtime.Prefer
-	BestMatch        = runtime.BestMatch
-	BuildHref        = runtime.BuildHref
-	SetSearch        = runtime.SetSearch
-	AddSearch        = runtime.AddSearch
-	DelSearch        = runtime.DelSearch
-	MergeSearch      = runtime.MergeSearch
-	ClearSearch      = runtime.ClearSearch
-	ParseHref        = runtime.ParseHref
-	ErrMissingRouter = runtime.ErrMissingRouter
+	Parse            = route.Parse
+	NormalizePattern = route.NormalizePattern
+	Prefer           = route.Prefer
+	BestMatch        = route.BestMatch
+	BuildHref        = route.BuildHref
+	SetSearch        = route.SetSearch
+	AddSearch        = route.AddSearch
+	DelSearch        = route.DelSearch
+	MergeSearch      = route.MergeSearch
+	ClearSearch      = route.ClearSearch
+	ParseHref        = route.ParseHref
+	ErrMissingRouter = route.ErrMissingRouter
+	LocEqual         = route.LocEqual
 )
 
 func Router(ctx Ctx, children ...Node) Node {
-	return runtime.Router(ctx, children...)
+	return router.Router(ctx, children...)
 }
 
 func Routes(ctx Ctx, children ...Node) Node {
-	return runtime.Routes(ctx, children...)
+	return router.Routes(ctx, children...)
 }
 
 func Route(ctx Ctx, props RouteProps, children ...Node) Node {
-	return runtime.Route(ctx, props, children...)
+	return router.Route(ctx, props, children...)
 }
 
 func Outlet(ctx Ctx) Node {
-	return runtime.Outlet(ctx)
+	return router.Outlet(ctx)
 }
 
 func Link(ctx Ctx, props LinkProps, children ...h.Item) Node {
-	return runtime.RouterLink(ctx, props, children...)
+	return router.Link(ctx, props, children...)
 }
 
 func Navigate(ctx Ctx, href string) {
-	runtime.RouterNavigate(ctx, href)
+	router.Navigate(ctx, href)
 }
 
 func Replace(ctx Ctx, href string) {
-	runtime.RouterReplace(ctx, href)
+	router.Replace(ctx, href)
 }
 
 func NavigateWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
-	runtime.RouterNavigateWithSearch(ctx, patch)
+	router.NavigateWithSearch(ctx, patch)
 }
 
 func ReplaceWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
-	runtime.RouterReplaceWithSearch(ctx, patch)
+	router.ReplaceWithSearch(ctx, patch)
 }
 
 func Redirect(ctx Ctx, to string) Node {
-	return runtime.RouterRedirect(ctx, to)
+	return router.Redirect(ctx, to)
 }
 
 // UseLocation returns the current router location including pathname, search params, and hash.
@@ -84,7 +87,7 @@ func Redirect(ctx Ctx, to string) Node {
 //	    )
 //	}
 func UseLocation(ctx Ctx) Location {
-	return runtime.UseLocation(ctx)
+	return router.UseLocation(ctx)
 }
 
 // UseParams returns all route parameters extracted from the current URL pattern.
@@ -104,7 +107,7 @@ func UseLocation(ctx Ctx) Location {
 //	    )
 //	}
 func UseParams(ctx Ctx) map[string]string {
-	return runtime.UseParams(ctx)
+	return router.UseParams(ctx)
 }
 
 // UseParam returns a single route parameter by key. Returns empty string if not found.
@@ -130,7 +133,7 @@ func UseParams(ctx Ctx) map[string]string {
 //	    return h.Div(h.Text(user().Name))
 //	}
 func UseParam(ctx Ctx, key string) string {
-	return runtime.UseParam(ctx, key)
+	return router.UseParam(ctx, key)
 }
 
 // UseSearch returns the current URL search/query parameters as url.Values.
@@ -153,7 +156,7 @@ func UseParam(ctx Ctx, key string) string {
 //	    )
 //	}
 func UseSearch(ctx Ctx) url.Values {
-	return runtime.UseSearch(ctx)
+	return router.UseSearch(ctx)
 }
 
 // UseSearchParam returns reactive getter/setter for a specific search parameter.
@@ -193,11 +196,7 @@ func UseSearch(ctx Ctx) url.Values {
 //	    )
 //	}
 func UseSearchParam(ctx Ctx, key string) (func() []string, func([]string)) {
-	return runtime.UseSearchParam(ctx, key)
-}
-
-func LocEqual(a, b Location) bool {
-	return runtime.LocEqual(a, b)
+	return router.UseSearchParam(ctx, key)
 }
 
 // UseMetadata sets document metadata (title, meta tags, etc.) for the current page.

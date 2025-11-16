@@ -2,9 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
@@ -18,10 +23,31 @@ func main() {
 		log.Fatalf("build live app: %v", err)
 	}
 
-	log.Println("Server starting on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", app.Handler()); err != nil {
-		log.Fatal(err)
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: app.Handler(),
 	}
+
+	go func() {
+		log.Println("Server starting on http://localhost:8080")
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	log.Println("Server exited")
 }
 
 func HomePage(ctx ui.Ctx) h.Node {
@@ -47,17 +73,17 @@ func HomePage(ctx ui.Ctx) h.Node {
 
 				h.Div(h.Style("margin-top", "2rem")),
 
-				ui.Render(ctx, RedCard, struct{}{}),
+				RedCard(ctx),
 
 				h.Div(h.Style("margin-top", "2rem")),
 
-				ui.Render(ctx, BlueCard, struct{}{}),
+				BlueCard(ctx),
 			),
 		),
 	)
 }
 
-func RedCard(ctx ui.Ctx, _ struct{}) h.Node {
+var RedCard = ui.Component(func(ctx ui.Ctx) h.Node {
 	style := ui.UseStyles(ctx, `
 		.card {
 			padding: 2rem;
@@ -94,9 +120,9 @@ func RedCard(ctx ui.Ctx, _ struct{}) h.Node {
 			),
 		),
 	)
-}
+})
 
-func BlueCard(ctx ui.Ctx, _ struct{}) h.Node {
+var BlueCard = ui.Component(func(ctx ui.Ctx) h.Node {
 	style := ui.UseStyles(ctx, `
 		.card {
 			padding: 2rem;
@@ -133,4 +159,4 @@ func BlueCard(ctx ui.Ctx, _ struct{}) h.Node {
 			),
 		),
 	)
-}
+})

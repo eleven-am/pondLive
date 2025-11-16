@@ -398,3 +398,15 @@ func stringPtr(v string) *string {
 }
 
 func stringsTrim(s string) string { return strings.TrimSpace(s) }
+
+// UseMetadata registers metadata for the current component render.
+// It merges the provided metadata with any existing session metadata.
+func UseMetadata(ctx Ctx, meta *Meta) {
+	if meta == nil || ctx.Session() == nil {
+		return
+	}
+	sess := ctx.Session()
+	current := sess.Metadata()
+	merged := MergeMeta(current, meta)
+	sess.SetMetadata(merged)
+}

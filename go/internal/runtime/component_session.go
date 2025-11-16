@@ -15,7 +15,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	render "github.com/eleven-am/pondlive/go/internal/render"
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
 // ComponentSession drives component rendering, diffing, and event handling for a live UI connection.
@@ -40,7 +39,6 @@ type ComponentSession struct {
 	flushing       bool
 	forceTemplate  atomic.Bool
 	templateUpdate atomic.Pointer[templateUpdate]
-	router         atomic.Pointer[routerSessionState]
 
 	uploads           map[string]*uploadSlot
 	uploadByComponent map[*component]map[int]*uploadSlot
@@ -80,6 +78,13 @@ type ComponentSession struct {
 
 	promotions   map[string]*componentPromotionState
 	promotionsMu sync.Mutex
+
+	// Router integration fields
+	routerEntry  atomic.Pointer[routerEntry]
+	initLoc      atomic.Pointer[Location]
+	cachedLoc    atomic.Pointer[Location]
+	navHistory   []NavMsg
+	navHistoryMu sync.Mutex
 
 	mu sync.Mutex
 }
@@ -766,113 +771,6 @@ func (s *ComponentSession) consumeComponentBootRequests() map[string]*componentB
 	return requests
 }
 
-func (s *ComponentSession) ensureRouterState() *routerSessionState {
-	if s == nil {
-		return nil
-	}
-	if state := s.router.Load(); state != nil {
-		return state
-	}
-	created := &routerSessionState{}
-	if s.router.CompareAndSwap(nil, created) {
-		return created
-	}
-	return s.router.Load()
-}
-
-func (s *ComponentSession) loadRouterState() *routerSessionState {
-	if s == nil {
-		return nil
-	}
-	return s.router.Load()
-}
-
-func (s *ComponentSession) ensureRouterEntry() *sessionEntry {
-	if s == nil {
-		return nil
-	}
-	state := s.ensureRouterState()
-	if state == nil {
-		return nil
-	}
-	return &state.entry
-}
-
-func (s *ComponentSession) loadRouterEntry() *sessionEntry {
-	if s == nil {
-		return nil
-	}
-	state := s.loadRouterState()
-	if state == nil {
-		return nil
-	}
-	return &state.entry
-}
-
-func (s *ComponentSession) storeLinkPlaceholder(frag *h.FragmentNode, node *linkNode) {
-	if s == nil || frag == nil || node == nil {
-		return
-	}
-	if state := s.ensureRouterState(); state != nil {
-		state.linkPlaceholders.Store(frag, node)
-	}
-}
-
-func (s *ComponentSession) takeLinkPlaceholder(frag *h.FragmentNode) (*linkNode, bool) {
-	if s == nil || frag == nil {
-		return nil, false
-	}
-	if state := s.loadRouterState(); state != nil {
-		if value, ok := state.linkPlaceholders.LoadAndDelete(frag); ok {
-			if node, okCast := value.(*linkNode); okCast {
-				return node, true
-			}
-		}
-	}
-	return nil, false
-}
-
-func (s *ComponentSession) clearLinkPlaceholder(frag *h.FragmentNode) {
-	if s == nil || frag == nil {
-		return
-	}
-	if state := s.loadRouterState(); state != nil {
-		state.linkPlaceholders.Delete(frag)
-	}
-}
-
-func (s *ComponentSession) storeRoutesPlaceholder(frag *h.FragmentNode, node *routesNode) {
-	if s == nil || frag == nil || node == nil {
-		return
-	}
-	if state := s.ensureRouterState(); state != nil {
-		state.routesPlaceholders.Store(frag, node)
-	}
-}
-
-func (s *ComponentSession) takeRoutesPlaceholder(frag *h.FragmentNode) (*routesNode, bool) {
-	if s == nil || frag == nil {
-		return nil, false
-	}
-	if state := s.loadRouterState(); state != nil {
-		if value, ok := state.routesPlaceholders.LoadAndDelete(frag); ok {
-			if node, okCast := value.(*routesNode); okCast {
-				return node, true
-			}
-		}
-	}
-	return nil, false
-}
-
-func (s *ComponentSession) clearRoutesPlaceholder(frag *h.FragmentNode) {
-	if s == nil || frag == nil {
-		return
-	}
-	if state := s.loadRouterState(); state != nil {
-		state.routesPlaceholders.Delete(frag)
-	}
-}
-
 // SetPubsubProvider wires the session to an external pub/sub provider.
 func (s *ComponentSession) SetPubsubProvider(provider PubsubProvider) {
 	if s == nil {
@@ -1139,10 +1037,6 @@ func (s *ComponentSession) RenderNode() dom.Node {
 		return nil
 	}
 	node := s.root.render()
-
-	if node != nil {
-		node = normalizeRouterNodeForSSR(Ctx{sess: s}, s, node)
-	}
 	return node
 }
 
@@ -2320,7 +2214,11 @@ func (s *ComponentSession) DispatchEvent(id string, ev dom.Event) error {
 	if !dirty {
 		return nil
 	}
-	return s.Flush()
+
+	if err := s.Flush(); err != nil && !errors.Is(err, ErrFlushInProgress) {
+		return err
+	}
+	return nil
 }
 
 // effectTask represents an effect setup scheduled after the next flush.
