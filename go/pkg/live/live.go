@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 

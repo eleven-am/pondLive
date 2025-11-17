@@ -59,10 +59,36 @@ export class EventDelegation {
     }
 
     const router = getRouterMeta(target);
+
+    if (event === 'click') {
+      // Check parent chain for debug markers
+      let debugInfo: any[] = [];
+      let current: Element | null = target;
+      while (current && debugInfo.length < 5) {
+        const debug = (current as any).__routerDebug;
+        debugInfo.push({
+          tag: current.tagName,
+          hasDebug: !!debug,
+          debugPath: debug?.path,
+          isConnected: current.isConnected,
+        });
+        current = current.parentElement;
+      }
+
+      Logger.debug('[Delegation]', 'click event', {
+        tag: target.tagName,
+        hasRouterMeta: !!router,
+        hasPath: !!router?.path,
+        parentChain: debugInfo,
+      });
+    }
+
     if (router && router.path && event === 'click') {
       Logger.debug('[Delegation]', 'router navigation triggered', {
         path: router.path,
+        query: router.query,
         hash: router.hash,
+        replace: router.replace,
       });
       this.runtime.sendNavigation(router.path, router.query ?? '', router.hash ?? '');
       e.preventDefault();

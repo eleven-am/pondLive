@@ -29,6 +29,7 @@ var (
 	Class                  = internalhtml.Class
 	Style                  = internalhtml.Style
 	Key                    = internalhtml.Key
+	RouterMeta             = internalhtml.RouterMeta
 	UnsafeHTML             = internalhtml.UnsafeHTML
 	On                     = internalhtml.On
 	OnWith                 = internalhtml.OnWith

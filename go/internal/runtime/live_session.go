@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	rtdebug "runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -1792,6 +1794,16 @@ type snapshot struct {
 }
 
 func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLocation, meta *Meta) snapshot {
+
+	_, file, line, ok := rtdebug.Caller(1)
+	if ok {
+		log.Printf("BOOT DEBUG: buildSnapshot called from %s:%d", file, line)
+	}
+	log.Printf("BOOT DEBUG: structured has %d ComponentPaths", len(structured.ComponentPaths))
+	for i, cp := range structured.ComponentPaths {
+		log.Printf("  Component[%d]: ID=%s ParentID=%s", i, cp.ComponentID, cp.ParentID)
+	}
+
 	statics := globalTemplateIntern.InternStatics(structured.S)
 	dynamics := encodeDynamics(structured.D)
 	slots := make([]protocol.SlotMeta, len(dynamics))
@@ -1799,7 +1811,18 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 		slots[i] = protocol.SlotMeta{AnchorID: i}
 	}
 	slotPaths := encodeSlotPaths(structured.SlotPaths)
+	log.Printf("BOOT DEBUG: structured.ListPaths len=%d", len(structured.ListPaths))
+	for i, lp := range structured.ListPaths {
+		log.Printf("  BOOT ListPath[%d]: ComponentID=%s Slot=%d AtRoot=%t", i, lp.ComponentID, lp.Slot, lp.AtRoot)
+	}
 	listPaths := encodeListPaths(structured.ListPaths)
+	log.Printf("BOOT DEBUG: after encode, listPaths len=%d", len(listPaths))
+
+	if len(listPaths) == 0 && len(s.snapshot.ListPaths) > 0 {
+		log.Printf("BOOT DEBUG: preserving existing listPaths len=%d", len(s.snapshot.ListPaths))
+		listPaths = append([]protocol.ListPath(nil), s.snapshot.ListPaths...)
+	}
+
 	componentPaths := encodeComponentPaths(structured.ComponentPaths)
 	handlers := extractHandlerMeta(structured)
 	var refs map[string]protocol.RefMeta
@@ -1827,6 +1850,10 @@ func (s *LiveSession) buildSnapshot(structured render.Structured, loc SessionLoc
 }
 
 func (s *LiveSession) templatePayloadFromSnapshot(snap snapshot) protocol.TemplatePayload {
+	log.Printf("PAYLOAD DEBUG: snap.ListPaths len=%d", len(snap.ListPaths))
+	for i, lp := range snap.ListPaths {
+		log.Printf("  PAYLOAD ListPath[%d]: ComponentID=%s Slot=%d", i, lp.ComponentID, lp.Slot)
+	}
 	payload := protocol.TemplatePayload{
 		S:              append([]string(nil), snap.Statics...),
 		D:              cloneDynamics(snap.Dynamics),
@@ -1837,6 +1864,7 @@ func (s *LiveSession) templatePayloadFromSnapshot(snap snapshot) protocol.Templa
 		Handlers:       cloneHandlers(snap.Handlers),
 		Bindings:       cloneTemplateBindings(snap.Bindings),
 	}
+	log.Printf("PAYLOAD DEBUG: payload.ListPaths len=%d", len(payload.ListPaths))
 	if len(snap.Refs) > 0 {
 		payload.Refs = protocol.RefDelta{Add: cloneRefs(snap.Refs)}
 	}

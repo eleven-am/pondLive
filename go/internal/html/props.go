@@ -1,6 +1,11 @@
 package html
 
-import "strings"
+import (
+	"log"
+	"strings"
+
+	"github.com/eleven-am/pondlive/go/internal/dom"
+)
 
 type attrProp struct{ k, v string }
 
@@ -111,6 +116,27 @@ func (p keyProp) ApplyTo(e *Element) { e.Key = p.key }
 
 // Key assigns a stable identity for keyed lists.
 func Key(k string) Prop { return keyProp{key: k} }
+
+type routerMetaProp struct{ meta dom.RouterMeta }
+
+func (p routerMetaProp) isProp() {}
+
+func (p routerMetaProp) ApplyTo(e *Element) {
+	log.Printf("→ RouterMeta.ApplyTo called: path=%q, query=%q, hash=%q, replace=%q, tag=%s",
+		p.meta.Path, p.meta.Query, p.meta.Hash, p.meta.Replace, e.Tag)
+	e.RouterMeta = &p.meta
+	log.Printf("→ After setting: e.RouterMeta=%v", e.RouterMeta != nil)
+}
+
+// RouterMeta sets router navigation metadata for client-side navigation.
+func RouterMeta(path, query, hash, replace string) Prop {
+	return routerMetaProp{meta: dom.RouterMeta{
+		Path:    path,
+		Query:   query,
+		Hash:    hash,
+		Replace: replace,
+	}}
+}
 
 type rawHTMLProp struct{ html string }
 

@@ -24,6 +24,7 @@ package render
 import (
 	"fmt"
 	"html"
+	"log"
 	"runtime"
 	"sort"
 	"strings"
@@ -208,6 +209,9 @@ func (b *structuredBuilder) VisitElement(v *h.Element) int {
 		return 0
 	}
 
+	hasHandlers := len(v.HandlerAssignments) > 0
+	log.Printf("VISIT DEBUG: tag=%s hasHandlers=%v key=%s", v.Tag, hasHandlers, v.Key)
+
 	void, attrSlot, startStatic := b.renderOpeningTag(v)
 	b.pushFrame(v, attrSlot, startStatic, void, attrSlot < 0)
 	defer b.popFrame()
@@ -226,6 +230,13 @@ func (b *structuredBuilder) renderOpeningTag(v *h.Element) (void bool, attrSlot 
 	dynamicAttrs := b.shouldUseDynamicAttrs(v)
 	attrSlot = -1
 	startStatic = -1
+
+	if len(v.HandlerAssignments) > 0 && (v.Tag == "button" || v.Tag == "a") {
+		log.Printf("HANDLER DEBUG: tag=%s has %d handlers", v.Tag, len(v.HandlerAssignments))
+		for eventType, h := range v.HandlerAssignments {
+			log.Printf("  Handler: eventType=%s ID=%s Listen=%v Props=%v", eventType, h.ID, h.Listen, h.Props)
+		}
+	}
 
 	if dynamicAttrs {
 		b.writeStatic("<")
@@ -254,8 +265,19 @@ func (b *structuredBuilder) renderOpeningTag(v *h.Element) (void bool, attrSlot 
 func (b *structuredBuilder) processElementChildren(v *h.Element, attrSlot int) {
 	if v.Unsafe != nil {
 		b.writeStatic(*v.Unsafe)
-	} else if !b.tryKeyedChildren(v.Children) {
-		b.visitChildren(v.Children)
+	} else {
+
+		if v.Tag == "nav" || v.Tag == "a" || v.Tag == "span" || v.Tag == "button" {
+			log.Printf("ELEMENT DEBUG: processElementChildren tag=%s children=%d", v.Tag, len(v.Children))
+			for i, child := range v.Children {
+				childType := fmt.Sprintf("%T", child)
+				childKey := nodeKey(child)
+				log.Printf("  Child[%d]: type=%s key=%s", i, childType, childKey)
+			}
+		}
+		if !b.tryKeyedChildren(v.Children) {
+			b.visitChildren(v.Children)
+		}
 	}
 }
 
@@ -332,6 +354,7 @@ func shouldForceDynamicAttrs(mutable map[string]bool, attrs map[string]string) b
 }
 
 func (b *structuredBuilder) pushFrame(el *h.Element, attrSlot, startStatic int, void, staticAttrs bool) {
+	compPath := b.pathCalc.CurrentComponentPath()
 	frame := elementFrame{
 		attrSlot:      attrSlot,
 		element:       el,
@@ -339,7 +362,7 @@ func (b *structuredBuilder) pushFrame(el *h.Element, attrSlot, startStatic int, 
 		void:          void,
 		staticAttrs:   staticAttrs,
 		componentID:   b.pathCalc.CurrentComponentID(),
-		componentPath: b.pathCalc.CurrentComponentPath(),
+		componentPath: compPath,
 		basePath:      b.pathCalc.CurrentComponentBasePath(),
 	}
 	if attrSlot >= 0 {
@@ -533,7 +556,7 @@ func renderFinalizedNode(n h.Node) string {
 
 func collectKeyedNodes(children []h.Node) []h.Node {
 	rows := make([]h.Node, 0, len(children))
-	for _, child := range children {
+	for i, child := range children {
 		if child == nil {
 			continue
 		}
@@ -543,15 +566,25 @@ func collectKeyedNodes(children []h.Node) []h.Node {
 				continue
 			}
 
+			log.Printf("COLLECT DEBUG: Fragment[%d] has %d children", i, len(frag.Children))
+			for j, fragChild := range frag.Children {
+				fragChildType := fmt.Sprintf("%T", fragChild)
+				fragChildKey := nodeKey(fragChild)
+				log.Printf("  FragChild[%d]: type=%s key=%s", j, fragChildType, fragChildKey)
+			}
+
 			fragRows := collectKeyedNodes(frag.Children)
 			if fragRows == nil {
+				log.Printf("COLLECT DEBUG: Fragment[%d] returned nil (not all keyed)", i)
 				return nil
 			}
+			log.Printf("COLLECT DEBUG: Fragment[%d] returned %d keyed rows", i, len(fragRows))
 			rows = append(rows, fragRows...)
 			continue
 		}
 		key := nodeKey(child)
 		if key == "" {
+			log.Printf("COLLECT DEBUG: Child[%d] has no key, returning nil", i)
 			return nil
 		}
 		rows = append(rows, child)
@@ -599,19 +632,47 @@ func (b *structuredBuilder) tryKeyedChildren(children []h.Node) bool {
 		return false
 	}
 
+	log.Printf("KEYED DEBUG: tryKeyedChildren called with %d children total, %d keyed rows", len(children), len(rows))
+	log.Printf("KEYED DEBUG: element stack depth=%d", len(b.stack))
+	for i, frame := range b.stack {
+		if frame.element != nil {
+			log.Printf("  Stack[%d]: tag=%s", i, frame.element.Tag)
+		} else {
+			log.Printf("  Stack[%d]: element=nil", i)
+		}
+	}
+	log.Printf("KEYED DEBUG: All children:")
+	for i, child := range children {
+		childType := fmt.Sprintf("%T", child)
+		childKey := nodeKey(child)
+		log.Printf("  Child[%d]: type=%s key=%s", i, childType, childKey)
+	}
+	if len(rows) > 0 {
+		for i, row := range rows {
+			key := nodeKey(row)
+			log.Printf("  Row[%d]: key=%s", i, key)
+		}
+	}
+
 	listSlot := b.addDyn(DynamicSlot{Kind: DynamicList})
+
+	var frame *elementFrame
+	if len(b.stack) > 0 {
+		f := b.stack[len(b.stack)-1]
+		frame = &f
+
+		frame.componentPath = nil
+		log.Printf("KEYED DEBUG: captured frame with element=%s", frame.element.Tag)
+	}
+
 	rowEntries := b.processKeyedRows(rows)
 
 	if listSlot >= 0 && listSlot < len(b.dynamics) {
 		b.dynamics[listSlot].List = rowEntries
 	}
 
-	var frame *elementFrame
-	if len(b.stack) > 0 {
-		f := b.stack[len(b.stack)-1]
-		frame = &f
-	}
 	b.pathCalc.RecordListPath(listSlot, frame)
+	b.bindings.ExtractListContainerPath(listSlot, frame)
 	return true
 }
 

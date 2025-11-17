@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -187,7 +188,6 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session.SetPrev(structured)
-	session.RebuildSnapshot(structured)
 
 	boot := session.BuildBoot(body)
 
@@ -197,6 +197,22 @@ func (m *Manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "live: failed to encode boot payload", http.StatusInternalServerError)
 		return
+	}
+
+	log.Printf("JSON PAYLOAD DEBUG: length=%d bytes", len(payload))
+
+	jsonStr := string(payload)
+	listPathsStart := strings.Index(jsonStr, `"listPaths":`)
+	if listPathsStart >= 0 {
+
+		remaining := jsonStr[listPathsStart:]
+		arrayEnd := strings.Index(remaining, "]")
+		if arrayEnd >= 0 {
+			listPathsJSON := remaining[:arrayEnd+1]
+			log.Printf("JSON PAYLOAD listPaths field: %s", listPathsJSON)
+		}
+	} else {
+		log.Printf("JSON PAYLOAD: listPaths field NOT FOUND in JSON!")
 	}
 
 	document := buildResponseBody(body, payload, meta, m.assetURL)

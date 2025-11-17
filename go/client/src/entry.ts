@@ -28,6 +28,11 @@ function getWindow(): LiveUIWindow | null {
 
 function detectBootPayload(target: LiveUIWindow): BootPayload | null {
   if (target.__LIVEUI_BOOT__ && typeof target.__LIVEUI_BOOT__ === 'object') {
+    Logger.debug('[Entry]', 'Boot payload from window', {
+      sid: target.__LIVEUI_BOOT__.sid,
+      hasListPaths: Array.isArray(target.__LIVEUI_BOOT__.listPaths),
+      listPathsLength: Array.isArray(target.__LIVEUI_BOOT__.listPaths) ? target.__LIVEUI_BOOT__.listPaths.length : 0,
+    });
     return target.__LIVEUI_BOOT__!;
   }
   if (typeof document === 'undefined') {
@@ -36,11 +41,21 @@ function detectBootPayload(target: LiveUIWindow): BootPayload | null {
   const script = document.getElementById('live-boot');
   const content = script?.textContent?.trim();
   if (!content) {
+    Logger.debug('[Entry]', 'No boot script content found');
     return null;
   }
+  Logger.debug('[Entry]', 'Boot script found', { contentLength: content.length });
   try {
     const payload = JSON.parse(content) as BootPayload;
     target.__LIVEUI_BOOT__ = payload;
+    Logger.debug('[Entry]', 'Boot payload parsed successfully', {
+      sid: payload.sid,
+      hasListPaths: Array.isArray(payload.listPaths),
+      listPathsLength: Array.isArray(payload.listPaths) ? payload.listPaths.length : 0,
+      listPaths: payload.listPaths,
+      hasComponentPaths: Array.isArray(payload.componentPaths),
+      componentPathsLength: Array.isArray(payload.componentPaths) ? payload.componentPaths.length : 0,
+    });
     return payload;
   } catch (error) {
     Logger.error('Failed to parse boot payload', error);

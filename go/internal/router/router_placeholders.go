@@ -37,9 +37,6 @@ func normalizeRouterNode(ctx Ctx, sess *runtime.ComponentSession, node h.Node) h
 			entries = collectRouteEntries(v.children, routeBaseCtx.Use(ctx))
 		}
 		return normalizeRouterNode(ctx, sess, renderRoutes(ctx, entries))
-	case *linkNode:
-		clearLinkPlaceholder(sess, v.FragmentNode)
-		return renderLink(ctx, v.props, v.children...)
 	case *h.Element:
 		if v == nil || len(v.Children) == 0 || v.Unsafe != nil {
 			return node
@@ -61,9 +58,6 @@ func normalizeRouterNode(ctx Ctx, sess *runtime.ComponentSession, node h.Node) h
 		clone.Children = updated
 		return &clone
 	case *h.FragmentNode:
-		if placeholder, ok := consumeLinkPlaceholder(sess, v); ok {
-			return renderLink(ctx, placeholder.props, placeholder.children...)
-		}
 		if placeholder, ok := consumeRoutesPlaceholder(sess, v); ok {
 			entries := placeholder.entries
 			if len(placeholder.children) > 0 {

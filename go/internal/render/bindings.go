@@ -1,6 +1,9 @@
 package render
 
-import "strings"
+import (
+	"log"
+	"strings"
+)
 
 // BindingExtractor handles extraction of all binding types from elements.
 type BindingExtractor struct {
@@ -142,6 +145,25 @@ func (be *BindingExtractor) ExtractSlotPaths(frame elementFrame) {
 	}
 }
 
+// ExtractListContainerPath adds a list container slot to slotPaths.
+// This ensures list container slots appear in both slotPaths and listPaths,
+// preventing client-side slot boundary resolution failures.
+func (be *BindingExtractor) ExtractListContainerPath(listSlot int, frame *elementFrame) {
+	if frame == nil || frame.componentID == "" {
+		return
+	}
+
+	path := combineTypedPath(frame.basePath, frame.componentPath)
+
+	anchor := SlotPath{
+		Slot:           listSlot,
+		ComponentID:    frame.componentID,
+		Path:           clonePath(path),
+		TextChildIndex: -1,
+	}
+	be.slotPaths = append(be.slotPaths, anchor)
+}
+
 func (be *BindingExtractor) ExtractUploadBindings(frame elementFrame) {
 	if frame.componentID == "" || len(frame.element.UploadBindings) == 0 {
 		return
@@ -184,17 +206,32 @@ func (be *BindingExtractor) ExtractRefBinding(frame elementFrame) {
 func (be *BindingExtractor) ExtractRouterBinding(frame elementFrame) {
 	router := buildRouterBinding(frame)
 	if router != nil {
+		log.Printf("✓ Created router binding: path=%s, query=%s, hash=%s, replace=%s, componentID=%s",
+			router.PathValue, router.Query, router.Hash, router.Replace, router.ComponentID)
 		be.routerBindings = append(be.routerBindings, *router)
 	}
 }
 
 func buildRouterBinding(frame elementFrame) *RouterBinding {
 	el := frame.element
-	if el == nil || el.RouterMeta == nil {
+	if el == nil {
 		return nil
 	}
+
+	if el.RouterMeta == nil {
+
+		if el.Tag == "a" {
+			log.Printf("✗ Link element (tag=a) has nil RouterMeta, componentID=%s", frame.componentID)
+		}
+		return nil
+	}
+
 	meta := el.RouterMeta
+	log.Printf("→ Found RouterMeta: path=%q, query=%q, hash=%q, replace=%q, tag=%s",
+		meta.Path, meta.Query, meta.Hash, meta.Replace, el.Tag)
+
 	if meta.Path == "" && meta.Query == "" && meta.Hash == "" && meta.Replace == "" {
+		log.Printf("✗ RouterMeta is empty (all fields blank)")
 		return nil
 	}
 	return &RouterBinding{

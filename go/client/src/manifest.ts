@@ -20,10 +20,24 @@ export function registerComponentRanges(ranges: Map<string, ComponentRange>): vo
       componentRanges.set(id, range);
     }
   });
+  // DEBUG: Log all registered component ranges
+  const rangeData = Array.from(componentRanges.entries()).map(([id, range]) => ({
+    id: id.substring(0, 12) + '...',
+    container: range.container.nodeName,
+    start: range.startIndex,
+    end: range.endIndex,
+    childCount: range.container.childNodes.length,
+  }));
+  Logger.debug('[Manifest]', 'registered component ranges', { count: componentRanges.size, ranges: rangeData });
 }
 
 export function getComponentRange(id: string): ComponentRange | undefined {
   return componentRanges.get(id);
+}
+
+// DEBUG: Expose component ranges for debugging
+if (typeof window !== 'undefined') {
+  (window as any).__DEBUG_COMPONENT_RANGES__ = componentRanges;
 }
 
 export function resolveSlotAnchors(
@@ -80,32 +94,74 @@ export function resolveListContainers(
   overrides?: Map<string, ComponentRange>,
 ): Map<number, Element> {
   const containers = new Map<number, Element>();
+  Logger.debug('[Manifest]', 'resolveListContainers START', {
+    descriptorsIsArray: Array.isArray(descriptors),
+    descriptorsLength: Array.isArray(descriptors) ? descriptors.length : 'N/A',
+    hasOverrides: Boolean(overrides),
+  });
   if (!Array.isArray(descriptors)) {
+    Logger.debug('[Manifest]', 'resolveListContainers: descriptors not an array, returning empty');
     return containers;
   }
-  for (const descriptor of descriptors) {
+  for (let i = 0; i < descriptors.length; i++) {
+    const descriptor = descriptors[i];
+    Logger.debug('[Manifest]', `resolveListContainers: processing descriptor[${i}]`, {
+      descriptor,
+      hasDescriptor: Boolean(descriptor),
+    });
     if (!descriptor) continue;
     const slotId = Number(descriptor.slot);
     if (!Number.isInteger(slotId) || slotId < 0 || containers.has(slotId)) {
+      Logger.debug('[Manifest]', `resolveListContainers: skipping descriptor[${i}] - invalid slot`, {
+        slotId,
+        isInteger: Number.isInteger(slotId),
+        alreadyHas: containers.has(slotId),
+      });
       continue;
     }
     const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
     if (!range) {
+      Logger.debug('[Manifest]', `resolveListContainers: descriptor[${i}] - NO RANGE FOUND`, {
+        componentId: descriptor.componentId,
+        hasOverride: Boolean(overrides?.get(descriptor.componentId)),
+        hasComponentRange: Boolean(getComponentRange(descriptor.componentId)),
+      });
       continue;
     }
+    Logger.debug('[Manifest]', `resolveListContainers: descriptor[${i}] - found range`, {
+      componentId: descriptor.componentId,
+      range,
+      atRoot: descriptor.atRoot,
+    });
     if (descriptor.atRoot) {
       const element = resolveRangeContainerElement(range);
       if (element) {
+        Logger.debug('[Manifest]', `resolveListContainers: descriptor[${i}] - resolved atRoot element`, {
+          slotId,
+          elementNodeName: element.nodeName,
+        });
         containers.set(slotId, element);
+      } else {
+        Logger.debug('[Manifest]', `resolveListContainers: descriptor[${i}] - atRoot but no container element`);
       }
       continue;
     }
     const node = resolveNodeBySegments(range, descriptor.path);
+    Logger.debug('[Manifest]', `resolveListContainers: descriptor[${i}] - resolved node by segments`, {
+      nodeType: node?.nodeName,
+      isElement: node instanceof Element,
+    });
     if (!(node instanceof Element)) {
+      Logger.debug('[Manifest]', `resolveListContainers: descriptor[${i}] - node not an Element, skipping`);
       continue;
     }
     containers.set(slotId, node);
+    Logger.debug('[Manifest]', `resolveListContainers: descriptor[${i}] - SUCCESS`, {
+      slotId,
+      elementNodeName: node.nodeName,
+    });
   }
+  Logger.debug('[Manifest]', 'resolveListContainers END', { containerCount: containers.size });
   return containers;
 }
 
@@ -226,13 +282,15 @@ function resolveNodeBySegments(
     return root;
   }
   let current: Node | null = null;
+  let activeRange: ComponentRange = range;
+
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
     if (!segment) {
       continue;
     }
     if (segment.kind === 'range') {
-      current = resolveRangeChild(range, segment.index);
+      current = resolveRangeChild(activeRange, segment.index);
       Logger.debug('[Manifest]', 'resolveNodeBySegments: range segment', {
         step: i,
         offset: segment.index,
@@ -241,10 +299,28 @@ function resolveNodeBySegments(
       if (!current) {
         return null;
       }
+      // After resolving a range segment, if current is an Element/Fragment,
+      // create a new range context for potential subsequent segments
+      if (current instanceof Element || current instanceof DocumentFragment) {
+        activeRange = {
+          container: current,
+          startIndex: 0,
+          endIndex: current.childNodes.length - 1,
+        };
+      } else if (i < segments.length - 1) {
+        // If we resolved to a non-Element/Fragment and there are more segments,
+        // fail now since we can't navigate further from text nodes, etc.
+        Logger.debug('[Manifest]', 'resolveNodeBySegments: range resolved to non-Element with remaining segments', {
+          step: i,
+          current: current?.nodeName,
+          remainingSegments: segments.length - 1 - i,
+        });
+        return null;
+      }
       continue;
     }
     if (!current) {
-      current = resolveRangeChild(range, segment.index);
+      current = resolveRangeChild(activeRange, segment.index);
       Logger.debug('[Manifest]', 'resolveNodeBySegments: selecting top-level child', {
         step: i,
         offset: segment.index,

@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"fmt"
+	"log"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -416,11 +417,9 @@ func (s *ComponentSession) ResolveAttrPromotion(componentID string, path []int, 
 	key := promotionPathKey(path)
 	values := cloneStringMap(attrs)
 
-	// Lock state for entire slot access
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
-	// Ensure slot exists
 	if state.attrs == nil {
 		state.attrs = make(map[string]*attrPromotionSlot)
 	}
@@ -1438,12 +1437,20 @@ func (s *ComponentSession) prepareComponentBoots(requests map[string]*componentB
 		if len(slotPaths) > 0 {
 			update.slotPaths = encodeSlotPaths(slotPaths)
 		}
+		log.Printf("DEBUG filterListPaths: componentID=%s span=[%d:%d] next.ListPaths len=%d", id, span.DynamicsStart, span.DynamicsEnd, len(next.ListPaths))
+		for i, lp := range next.ListPaths {
+			log.Printf("  ListPath[%d]: ComponentID=%s Slot=%d AtRoot=%t", i, lp.ComponentID, lp.Slot, lp.AtRoot)
+		}
 		listPaths := filterListPathsForComponent(next.ListPaths, id, span)
+		log.Printf("DEBUG after filter: listPaths len=%d", len(listPaths))
 		if dynListPaths := collectListPathsFromDynamics(dynamicsSlice); len(dynListPaths) > 0 {
 			listPaths = append(listPaths, dynListPaths...)
 		}
 		if len(listPaths) > 0 {
+			log.Printf("DEBUG encoding %d listPaths for component %s", len(listPaths), id)
 			update.listPaths = encodeListPaths(listPaths)
+		} else {
+			log.Printf("DEBUG no listPaths to encode for component %s", id)
 		}
 		componentPaths := filterComponentPathsForSpan(next.ComponentPaths, span, next.Components)
 		if dynComponentPaths := collectComponentPathsFromDynamics(dynamicsSlice); len(dynComponentPaths) > 0 {

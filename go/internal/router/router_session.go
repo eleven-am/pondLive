@@ -56,40 +56,6 @@ func loadSessionRouterEntry(sess *runtime.ComponentSession) *sessionEntry {
 	return &state.entry
 }
 
-// Link placeholder accessors
-
-func storeLinkPlaceholder(sess *runtime.ComponentSession, frag *h.FragmentNode, node *linkNode) {
-	if sess == nil || frag == nil || node == nil {
-		return
-	}
-	if state := ensureRouterState(sess); state != nil {
-		state.linkPlaceholders.Store(frag, node)
-	}
-}
-
-func takeLinkPlaceholder(sess *runtime.ComponentSession, frag *h.FragmentNode) (*linkNode, bool) {
-	if sess == nil || frag == nil {
-		return nil, false
-	}
-	if state := loadRouterState(sess); state != nil {
-		if value, ok := state.linkPlaceholders.LoadAndDelete(frag); ok {
-			if node, okCast := value.(*linkNode); okCast {
-				return node, true
-			}
-		}
-	}
-	return nil, false
-}
-
-func clearLinkPlaceholder(sess *runtime.ComponentSession, frag *h.FragmentNode) {
-	if sess == nil || frag == nil {
-		return
-	}
-	if state := loadRouterState(sess); state != nil {
-		state.linkPlaceholders.Delete(frag)
-	}
-}
-
 // Routes placeholder accessors
 
 func storeRoutesPlaceholder(sess *runtime.ComponentSession, frag *h.FragmentNode, node *routesNode) {

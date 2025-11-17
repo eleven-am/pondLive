@@ -1,5 +1,7 @@
 package render
 
+import "log"
+
 type PathCalculator struct {
 	componentStack []componentFrame
 	componentPath  []int
@@ -109,7 +111,10 @@ func (pc *PathCalculator) CurrentComponentPath() []int {
 	if len(pc.componentStack) == 0 {
 		return nil
 	}
-	return append([]int(nil), pc.componentPath...)
+
+	result := make([]int, len(pc.componentPath))
+	copy(result, pc.componentPath)
+	return result
 }
 
 func (pc *PathCalculator) CurrentComponentBasePath() []int {
@@ -131,15 +136,24 @@ func (pc *PathCalculator) currentAbsolutePath() []int {
 
 func (pc *PathCalculator) RecordListPath(listSlot int, frame *elementFrame) {
 	if frame != nil && frame.componentID != "" {
+		log.Printf("PATH DEBUG: RecordListPath slot=%d componentID=%s", listSlot, frame.componentID)
+		log.Printf("PATH DEBUG:   frame.basePath=%v", frame.basePath)
+		log.Printf("PATH DEBUG:   frame.componentPath=%v", frame.componentPath)
+		if frame.element != nil {
+			log.Printf("PATH DEBUG:   frame.element=%s", frame.element.Tag)
+		}
+		path := combineTypedPath(frame.basePath, frame.componentPath)
+		log.Printf("PATH DEBUG:   combined path=%v", path)
 		pc.listPaths = append(pc.listPaths, ListPath{
 			Slot:        listSlot,
 			ComponentID: frame.componentID,
-			Path:        combineTypedPath(frame.basePath, frame.componentPath),
+			Path:        path,
 		})
 		return
 	}
 
 	if componentID := pc.CurrentComponentID(); componentID != "" {
+		log.Printf("PATH DEBUG: RecordListPath slot=%d componentID=%s (AtRoot)", listSlot, componentID)
 		pc.listPaths = append(pc.listPaths, ListPath{
 			Slot:        listSlot,
 			ComponentID: componentID,

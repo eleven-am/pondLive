@@ -31,7 +31,6 @@ type sessionEntry struct {
 
 type routerSessionState struct {
 	entry              sessionEntry
-	linkPlaceholders   sync.Map // *h.FragmentNode -> *linkNode
 	routesPlaceholders sync.Map // *h.FragmentNode -> *routesNode
 }
 
@@ -107,10 +106,16 @@ func requireRouterState(ctx Ctx) routerState {
 				loc := entry.navigation.loc
 				setter := entry.handlers.set
 				entry.mu.Unlock()
-				if setter != nil {
+
+				if loc.Path != "" {
+
+					setFunc := setter
+					if setFunc == nil {
+						setFunc = func(Location) {}
+					}
 					return routerState{
 						getLoc: func() Location { return cloneLocation(loc) },
-						setLoc: setter,
+						setLoc: setFunc,
 					}
 				}
 			}
