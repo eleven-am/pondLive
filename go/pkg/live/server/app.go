@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/eleven-am/pondlive/go/internal/runtime"
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	livehttp "github.com/eleven-am/pondlive/go/internal/server/http"
+	"github.com/eleven-am/pondlive/go/internal/session"
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
@@ -26,8 +26,8 @@ type Option func(*appOptions)
 
 type appOptions struct {
 	version        int
-	idGenerator    func(*http.Request) (runtime.SessionID, error)
-	session        *runtime.LiveSessionConfig
+	idGenerator    func(*http.Request) (session.SessionID, error)
+	session        *session.Config
 	clientAssetURL string
 	devMode        *bool
 }
@@ -42,7 +42,7 @@ func WithVersion(v int) Option {
 }
 
 // WithIDGenerator replaces the default session ID allocator.
-func WithIDGenerator(fn func(*http.Request) (runtime.SessionID, error)) Option {
+func WithIDGenerator(fn func(*http.Request) (session.SessionID, error)) Option {
 	return func(cfg *appOptions) {
 		if cfg != nil {
 			cfg.idGenerator = fn
@@ -51,7 +51,7 @@ func WithIDGenerator(fn func(*http.Request) (runtime.SessionID, error)) Option {
 }
 
 // WithSessionConfig applies runtime session settings such as TTL or frame history.
-func WithSessionConfig(cfg runtime.LiveSessionConfig) Option {
+func WithSessionConfig(cfg session.Config) Option {
 	return func(opts *appOptions) {
 		if opts == nil {
 			return
@@ -114,9 +114,9 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 		devMode = *applied.devMode
 	}
 
-	managerCfg := &livehttp.ManagerConfig{
-		Component:      adaptComponent(component),
-		ClientAssetURL: clientScriptPath(devMode),
+	managerCfg := &livehttp.Config[struct{}]{
+		Component:   adaptComponent(component),
+		ClientAsset: clientScriptPath(devMode),
 	}
 	if applied.version > 0 {
 		managerCfg.Version = applied.version
@@ -124,23 +124,22 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 	if applied.idGenerator != nil {
 		managerCfg.IDGenerator = applied.idGenerator
 	}
-	var sessionCfg *runtime.LiveSessionConfig
+	var sessionCfg *session.Config
 	if applied.session != nil {
 		clone := *applied.session
 		sessionCfg = &clone
 	}
 	if applied.devMode != nil {
 		if sessionCfg == nil {
-			sessionCfg = &runtime.LiveSessionConfig{}
+			sessionCfg = &session.Config{}
 		}
-		value := *applied.devMode
-		sessionCfg.DevMode = &value
+		sessionCfg.DevMode = *applied.devMode
 	}
 	if sessionCfg != nil {
 		managerCfg.Session = sessionCfg
 	}
 	if strings.TrimSpace(applied.clientAssetURL) != "" {
-		managerCfg.ClientAssetURL = applied.clientAssetURL
+		managerCfg.ClientAsset = applied.clientAssetURL
 	}
 
 	manager := livehttp.NewManager(managerCfg)
@@ -155,7 +154,7 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 	route := endpointFromPrefix(prefix)
 	manager.SetClientConfig(protocol.ClientConfig{Endpoint: route, UploadEndpoint: livehttp.UploadPathPrefix})
 
-	scriptPath := managerCfg.ClientAssetURL
+	scriptPath := managerCfg.ClientAsset
 	if strings.TrimSpace(scriptPath) == "" {
 		scriptPath = clientScriptPath(devMode)
 	}
@@ -178,12 +177,6 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 	mux.Handle("/", manager)
 
 	provider := pondEndpoint.PubsubProvider()
-	if provider != nil {
-		adapter := runtime.WrapPubsubProvider(provider)
-		runtime.SetDefaultPubsubPublisher(runtime.PubsubPublishFunc(adapter))
-	} else {
-		runtime.SetDefaultPubsubPublisher(nil)
-	}
 
 	return &App{handler: mux, provider: provider}, nil
 }

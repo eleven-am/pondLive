@@ -11,9 +11,9 @@ import (
 	"log"
 	"net/http"
 
+	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
-	ui "github.com/eleven-am/pondlive/go/pkg/live2"
-	liveserver "github.com/eleven-am/pondlive/go/pkg/live2/server"
+	liveserver "github.com/eleven-am/pondlive/go/pkg/live/server"
 )
 
 //go:embed public/*
