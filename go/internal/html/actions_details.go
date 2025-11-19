@@ -1,17 +1,17 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
 )
 
 // DetailsActions provides details-related DOM actions for details elements.
 // Embedded in refs for details elements.
-type DetailsActions[T dom.ElementDescriptor] struct {
-	ref *dom.ElementRef[T]
-	ctx dom.Dispatcher
+type DetailsActions[T dom2.ElementDescriptor] struct {
+	ref *dom2.ElementRef[T]
+	ctx dom2.Dispatcher
 }
 
-func NewDetailsActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *DetailsActions[T] {
+func NewDetailsActions[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Dispatcher) *DetailsActions[T] {
 	return &DetailsActions[T]{ref: ref, ctx: ctx}
 }
 
@@ -27,5 +27,5 @@ func NewDetailsActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.
 //	    h.P(h.Text("Hidden content")),
 //	))
 func (a *DetailsActions[T]) SetOpen(open bool) {
-	dom.DOMSet[T](a.ctx, a.ref, "open", open)
+	dom2.DOMSet[T](a.ctx, a.ref, "open", open)
 }

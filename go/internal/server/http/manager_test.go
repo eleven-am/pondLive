@@ -1,156 +1,133 @@
 package http
 
 import (
-	"io"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/eleven-am/pondlive/go/internal/dom2"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
-func appComponent(ctx runtime.Ctx, _ struct{}) h.Node {
-	// Access location directly from session for testing SSR
-	var tab string
-	if sess := ctx.Session(); sess != nil {
-		loc := runtime.InternalCurrentLocation(sess)
-		tab = loc.Query.Get("tab")
+func TestManagerServeHTTPFallbackDocument(t *testing.T) {
+	component := func(runtime.Ctx, struct{}) *dom2.StructuredNode {
+		return dom2.ElementNode("div").WithChildren(dom2.TextNode("fallback"))
 	}
-	runtime.UseMetadata(ctx, &runtime.Meta{
-		Title:       "Profile",
-		Description: "Viewing profile for user",
-		Meta: []h.MetaTag{{
-			Property: "og:title",
-			Content:  "Profile",
-		}},
-		Links: []h.LinkTag{{
-			Rel:  "canonical",
-			Href: "/users",
-		}},
-	})
-	return runtime.WithMetadata(
-		h.Div(
-			h.Data("id", ""),
-			h.Data("tab", tab),
-			h.Text("profile"),
-		),
-		&runtime.Meta{
-			Scripts: []h.ScriptTag{{
-				Src:   "https://cdn.example.com/analytics.js",
-				Defer: true,
-			}},
+
+	mgr := NewManager(&Config[struct{}]{
+		Component: component,
+		IDGenerator: func(*http.Request) (session.SessionID, error) {
+			return session.SessionID("sess-fallback"), nil
 		},
-	)
-}
-
-func TestManagerServeHTTP(t *testing.T) {
-	mgr := NewManager(&ManagerConfig{
-		IDGenerator: func(*http.Request) (runtime.SessionID, error) {
-			return runtime.SessionID("fixed"), nil
-		},
-		Component: appComponent,
 	})
-	mgr.SetClientConfig(protocol.ClientConfig{Endpoint: "/ws"})
 
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/users/42?tab=info", nil)
 	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/refs?q=1", nil)
 
 	mgr.ServeHTTP(rec, req)
 
-	res := rec.Result()
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", res.StatusCode)
-	}
-	if ct := res.Header.Get("Content-Type"); ct != "text/html; charset=utf-8" {
-		t.Fatalf("unexpected content type: %s", ct)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatalf("read body: %v", err)
-	}
-	content := string(body)
-	checks := map[string]string{
-		"doctype":         "<!DOCTYPE html>",
-		"htmlLang":        "<html lang=\"en\">",
-		"metaCharset":     "<meta charset=\"utf-8\">",
-		"metaViewport":    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
-		"title":           "<title>Profile</title>",
-		"description":     "<meta name=\"description\" content=\"Viewing profile for user\" data-live-head=\"description\" data-live-key=\"description\">",
-		"ogTitle":         "<meta content=\"Profile\" property=\"og:title\" data-live-head=\"meta\" data-live-key=\"meta:property:og:title\">",
-		"canonicalLink":   "<link rel=\"canonical\" href=\"/users\" data-live-head=\"link\" data-live-key=\"link:rel:canonical|href:/users\">",
-		"analyticsScript": "<script src=\"https://cdn.example.com/analytics.js\" defer data-live-head=\"script\" data-live-key=\"script:src:https://cdn.example.com/analytics.js\"></script>",
-		"bundleScript":    "<script src=\"/pondlive.js\" defer></script>",
-		"bootScript":      "<script id=\"live-boot\" type=\"application/json\">",
-		"bootSession":     "\"sid\":\"fixed\"",
-		"bootPath":        "\"path\":\"/users/42\"",
-	}
-	for name, needle := range checks {
-		if !strings.Contains(content, needle) {
-			t.Fatalf("expected SSR response to contain %s (%q), body=%s", name, needle, content)
-		}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<div>fallback</div>") {
+		t.Fatalf("expected body content to render, got %q", body)
 	}
 
-	if bodyIdx := strings.Index(content, "<script id=\"live-boot\""); bodyIdx != -1 {
-		if endIdx := strings.Index(content, "</body>"); endIdx != -1 && bodyIdx > endIdx {
-			t.Fatalf("expected boot script to appear before </body>, body=%s", content)
-		}
+	payload := extractBootPayload(t, body)
+	if payload.SID != "sess-fallback" {
+		t.Fatalf("expected sid sess-fallback, got %q", payload.SID)
 	}
-	if !strings.Contains(content, "\"endpoint\":\"/ws\"") {
-		t.Fatalf("expected boot payload to include client endpoint, body=%s", content)
+	if payload.Location.Path != "/refs" {
+		t.Fatalf("expected location path /refs, got %q", payload.Location.Path)
+	}
+	if payload.Location.Query != "q=1" {
+		t.Fatalf("expected location query q=1, got %q", payload.Location.Query)
+	}
+	if payload.HTML != "<div>fallback</div>" {
+		t.Fatalf("expected boot html to match body, got %q", payload.HTML)
 	}
 
-	sess, ok := mgr.Registry().Lookup(runtime.SessionID("fixed"))
-	if !ok {
-		t.Fatal("expected session to be registered")
-	}
-	loc := sess.Location()
-	if loc.Path != "/users/42" {
-		t.Fatalf("unexpected session path: %s", loc.Path)
-	}
-	if loc.Query != "tab=info" {
-		t.Fatalf("expected query to be tracked, got %q", loc.Query)
-	}
-	if len(loc.Params) != 0 {
-		t.Fatalf("expected route params to be empty, got %v", loc.Params)
+	if _, ok := mgr.Registry().Lookup(session.SessionID("sess-fallback")); !ok {
+		t.Fatalf("expected session registered in registry")
 	}
 }
 
-func TestManagerClientAssetOverride(t *testing.T) {
-	mgr := NewManager(&ManagerConfig{ClientAssetURL: "https://cdn.example.com/liveui.js", Component: appComponent})
+func TestManagerServeHTTPFullDocument(t *testing.T) {
+	component := func(runtime.Ctx, struct{}) *dom2.StructuredNode {
+		return dom2.ElementNode("html").WithChildren(
+			dom2.ElementNode("head").WithChildren(
+				dom2.ElementNode("title").WithChildren(dom2.TextNode("example")),
+			),
+			dom2.ElementNode("body").WithChildren(
+				dom2.ElementNode("div").WithChildren(dom2.TextNode("full-doc")),
+			),
+		)
+	}
 
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	mgr := NewManager(&Config[struct{}]{
+		Component: component,
+		IDGenerator: func(*http.Request) (session.SessionID, error) {
+			return session.SessionID("sess-full"), nil
+		},
+	})
+
 	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/full", nil)
 
 	mgr.ServeHTTP(rec, req)
 
-	res := rec.Result()
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatalf("read body: %v", err)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", rec.Code)
 	}
-	if !strings.Contains(string(body), "<script src=\"https://cdn.example.com/liveui.js\"></script>") {
-		t.Fatalf("expected custom asset script tag, body=%s", string(body))
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "<html>") {
+		t.Fatalf("expected html root to be preserved, got %q", body)
+	}
+
+	scriptIdx := strings.Index(body, `<script id="live-boot"`)
+	if scriptIdx == -1 {
+		t.Fatalf("expected boot script to be injected, got %q", body)
+	}
+
+	payload := extractBootPayload(t, body)
+	if payload.SID != "sess-full" {
+		t.Fatalf("expected sid sess-full, got %q", payload.SID)
+	}
+	if payload.HTML != "<div>full-doc</div>" {
+		t.Fatalf("expected boot html to match body content, got %q", payload.HTML)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(payload.Location.Path), "/full") {
+		t.Fatalf("expected location path /full, got %q", payload.Location.Path)
 	}
 }
 
-func TestManagerNoMatchReturns404(t *testing.T) {
-	mgr := NewManager(nil)
+func extractBootPayload(t *testing.T, document string) protocol.Boot {
+	t.Helper()
 
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
-	rec := httptest.NewRecorder()
-
-	mgr.ServeHTTP(rec, req)
-
-	res := rec.Result()
-	if res.StatusCode != http.StatusServiceUnavailable {
-		t.Fatalf("expected 503 when component is missing, got %d", res.StatusCode)
+	start := strings.Index(document, `<script id="live-boot"`)
+	if start == -1 {
+		t.Fatalf("boot script not found in document: %q", document)
 	}
+	open := strings.Index(document[start:], ">")
+	if open == -1 {
+		t.Fatalf("boot script missing closing bracket")
+	}
+	closeIdx := strings.Index(document[start+open:], "</script>")
+	if closeIdx == -1 {
+		t.Fatalf("boot script missing closing tag")
+	}
+	payload := document[start+open+1 : start+open+closeIdx]
+
+	var boot protocol.Boot
+	if err := json.Unmarshal([]byte(payload), &boot); err != nil {
+		t.Fatalf("failed to parse boot payload: %v", err)
+	}
+	return boot
 }

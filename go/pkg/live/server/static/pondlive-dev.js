@@ -1903,6 +1903,13 @@ var LiveUIModule = (() => {
         continue;
       }
       anchors.set(slotId, target);
+      Logger.debug("[Manifest]", "slot anchor resolved", {
+        slotId,
+        componentId: descriptor.componentId,
+        targetNode: target.nodeName,
+        path: descriptor.path,
+        textChildIndex: descriptor.textChildIndex
+      });
     }
     return anchors;
   }
@@ -2077,40 +2084,13 @@ var LiveUIModule = (() => {
       return root;
     }
     let current = null;
-    let activeRange = range;
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
       if (!segment) {
         continue;
       }
-      if (segment.kind === "range") {
-        current = resolveRangeChild(activeRange, segment.index);
-        Logger.debug("[Manifest]", "resolveNodeBySegments: range segment", {
-          step: i,
-          offset: segment.index,
-          node: current?.nodeName
-        });
-        if (!current) {
-          return null;
-        }
-        if (current instanceof Element || current instanceof DocumentFragment) {
-          activeRange = {
-            container: current,
-            startIndex: 0,
-            endIndex: current.childNodes.length - 1
-          };
-        } else if (i < segments.length - 1) {
-          Logger.debug("[Manifest]", "resolveNodeBySegments: range resolved to non-Element with remaining segments", {
-            step: i,
-            current: current?.nodeName,
-            remainingSegments: segments.length - 1 - i
-          });
-          return null;
-        }
-        continue;
-      }
       if (!current) {
-        current = resolveRangeChild(activeRange, segment.index);
+        current = resolveRangeChild(range, segment.index);
         Logger.debug("[Manifest]", "resolveNodeBySegments: selecting top-level child", {
           step: i,
           offset: segment.index,

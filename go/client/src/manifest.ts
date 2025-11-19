@@ -85,6 +85,13 @@ export function resolveSlotAnchors(
       continue;
     }
     anchors.set(slotId, target);
+    Logger.debug('[Manifest]', 'slot anchor resolved', {
+      slotId,
+      componentId: descriptor.componentId,
+      targetNode: target.nodeName,
+      path: descriptor.path,
+      textChildIndex: descriptor.textChildIndex,
+    });
   }
   return anchors;
 }
@@ -282,45 +289,14 @@ function resolveNodeBySegments(
     return root;
   }
   let current: Node | null = null;
-  let activeRange: ComponentRange = range;
 
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
     if (!segment) {
       continue;
     }
-    if (segment.kind === 'range') {
-      current = resolveRangeChild(activeRange, segment.index);
-      Logger.debug('[Manifest]', 'resolveNodeBySegments: range segment', {
-        step: i,
-        offset: segment.index,
-        node: current?.nodeName,
-      });
-      if (!current) {
-        return null;
-      }
-      // After resolving a range segment, if current is an Element/Fragment,
-      // create a new range context for potential subsequent segments
-      if (current instanceof Element || current instanceof DocumentFragment) {
-        activeRange = {
-          container: current,
-          startIndex: 0,
-          endIndex: current.childNodes.length - 1,
-        };
-      } else if (i < segments.length - 1) {
-        // If we resolved to a non-Element/Fragment and there are more segments,
-        // fail now since we can't navigate further from text nodes, etc.
-        Logger.debug('[Manifest]', 'resolveNodeBySegments: range resolved to non-Element with remaining segments', {
-          step: i,
-          current: current?.nodeName,
-          remainingSegments: segments.length - 1 - i,
-        });
-        return null;
-      }
-      continue;
-    }
     if (!current) {
-      current = resolveRangeChild(activeRange, segment.index);
+      current = resolveRangeChild(range, segment.index);
       Logger.debug('[Manifest]', 'resolveNodeBySegments: selecting top-level child', {
         step: i,
         offset: segment.index,

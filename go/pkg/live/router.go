@@ -5,7 +5,6 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/route"
 	"github.com/eleven-am/pondlive/go/internal/router"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -14,8 +13,6 @@ type (
 	RouteProps = router.RouteProps
 	LinkProps  = router.LinkProps
 	Match      = route.Match
-	NavMsg     = runtime.NavMsg
-	PopMsg     = runtime.PopMsg
 )
 
 var (
@@ -51,7 +48,7 @@ func Outlet(ctx Ctx) Node {
 }
 
 func Link(ctx Ctx, props LinkProps, children ...h.Item) Node {
-	return router.Link(ctx, props, children...)
+	return router.Link(ctx, props, h.Fragment(children...))
 }
 
 func Navigate(ctx Ctx, href string) {
@@ -197,53 +194,4 @@ func UseSearch(ctx Ctx) url.Values {
 //	}
 func UseSearchParam(ctx Ctx, key string) (func() []string, func([]string)) {
 	return router.UseSearchParam(ctx, key)
-}
-
-// UseMetadata sets document metadata (title, meta tags, etc.) for the current page.
-// Useful for SEO and dynamic page titles in single-page applications.
-//
-// Example - Set page title:
-//
-//	func BlogPost(ctx live.Ctx) h.Node {
-//	    post, _ := live.UseState(ctx, Post{})
-//	    postID := live.UseParam(ctx, "postID")
-//
-//	    live.UseEffect(ctx, func() live.Cleanup {
-//	        p, err := fetchPost(postID)
-//	        if err == nil {
-//	            post(p)
-//	        }
-//	        return nil
-//	    }, postID)
-//
-//	    live.UseMetadata(ctx, &live.Meta{
-//	        Title: post().Title + " - My Blog",
-//	    })
-//
-//	    return h.Article(
-//	        h.H1(h.Text(post().Title)),
-//	        h.P(h.Text(post().Content)),
-//	    )
-//	}
-//
-// Example - Full metadata with Open Graph tags:
-//
-//	func ProductPage(ctx live.Ctx) h.Node {
-//	    product, _ := live.UseState(ctx, Product{})
-//
-//	    live.UseMetadata(ctx, &live.Meta{
-//	        Title:       product().Name,
-//	        Description: product().Description,
-//	        Tags: []live.MetaTag{
-//	            {Property: "og:title", Content: product().Name},
-//	            {Property: "og:description", Content: product().Description},
-//	            {Property: "og:image", Content: product().ImageURL},
-//	            {Property: "og:type", Content: "product"},
-//	        },
-//	    })
-//
-//	    return h.Div(/* render product */)
-//	}
-func UseMetadata(ctx Ctx, meta *Meta) {
-	runtime.UseMetadata(ctx, meta)
 }

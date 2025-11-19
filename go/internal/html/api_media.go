@@ -1,12 +1,12 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
 )
 
 // MediaEvent represents media playback events (play, pause, timeupdate, volumechange, etc).
 type MediaEvent struct {
-	Event
+	dom2.Event
 	CurrentTime  float64 // Current playback position
 	Duration     float64 // Total duration
 	Volume       float64 // Volume level (0.0 to 1.0)
@@ -31,7 +31,7 @@ func (MediaEvent) props() []string {
 	}
 }
 
-func buildMediaEvent(evt Event) MediaEvent {
+func buildMediaEvent(evt dom2.Event) MediaEvent {
 	detail := extractDetail(evt.Payload)
 	return MediaEvent{
 		Event:        evt,
@@ -65,12 +65,12 @@ func buildMediaEvent(evt Event) MediaEvent {
 //	    h.Attach(videoRef),
 //	    h.Src("/movie.mp4"),
 //	)
-type MediaAPI[T dom.ElementDescriptor] struct {
-	ref *dom.ElementRef[T]
-	ctx dom.Dispatcher
+type MediaAPI[T dom2.ElementDescriptor] struct {
+	ref *dom2.ElementRef[T]
+	ctx dom2.Dispatcher
 }
 
-func NewMediaAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *MediaAPI[T] {
+func NewMediaAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Dispatcher) *MediaAPI[T] {
 	return &MediaAPI[T]{ref: ref, ctx: ctx}
 }
 
@@ -94,7 +94,7 @@ func NewMediaAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispat
 // Note: Modern browsers may block autoplay with audio. Consider handling OnPlay/OnPause
 // events to update UI state based on actual playback state changes.
 func (a *MediaAPI[T]) Play() {
-	dom.DOMCall[T](a.ctx, a.ref, "play")
+	dom2.DOMCall[T](a.ctx, a.ref, "play")
 }
 
 // Pause pauses playback of the media element.
@@ -112,7 +112,7 @@ func (a *MediaAPI[T]) Play() {
 //
 // Note: Pause is always successful, unlike Play() which may be blocked by browsers.
 func (a *MediaAPI[T]) Pause() {
-	dom.DOMCall[T](a.ctx, a.ref, "pause")
+	dom2.DOMCall[T](a.ctx, a.ref, "pause")
 }
 
 // Load reloads the media element, resetting it to the initial state and restarting the resource selection.
@@ -131,7 +131,7 @@ func (a *MediaAPI[T]) Pause() {
 // Note: Load() resets the element to HAVE_NOTHING state and begins resource selection from scratch.
 // Any playback progress is lost. Use this sparingly as it interrupts the user experience.
 func (a *MediaAPI[T]) Load() {
-	dom.DOMCall[T](a.ctx, a.ref, "load")
+	dom2.DOMCall[T](a.ctx, a.ref, "load")
 }
 
 // SetCurrentTime seeks to a specific time position in the media, measured in seconds.
@@ -156,7 +156,7 @@ func (a *MediaAPI[T]) Load() {
 // Note: Seeking triggers "seeking" and "seeked" events. The actual seek may take time
 // depending on whether the target position is buffered. Check evt.Seeking in OnSeeking events.
 func (a *MediaAPI[T]) SetCurrentTime(seconds float64) {
-	dom.DOMSet[T](a.ctx, a.ref, "currentTime", seconds)
+	dom2.DOMSet[T](a.ctx, a.ref, "currentTime", seconds)
 }
 
 // SetVolume sets the audio volume level from 0.0 (silent) to 1.0 (maximum).
@@ -175,7 +175,7 @@ func (a *MediaAPI[T]) SetCurrentTime(seconds float64) {
 // Note: Volume only affects audio output, not the muted state. A muted element with
 // volume 1.0 will still be silent. Triggers "volumechange" event.
 func (a *MediaAPI[T]) SetVolume(volume float64) {
-	dom.DOMSet[T](a.ctx, a.ref, "volume", volume)
+	dom2.DOMSet[T](a.ctx, a.ref, "volume", volume)
 }
 
 // SetMuted controls whether the media element's audio is muted.
@@ -198,7 +198,7 @@ func (a *MediaAPI[T]) SetVolume(volume float64) {
 // Note: Muting is independent of volume. A muted element with volume 1.0 is silent.
 // Unmuting restores the previous volume level. Triggers "volumechange" event.
 func (a *MediaAPI[T]) SetMuted(muted bool) {
-	dom.DOMSet[T](a.ctx, a.ref, "muted", muted)
+	dom2.DOMSet[T](a.ctx, a.ref, "muted", muted)
 }
 
 // SetPlaybackRate sets the speed at which media plays. 1.0 is normal speed, 2.0 is double speed,
@@ -217,7 +217,7 @@ func (a *MediaAPI[T]) SetMuted(muted bool) {
 // Note: Not all rates are supported on all platforms. Typical range is 0.25 to 4.0.
 // Triggers "ratechange" event when changed. Audio pitch is usually preserved.
 func (a *MediaAPI[T]) SetPlaybackRate(rate float64) {
-	dom.DOMSet[T](a.ctx, a.ref, "playbackRate", rate)
+	dom2.DOMSet[T](a.ctx, a.ref, "playbackRate", rate)
 }
 
 // ============================================================================
@@ -369,11 +369,11 @@ func (a *MediaAPI[T]) PlaybackRate() (float64, error) {
 //	})
 //
 //	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
-func (a *MediaAPI[T]) OnPlay(handler func(MediaEvent) Updates) {
+func (a *MediaAPI[T]) OnPlay(handler func(MediaEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildMediaEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMediaEvent(evt)) }
 	a.ref.AddListener("play", wrapped, MediaEvent{}.props())
 }
 
@@ -388,11 +388,11 @@ func (a *MediaAPI[T]) OnPlay(handler func(MediaEvent) Updates) {
 //	})
 //
 //	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
-func (a *MediaAPI[T]) OnPause(handler func(MediaEvent) Updates) {
+func (a *MediaAPI[T]) OnPause(handler func(MediaEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildMediaEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMediaEvent(evt)) }
 	a.ref.AddListener("pause", wrapped, MediaEvent{}.props())
 }
 
@@ -407,11 +407,11 @@ func (a *MediaAPI[T]) OnPause(handler func(MediaEvent) Updates) {
 //	})
 //
 //	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
-func (a *MediaAPI[T]) OnEnded(handler func(MediaEvent) Updates) {
+func (a *MediaAPI[T]) OnEnded(handler func(MediaEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildMediaEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMediaEvent(evt)) }
 	a.ref.AddListener("ended", wrapped, MediaEvent{}.props())
 }
 
@@ -426,11 +426,11 @@ func (a *MediaAPI[T]) OnEnded(handler func(MediaEvent) Updates) {
 //	})
 //
 //	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
-func (a *MediaAPI[T]) OnSeeking(handler func(MediaEvent) Updates) {
+func (a *MediaAPI[T]) OnSeeking(handler func(MediaEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildMediaEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMediaEvent(evt)) }
 	a.ref.AddListener("seeking", wrapped, MediaEvent{}.props())
 }
 
@@ -445,11 +445,11 @@ func (a *MediaAPI[T]) OnSeeking(handler func(MediaEvent) Updates) {
 //	})
 //
 //	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
-func (a *MediaAPI[T]) OnSeeked(handler func(MediaEvent) Updates) {
+func (a *MediaAPI[T]) OnSeeked(handler func(MediaEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildMediaEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMediaEvent(evt)) }
 	a.ref.AddListener("seeked", wrapped, MediaEvent{}.props())
 }
 
@@ -464,11 +464,11 @@ func (a *MediaAPI[T]) OnSeeked(handler func(MediaEvent) Updates) {
 //	})
 //
 //	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
-func (a *MediaAPI[T]) OnRateChange(handler func(MediaEvent) Updates) {
+func (a *MediaAPI[T]) OnRateChange(handler func(MediaEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildMediaEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMediaEvent(evt)) }
 	a.ref.AddListener("ratechange", wrapped, MediaEvent{}.props())
 }
 
@@ -484,11 +484,11 @@ func (a *MediaAPI[T]) OnRateChange(handler func(MediaEvent) Updates) {
 //	})
 //
 //	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
-func (a *MediaAPI[T]) OnTimeUpdate(handler func(MediaEvent) Updates) {
+func (a *MediaAPI[T]) OnTimeUpdate(handler func(MediaEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildMediaEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMediaEvent(evt)) }
 	a.ref.AddListener("timeupdate", wrapped, MediaEvent{}.props())
 }
 
@@ -503,11 +503,11 @@ func (a *MediaAPI[T]) OnTimeUpdate(handler func(MediaEvent) Updates) {
 //	})
 //
 //	return h.Audio(h.Attach(audioRef), h.Src("/music.mp3"))
-func (a *MediaAPI[T]) OnVolumeChange(handler func(MediaEvent) Updates) {
+func (a *MediaAPI[T]) OnVolumeChange(handler func(MediaEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildMediaEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMediaEvent(evt)) }
 	a.ref.AddListener("volumechange", wrapped, MediaEvent{}.props())
 }
 
@@ -531,7 +531,7 @@ type TimeRanges struct {
 // This shows which portions of the media have been downloaded/buffered.
 // This makes a synchronous call to the client and waits for the response.
 func (a *MediaAPI[T]) GetBuffered() (*TimeRanges, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getBuffered")
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "getBuffered")
 	if err != nil {
 		return nil, err
 	}
@@ -568,7 +568,7 @@ func (a *MediaAPI[T]) GetBuffered() (*TimeRanges, error) {
 // GetPlayed returns the time ranges that have been played.
 // This makes a synchronous call to the client and waits for the response.
 func (a *MediaAPI[T]) GetPlayed() (*TimeRanges, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getPlayed")
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "getPlayed")
 	if err != nil {
 		return nil, err
 	}
@@ -606,7 +606,7 @@ func (a *MediaAPI[T]) GetPlayed() (*TimeRanges, error) {
 // This shows which portions of the media can be seeked to.
 // This makes a synchronous call to the client and waits for the response.
 func (a *MediaAPI[T]) GetSeekable() (*TimeRanges, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getSeekable")
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "getSeekable")
 	if err != nil {
 		return nil, err
 	}
@@ -644,7 +644,7 @@ func (a *MediaAPI[T]) GetSeekable() (*TimeRanges, error) {
 // Returns: 0=NETWORK_EMPTY, 1=NETWORK_IDLE, 2=NETWORK_LOADING, 3=NETWORK_NO_SOURCE
 // This makes a synchronous call to the client and waits for the response.
 func (a *MediaAPI[T]) GetNetworkState() (int, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "networkState")
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "networkState")
 	if err != nil {
 		return 0, err
 	}
@@ -663,7 +663,7 @@ func (a *MediaAPI[T]) GetNetworkState() (int, error) {
 // Returns: 0=HAVE_NOTHING, 1=HAVE_METADATA, 2=HAVE_CURRENT_DATA, 3=HAVE_FUTURE_DATA, 4=HAVE_ENOUGH_DATA
 // This makes a synchronous call to the client and waits for the response.
 func (a *MediaAPI[T]) GetReadyState() (int, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "readyState")
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "readyState")
 	if err != nil {
 		return 0, err
 	}

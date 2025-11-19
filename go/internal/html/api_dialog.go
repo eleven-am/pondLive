@@ -1,12 +1,12 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
 )
 
 // DialogEvent represents dialog events (close, cancel).
 type DialogEvent struct {
-	Event
+	dom2.Event
 }
 
 // props returns the list of properties this event needs from the client.
@@ -14,19 +14,19 @@ func (DialogEvent) props() []string {
 	return []string{}
 }
 
-func buildDialogEvent(evt Event) DialogEvent {
+func buildDialogEvent(evt dom2.Event) DialogEvent {
 	return DialogEvent{
 		Event: evt,
 	}
 }
 
 // DialogAPI provides actions and events for dialog elements.
-type DialogAPI[T dom.ElementDescriptor] struct {
-	ref *dom.ElementRef[T]
-	ctx dom.Dispatcher
+type DialogAPI[T dom2.ElementDescriptor] struct {
+	ref *dom2.ElementRef[T]
+	ctx dom2.Dispatcher
 }
 
-func NewDialogAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *DialogAPI[T] {
+func NewDialogAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Dispatcher) *DialogAPI[T] {
 	return &DialogAPI[T]{ref: ref, ctx: ctx}
 }
 
@@ -43,7 +43,7 @@ func NewDialogAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispa
 //
 //	return h.Dialog(h.Attach(dialogRef), h.Text("Non-modal dialog"))
 func (a *DialogAPI[T]) Show() {
-	dom.DOMCall[T](a.ctx, a.ref, "show")
+	dom2.DOMCall[T](a.ctx, a.ref, "show")
 }
 
 // ShowModal displays the dialog modally with backdrop and focus trap.
@@ -56,7 +56,7 @@ func (a *DialogAPI[T]) Show() {
 //
 //	return h.Dialog(h.Attach(dialogRef), h.Text("Modal dialog"))
 func (a *DialogAPI[T]) ShowModal() {
-	dom.DOMCall[T](a.ctx, a.ref, "showModal")
+	dom2.DOMCall[T](a.ctx, a.ref, "showModal")
 }
 
 // Close closes the dialog with an optional return value.
@@ -70,9 +70,9 @@ func (a *DialogAPI[T]) ShowModal() {
 //	return h.Dialog(h.Attach(dialogRef), h.Text("Dialog content"))
 func (a *DialogAPI[T]) Close(returnValue string) {
 	if returnValue == "" {
-		dom.DOMCall[T](a.ctx, a.ref, "close")
+		dom2.DOMCall[T](a.ctx, a.ref, "close")
 	} else {
-		dom.DOMCall[T](a.ctx, a.ref, "close", returnValue)
+		dom2.DOMCall[T](a.ctx, a.ref, "close", returnValue)
 	}
 }
 
@@ -91,11 +91,11 @@ func (a *DialogAPI[T]) Close(returnValue string) {
 //	})
 //
 //	return h.Dialog(h.Attach(dialogRef), h.Text("Dialog content"))
-func (a *DialogAPI[T]) OnClose(handler func(DialogEvent) Updates) {
+func (a *DialogAPI[T]) OnClose(handler func(DialogEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildDialogEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildDialogEvent(evt)) }
 	a.ref.AddListener("close", wrapped, DialogEvent{}.props())
 }
 
@@ -114,10 +114,10 @@ func (a *DialogAPI[T]) OnClose(handler func(DialogEvent) Updates) {
 //	})
 //
 //	return h.Dialog(h.Attach(dialogRef), h.Text("Dialog content"))
-func (a *DialogAPI[T]) OnCancel(handler func(DialogEvent) Updates) {
+func (a *DialogAPI[T]) OnCancel(handler func(DialogEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildDialogEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildDialogEvent(evt)) }
 	a.ref.AddListener("cancel", wrapped, DialogEvent{}.props())
 }

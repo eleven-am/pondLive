@@ -1,7 +1,7 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
 )
 
 // DOMRect represents the size and position of an element's bounding box.
@@ -51,12 +51,12 @@ type WindowMetrics struct {
 //	fmt.Printf("Element at (%f, %f) with size %fx%f\n", rect.X, rect.Y, rect.Width, rect.Height)
 //
 //	return h.Div(h.Attach(divRef), h.Text("Container"))
-type ElementActions[T dom.ElementDescriptor] struct {
-	ref *dom.ElementRef[T]
-	ctx dom.Dispatcher
+type ElementActions[T dom2.ElementDescriptor] struct {
+	ref *dom2.ElementRef[T]
+	ctx dom2.Dispatcher
 }
 
-func NewElementActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *ElementActions[T] {
+func NewElementActions[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Dispatcher) *ElementActions[T] {
 	return &ElementActions[T]{ref: ref, ctx: ctx}
 }
 
@@ -78,7 +78,7 @@ func NewElementActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.
 // Note: This method provides no type safety. Use typed API methods when available.
 // Arguments are serialized to JSON and sent to the client, so ensure they're JSON-serializable.
 func (a *ElementActions[T]) Call(method string, args ...any) {
-	dom.DOMCall[T](a.ctx, a.ref, method, args...)
+	dom2.DOMCall[T](a.ctx, a.ref, method, args...)
 }
 
 // GetBoundingClientRect returns the size and position of the element relative to the viewport.
@@ -112,7 +112,7 @@ func (a *ElementActions[T]) Call(method string, args ...any) {
 // Note: Coordinates are relative to the viewport, not the document. For document-relative
 // positions, add window scroll offsets (scrollX, scrollY) to the returned values.
 func (a *ElementActions[T]) GetBoundingClientRect() (*DOMRect, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getBoundingClientRect")
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "getBoundingClientRect")
 	if err != nil {
 		return nil, err
 	}
@@ -173,27 +173,27 @@ func (a *ElementActions[T]) GetBoundingClientRect() (*DOMRect, error) {
 // Note: For non-scrollable elements, ScrollHeight/Width equals ClientHeight/Width and
 // ScrollTop/Left will be 0. Use this to detect if an element is scrollable.
 func (a *ElementActions[T]) GetScrollMetrics() (*ScrollMetrics, error) {
-	scrollTop, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollTop")
+	scrollTop, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "scrollTop")
 	if err != nil {
 		return nil, err
 	}
-	scrollLeft, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollLeft")
+	scrollLeft, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "scrollLeft")
 	if err != nil {
 		return nil, err
 	}
-	scrollHeight, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollHeight")
+	scrollHeight, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "scrollHeight")
 	if err != nil {
 		return nil, err
 	}
-	scrollWidth, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollWidth")
+	scrollWidth, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "scrollWidth")
 	if err != nil {
 		return nil, err
 	}
-	clientHeight, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "clientHeight")
+	clientHeight, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "clientHeight")
 	if err != nil {
 		return nil, err
 	}
-	clientWidth, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "clientWidth")
+	clientWidth, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "clientWidth")
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func payloadFloatDirect(value any, defaultValue float64) float64 {
 // Note: Computed styles are the final values after CSS cascade, inheritance, and defaults.
 // Use camelCase for multi-word properties (e.g., "backgroundColor" not "background-color").
 func (a *ElementActions[T]) GetComputedStyle(properties ...string) (map[string]string, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getComputedStyle", properties)
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "getComputedStyle", properties)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +296,7 @@ func (a *ElementActions[T]) GetComputedStyle(properties ...string) (map[string]s
 // An element can be "visible" according to this method but scrolled out of view.
 // Use GetBoundingClientRect() to check viewport visibility.
 func (a *ElementActions[T]) CheckVisibility() (bool, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "checkVisibility")
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "checkVisibility")
 	if err != nil {
 		return false, err
 	}
@@ -341,7 +341,7 @@ func (a *ElementActions[T]) CheckVisibility() (bool, error) {
 // Note: This is equivalent to element.matches(selector) in JavaScript. The selector is evaluated
 // in the browser, so all standard CSS selectors including pseudo-classes are supported.
 func (a *ElementActions[T]) Matches(selector string) (bool, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "matches", selector)
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "matches", selector)
 	if err != nil {
 		return false, err
 	}

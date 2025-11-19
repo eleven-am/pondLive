@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
+	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
 // CookiePath is the fixed endpoint the client uses to negotiate HttpOnly cookie updates.
-const CookiePath = runtime.CookieEndpointPath
+const CookiePath = "/pondlive/cookie"
 
 // CookieHandler delivers pending HttpOnly cookie mutations to clients on behalf of a session.
 type CookieHandler struct {
@@ -31,38 +31,38 @@ type cookiePayload struct {
 // ServeHTTP accepts POST requests that acknowledge a pending cookie batch.
 func (h *CookieHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h == nil || h.registry == nil {
-		http.Error(w, "live: cookie handler not available", http.StatusServiceUnavailable)
+		http.Error(w, "server: cookie handler not available", http.StatusServiceUnavailable)
 		return
 	}
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		http.Error(w, "live: unsupported method", http.StatusMethodNotAllowed)
+		http.Error(w, "server: unsupported method", http.StatusMethodNotAllowed)
 		return
 	}
 	defer r.Body.Close()
 
 	var payload cookiePayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "live: invalid cookie payload", http.StatusBadRequest)
+		http.Error(w, "server: invalid cookie payload", http.StatusBadRequest)
 		return
 	}
 
 	sid := strings.TrimSpace(payload.SID)
 	token := strings.TrimSpace(payload.Token)
 	if sid == "" || token == "" {
-		http.Error(w, "live: invalid cookie payload", http.StatusBadRequest)
+		http.Error(w, "server: invalid cookie payload", http.StatusBadRequest)
 		return
 	}
 
-	session, ok := h.registry.Lookup(runtime.SessionID(sid))
-	if !ok || session == nil {
-		http.Error(w, "live: session not found", http.StatusNotFound)
+	sess, ok := h.registry.Lookup(session.SessionID(sid))
+	if !ok || sess == nil {
+		http.Error(w, "server: session not found", http.StatusNotFound)
 		return
 	}
 
-	batch, ok := session.ConsumeCookieBatch(token)
+	batch, ok := sess.ConsumeCookieBatch(token)
 	if !ok {
-		http.Error(w, "live: cookie batch not found", http.StatusNotFound)
+		http.Error(w, "server: cookie batch not found", http.StatusNotFound)
 		return
 	}
 

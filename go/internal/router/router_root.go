@@ -3,8 +3,8 @@ package router
 import (
 	"sync"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 // Type aliases for convenience
@@ -18,7 +18,11 @@ type routerState struct {
 	setLoc func(Location)
 }
 
-var routerStateCtx = runtime.NewContext(routerState{})
+// RouterStateCtx is the context for providing router state to child components
+var RouterStateCtx = runtime.CreateContext[routerState](routerState{})
+
+// SessionEntryCtx provides router session data (navigation, params, handlers)
+var SessionEntryCtx = runtime.CreateContext[*sessionEntry](nil)
 
 type sessionEntry struct {
 	mu sync.Mutex
@@ -27,11 +31,6 @@ type sessionEntry struct {
 	navigation sessionNavigation
 	params     sessionParamStore
 	render     sessionRenderState
-}
-
-type routerSessionState struct {
-	entry              sessionEntry
-	routesPlaceholders sync.Map // *h.FragmentNode -> *routesNode
 }
 
 type sessionHandlers struct {
@@ -59,158 +58,83 @@ type sessionRenderState struct {
 }
 
 type routerProps struct {
-	Children []h.Node
+	Children []*dom2.StructuredNode
 }
 
-func Router(ctx Ctx, children ...h.Node) h.Node {
+func Router(ctx Ctx, children ...*dom2.StructuredNode) *dom2.StructuredNode {
 	return runtime.Render(ctx, routerComponent, routerProps{Children: children})
 }
 
-func routerComponent(ctx Ctx, props routerProps) h.Node {
+func routerComponent(ctx Ctx, props routerProps) *dom2.StructuredNode {
+	entry := &sessionEntry{}
+
 	sess := ctx.Session()
-	initial := initialLocation(sess)
+	initial := getInitialLocationFromSession(sess)
+
 	get, set := runtime.UseState(ctx, initial, runtime.WithEqual(LocEqual))
-	assign := func(next Location) {
-		canon := canonicalizeLocation(next)
-		set(canon)
-	}
 
 	state := routerState{}
 	state.getLoc = func() Location { return cloneLocation(get()) }
 	state.setLoc = func(next Location) {
 		canon := canonicalizeLocation(next)
 		set(canon)
-		storeSessionLocation(sess, canon)
 	}
 
-	entry := registerSessionEntry(sess, state.getLoc, state.setLoc, assign)
+	entry.mu.Lock()
+	entry.handlers.get = state.getLoc
+	entry.handlers.set = state.setLoc
+	entry.render.active = true
+	entry.navigation.loc = get()
+	entry.mu.Unlock()
+
+	runtime.UseEffect(ctx, func() runtime.Cleanup {
+		return func() {
+			entry.mu.Lock()
+			entry.render.active = false
+			entry.mu.Unlock()
+		}
+	})
+
 	current := state.getLoc()
-	storeSessionLocation(sess, current)
-	if entry != nil {
-		setSessionRendering(sess, true)
-		defer setSessionRendering(sess, false)
-	}
-	return routerStateCtx.Provide(ctx, state, func() h.Node {
-		return LocationCtx.Provide(ctx, current, func() h.Node {
-			return renderRouterChildren(ctx, props.Children...)
+
+	return SessionEntryCtx.Provide(ctx, entry, func(ectx runtime.Ctx) *dom2.StructuredNode {
+		return RouterStateCtx.Provide(ectx, state, func(rctx runtime.Ctx) *dom2.StructuredNode {
+			return LocationCtx.Provide(rctx, current, func(lctx runtime.Ctx) *dom2.StructuredNode {
+				return renderRouterChildren(lctx, props.Children...)
+			})
 		})
 	})
 }
 
 func requireRouterState(ctx Ctx) routerState {
-	state := routerStateCtx.Use(ctx)
+	state := RouterStateCtx.Use(ctx)
 	if state.getLoc == nil || state.setLoc == nil {
-		if sess := ctx.Session(); sess != nil {
-			if entry := loadSessionRouterEntry(sess); entry != nil {
-				entry.mu.Lock()
-				loc := entry.navigation.loc
-				setter := entry.handlers.set
-				entry.mu.Unlock()
 
-				if loc.Path != "" {
+		if entry := loadSessionRouterEntry(ctx); entry != nil {
+			entry.mu.Lock()
+			loc := entry.navigation.loc
+			setter := entry.handlers.set
+			entry.mu.Unlock()
 
-					setFunc := setter
-					if setFunc == nil {
-						setFunc = func(Location) {}
-					}
-					return routerState{
-						getLoc: func() Location { return cloneLocation(loc) },
-						setLoc: setFunc,
-					}
+			if loc.Path != "" {
+				setFunc := setter
+				if setFunc == nil {
+					setFunc = func(Location) {}
+				}
+				return routerState{
+					getLoc: func() Location { return cloneLocation(loc) },
+					setLoc: setFunc,
 				}
 			}
 		}
+
 		panic(ErrMissingRouter)
 	}
 	return state
 }
 
-func registerSessionEntry(sess *runtime.ComponentSession, get func() Location, set func(Location), assign func(Location)) *sessionEntry {
-	if sess == nil {
-		return nil
-	}
-	entry := ensureSessionRouterEntry(sess)
-	entry.mu.Lock()
-	entry.handlers.get = get
-	entry.handlers.set = set
-	entry.handlers.assign = assign
-	entry.mu.Unlock()
-	return entry
-}
-
-func requestTemplateReset(sess *runtime.ComponentSession) {
-	if sess == nil {
-		return
-	}
-	sess.RequestTemplateReset()
-}
-
-func setSessionRendering(sess *runtime.ComponentSession, active bool) {
-	if sess == nil {
-		return
-	}
-	if entry := loadSessionRouterEntry(sess); entry != nil {
-		entry.mu.Lock()
-		entry.render.active = active
-		entry.mu.Unlock()
-	}
-}
-
-func sessionRendering(sess *runtime.ComponentSession) bool {
-	if sess == nil {
-		return false
-	}
-	if entry := loadSessionRouterEntry(sess); entry != nil {
-		entry.mu.Lock()
-		defer entry.mu.Unlock()
-		return entry.render.active
-	}
-	return false
-}
-
-func storeSessionLocation(sess *runtime.ComponentSession, loc Location) {
-	if sess == nil {
-		return
-	}
-	canon := canonicalizeLocation(loc)
-	if entry := ensureSessionRouterEntry(sess); entry != nil {
-		entry.mu.Lock()
-		entry.navigation.loc = canon
-		entry.params.values = nil
-		entry.mu.Unlock()
-	}
-	if owner := sess.Owner(); owner != nil {
-		owner.SetRoute(canon.Path, encodeQuery(canon.Query), nil)
-	}
-}
-
-func currentSessionLocation(sess *runtime.ComponentSession) Location {
-	if sess == nil {
-		return canonicalizeLocation(Location{Path: "/"})
-	}
-	if entry := loadSessionRouterEntry(sess); entry != nil {
-		entry.mu.Lock()
-		loc := entry.navigation.loc
-		entry.mu.Unlock()
-		if loc.Path != "" {
-			return canonicalizeLocation(loc)
-		}
-	}
-	return canonicalizeLocation(Location{Path: "/"})
-}
-
-func initialLocation(sess *runtime.ComponentSession) Location {
-	if loc, ok := consumeSeed(sess); ok {
-		return canonicalizeLocation(loc)
-	}
-	return currentSessionLocation(sess)
-}
-
-func storeSessionParams(sess *runtime.ComponentSession, params map[string]string) {
-	if sess == nil {
-		return
-	}
-	if entry := ensureSessionRouterEntry(sess); entry != nil {
+func storeSessionParams(ctx runtime.Ctx, params map[string]string) {
+	if entry := ensureSessionRouterEntry(ctx); entry != nil {
 		entry.mu.Lock()
 		if len(params) == 0 {
 			entry.params.values = nil
@@ -219,35 +143,4 @@ func storeSessionParams(sess *runtime.ComponentSession, params map[string]string
 		}
 		entry.mu.Unlock()
 	}
-}
-
-func sessionParams(sess *runtime.ComponentSession) map[string]string {
-	if sess == nil {
-		return nil
-	}
-	if entry := loadSessionRouterEntry(sess); entry != nil {
-		entry.mu.Lock()
-		defer entry.mu.Unlock()
-		if len(entry.params.values) == 0 {
-			return map[string]string{}
-		}
-		return copyParams(entry.params.values)
-	}
-	return map[string]string{}
-}
-
-// SeedSessionParams pre-populates the parameter map used by UseParams during hydration.
-// InternalSeedSessionParams records route params during SSR boot. Internal use only.
-func InternalSeedSessionParams(sess *runtime.ComponentSession, params map[string]string) {
-	if sess == nil {
-		return
-	}
-	entry := ensureSessionRouterEntry(sess)
-	entry.mu.Lock()
-	if len(params) == 0 {
-		entry.params.values = nil
-	} else {
-		entry.params.values = copyParams(params)
-	}
-	entry.mu.Unlock()
 }

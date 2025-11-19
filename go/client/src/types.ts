@@ -87,7 +87,7 @@ export interface SlotMeta {
 }
 
 export interface PathSegmentDescriptor {
-  kind: 'range' | 'dom';
+  kind: 'dom';
   index: number;
 }
 

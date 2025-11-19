@@ -1,63 +1,72 @@
 package html
 
-import internalhtml "github.com/eleven-am/pondlive/go/internal/html"
-
-var (
-	Text                   = internalhtml.Text
-	Textf                  = internalhtml.Textf
-	Fragment               = internalhtml.Fragment
-	Comment                = internalhtml.Comment
-	WrapComponent          = internalhtml.WrapComponent
-	If                     = internalhtml.If
-	IfFn                   = internalhtml.IfFn
-	Ternary                = internalhtml.Ternary
-	TernaryFn              = internalhtml.TernaryFn
-	Attr                   = internalhtml.Attr
-	MutableAttr            = internalhtml.MutableAttr
-	ID                     = internalhtml.ID
-	Href                   = internalhtml.Href
-	Src                    = internalhtml.Src
-	Target                 = internalhtml.Target
-	Rel                    = internalhtml.Rel
-	Title                  = internalhtml.Title
-	Alt                    = internalhtml.Alt
-	Type                   = internalhtml.Type
-	Value                  = internalhtml.Value
-	Name                   = internalhtml.Name
-	Data                   = internalhtml.Data
-	Aria                   = internalhtml.Aria
-	Class                  = internalhtml.Class
-	Style                  = internalhtml.Style
-	Key                    = internalhtml.Key
-	RouterMeta             = internalhtml.RouterMeta
-	UnsafeHTML             = internalhtml.UnsafeHTML
-	On                     = internalhtml.On
-	OnWith                 = internalhtml.OnWith
-	Rerender               = internalhtml.Rerender
-	RenderHTML             = internalhtml.RenderHTML
-	ComponentStartMarker   = internalhtml.ComponentStartMarker
-	ComponentEndMarker     = internalhtml.ComponentEndMarker
-	ComponentCommentPrefix = internalhtml.ComponentCommentPrefix
-	MetaTags               = internalhtml.MetaTags
-	LinkTags               = internalhtml.LinkTags
-	ScriptTags             = internalhtml.ScriptTags
-	PayloadString          = internalhtml.PayloadString
+import (
+	"github.com/eleven-am/pondlive/go/internal/dom2"
+	internalhtml "github.com/eleven-am/pondlive/go/internal/html"
 )
 
-func Map[T any](xs []T, render func(T) Node) Item {
-	return internalhtml.Map(xs, render)
+var (
+	// Core builders from internal/html
+	Text          = internalhtml.Text
+	Textf         = internalhtml.Textf
+	Comment       = internalhtml.Comment
+	WrapComponent = internalhtml.WrapComponent
+	If            = internalhtml.If
+	IfFn          = internalhtml.IfFn
+	Ternary       = internalhtml.Ternary
+	TernaryFn     = internalhtml.TernaryFn
+
+	// Props from dom2
+	Attr   = dom2.Attr
+	ID     = dom2.ID
+	Href   = dom2.Href
+	Src    = dom2.Src
+	Target = dom2.Target
+	Rel    = dom2.Rel
+	Title  = dom2.Title
+	Alt    = dom2.Alt
+	Type   = dom2.Type
+	Value  = dom2.Value
+	Name   = dom2.Name
+	Data   = dom2.Data
+	Aria   = dom2.Aria
+	Class  = dom2.Class
+	Style  = dom2.Style
+	Key    = dom2.Key
+	Upload = dom2.Upload
+
+	// Event and state
+	Rerender = dom2.Rerender
+)
+
+// Prop type from dom2
+type Prop = dom2.Prop
+
+// Map renders a slice into a fragment using render.
+func Map[T any](xs []T, render func(T) Node) Node {
+	return internalhtml.Map(xs, func(t T) dom2.Item {
+		return render(t)
+	})
 }
 
-func MapIdx[T any](xs []T, render func(int, T) Node) Item {
-	return internalhtml.MapIdx(xs, render)
+// MapIdx renders a slice with index-aware render function.
+func MapIdx[T any](xs []T, render func(int, T) Node) Node {
+	return internalhtml.MapIdx(xs, func(i int, t T) dom2.Item {
+		return render(i, t)
+	})
 }
 
-func NewElementRef[T ElementDescriptor](id string, descriptor T) *ElementRef[T] {
-	return internalhtml.NewElementRef(id, descriptor)
+// RenderHTML renders a node to HTML string.
+func RenderHTML(n Node) string {
+	return n.ToHTML()
 }
 
-type Attachment = internalhtml.Attachment
+// Attach binds an element ref to the element. This is a wrapper around dom2.Attach.
+func Attach[T dom2.ElementDescriptor](ref *dom2.ElementRef[T]) Prop {
+	return dom2.Attach(ref)
+}
 
-func Attach(target Attachment) Prop {
-	return internalhtml.Attach(target)
+// Fragment creates a fragment node.
+func Fragment(children ...Item) Node {
+	return internalhtml.Fragment(children...)
 }

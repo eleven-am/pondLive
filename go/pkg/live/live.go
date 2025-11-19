@@ -1,10 +1,10 @@
 package live
 
 import (
-	"context"
-
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/session"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -18,26 +18,17 @@ type (
 	ElementDescriptor                 = h.ElementDescriptor
 	Node                              = h.Node
 	Context[T any]                    = runtime.Context[T]
-	SessionID                         = runtime.SessionID
+	SessionID                         = session.SessionID
 	Session                           = runtime.ComponentSession
-	Meta                              = runtime.Meta
-	RenderResult                      = runtime.RenderResult
-	ScrollOptions                     = dom.ScrollOptions
+	ScrollOptions                     = dom2.ScrollOptions
 	PubsubMessage[T any]              = runtime.PubsubMessage[T]
 	PubsubHandle[T any]               = runtime.PubsubHandle[T]
-	PubsubPublisher                   = runtime.PubsubPublisher
-	PubsubPublishFunc                 = runtime.PubsubPublishFunc
 	PubsubOption[T any]               = runtime.PubsubOption[T]
-	Pubsub[T any]                     = runtime.Pubsub[T]
 	StreamItem[T any]                 = runtime.StreamItem[T]
 	StreamHandle[T any]               = runtime.StreamHandle[T]
 	RuntimeComponent[P any]           = runtime.Component[P]
-	StyleLookup                       = runtime.StyleLookup
-	StyleRule                         = runtime.StyleRule
-)
-
-var (
-	Rule = runtime.Rule
+	NavMsg                            = router.NavMsg
+	PopMsg                            = router.PopMsg
 )
 
 // Component wraps a stateless component function so it can be invoked directly
@@ -225,59 +216,6 @@ func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
 	runtime.UseEffect(ctx, setup, deps...)
 }
 
-// UseStyles provides component-scoped CSS that doesn't collide with other components.
-// It returns a StyleLookup that maps selectors to scoped class/ID names.
-//
-// Example:
-//
-//	func Card(ctx live.Ctx) h.Node {
-//	    style := live.UseStyles(ctx, `
-//	        .card { padding: 1rem; background: white; }
-//	        .title { font-size: 1.5rem; color: #333; }
-//	        .card:hover { background: #f5f5f5; }
-//	    `)
-//
-//	    return h.Div(
-//	        style.StyleTag(),  // Injects scoped <style> tag
-//	        h.Div(h.Class(style(".card")),
-//	            h.H1(h.Class(style(".title")), h.Text("Hello")),
-//	        ),
-//	    )
-//	}
-//
-// The CSS is automatically scoped to the component using a hash suffix:
-//
-//	.card becomes .card-abc123 (unique per component)
-//	.title becomes .title-abc123
-//
-// This prevents style collisions between components even if they use the same class names.
-func UseStyles(ctx Ctx, css string) StyleLookup {
-	return runtime.UseStyles(ctx, css)
-}
-
-// UseStyleRules provides component-scoped CSS using structured Rule objects.
-// This is a more structured alternative to UseStyles for programmatic style generation.
-//
-// Example:
-//
-//	func Card(ctx live.Ctx) h.Node {
-//	    style := live.UseStyleRules(ctx,
-//	        live.Rule(".card", "padding: 1rem; background: white;"),
-//	        live.Rule(".title", "font-size: 1.5rem; color: #333;"),
-//	        live.Rule(".card:hover", "background: #f5f5f5;"),
-//	    )
-//
-//	    return h.Div(
-//	        style.StyleTag(),
-//	        h.Div(h.Class(style(".card")),
-//	            h.H1(h.Class(style(".title")), h.Text("Hello")),
-//	        ),
-//	    )
-//	}
-func UseStyleRules(ctx Ctx, rules ...StyleRule) StyleLookup {
-	return runtime.UseStyleRules(ctx, rules...)
-}
-
 // UseRef returns a pointer holding mutable state that persists across renders.
 // It's ideal for tracking DOM handles or other imperative data without triggering rerenders.
 //
@@ -368,40 +306,6 @@ type hookable[R any] interface {
 //
 //	    return h.Div(h.Attach(divRef), h.Text("Scrollable content"))
 //	}
-func UseElement[R hookable[R]](ctx Ctx) R {
-	var zero R
-	return zero.HookBuild(ctx)
-}
-
-// DOMCall enqueues a client-side invocation of the provided DOM method on the ref.
-func DOMCall[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], method string, args ...any) {
-	dom.DOMCall[T](ctx, ref.DOMElementRef(), method, args...)
-}
-
-// DOMSet assigns a property on the referenced DOM node.
-func DOMSet[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], prop string, value any) {
-	dom.DOMSet[T](ctx, ref.DOMElementRef(), prop, value)
-}
-
-// DOMToggle sets a boolean property on the referenced DOM node.
-func DOMToggle[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], prop string, on bool) {
-	dom.DOMToggle[T](ctx, ref.DOMElementRef(), prop, on)
-}
-
-// DOMToggleClass toggles a CSS class on the referenced DOM node.
-func DOMToggleClass[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], class string, on bool) {
-	dom.DOMToggleClass[T](ctx, ref.DOMElementRef(), class, on)
-}
-
-// DOMScrollIntoView scrolls the referenced element into view using the provided options.
-func DOMScrollIntoView[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], opts ScrollOptions) {
-	dom.DOMScrollIntoView[T](ctx, ref.DOMElementRef(), opts)
-}
-
-// DOMGet retrieves DOM properties for the referenced element by delegating to the client runtime.
-func DOMGet[T h.ElementDescriptor](ctx Ctx, ref *ElementRef[T], selectors ...string) (map[string]any, error) {
-	return runtime.DOMGet[T](ctx, ref, selectors...)
-}
 
 // UseStream renders and manages a keyed list. It returns a fragment node and a
 // handle exposing mutation helpers for the backing collection. Each item must have
@@ -509,40 +413,9 @@ func WithEqual[T any](eq func(a, b T) bool) StateOpt[T] {
 //
 //	    return h.Span(h.Text(fmt.Sprintf("%d items", itemCount)))
 //	}
-func UseSelect[T any, U any](ctx Ctx, c Context[T], pick func(T) U, eq func(U, U) bool) U {
-	return runtime.UseSelect(ctx, c, pick, eq)
-}
-
+//
 // NewContext creates a context handle with a default value. Use Provide on the
 // returned context to supply overrides, and Use to read it down the tree.
-func NewContext[T any](def T) Context[T] {
-	return runtime.NewContext(def)
-}
-
-// WithMetadata couples a node with document metadata (title, meta tags, etc.).
-// Use it in layouts or top-level pages that set head information.
-func WithMetadata(body h.Node, meta *Meta) *RenderResult {
-	return runtime.WithMetadata(body, meta)
-}
-
-// MergeMeta merges metadata structs, preferring non-empty fields in overrides
-// and appending tag slices. Handy when combining layout- and page-level meta.
-func MergeMeta(base *Meta, overrides ...*Meta) *Meta {
-	return runtime.MergeMeta(base, overrides...)
-}
-
-func NewPubsub[T any](topic string, publisher PubsubPublisher, opts ...PubsubOption[T]) *Pubsub[T] {
-	return runtime.NewPubsub(topic, publisher, opts...)
-}
-
-func WithPubsubCodec[T any](encode func(T) ([]byte, error), decode func([]byte) (T, error)) PubsubOption[T] {
-	return runtime.WithPubsubCodec(encode, decode)
-}
-
-func WithPubsubProvider[T any](provider runtime.PubsubProvider) PubsubOption[T] {
-	return runtime.WithPubsubProvider[T](provider)
-}
-
-func WrapPubsubProvider(provider runtime.PubsubProvider) func(context.Context, string, []byte, map[string]string) error {
-	return runtime.WrapPubsubProvider(provider)
+func NewContext[T any](def T) *Context[T] {
+	return runtime.CreateContext(def)
 }

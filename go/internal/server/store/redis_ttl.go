@@ -9,7 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
 // RedisTTLStore uses a Redis sorted set to track session expirations.
@@ -26,7 +26,7 @@ func NewRedisTTLStore(client *redis.Client, key string) *RedisTTLStore {
 	return &RedisTTLStore{client: client, key: key}
 }
 
-func (s *RedisTTLStore) Touch(id runtime.SessionID, ttl time.Duration) error {
+func (s *RedisTTLStore) Touch(id session.SessionID, ttl time.Duration) error {
 	ctx := context.Background()
 	if ttl <= 0 {
 		return s.client.ZRem(ctx, s.key, string(id)).Err()
@@ -36,11 +36,11 @@ func (s *RedisTTLStore) Touch(id runtime.SessionID, ttl time.Duration) error {
 	return s.client.ZAdd(ctx, s.key, *z).Err()
 }
 
-func (s *RedisTTLStore) Remove(id runtime.SessionID) error {
+func (s *RedisTTLStore) Remove(id session.SessionID) error {
 	return s.client.ZRem(context.Background(), s.key, string(id)).Err()
 }
 
-func (s *RedisTTLStore) Expired(now time.Time) ([]runtime.SessionID, error) {
+func (s *RedisTTLStore) Expired(now time.Time) ([]session.SessionID, error) {
 	ctx := context.Background()
 	max := fmt.Sprintf("%d", now.UnixMilli())
 	members, err := s.client.ZRangeByScore(ctx, s.key, &redis.ZRangeBy{Min: "-inf", Max: max}).Result()
@@ -56,9 +56,9 @@ func (s *RedisTTLStore) Expired(now time.Time) ([]runtime.SessionID, error) {
 			return nil, err
 		}
 	}
-	ids := make([]runtime.SessionID, len(members))
+	ids := make([]session.SessionID, len(members))
 	for i, m := range members {
-		ids[i] = runtime.SessionID(m)
+		ids[i] = session.SessionID(m)
 	}
 	return ids, nil
 }

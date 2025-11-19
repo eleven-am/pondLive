@@ -3,14 +3,13 @@ package runtime
 import (
 	"errors"
 	"fmt"
-	"io"
 	"math"
-	"os"
-	"path/filepath"
 	"sync"
 
-	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
 )
+
+var ErrUploadTooLarge = errors.New("runtime2: upload exceeds limit")
 
 // UploadStatus enumerates the states an upload slot can be in.
 type UploadStatus string
@@ -24,8 +23,6 @@ const (
 	UploadStatusError      UploadStatus = "error"
 	UploadStatusCancelled  UploadStatus = "cancelled"
 )
-
-var ErrUploadTooLarge = errors.New("runtime: upload exceeds limit")
 
 // FileMeta describes the file selected in the browser before upload.
 type FileMeta struct {
@@ -43,129 +40,102 @@ type UploadProgress struct {
 	Error   error
 }
 
-// UploadedFile provides access to the staged upload on the server.
-type UploadedFile struct {
-	FileMeta
-	TempPath string
-	Reader   io.ReadSeekCloser
-}
-
 // UploadHandle exposes lifecycle controls for the upload hook.
 type UploadHandle struct {
 	slot *uploadSlot
 }
 
-// BindInput returns props that attach the upload slot metadata to an <input type="file"> element.
-func (handle UploadHandle) BindInput(props ...h.Prop) []h.Prop {
-	if handle.slot == nil {
-		if len(props) == 0 {
-			return nil
-		}
-		out := make([]h.Prop, len(props))
-		copy(out, props)
-		return out
-	}
-	out := make([]h.Prop, 0, len(props)+1)
-	out = append(out, h.Attach(handle))
-	out = append(out, props...)
-	return out
-}
-
-func (handle UploadHandle) AttachTo(el *h.Element) {
-	if handle.slot == nil || el == nil {
+// BindTo applies upload metadata to a StructuredNode (typically an input[type=file] element).
+func (h UploadHandle) BindTo(node *dom2.StructuredNode) {
+	if h.slot == nil || node == nil {
 		return
 	}
-	handle.slot.registerBinding(el)
+	h.slot.registerBinding(node)
 }
 
 // OnChange registers a callback invoked when the client picks a file.
-func (handle UploadHandle) OnChange(fn func(FileMeta)) {
-	if handle.slot == nil {
-		return
+func (h UploadHandle) OnChange(fn func(FileMeta)) {
+	if h.slot != nil {
+		h.slot.setOnChange(fn)
 	}
-	handle.slot.setOnChange(fn)
 }
 
-// OnComplete registers the callback fired after the file is uploaded and staged on the server.
-func (handle UploadHandle) OnComplete(fn func(UploadedFile) h.Updates) {
-	if handle.slot == nil {
-		return
+// OnComplete registers the callback fired after the file is uploaded and staged.
+func (h UploadHandle) OnComplete(fn func(FileMeta)) {
+	if h.slot != nil {
+		h.slot.setOnComplete(fn)
 	}
-	handle.slot.setOnComplete(fn)
 }
 
 // OnError registers a callback for terminal upload failures.
-func (handle UploadHandle) OnError(fn func(error) h.Updates) {
-	if handle.slot == nil {
-		return
+func (h UploadHandle) OnError(fn func(error)) {
+	if h.slot != nil {
+		h.slot.setOnError(fn)
 	}
-	handle.slot.setOnError(fn)
 }
 
 // Progress returns the most recent upload progress snapshot.
-func (handle UploadHandle) Progress() UploadProgress {
-	if handle.slot == nil {
+func (h UploadHandle) Progress() UploadProgress {
+	if h.slot == nil {
 		return UploadProgress{Status: UploadStatusIdle}
 	}
-	return handle.slot.progressSnapshot()
+	return h.slot.progressSnapshot()
 }
 
 // Cancel requests cancellation of the in-flight upload.
-func (handle UploadHandle) Cancel() {
-	if handle.slot == nil {
-		return
+func (h UploadHandle) Cancel() {
+	if h.slot != nil {
+		h.slot.requestCancel()
 	}
-	handle.slot.requestCancel()
 }
 
 // Accept overrides the accepted MIME types communicated to the browser input.
-func (handle UploadHandle) Accept(types ...string) {
-	if handle.slot == nil {
-		return
+func (h UploadHandle) Accept(types ...string) {
+	if h.slot != nil {
+		h.slot.setAccept(types)
 	}
-	handle.slot.setAccept(types)
 }
 
 // AllowMultiple toggles multiple file selection in the browser input.
-func (handle UploadHandle) AllowMultiple(enabled bool) {
-	if handle.slot == nil {
-		return
+func (h UploadHandle) AllowMultiple(enabled bool) {
+	if h.slot != nil {
+		h.slot.setMultiple(enabled)
 	}
-	handle.slot.setMultiple(enabled)
 }
 
 // MaxSize sets the maximum payload size (in bytes) enforced on the server.
-func (handle UploadHandle) MaxSize(limit int64) {
-	if handle.slot == nil {
-		return
+func (h UploadHandle) MaxSize(limit int64) {
+	if h.slot != nil {
+		h.slot.setMaxSize(limit)
 	}
-	handle.slot.setMaxSize(limit)
 }
 
 // UseUpload registers an upload slot for the current component.
 func UseUpload(ctx Ctx) UploadHandle {
 	if ctx.frame == nil {
-		panic("runtime: UseUpload called outside render")
+		panic("runtime2: UseUpload called outside render")
 	}
+
 	idx := ctx.frame.idx
 	ctx.frame.idx++
+
 	if idx >= len(ctx.frame.cells) {
 		cell := &uploadCell{}
 		ctx.frame.cells = append(ctx.frame.cells, cell)
 	}
+
 	raw := ctx.frame.cells[idx]
 	cell, ok := raw.(*uploadCell)
 	if !ok {
 		panicHookMismatch(ctx.comp, idx, "UseUpload", raw)
 	}
+
 	if ctx.sess != nil {
-		if cell.slot != nil && cell.slot.sess == nil {
-			cell.slot = ctx.sess.registerUploadSlot(ctx.comp, idx)
-		}
-		if cell.slot == nil {
+		if cell.slot == nil || cell.slot.sess == nil {
 			cell.slot = ctx.sess.registerUploadSlot(ctx.comp, idx)
 		}
 	}
+
 	return UploadHandle{slot: cell.slot}
 }
 
@@ -173,6 +143,7 @@ type uploadCell struct {
 	slot *uploadSlot
 }
 
+// uploadSlot tracks a single upload instance.
 type uploadSlot struct {
 	id        string
 	sess      *ComponentSession
@@ -184,8 +155,8 @@ type uploadSlot struct {
 	maxSize  int64
 
 	onChange   func(FileMeta)
-	onComplete func(UploadedFile) h.Updates
-	onError    func(error) h.Updates
+	onComplete func(FileMeta)
+	onError    func(error)
 
 	progress   UploadProgress
 	progressMu sync.RWMutex
@@ -193,48 +164,34 @@ type uploadSlot struct {
 	cancelled bool
 }
 
-func (slot *uploadSlot) registerBinding(el *h.Element) {
-	if slot == nil || el == nil || slot.id == "" {
+func (slot *uploadSlot) registerBinding(node *dom2.StructuredNode) {
+	if slot == nil || node == nil || slot.id == "" {
 		return
 	}
-	binding := h.UploadBinding{
+
+	binding := dom2.UploadBinding{
 		UploadID: slot.id,
 		Multiple: slot.multiple,
 		MaxSize:  slot.maxSize,
 	}
+
 	if len(slot.accept) > 0 {
 		binding.Accept = append([]string(nil), slot.accept...)
 	}
-	el.UploadBindings = append(el.UploadBindings, binding)
-	if len(binding.Accept) > 0 {
-		if el.Attrs == nil {
-			el.Attrs = map[string]string{}
-		}
-		el.Attrs["accept"] = joinStrings(binding.Accept, ",")
-	} else if el.Attrs != nil {
-		delete(el.Attrs, "accept")
-	}
-	if slot.multiple {
-		if el.Attrs == nil {
-			el.Attrs = map[string]string{}
-		}
-		el.Attrs["multiple"] = "multiple"
-	} else if el.Attrs != nil {
-		delete(el.Attrs, "multiple")
-	}
+
+	node.UploadBindings = append(node.UploadBindings, binding)
 }
 
 func (s *ComponentSession) registerUploadSlot(comp *component, index int) *uploadSlot {
 	if s == nil || comp == nil {
 		return nil
 	}
+
 	s.uploadMu.Lock()
 	defer s.uploadMu.Unlock()
-	if s.uploads == nil {
-		s.uploads = make(map[string]*uploadSlot)
-	}
-	s.uploadSeq++
-	id := fmt.Sprintf("u%d", s.uploadSeq)
+
+	id := fmt.Sprintf("%s:u%d", comp.id, index)
+
 	slot := &uploadSlot{
 		id:        id,
 		sess:      s,
@@ -242,32 +199,9 @@ func (s *ComponentSession) registerUploadSlot(comp *component, index int) *uploa
 		hookIndex: index,
 		progress:  UploadProgress{Status: UploadStatusIdle},
 	}
-	if s.uploadByComponent == nil {
-		s.uploadByComponent = make(map[*component]map[int]*uploadSlot)
-	}
-	compSlots := s.uploadByComponent[comp]
-	if compSlots == nil {
-		compSlots = make(map[int]*uploadSlot)
-		s.uploadByComponent[comp] = compSlots
-	}
-	compSlots[index] = slot
+
 	s.uploads[id] = slot
 	return slot
-}
-
-func (s *ComponentSession) releaseUploadSlots(comp *component) {
-	if s == nil || comp == nil {
-		return
-	}
-	s.uploadMu.Lock()
-	slots := s.uploadByComponent[comp]
-	delete(s.uploadByComponent, comp)
-	s.uploadMu.Unlock()
-	for _, slot := range slots {
-		if slot != nil {
-			slot.dispose()
-		}
-	}
 }
 
 func (s *ComponentSession) findUploadSlot(id string) *uploadSlot {
@@ -280,29 +214,19 @@ func (s *ComponentSession) findUploadSlot(id string) *uploadSlot {
 	return slot
 }
 
-func (slot *uploadSlot) dispose() {
-	if slot == nil || slot.sess == nil {
-		return
-	}
-	slot.sess.uploadMu.Lock()
-	delete(slot.sess.uploads, slot.id)
-	slot.sess.uploadMu.Unlock()
-	slot.sess = nil
-}
-
 func (slot *uploadSlot) setOnChange(fn func(FileMeta)) {
 	slot.progressMu.Lock()
 	slot.onChange = fn
 	slot.progressMu.Unlock()
 }
 
-func (slot *uploadSlot) setOnComplete(fn func(UploadedFile) h.Updates) {
+func (slot *uploadSlot) setOnComplete(fn func(FileMeta)) {
 	slot.progressMu.Lock()
 	slot.onComplete = fn
 	slot.progressMu.Unlock()
 }
 
-func (slot *uploadSlot) setOnError(fn func(error) h.Updates) {
+func (slot *uploadSlot) setOnError(fn func(error)) {
 	slot.progressMu.Lock()
 	slot.onError = fn
 	slot.progressMu.Unlock()
@@ -340,10 +264,12 @@ func (slot *uploadSlot) updateProgress(update func(*UploadProgress)) {
 	if slot == nil {
 		return
 	}
+
 	slot.progressMu.Lock()
 	update(&slot.progress)
 	slot.progressMu.Unlock()
-	if slot.sess != nil {
+
+	if slot.sess != nil && slot.component != nil {
 		slot.sess.markDirty(slot.component)
 	}
 }
@@ -352,6 +278,7 @@ func (slot *uploadSlot) beginUpload(meta FileMeta) {
 	slot.progressMu.Lock()
 	slot.cancelled = false
 	slot.progressMu.Unlock()
+
 	slot.updateProgress(func(p *UploadProgress) {
 		p.Status = UploadStatusUploading
 		p.Total = meta.Size
@@ -411,6 +338,7 @@ func (slot *uploadSlot) requestCancel() {
 	if slot == nil || slot.sess == nil {
 		return
 	}
+
 	slot.progressMu.Lock()
 	if slot.cancelled {
 		slot.progressMu.Unlock()
@@ -418,61 +346,68 @@ func (slot *uploadSlot) requestCancel() {
 	}
 	slot.cancelled = true
 	slot.progressMu.Unlock()
+
 	slot.cancel()
-	if sess := slot.sess.owner; sess != nil {
-		_ = sess.CancelUpload(slot.id)
-	}
 }
 
 func (slot *uploadSlot) handleChange(meta FileMeta) {
 	if slot == nil {
 		return
 	}
+
 	slot.beginUpload(meta)
+
 	slot.progressMu.RLock()
 	handler := slot.onChange
 	slot.progressMu.RUnlock()
+
 	if handler != nil {
 		handler(meta)
 	}
 }
 
-func (slot *uploadSlot) handleError(err error) h.Updates {
+func (slot *uploadSlot) handleError(err error) {
 	if slot == nil {
-		return nil
+		return
 	}
+
 	slot.fail(err)
+
 	slot.progressMu.RLock()
 	handler := slot.onError
 	slot.progressMu.RUnlock()
+
 	if handler != nil {
-		return handler(err)
+		handler(err)
 	}
-	return nil
 }
 
-func (slot *uploadSlot) handleComplete(file UploadedFile) h.Updates {
+func (slot *uploadSlot) handleComplete(file FileMeta) {
 	if slot == nil {
-		return nil
+		return
 	}
+
 	slot.processing()
+
 	slot.progressMu.RLock()
 	handler := slot.onComplete
 	slot.progressMu.RUnlock()
-	if handler == nil {
-		slot.complete()
-		return nil
+
+	if handler != nil {
+		handler(file)
 	}
-	updates := handler(file)
+
 	slot.complete()
-	return updates
 }
+
+// ComponentSession upload event handlers
 
 func (s *ComponentSession) HandleUploadChange(id string, meta FileMeta) {
 	slot := s.findUploadSlot(id)
 	if slot == nil {
 		return
 	}
+
 	s.withRecovery("upload:change", func() error {
 		slot.handleChange(meta)
 		return nil
@@ -492,95 +427,30 @@ func (s *ComponentSession) HandleUploadError(id string, err error) {
 	if slot == nil {
 		return
 	}
-	if updates := slot.handleError(err); updates != nil {
-		s.markDirty(slot.component)
-	}
+	slot.handleError(err)
 }
 
-func (s *ComponentSession) HandleUploadCancelled(id string) {
+func (s *ComponentSession) HandleUploadComplete(id string, file FileMeta) {
 	slot := s.findUploadSlot(id)
 	if slot == nil {
 		return
 	}
-	slot.cancel()
-}
 
-func (s *ComponentSession) CompleteUpload(id string, file UploadedFile) (h.Updates, error) {
-	slot := s.findUploadSlot(id)
-	if slot == nil {
-		if file.Reader != nil {
-			_ = file.Reader.Close()
-		}
-		if file.TempPath != "" {
-			_ = os.Remove(file.TempPath)
-		}
-		return nil, errors.New("runtime: upload slot not found")
-	}
-	var updates h.Updates
-	err := s.withRecovery("upload:complete", func() error {
-		updates = slot.handleComplete(file)
+	s.withRecovery("upload:complete", func() error {
+		slot.handleComplete(file)
 		return nil
 	})
-	if updates != nil {
-		s.markDirty(slot.component)
-	}
-	return updates, err
 }
 
-// UploadMaxSize reports the configured server-side size limit for the slot, if any.
 func (s *ComponentSession) UploadMaxSize(id string) (int64, bool) {
 	slot := s.findUploadSlot(id)
 	if slot == nil {
 		return 0, false
 	}
+
 	slot.progressMu.RLock()
 	limit := slot.maxSize
 	slot.progressMu.RUnlock()
+
 	return limit, true
-}
-
-func joinStrings(values []string, sep string) string {
-	if len(values) == 0 {
-		return ""
-	}
-	out := ""
-	for i, v := range values {
-		if i > 0 {
-			out += sep
-		}
-		out += v
-	}
-	return out
-}
-
-func StageUploadedFile(part io.Reader, filename, contentType string, sizeLimit int64) (UploadedFile, error) {
-	if part == nil {
-		return UploadedFile{}, errors.New("runtime: missing upload payload")
-	}
-	dir := os.TempDir()
-	file, err := os.CreateTemp(dir, "pond-upload-*")
-	if err != nil {
-		return UploadedFile{}, fmt.Errorf("runtime: create temp file: %w", err)
-	}
-	var written int64
-	if sizeLimit > 0 {
-		written, err = io.Copy(file, io.LimitReader(part, sizeLimit+1))
-		if err == nil && written > sizeLimit {
-			err = ErrUploadTooLarge
-		}
-	} else {
-		written, err = io.Copy(file, part)
-	}
-	if err != nil {
-		_ = file.Close()
-		_ = os.Remove(file.Name())
-		return UploadedFile{}, err
-	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		_ = file.Close()
-		_ = os.Remove(file.Name())
-		return UploadedFile{}, err
-	}
-	meta := FileMeta{Name: filepath.Base(filename), Size: written, Type: contentType}
-	return UploadedFile{FileMeta: meta, TempPath: file.Name(), Reader: file}, nil
 }

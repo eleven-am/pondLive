@@ -7,14 +7,13 @@ package main
 import (
 	"context"
 	"embed"
-	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
 
-	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
-	liveserver "github.com/eleven-am/pondlive/go/pkg/live/server"
+	ui "github.com/eleven-am/pondlive/go/pkg/live2"
+	liveserver "github.com/eleven-am/pondlive/go/pkg/live2/server"
 )
 
 //go:embed public/*
@@ -46,39 +45,20 @@ func main() {
 	}
 }
 
-func counter(ctx ui.Ctx) h.Node {
+func counter(ctx ui.Ctx) ui.Node {
 	count, setCount := ui.UseState(ctx, 0)
-	ui.UseMetadata(ctx, &ui.Meta{
-		Title:       fmt.Sprintf("LiveUI Tailwind Counter: %d", count()),
-		Description: "A simple counter example using LiveUI and TailwindCSS.",
-		Meta:        nil,
-		Links: []h.LinkTag{
-			{
-				Rel:  "stylesheet",
-				Href: "/static/tailwind.css",
-			},
-		},
-		Scripts: nil,
-	})
 
-	buttonRef := ui.UseElement[*h.ButtonRef](ctx)
-	buttonRef.OnClick(func(evt h.ClickEvent) h.Updates {
+	decRef := ui.UseElement[*h.ButtonRef](ctx)
+	decRef.OnClick(func(evt h.ClickEvent) h.Updates {
 		setCount(count() - 1)
-		rect, _ := buttonRef.GetBoundingClientRect()
-		fmt.Printf("Decrement button clicked: %v\n", rect)
 		return nil
 	})
 
-	buttonRef.On("click", func(evt h.Event) h.Updates {
-		setCount(count() - 1)
-		fmt.Printf("Decrement button clicked %v\n", evt)
-		return nil
-	})
-
-	increment := func(h.Event) h.Updates {
+	incRef := ui.UseElement[*h.ButtonRef](ctx)
+	incRef.OnClick(func(evt h.ClickEvent) h.Updates {
 		setCount(count() + 1)
 		return nil
-	}
+	})
 
 	return h.Div(
 		h.Class("bg-slate-900", "text-slate-100", "min-h-screen", "flex", "items-center", "justify-center"),
@@ -100,7 +80,7 @@ func counter(ctx ui.Ctx) h.Node {
 				h.Button(
 					h.Class("bg-slate-700", "hover:bg-slate-600", "text-lg", "font-medium", "px-4", "py-2", "rounded-xl", "transition"),
 					h.Attr("type", "button"),
-					h.Attach(buttonRef),
+					h.Attach(decRef),
 					h.Text("-"),
 				),
 				h.Div(
@@ -110,7 +90,7 @@ func counter(ctx ui.Ctx) h.Node {
 				h.Button(
 					h.Class("bg-indigo-500", "hover:bg-indigo-400", "text-lg", "font-medium", "px-4", "py-2", "rounded-xl", "transition"),
 					h.Attr("type", "button"),
-					h.On("click", increment),
+					h.Attach(incRef),
 					h.Text("+"),
 				),
 			),

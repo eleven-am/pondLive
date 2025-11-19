@@ -1,6 +1,10 @@
 package html
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/eleven-am/pondlive/go/internal/dom2"
+)
 
 func TestTernary(t *testing.T) {
 	trueNode := Text("true")
@@ -31,11 +35,11 @@ func TestTernaryFn(t *testing.T) {
 	falseCalls := 0
 
 	got := TernaryFn(true,
-		func() Node {
+		func() dom2.Item {
 			trueCalls++
 			return trueNode
 		},
-		func() Node {
+		func() dom2.Item {
 			falseCalls++
 			return falseNode
 		},
@@ -50,11 +54,11 @@ func TestTernaryFn(t *testing.T) {
 	}
 
 	got = TernaryFn(false,
-		func() Node {
+		func() dom2.Item {
 			trueCalls++
 			return trueNode
 		},
-		func() Node {
+		func() dom2.Item {
 			falseCalls++
 			return falseNode
 		},
@@ -73,7 +77,7 @@ func TestTernaryFn(t *testing.T) {
 	}
 
 	if _, ok := TernaryFn(false,
-		func() Node { return trueNode },
+		func() dom2.Item { return trueNode },
 		nil,
 	).(noopNode); !ok {
 		t.Fatalf("expected noop when false function missing")

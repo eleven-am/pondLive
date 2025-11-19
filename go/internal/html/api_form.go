@@ -1,12 +1,12 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
 )
 
 // FormEvent represents form events (submit, reset, invalid).
 type FormEvent struct {
-	Event
+	dom2.Event
 }
 
 // props returns the list of properties this event needs from the client.
@@ -14,19 +14,19 @@ func (FormEvent) props() []string {
 	return []string{}
 }
 
-func buildFormEvent(evt Event) FormEvent {
+func buildFormEvent(evt dom2.Event) FormEvent {
 	return FormEvent{
 		Event: evt,
 	}
 }
 
 // FormAPI provides actions and events for form elements.
-type FormAPI[T dom.ElementDescriptor] struct {
-	ref *dom.ElementRef[T]
-	ctx dom.Dispatcher
+type FormAPI[T dom2.ElementDescriptor] struct {
+	ref *dom2.ElementRef[T]
+	ctx dom2.Dispatcher
 }
 
-func NewFormAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *FormAPI[T] {
+func NewFormAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Dispatcher) *FormAPI[T] {
 	return &FormAPI[T]{ref: ref, ctx: ctx}
 }
 
@@ -43,7 +43,7 @@ func NewFormAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatc
 //
 //	return h.Form(h.Attach(formRef), h.Action("/submit"))
 func (a *FormAPI[T]) Submit() {
-	dom.DOMCall[T](a.ctx, a.ref, "submit")
+	dom2.DOMCall[T](a.ctx, a.ref, "submit")
 }
 
 // Reset resets all form controls to their initial values.
@@ -55,7 +55,7 @@ func (a *FormAPI[T]) Submit() {
 //
 //	return h.Form(h.Attach(formRef), h.Action("/submit"))
 func (a *FormAPI[T]) Reset() {
-	dom.DOMCall[T](a.ctx, a.ref, "reset")
+	dom2.DOMCall[T](a.ctx, a.ref, "reset")
 }
 
 // ============================================================================
@@ -75,11 +75,11 @@ func (a *FormAPI[T]) Reset() {
 //	})
 //
 //	return h.Form(h.Attach(formRef), h.Action("/submit"))
-func (a *FormAPI[T]) OnSubmit(handler func(FormEvent) Updates) {
+func (a *FormAPI[T]) OnSubmit(handler func(FormEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildFormEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildFormEvent(evt)) }
 	a.ref.AddListener("submit", wrapped, FormEvent{}.props())
 }
 
@@ -94,11 +94,11 @@ func (a *FormAPI[T]) OnSubmit(handler func(FormEvent) Updates) {
 //	})
 //
 //	return h.Form(h.Attach(formRef), h.Action("/submit"))
-func (a *FormAPI[T]) OnReset(handler func(FormEvent) Updates) {
+func (a *FormAPI[T]) OnReset(handler func(FormEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildFormEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildFormEvent(evt)) }
 	a.ref.AddListener("reset", wrapped, FormEvent{}.props())
 }
 
@@ -113,10 +113,10 @@ func (a *FormAPI[T]) OnReset(handler func(FormEvent) Updates) {
 //	})
 //
 //	return h.Input(h.Attach(inputRef), h.Required("true"))
-func (a *FormAPI[T]) OnInvalid(handler func(FormEvent) Updates) {
+func (a *FormAPI[T]) OnInvalid(handler func(FormEvent) dom2.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildFormEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildFormEvent(evt)) }
 	a.ref.AddListener("invalid", wrapped, FormEvent{}.props())
 }

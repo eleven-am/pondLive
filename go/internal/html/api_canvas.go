@@ -1,16 +1,16 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
 )
 
 // CanvasAPI provides actions and methods for canvas elements.
-type CanvasAPI[T dom.ElementDescriptor] struct {
-	ref *dom.ElementRef[T]
-	ctx dom.Dispatcher
+type CanvasAPI[T dom2.ElementDescriptor] struct {
+	ref *dom2.ElementRef[T]
+	ctx dom2.Dispatcher
 }
 
-func NewCanvasAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *CanvasAPI[T] {
+func NewCanvasAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Dispatcher) *CanvasAPI[T] {
 	return &CanvasAPI[T]{ref: ref, ctx: ctx}
 }
 
@@ -42,7 +42,7 @@ func (a *CanvasAPI[T]) ToDataURL(format string, quality float64) (string, error)
 		quality = 0.92
 	}
 
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "toDataURL", format, quality)
+	result, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "toDataURL", format, quality)
 	if err != nil {
 		return "", err
 	}
@@ -76,11 +76,11 @@ func (a *CanvasAPI[T]) GetContext(contextType string) (*CanvasContextInfo, error
 		contextType = "2d"
 	}
 
-	width, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "width")
+	width, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "width")
 	if err != nil {
 		return nil, err
 	}
-	height, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "height")
+	height, err := dom2.DOMAsyncCall[T](a.ctx, a.ref, "height")
 	if err != nil {
 		return nil, err
 	}

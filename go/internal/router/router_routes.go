@@ -2,10 +2,10 @@ package router
 
 import (
 	"fmt"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	"strings"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 type RouteProps struct {
@@ -13,63 +13,44 @@ type RouteProps struct {
 	Component runtime.Component[Match]
 }
 
-type routeNode struct {
-	*h.FragmentNode
-	entry      routeEntry
-	rawPattern string
-}
-
 type routeEntry struct {
 	pattern   string
 	component runtime.Component[Match]
-	children  []h.Node
+	children  []*dom2.StructuredNode
 }
 
-func Route(ctx Ctx, p RouteProps, children ...h.Node) h.Node {
+const (
+	routeMetadataKey = "router:entry"
+	routeChildrenKey = "router:children"
+)
+
+func Route(ctx Ctx, p RouteProps, children ...*dom2.StructuredNode) *dom2.StructuredNode {
 	pattern := strings.TrimSpace(p.Path)
 	if pattern == "" {
 		pattern = "/"
 	}
-	entry := routeEntry{
+	children = expandRouteChildren(children)
+	node := dom2.FragmentNode()
+	if node.Metadata == nil {
+		node.Metadata = make(map[string]any)
+	}
+	node.Metadata[routeMetadataKey] = routeEntry{
 		component: p.Component,
 		children:  children,
-	}
-	return &routeNode{FragmentNode: h.Fragment(), entry: entry, rawPattern: pattern}
-}
-
-type routesNode struct {
-	*h.FragmentNode
-	entries  []routeEntry
-	children []h.Node
-}
-
-func Routes(ctx Ctx, children ...h.Node) h.Node {
-	base := routeBaseCtx.Use(ctx)
-	entries := collectRouteEntries(children, base)
-	sess := ctx.Session()
-	if !sessionRendering(sess) {
-		return newRoutesPlaceholder(sess, entries, children)
-	}
-	state := routerStateCtx.Use(ctx)
-	if state.getLoc == nil || state.setLoc == nil {
-		return newRoutesPlaceholder(sess, entries, children)
-	}
-	return renderRoutes(ctx, entries)
-}
-
-func newRoutesPlaceholder(sess *runtime.ComponentSession, entries []routeEntry, children []h.Node) *routesNode {
-	node := &routesNode{FragmentNode: h.Fragment(), entries: entries, children: append([]h.Node(nil), children...)}
-	if sess != nil {
-		storeRoutesPlaceholder(sess, node.FragmentNode, node)
+		pattern:   pattern,
 	}
 	return node
 }
 
-func consumeRoutesPlaceholder(sess *runtime.ComponentSession, f *h.FragmentNode) (*routesNode, bool) {
-	if sess == nil {
-		return nil, false
+func Routes(ctx Ctx, children ...*dom2.StructuredNode) *dom2.StructuredNode {
+	base := routeBaseCtx.Use(ctx)
+	entries := collectRouteEntries(children, base)
+	node := renderRoutes(ctx, entries)
+	if node.Metadata == nil {
+		node.Metadata = make(map[string]any)
 	}
-	return takeRoutesPlaceholder(sess, f)
+	node.Metadata[routeChildrenKey] = children
+	return node
 }
 
 type routeMatch struct {
@@ -77,41 +58,63 @@ type routeMatch struct {
 	match Match
 }
 
-func collectRouteEntries(nodes []h.Node, base string) []routeEntry {
+func collectRouteEntries(nodes []*dom2.StructuredNode, base string) []routeEntry {
 	if len(nodes) == 0 {
 		return nil
 	}
 	var entries []routeEntry
 	for _, node := range nodes {
-		switch v := node.(type) {
-		case *routeNode:
-			entry := v.entry
-			entry.pattern = resolveRoutePattern(v.rawPattern, base)
-			entries = append(entries, entry)
-		case *h.FragmentNode:
-			entries = append(entries, collectRouteEntries(v.Children, base)...)
-		case *routesNode:
-			if len(v.children) > 0 {
-				entries = append(entries, collectRouteEntries(v.children, base)...)
-			} else {
-				entries = append(entries, v.entries...)
+		if node == nil {
+			continue
+		}
+		if node.Metadata != nil {
+			if meta, ok := node.Metadata[routeMetadataKey]; ok {
+				entry := meta.(routeEntry)
+				entry.pattern = resolveRoutePattern(entry.pattern, base)
+				entries = append(entries, entry)
+				continue
 			}
+		}
+		if len(node.Children) > 0 {
+			entries = append(entries, collectRouteEntries(node.Children, base)...)
 		}
 	}
 	return entries
 }
 
-func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
+func expandRouteChildren(nodes []*dom2.StructuredNode) []*dom2.StructuredNode {
+	if len(nodes) == 0 {
+		return nil
+	}
+	expanded := make([]*dom2.StructuredNode, 0, len(nodes))
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		if node.Metadata != nil {
+			if raw, ok := node.Metadata[routeChildrenKey]; ok {
+				if nested, ok := raw.([]*dom2.StructuredNode); ok {
+					expanded = append(expanded, nested...)
+					continue
+				}
+			}
+		}
+		expanded = append(expanded, node)
+	}
+	return expanded
+}
+
+func renderRoutes(ctx Ctx, entries []routeEntry) *dom2.StructuredNode {
 	if len(entries) == 0 {
-		return h.Fragment()
+		return dom2.FragmentNode()
 	}
 
-	sess := ctx.Session()
 	var (
 		entry *sessionEntry
 		depth int
 	)
-	if entry = loadSessionRouterEntry(sess); entry != nil {
+
+	if entry = loadSessionRouterEntry(ctx); entry != nil {
 		entry.mu.Lock()
 		entry.render.depth++
 		depth = entry.render.depth
@@ -123,12 +126,12 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 		}()
 	}
 
-	state := routerStateCtx.Use(ctx)
+	state := RouterStateCtx.Use(ctx)
 	var loc Location
 	if state.getLoc != nil {
 		loc = state.getLoc()
 	} else {
-		loc = currentSessionLocation(ctx.Session())
+		loc = currentSessionLocation(ctx)
 	}
 
 	var chosen *routeMatch
@@ -148,17 +151,17 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 	}
 
 	if chosen == nil {
-		return h.Fragment()
+		return dom2.FragmentNode()
 	}
 
 	params := copyParams(chosen.match.Params)
-	storeSessionParams(ctx.Session(), params)
-	outletRender := func() h.Node {
+	storeSessionParams(ctx, params)
+	outletRender := func(ictx runtime.Ctx) *dom2.StructuredNode {
 		if len(chosen.entry.children) == 0 {
-			return h.Fragment()
+			return dom2.FragmentNode()
 		}
-		return routeBaseCtx.Provide(ctx, chosen.entry.pattern, func() h.Node {
-			return Routes(ctx, chosen.entry.children...)
+		return routeBaseCtx.Provide(ictx, chosen.entry.pattern, func(childCtx runtime.Ctx) *dom2.StructuredNode {
+			return Routes(childCtx, chosen.entry.children...)
 		})
 	}
 	key := chosen.entry.pattern
@@ -170,10 +173,10 @@ func renderRoutes(ctx Ctx, entries []routeEntry) h.Node {
 		entry.render.currentRoute = chosen.entry.pattern
 		entry.mu.Unlock()
 	}
-	return ParamsCtx.Provide(ctx, params, func() h.Node {
-		return routeBaseCtx.Provide(ctx, chosen.entry.pattern, func() h.Node {
-			return outletCtx.Provide(ctx, outletRender, func() h.Node {
-				node := runtime.Render(ctx, chosen.entry.component, chosen.match, runtime.WithKey(key))
+	return ParamsCtx.Provide(ctx, params, func(pctx runtime.Ctx) *dom2.StructuredNode {
+		return routeBaseCtx.Provide(pctx, chosen.entry.pattern, func(rctx runtime.Ctx) *dom2.StructuredNode {
+			return outletCtx.Provide(rctx, outletRender, func(ictx runtime.Ctx) *dom2.StructuredNode {
+				node := runtime.Render(ictx, chosen.entry.component, chosen.match, runtime.WithKey(key))
 				return ensureRouteKey(node, key)
 			})
 		})
@@ -191,15 +194,19 @@ func copyParams(src map[string]string) map[string]string {
 	return dst
 }
 
-var outletCtx = runtime.NewContext(func() h.Node { return h.Fragment() })
-var routeBaseCtx = runtime.NewContext("/")
+type outletRenderer func(runtime.Ctx) *dom2.StructuredNode
 
-func Outlet(ctx Ctx) h.Node {
+var outletCtx = runtime.CreateContext[outletRenderer](func(ctx runtime.Ctx) *dom2.StructuredNode {
+	return dom2.FragmentNode()
+})
+var routeBaseCtx = runtime.CreateContext("/")
+
+func Outlet(ctx Ctx) *dom2.StructuredNode {
 	render := outletCtx.Use(ctx)
 	if render == nil {
-		return h.Fragment()
+		return dom2.FragmentNode()
 	}
-	return render()
+	return render(ctx)
 }
 
 func resolveRoutePattern(raw, base string) string {
@@ -250,45 +257,39 @@ func trimWildcardSuffix(path string) string {
 	return "/" + strings.Join(segments, "/")
 }
 
-func ensureRouteKey(node h.Node, key string) h.Node {
+func ensureRouteKey(node *dom2.StructuredNode, key string) *dom2.StructuredNode {
 	if key == "" {
 		key = "/"
 	}
-	switch v := node.(type) {
-	case *h.Element:
-		if v.Key != "" {
-			return node
-		}
-		clone := *v
+	if node == nil {
+		return dom2.FragmentNode()
+	}
+	if node.Key != "" {
+		return node
+	}
+	if len(node.Children) == 0 {
+		clone := *node
 		clone.Key = key
 		return &clone
-	case *h.FragmentNode:
-		if len(v.Children) == 0 {
-			return node
-		}
-		updated := make([]h.Node, len(v.Children))
-		changed := false
-		multi := len(v.Children) > 1
-		for i, child := range v.Children {
-			childKey := key
-			if multi {
-				childKey = fmt.Sprintf("%s#%d", key, i)
-			}
-			next := ensureRouteKey(child, childKey)
-			if next != child {
-				changed = true
-			}
-			updated[i] = next
-		}
-		if !changed {
-			return node
-		}
-		clone := *v
-		clone.Children = updated
-		return &clone
-	case nil:
-		return h.El(h.HTMLSpanElement{}, "span", h.Key(key))
-	default:
-		return h.El(h.HTMLSpanElement{}, "span", h.Key(key), node)
 	}
+	updated := make([]*dom2.StructuredNode, len(node.Children))
+	changed := false
+	multi := len(node.Children) > 1
+	for i, child := range node.Children {
+		childKey := key
+		if multi {
+			childKey = fmt.Sprintf("%s#%d", key, i)
+		}
+		next := ensureRouteKey(child, childKey)
+		if next != child {
+			changed = true
+		}
+		updated[i] = next
+	}
+	if !changed {
+		return node
+	}
+	clone := *node
+	clone.Children = updated
+	return &clone
 }

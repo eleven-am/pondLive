@@ -5,53 +5,48 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eleven-am/pondlive/go/internal/protocol"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server/store"
+	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
 var (
-	// ErrSessionNotFound reports attempts to attach or fetch sessions that are unknown to the registry.
-	ErrSessionNotFound = errors.New("live: session not found")
+	// ErrSessionNotFound reports attempts to fetch sessions that don't exist in the registry.
+	ErrSessionNotFound = errors.New("server: session not found")
 )
 
-// Transport extends the runtime transport with lifecycle hooks used by the registry.
-type Transport interface {
-	runtime.Transport
-	Close() error
-	SendEventAck(protocol.EventAck) error
-	SendServerError(protocol.ServerError) error
-}
-
-// SessionRegistry stores live sessions and tracks which PondSocket connection currently owns them.
-type SessionRegistry struct {
-	mu             sync.RWMutex
-	sessions       map[runtime.SessionID]*sessionEntry
-	connections    map[string]*sessionEntry
-	ttl            store.TTLStore
-	touchObservers map[*runtime.LiveSession]func()
-}
+// Transport is the session transport interface.
+type Transport = session.Transport
 
 type sessionEntry struct {
-	session   *runtime.LiveSession
-	transport Transport
+	session   *session.LiveSession
+	transport session.Transport
 	connID    string
 }
 
 type transportRelease struct {
-	session   *runtime.LiveSession
-	transport Transport
+	session   *session.LiveSession
+	transport session.Transport
 }
 
 func (rel transportRelease) release() {
-	if rel.session == nil || rel.transport == nil {
-		return
+	if rel.transport != nil {
+		_ = rel.transport.Close()
 	}
-	rel.session.DetachTransport(rel.transport)
-	_ = rel.transport.Close()
+	if rel.session != nil {
+		rel.session.SetTransport(nil)
+	}
 }
 
-// NewSessionRegistry constructs an empty registry.
+// SessionRegistry manages runtime2 LiveSession instances.
+type SessionRegistry struct {
+	mu             sync.RWMutex
+	sessions       map[session.SessionID]*sessionEntry
+	connections    map[string]*sessionEntry
+	ttl            store.TTLStore
+	touchObservers map[*session.LiveSession]func()
+}
+
+// NewSessionRegistry constructs an in-memory registry.
 func NewSessionRegistry() *SessionRegistry {
 	return NewSessionRegistryWithTTL(store.NewInMemoryTTLStore())
 }
@@ -59,46 +54,45 @@ func NewSessionRegistry() *SessionRegistry {
 // NewSessionRegistryWithTTL constructs a registry backed by the provided TTL store.
 func NewSessionRegistryWithTTL(ttl store.TTLStore) *SessionRegistry {
 	return &SessionRegistry{
-		sessions:       make(map[runtime.SessionID]*sessionEntry),
+		sessions:       make(map[session.SessionID]*sessionEntry),
 		connections:    make(map[string]*sessionEntry),
 		ttl:            ttl,
-		touchObservers: make(map[*runtime.LiveSession]func()),
+		touchObservers: make(map[*session.LiveSession]func()),
 	}
 }
 
-// Put registers a session so future websocket joins can resume it.
-func (r *SessionRegistry) Put(sess *runtime.LiveSession) {
+// Put registers the provided session.
+func (r *SessionRegistry) Put(sess *session.LiveSession) {
 	if sess == nil {
 		return
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.sessions[sess.ID()] = &sessionEntry{session: sess}
-	r.attachSessionLocked(sess)
+	id := sess.ID()
+	if _, exists := r.sessions[id]; exists {
+		return
+	}
+	entry := &sessionEntry{session: sess}
+	r.sessions[id] = entry
+	r.attachSessionLocked(entry.session)
 }
 
-// Remove deletes a session from the registry, detaching any active transport.
-func (r *SessionRegistry) Remove(id runtime.SessionID) {
+// Remove deletes a session from the registry.
+func (r *SessionRegistry) Remove(id session.SessionID) {
 	r.mu.Lock()
 	release := r.removeSessionLocked(id, true)
 	r.mu.Unlock()
-
 	release.release()
 }
 
-// Attach wires the given transport to the session and associates it with the connection id.
-func (r *SessionRegistry) Attach(id runtime.SessionID, connID string, transport Transport) (*runtime.LiveSession, error) {
+// Attach binds a transport to the given session and connection id.
+func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport session.Transport) (*session.LiveSession, error) {
 	if connID == "" || transport == nil {
-		return nil, errors.New("live: missing connection or transport")
+		return nil, errors.New("server: missing connection or transport")
 	}
 
-	var (
-		session  *runtime.LiveSession
-		releases []transportRelease
-	)
-
+	var releases []transportRelease
 	r.mu.Lock()
-
 	entry, ok := r.sessions[id]
 	if !ok {
 		r.mu.Unlock()
@@ -121,82 +115,19 @@ func (r *SessionRegistry) Attach(id runtime.SessionID, connID string, transport 
 	entry.transport = transport
 	entry.connID = connID
 	r.connections[connID] = entry
-	session = entry.session
-	r.attachSessionLocked(session)
-
+	r.attachSessionLocked(entry.session)
 	r.mu.Unlock()
 
 	for _, rel := range releases {
 		rel.release()
 	}
 
-	if session == nil {
-		_ = transport.Close()
-		return nil, errors.New("live: session unavailable")
-	}
-
-	session.AttachTransport(transport)
-
-	return session, nil
+	entry.session.SetTransport(transport)
+	return entry.session, nil
 }
 
-// Lookup returns the session for the provided id, if present.
-func (r *SessionRegistry) Lookup(id runtime.SessionID) (*runtime.LiveSession, bool) {
-	r.mu.RLock()
-	entry, ok := r.sessions[id]
-	r.mu.RUnlock()
-	if !ok {
-		return nil, false
-	}
-	return entry.session, true
-}
-
-// LookupWithConnection returns the session for the provided id and verifies it is bound to the given connection id.
-// The returned boolean reports whether the connection currently owns the session.
-func (r *SessionRegistry) LookupWithConnection(id runtime.SessionID, connID string) (*runtime.LiveSession, Transport, bool) {
-	if id == "" {
-		return nil, nil, false
-	}
-
-	r.mu.RLock()
-	entry, ok := r.sessions[id]
-	r.mu.RUnlock()
-
-	if !ok || entry == nil || entry.session == nil {
-		return nil, nil, false
-	}
-
-	if connID == "" || entry.connID != connID {
-		return entry.session, nil, false
-	}
-
-	return entry.session, entry.transport, entry.transport != nil
-}
-
-// LookupByConnection returns the session and transport currently bound to the connection id.
-func (r *SessionRegistry) LookupByConnection(connID string) (*runtime.LiveSession, Transport, bool) {
-	r.mu.RLock()
-	entry, ok := r.connections[connID]
-	r.mu.RUnlock()
-	if !ok {
-		return nil, nil, false
-	}
-	return entry.session, entry.transport, true
-}
-
-// ConnectionForSession returns the connection id and transport currently attached to the session, if any.
-func (r *SessionRegistry) ConnectionForSession(id runtime.SessionID) (string, Transport, bool) {
-	r.mu.RLock()
-	entry, ok := r.sessions[id]
-	r.mu.RUnlock()
-	if !ok || entry == nil || entry.connID == "" || entry.transport == nil {
-		return "", nil, false
-	}
-	return entry.connID, entry.transport, true
-}
-
-// DetachConnection clears the transport bound to the provided connection id.
-func (r *SessionRegistry) DetachConnection(connID string) {
+// Detach clears the connection binding.
+func (r *SessionRegistry) Detach(connID string) {
 	if connID == "" {
 		return
 	}
@@ -209,62 +140,115 @@ func (r *SessionRegistry) DetachConnection(connID string) {
 		delete(r.connections, connID)
 	}
 	r.mu.Unlock()
-
 	release.release()
 }
 
-// SweepExpired prunes sessions whose TTL has elapsed and returns their ids.
-func (r *SessionRegistry) SweepExpired() []runtime.SessionID {
-	if r.ttl == nil {
-		r.mu.Lock()
-		var (
-			expired  []runtime.SessionID
-			releases []transportRelease
-		)
-		for id, entry := range r.sessions {
-			if entry.session == nil || !entry.session.Expired() {
-				continue
+// Lookup finds a session by id.
+func (r *SessionRegistry) Lookup(id session.SessionID) (*session.LiveSession, bool) {
+	r.mu.RLock()
+	entry, ok := r.sessions[id]
+	r.mu.RUnlock()
+	if !ok {
+		return nil, false
+	}
+	return entry.session, true
+}
+
+// LookupWithConnection verifies the binding for a connection id.
+func (r *SessionRegistry) LookupWithConnection(id session.SessionID, connID string) (*session.LiveSession, session.Transport, bool) {
+	r.mu.RLock()
+	entry, ok := r.sessions[id]
+	r.mu.RUnlock()
+	if !ok || entry == nil {
+		return nil, nil, false
+	}
+	if connID == "" || entry.connID != connID {
+		return entry.session, nil, false
+	}
+	return entry.session, entry.transport, entry.transport != nil
+}
+
+// LookupByConnection returns the session currently bound to a connection id.
+func (r *SessionRegistry) LookupByConnection(connID string) (*session.LiveSession, session.Transport, bool) {
+	if connID == "" {
+		return nil, nil, false
+	}
+	r.mu.RLock()
+	entry, ok := r.connections[connID]
+	r.mu.RUnlock()
+	if !ok || entry == nil {
+		return nil, nil, false
+	}
+	return entry.session, entry.transport, entry.transport != nil
+}
+
+// ConnectionForSession returns the connection ID and transport for a session.
+func (r *SessionRegistry) ConnectionForSession(id session.SessionID) (string, session.Transport, bool) {
+	r.mu.RLock()
+	entry, ok := r.sessions[id]
+	r.mu.RUnlock()
+	if !ok || entry == nil {
+		return "", nil, false
+	}
+	return entry.connID, entry.transport, entry.connID != "" && entry.transport != nil
+}
+
+// SweepExpired prunes expired sessions.
+func (r *SessionRegistry) SweepExpired() []session.SessionID {
+	var expired []session.SessionID
+	var releases []transportRelease
+
+	if r.ttl != nil {
+		if ids, err := r.ttl.Expired(time.Now()); err == nil && len(ids) > 0 {
+			r.mu.Lock()
+			for _, id := range ids {
+				releases = append(releases, r.removeSessionLocked(id, false))
+				expired = append(expired, id)
 			}
-			release := r.removeSessionLocked(id, true)
-			releases = append(releases, release)
-			expired = append(expired, id)
+			r.mu.Unlock()
 		}
-		r.mu.Unlock()
-		for _, rel := range releases {
-			rel.release()
-		}
-		return expired
 	}
-	var (
-		result   []runtime.SessionID
-		releases []transportRelease
-	)
-	if ids, err := r.ttl.Expired(time.Now()); err == nil && len(ids) > 0 {
-		r.mu.Lock()
-		for _, id := range ids {
-			release := r.removeSessionLocked(id, true)
-			releases = append(releases, release)
-		}
-		r.mu.Unlock()
-		result = append(result, ids...)
-	}
+
 	r.mu.Lock()
 	for id, entry := range r.sessions {
-		if entry.session == nil || !entry.session.Expired() {
+		if entry.session == nil || !entry.session.IsExpired() {
 			continue
 		}
-		release := r.removeSessionLocked(id, true)
-		releases = append(releases, release)
-		result = append(result, id)
+		releases = append(releases, r.removeSessionLocked(id, true))
+		expired = append(expired, id)
 	}
 	r.mu.Unlock()
+
 	for _, rel := range releases {
 		rel.release()
 	}
-	return result
+	return expired
 }
 
-func (r *SessionRegistry) attachSessionLocked(sess *runtime.LiveSession) {
+// StartSweeper periodically sweeps expired sessions.
+func (r *SessionRegistry) StartSweeper(interval time.Duration) func() {
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+	ticker := time.NewTicker(interval)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				r.SweepExpired()
+			case <-done:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+	return func() {
+		close(done)
+	}
+}
+
+func (r *SessionRegistry) attachSessionLocked(sess *session.LiveSession) {
 	if sess == nil || r.ttl == nil {
 		return
 	}
@@ -282,7 +266,7 @@ func (r *SessionRegistry) attachSessionLocked(sess *runtime.LiveSession) {
 	r.touchObservers[sess] = remove
 }
 
-func (r *SessionRegistry) removeSessionLocked(id runtime.SessionID, dropTTL bool) transportRelease {
+func (r *SessionRegistry) removeSessionLocked(id session.SessionID, dropTTL bool) transportRelease {
 	entry, ok := r.sessions[id]
 	if !ok {
 		return transportRelease{}
@@ -297,9 +281,6 @@ func (r *SessionRegistry) removeSessionLocked(id runtime.SessionID, dropTTL bool
 	if dropTTL && r.ttl != nil {
 		_ = r.ttl.Remove(id)
 	}
-	release := transportRelease{session: entry.session, transport: entry.transport}
-	entry.transport = nil
-	entry.connID = ""
 	delete(r.sessions, id)
-	return release
+	return transportRelease{session: entry.session, transport: entry.transport}
 }

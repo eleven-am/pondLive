@@ -1,91 +1,44 @@
 package router
 
 import (
-	"sync"
+	"net/url"
 
-	h "github.com/eleven-am/pondlive/go/internal/html"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
-// Global router state storage keyed by session
-var (
-	sessionStates sync.Map // *runtime.ComponentSession -> *routerSessionState
-)
+// Helper functions to access router session entry from context
 
-// Helper functions to access router state
+func ensureSessionRouterEntry(ctx runtime.Ctx) *sessionEntry {
+	entry := SessionEntryCtx.Use(ctx)
+	if entry == nil {
+		entry = &sessionEntry{}
+	}
+	return entry
+}
 
-func ensureRouterState(sess *runtime.ComponentSession) *routerSessionState {
+func loadSessionRouterEntry(ctx runtime.Ctx) *sessionEntry {
+	return SessionEntryCtx.Use(ctx)
+}
+
+// getInitialLocationFromSession gets the initial location from ComponentSession
+func getInitialLocationFromSession(sess *runtime.ComponentSession) Location {
 	if sess == nil {
-		return nil
+		return canonicalizeLocation(Location{Path: "/"})
 	}
-	if state, ok := sessionStates.Load(sess); ok {
-		return state.(*routerSessionState)
-	}
-	state := &routerSessionState{
-		entry: sessionEntry{},
-	}
-	sessionStates.Store(sess, state)
-	return state
-}
 
-func loadRouterState(sess *runtime.ComponentSession) *routerSessionState {
-	if sess == nil {
-		return nil
+	path, queryMap, hash, ok := sess.GetInitialLocation()
+	if !ok {
+		return canonicalizeLocation(Location{Path: "/"})
 	}
-	if state, ok := sessionStates.Load(sess); ok {
-		return state.(*routerSessionState)
-	}
-	return nil
-}
 
-// Session entry accessors (standalone functions, not methods)
+	query := url.Values{}
+	for k, v := range queryMap {
+		query.Set(k, v)
+	}
 
-func ensureSessionRouterEntry(sess *runtime.ComponentSession) *sessionEntry {
-	state := ensureRouterState(sess)
-	if state == nil {
-		return nil
-	}
-	return &state.entry
-}
-
-func loadSessionRouterEntry(sess *runtime.ComponentSession) *sessionEntry {
-	state := loadRouterState(sess)
-	if state == nil {
-		return nil
-	}
-	return &state.entry
-}
-
-// Routes placeholder accessors
-
-func storeRoutesPlaceholder(sess *runtime.ComponentSession, frag *h.FragmentNode, node *routesNode) {
-	if sess == nil || frag == nil || node == nil {
-		return
-	}
-	if state := ensureRouterState(sess); state != nil {
-		state.routesPlaceholders.Store(frag, node)
-	}
-}
-
-func takeRoutesPlaceholder(sess *runtime.ComponentSession, frag *h.FragmentNode) (*routesNode, bool) {
-	if sess == nil || frag == nil {
-		return nil, false
-	}
-	if state := loadRouterState(sess); state != nil {
-		if value, ok := state.routesPlaceholders.LoadAndDelete(frag); ok {
-			if node, okCast := value.(*routesNode); okCast {
-				return node, true
-			}
-		}
-	}
-	return nil, false
-}
-
-func clearRoutesPlaceholder(sess *runtime.ComponentSession, frag *h.FragmentNode) {
-	if sess == nil || frag == nil {
-		return
-	}
-	if state := loadRouterState(sess); state != nil {
-		state.routesPlaceholders.Delete(frag)
-	}
+	return canonicalizeLocation(Location{
+		Path:  path,
+		Query: query,
+		Hash:  hash,
+	})
 }

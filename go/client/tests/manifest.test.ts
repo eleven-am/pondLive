@@ -52,8 +52,31 @@ describe('manifest resolution', () => {
     expect(anchors.get(1)).toBe((host.querySelector('#target') as Element).childNodes.item(0));
   });
 
-  it('resolves slot anchors that mix range offsets with dom traversal', () => {
-    const lead = document.createTextNode('lead');
+  it('falls back to the range root when slot path is omitted', () => {
+    const first = document.createElement('div');
+    first.id = 'first-child';
+    const second = document.createElement('div');
+    host.replaceChildren(first, second);
+    const range: ComponentRange = {
+      container: host,
+      startIndex: 0,
+      endIndex: host.childNodes.length - 1,
+    };
+    registerComponentRanges(new Map([['cmp:root-fallback', range]]));
+    const anchors = resolveSlotAnchors(
+      [
+        {
+          slot: 3,
+          componentId: 'cmp:root-fallback',
+          path: [],
+        },
+      ],
+      undefined,
+    );
+    expect(anchors.get(3)).toBe(first);
+  });
+
+  it('resolves slot anchors in nested containers with dom-only paths', () => {
     const section = document.createElement('section');
     const first = document.createElement('div');
     first.textContent = 'alpha';
@@ -62,8 +85,7 @@ describe('manifest resolution', () => {
     button.id = 'range-target';
     second.append(button);
     section.append(first, second);
-    const trail = document.createTextNode('trail');
-    host.replaceChildren(lead, section, trail);
+    host.replaceChildren(section);
     const range: ComponentRange = {
       container: host,
       startIndex: 0,
@@ -76,7 +98,7 @@ describe('manifest resolution', () => {
           slot: 9,
           componentId: 'cmp:range',
           path: [
-            { kind: 'range', index: 1 },
+            { kind: 'dom', index: 0 },
             { kind: 'dom', index: 1 },
             { kind: 'dom', index: 0 },
           ],
@@ -112,6 +134,37 @@ describe('manifest resolution', () => {
       undefined,
     );
     expect(containers.get(5)).toBe(host.querySelector('#second'));
+  });
+
+  it('resolves list containers nested multiple levels deep', () => {
+    const section = document.createElement('section');
+    const wrapper = document.createElement('div');
+    const list = document.createElement('ul');
+    list.id = 'deep-list';
+    wrapper.append(document.createElement('p'), list);
+    section.append(wrapper);
+    host.replaceChildren(section);
+    const range: ComponentRange = {
+      container: host,
+      startIndex: 0,
+      endIndex: host.childNodes.length - 1,
+    };
+    registerComponentRanges(new Map([['cmp:deep-list', range]]));
+    const containers = resolveListContainers(
+      [
+        {
+          slot: 7,
+          componentId: 'cmp:deep-list',
+          path: [
+            { kind: 'dom', index: 0 },
+            { kind: 'dom', index: 0 },
+            { kind: 'dom', index: 1 },
+          ],
+        },
+      ],
+      undefined,
+    );
+    expect(containers.get(7)).toBe(list);
   });
 
   it('resolves root list containers when descriptor marks atRoot', () => {
@@ -162,6 +215,35 @@ describe('manifest resolution', () => {
     );
     const cmpRange = ranges.get('cmp:home');
     expect(cmpRange?.container).toBe(host);
+    expect(cmpRange?.startIndex).toBe(0);
+    expect(cmpRange?.endIndex).toBe(1);
+  });
+
+  it('computes component ranges using parentPath to select nested containers', () => {
+    const wrapper = document.createElement('div');
+    const target = document.createElement('section');
+    const spanA = document.createElement('span');
+    const spanB = document.createElement('span');
+    target.append(spanA, spanB);
+    wrapper.append(target, document.createElement('footer'));
+    host.replaceChildren(document.createElement('header'), wrapper);
+    const ranges = applyComponentRanges(
+      [
+        {
+          componentId: 'cmp:nested-parent',
+          parentId: '',
+          parentPath: [
+            { kind: 'dom', index: 1 },
+            { kind: 'dom', index: 0 },
+          ],
+          firstChild: [{ kind: 'dom', index: 0 }],
+          lastChild: [{ kind: 'dom', index: 1 }],
+        },
+      ],
+      { root: host },
+    );
+    const cmpRange = ranges.get('cmp:nested-parent');
+    expect(cmpRange?.container).toBe(target);
     expect(cmpRange?.startIndex).toBe(0);
     expect(cmpRange?.endIndex).toBe(1);
   });

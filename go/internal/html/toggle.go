@@ -1,8 +1,10 @@
 package html
 
+import "github.com/eleven-am/pondlive/go/internal/dom2"
+
 // ToggleEvent represents toggle events (for details/summary elements).
 type ToggleEvent struct {
-	Event
+	dom2.Event
 	NewState string // "open" or "closed"
 }
 
@@ -15,24 +17,24 @@ func (ToggleEvent) props() []string {
 
 // ToggleHandler provides toggle event handlers.
 type ToggleHandler struct {
-	ref RefListener
+	ref dom2.RefListener
 }
 
 // NewToggleHandler creates a new ToggleHandler.
-func NewToggleHandler(ref RefListener) *ToggleHandler {
+func NewToggleHandler(ref dom2.RefListener) *ToggleHandler {
 	return &ToggleHandler{ref: ref}
 }
 
 // OnToggle registers a handler for the "toggle" event.
-func (h *ToggleHandler) OnToggle(handler func(ToggleEvent) Updates) {
+func (h *ToggleHandler) OnToggle(handler func(ToggleEvent) dom2.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildToggleEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildToggleEvent(evt)) }
 	h.ref.AddListener("toggle", wrapped, ToggleEvent{}.props())
 }
 
-func buildToggleEvent(evt Event) ToggleEvent {
+func buildToggleEvent(evt dom2.Event) ToggleEvent {
 	detail := extractDetail(evt.Payload)
 	open := payloadBool(detail, "target.open", false)
 	newState := "closed"

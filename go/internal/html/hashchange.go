@@ -1,8 +1,10 @@
 package html
 
+import "github.com/eleven-am/pondlive/go/internal/dom2"
+
 // HashChangeEvent represents URL hash change events.
 type HashChangeEvent struct {
-	Event
+	dom2.Event
 	OldURL string // Previous URL
 	NewURL string // New URL
 }
@@ -17,24 +19,24 @@ func (HashChangeEvent) props() []string {
 
 // HashChangeHandler provides hash change event handlers.
 type HashChangeHandler struct {
-	ref RefListener
+	ref dom2.RefListener
 }
 
 // NewHashChangeHandler creates a new HashChangeHandler.
-func NewHashChangeHandler(ref RefListener) *HashChangeHandler {
+func NewHashChangeHandler(ref dom2.RefListener) *HashChangeHandler {
 	return &HashChangeHandler{ref: ref}
 }
 
 // OnHashChange registers a handler for the "hashchange" event.
-func (h *HashChangeHandler) OnHashChange(handler func(HashChangeEvent) Updates) {
+func (h *HashChangeHandler) OnHashChange(handler func(HashChangeEvent) dom2.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildHashChangeEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildHashChangeEvent(evt)) }
 	h.ref.AddListener("hashchange", wrapped, HashChangeEvent{}.props())
 }
 
-func buildHashChangeEvent(evt Event) HashChangeEvent {
+func buildHashChangeEvent(evt dom2.Event) HashChangeEvent {
 	detail := extractDetail(evt.Payload)
 	return HashChangeEvent{
 		Event:  evt,

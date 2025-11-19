@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 	livehttp "github.com/eleven-am/pondlive/go/internal/server/http"
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"

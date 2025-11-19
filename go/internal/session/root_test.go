@@ -1,0 +1,93 @@
+package session
+
+import (
+	"testing"
+
+	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
+)
+
+func TestDocumentRootProviders(t *testing.T) {
+
+	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+		headers := UseHeader(ctx)
+		ua, _ := headers.GetHeader("User-Agent")
+
+		return dom2.ElementNode("div").WithChildren(
+			dom2.ElementNode("p").WithChildren(dom2.TextNode("User-Agent: " + ua)),
+		)
+	}
+
+	transport := &mockTransport{}
+	sess := New(
+		SessionID("test"),
+		1,
+		app,
+		&Config{Transport: transport},
+	)
+
+	req := newRequest("/")
+	req.Header.Set("User-Agent", "TestBot/1.0")
+	sess.MergeRequest(req)
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush failed: %v", err)
+	}
+
+	ua, ok := sess.Header().GetHeader("User-Agent")
+	if !ok || ua != "TestBot/1.0" {
+		t.Errorf("expected User-Agent 'TestBot/1.0', got %q (ok=%v)", ua, ok)
+	}
+
+	if len(transport.frames) == 0 {
+		t.Error("expected patches to be sent")
+	}
+}
+
+func TestDocumentRootStateChanges(t *testing.T) {
+	var setCount func(int)
+
+	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+		headers := UseHeader(ctx)
+		count, set := runtime.UseState(ctx, 0)
+		setCount = set
+
+		ua, _ := headers.GetHeader("User-Agent")
+
+		return dom2.ElementNode("div").WithChildren(
+			dom2.ElementNode("p").WithChildren(dom2.TextNode("UA: "+ua)),
+			dom2.ElementNode("button").WithChildren(
+				dom2.TextNode("Count: "+string(rune('0'+count()))),
+			),
+		)
+	}
+
+	transport := &mockTransport{}
+	sess := New(
+		SessionID("test"),
+		1,
+		app,
+		&Config{Transport: transport},
+	)
+
+	req := newRequest("/")
+	req.Header.Set("User-Agent", "TestBot/2.0")
+	sess.MergeRequest(req)
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("initial flush failed: %v", err)
+	}
+
+	if len(transport.frames) == 0 {
+		t.Fatal("expected initial patches")
+	}
+
+	setCount(5)
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("second flush failed: %v", err)
+	}
+
+	if len(transport.frames) < 2 {
+		t.Fatalf("expected at least 2 patch batches, got %d", len(transport.frames))
+	}
+}

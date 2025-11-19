@@ -1,12 +1,8 @@
 package runtime
 
-import (
-	"reflect"
+import "reflect"
 
-	"github.com/eleven-am/pondlive/go/internal/dom"
-	html "github.com/eleven-am/pondlive/go/pkg/live/html"
-)
-
+// StateOpt configures a state cell.
 type StateOpt[T any] interface{ applyStateOpt(*stateCell[T]) }
 
 type stateOptFunc[T any] func(*stateCell[T])
@@ -47,7 +43,7 @@ func defaultEqual[T any]() func(a, b T) bool {
 // UseState provides component-local state with equality checks to avoid redundant renders.
 func UseState[T any](ctx Ctx, initial T, opts ...StateOpt[T]) (func() T, func(T)) {
 	if ctx.frame == nil {
-		panic("runtime: UseState called outside render")
+		panic("runtime2: UseState called outside render")
 	}
 	idx := ctx.frame.idx
 	ctx.frame.idx++
@@ -81,6 +77,7 @@ func UseState[T any](ctx Ctx, initial T, opts ...StateOpt[T]) (func() T, func(T)
 	return get, set
 }
 
+// Ref is a mutable reference that does not trigger renders when mutated.
 type Ref[T any] struct {
 	Cur T
 }
@@ -88,7 +85,7 @@ type Ref[T any] struct {
 // UseRef returns a stable mutable reference that does not trigger renders when mutated.
 func UseRef[T any](ctx Ctx, zero T) *Ref[T] {
 	if ctx.frame == nil {
-		panic("runtime: UseRef called outside render")
+		panic("runtime2: UseRef called outside render")
 	}
 	idx := ctx.frame.idx
 	ctx.frame.idx++
@@ -102,59 +99,6 @@ func UseRef[T any](ctx Ctx, zero T) *Ref[T] {
 	return ref
 }
 
-type elementRefCell[T dom.ElementDescriptor] struct {
-	ref   *html.ElementRef[T]
-	state any
-}
-
-func (c *elementRefCell[T]) resetAttachment() {
-	if c == nil || c.ref == nil {
-		return
-	}
-	c.ref.ResetAttachment()
-}
-
-// UseElement returns a typed ElementRef that can be attached to a generated
-// element. The ref caches state via a UseState cell and carries a stable ref ID
-// for serialization.
-func UseElement[T dom.ElementDescriptor](ctx Ctx) *html.ElementRef[T] {
-	if ctx.frame == nil {
-		panic("runtime: UseElement called outside render")
-	}
-	idx := ctx.frame.idx
-	ctx.frame.idx++
-	if idx >= len(ctx.frame.cells) {
-		if ctx.sess == nil {
-			panic("runtime: UseElement requires an active session")
-		}
-		var descriptor T
-		id := ctx.sess.allocateElementRefID()
-		ref := html.NewElementRef[T](id, descriptor)
-		cell := &elementRefCell[T]{ref: ref}
-		ref.InstallState(
-			func() any {
-				return cell.state
-			},
-			func(next any) {
-				if reflect.DeepEqual(cell.state, next) {
-					return
-				}
-				cell.state = next
-				if ctx.sess != nil {
-					ctx.sess.markDirty(ctx.comp)
-				}
-			},
-		)
-		ctx.sess.registerElementRef(ref)
-		ctx.frame.cells = append(ctx.frame.cells, cell)
-	}
-	cell, ok := ctx.frame.cells[idx].(*elementRefCell[T])
-	if !ok {
-		panicHookMismatch(ctx.comp, idx, "UseElement", ctx.frame.cells[idx])
-	}
-	return cell.ref
-}
-
 type memoCell[T any] struct {
 	val  T
 	deps []any
@@ -163,7 +107,7 @@ type memoCell[T any] struct {
 // UseMemo recomputes a value only when dependencies change.
 func UseMemo[T any](ctx Ctx, compute func() T, deps ...any) T {
 	if ctx.frame == nil {
-		panic("runtime: UseMemo called outside render")
+		panic("runtime2: UseMemo called outside render")
 	}
 	idx := ctx.frame.idx
 	ctx.frame.idx++
@@ -181,46 +125,6 @@ func UseMemo[T any](ctx Ctx, compute func() T, deps ...any) T {
 		cell.deps = cloneDeps(deps)
 	}
 	return cell.val
-}
-
-type Cleanup func()
-
-type effectCell struct {
-	deps    []any
-	cleanup Cleanup
-}
-
-// UseEffect schedules side effects after the next flush and handles cleanup when deps change or unmount.
-func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
-	if ctx.frame == nil {
-		panic("runtime: UseEffect called outside render")
-	}
-	idx := ctx.frame.idx
-	ctx.frame.idx++
-	if idx >= len(ctx.frame.cells) {
-		cell := &effectCell{deps: cloneDeps(deps)}
-		ctx.frame.cells = append(ctx.frame.cells, cell)
-		if ctx.sess != nil {
-			ctx.sess.enqueueEffect(ctx.comp, idx, setup)
-		}
-		return
-	}
-	cell, ok := ctx.frame.cells[idx].(*effectCell)
-	if !ok {
-		panicHookMismatch(ctx.comp, idx, "UseEffect", ctx.frame.cells[idx])
-	}
-	if !depsEqual(cell.deps, deps) {
-		if ctx.sess != nil {
-			ctx.sess.enqueueCleanup(ctx.comp, idx)
-			ctx.sess.enqueueEffect(ctx.comp, idx, setup)
-		}
-		cell.deps = cloneDeps(deps)
-	} else if cell.cleanup == nil {
-
-		if ctx.sess != nil {
-			ctx.sess.enqueueEffect(ctx.comp, idx, setup)
-		}
-	}
 }
 
 func cloneDeps(deps []any) []any {

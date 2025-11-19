@@ -1,6 +1,7 @@
 package pondsocket
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,8 +12,10 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/protocol"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
+	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
 type pubsubEnvelope struct {
@@ -21,7 +24,7 @@ type pubsubEnvelope struct {
 }
 
 type pubsubSubscription struct {
-	session runtime.SessionID
+	session session.SessionID
 	topic   string
 }
 
@@ -31,11 +34,11 @@ type pubsubProvider struct {
 
 	deliver func(pubsubSession, server.Transport, string, pubsubEnvelope) error
 
-	processOutgoing func(runtime.SessionID, string, string, pubsubEnvelope) error
+	processOutgoing func(session.SessionID, string, string, pubsubEnvelope) error
 
 	mu            sync.Mutex
 	subscriptions map[string]pubsubSubscription
-	sessionTopics map[runtime.SessionID]map[string]int
+	sessionTopics map[session.SessionID]map[string]int
 }
 
 var _ runtime.PubsubProvider = (*pubsubProvider)(nil)
@@ -43,8 +46,10 @@ var _ runtime.PubsubProvider = (*pubsubProvider)(nil)
 type pubsubSession interface {
 	DeliverPubsub(topic string, payload []byte, meta map[string]string)
 	Flush() error
-	ID() runtime.SessionID
+	ID() session.SessionID
 }
+
+type sessionContextKey struct{}
 
 func newPubsubProvider(endpoint *Endpoint, registry *server.SessionRegistry) *pubsubProvider {
 	if endpoint == nil || registry == nil {
@@ -54,46 +59,46 @@ func newPubsubProvider(endpoint *Endpoint, registry *server.SessionRegistry) *pu
 		endpoint:      endpoint,
 		registry:      registry,
 		subscriptions: make(map[string]pubsubSubscription),
-		sessionTopics: make(map[runtime.SessionID]map[string]int),
+		sessionTopics: make(map[session.SessionID]map[string]int),
 	}
 	provider.deliver = provider.deliverToSession
 	provider.processOutgoing = provider.processOutgoingMessage
 	return provider
 }
 
-func (p *pubsubProvider) Subscribe(session *runtime.LiveSession, topic string, handler runtime.PubsubHandler) (string, error) {
+func (p *pubsubProvider) Subscribe(ctx context.Context, topic string, handler func([]byte, map[string]string)) (string, error) {
 	if p == nil {
 		return "", runtime.ErrPubsubUnavailable
 	}
-	if session == nil {
-		return "", errors.New("live: session is nil")
+	sess := sessionFromContext(ctx)
+	if sess == nil {
+		return "", runtime.ErrPubsubUnavailable
 	}
 	if handler == nil {
-		return "", errors.New("live: handler is nil")
+		return "", errors.New("server: handler is nil")
 	}
 	topic = strings.TrimSpace(topic)
 	if topic == "" {
-		return "", errors.New("live: topic is empty")
+		return "", errors.New("server: topic is empty")
 	}
 
 	token := uuid.NewString()
 
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
 	p.subscriptions[token] = pubsubSubscription{
-		session: session.ID(),
+		session: sess.ID(),
 		topic:   topic,
 	}
-	if _, ok := p.sessionTopics[session.ID()]; !ok {
-		p.sessionTopics[session.ID()] = make(map[string]int)
+	if _, ok := p.sessionTopics[sess.ID()]; !ok {
+		p.sessionTopics[sess.ID()] = make(map[string]int)
 	}
-	p.sessionTopics[session.ID()][topic]++
+	p.sessionTopics[sess.ID()][topic]++
+	p.mu.Unlock()
 
 	return token, nil
 }
 
-func (p *pubsubProvider) Unsubscribe(session *runtime.LiveSession, token string) error {
+func (p *pubsubProvider) Unsubscribe(ctx context.Context, token string) error {
 	if p == nil {
 		return runtime.ErrPubsubUnavailable
 	}
@@ -101,14 +106,12 @@ func (p *pubsubProvider) Unsubscribe(session *runtime.LiveSession, token string)
 		return nil
 	}
 
-	var (
-		sub         pubsubSubscription
-		ok          bool
-		shouldEvict bool
-	)
+	var sub pubsubSubscription
+	var shouldEvict bool
 
 	p.mu.Lock()
-	if sub, ok = p.subscriptions[token]; ok {
+	if existing, ok := p.subscriptions[token]; ok {
+		sub = existing
 		delete(p.subscriptions, token)
 		if counts, exists := p.sessionTopics[sub.session]; exists {
 			if counts[sub.topic] > 0 {
@@ -122,26 +125,26 @@ func (p *pubsubProvider) Unsubscribe(session *runtime.LiveSession, token string)
 				delete(p.sessionTopics, sub.session)
 			}
 		}
-	}
-	p.mu.Unlock()
-
-	if !ok {
+	} else {
+		p.mu.Unlock()
 		return nil
 	}
+	p.mu.Unlock()
 
 	if shouldEvict {
 		p.evictFromTopic(sub.session, sub.topic)
 	}
+
 	return nil
 }
 
-func (p *pubsubProvider) Publish(topic string, payload []byte, meta map[string]string) error {
+func (p *pubsubProvider) Publish(ctx context.Context, topic string, payload []byte, meta map[string]string) error {
 	if p == nil {
 		return runtime.ErrPubsubUnavailable
 	}
 	topic = strings.TrimSpace(topic)
 	if topic == "" {
-		return errors.New("live: topic is empty")
+		return errors.New("server: topic is empty")
 	}
 
 	channelName := fmt.Sprintf("pubsub/%s", topic)
@@ -219,7 +222,6 @@ func (p *pubsubProvider) handleOutgoing(ctx *pond.OutgoingContext) error {
 
 	envelope := p.parseOutgoingPayload(ctx)
 	if len(envelope.Data) == 0 {
-
 		envelope.Data = json.RawMessage("null")
 	}
 
@@ -228,18 +230,18 @@ func (p *pubsubProvider) handleOutgoing(ctx *pond.OutgoingContext) error {
 		process = p.processOutgoingMessage
 	}
 
-	err := process(runtime.SessionID(sessionID), ctx.User.UserID, topic, envelope)
+	err := process(session.SessionID(sessionID), ctx.User.UserID, topic, envelope)
 	ctx.Block()
 	return err
 }
 
-func (p *pubsubProvider) processOutgoingMessage(sessionID runtime.SessionID, connID, topic string, envelope pubsubEnvelope) error {
+func (p *pubsubProvider) processOutgoingMessage(sessionID session.SessionID, connID, topic string, envelope pubsubEnvelope) error {
 	if p == nil || sessionID == "" || topic == "" || p.registry == nil {
 		return nil
 	}
 
-	session, transport, ok := p.registry.LookupWithConnection(sessionID, connID)
-	if session == nil || !ok {
+	sess, transport, ok := p.registry.LookupWithConnection(sessionID, connID)
+	if sess == nil || !ok {
 		return nil
 	}
 
@@ -247,44 +249,43 @@ func (p *pubsubProvider) processOutgoingMessage(sessionID runtime.SessionID, con
 	if deliver == nil {
 		deliver = p.deliverToSession
 	}
-	return deliver(session, transport, topic, envelope)
+	return deliver(sess, transport, topic, envelope)
 }
 
 func (p *pubsubProvider) handleLeave(ctx *pond.LeaveContext) {
-
 	_ = ctx
 }
 
-func (p *pubsubProvider) deliverToSession(session pubsubSession, transport server.Transport, topic string, envelope pubsubEnvelope) error {
-	if session == nil || topic == "" {
+func (p *pubsubProvider) deliverToSession(sess pubsubSession, transport server.Transport, topic string, envelope pubsubEnvelope) error {
+	if sess == nil || topic == "" {
 		return nil
 	}
 
 	payload := append([]byte(nil), envelope.Data...)
 	meta := copyStringMap(envelope.Meta)
 
-	session.DeliverPubsub(topic, payload, meta)
+	sess.DeliverPubsub(topic, payload, meta)
 
-	if err := session.Flush(); err != nil {
-		p.sendPubsubFlushError(session, transport, err)
+	if err := sess.Flush(); err != nil {
+		p.sendPubsubFlushError(sess, transport, err)
 		return err
 	}
 	return nil
 }
 
-func (p *pubsubProvider) sendPubsubFlushError(session pubsubSession, transport server.Transport, flushErr error) {
-	if session == nil || flushErr == nil {
+func (p *pubsubProvider) sendPubsubFlushError(sess pubsubSession, transport server.Transport, flushErr error) {
+	if sess == nil || flushErr == nil {
 		return
 	}
 	if transport == nil && p != nil && p.registry != nil {
-		if _, tr, ok := p.registry.ConnectionForSession(session.ID()); ok {
+		if _, tr, ok := p.registry.ConnectionForSession(sess.ID()); ok {
 			transport = tr
 		}
 	}
 	if transport == nil {
 		return
 	}
-	_ = transport.SendServerError(serverError(session.ID(), "flush_failed", flushErr))
+	_ = transport.SendServerError(serverError(sess.ID(), "flush_failed", flushErr))
 }
 
 func (p *pubsubProvider) parseOutgoingPayload(ctx *pond.OutgoingContext) pubsubEnvelope {
@@ -315,7 +316,7 @@ func copyStringMap(src map[string]string) map[string]string {
 	return dst
 }
 
-func (p *pubsubProvider) evictFromTopic(sessionID runtime.SessionID, topic string) {
+func (p *pubsubProvider) evictFromTopic(sessionID session.SessionID, topic string) {
 	connID, _, ok := p.registry.ConnectionForSession(sessionID)
 	if !ok || connID == "" {
 		return
@@ -325,5 +326,36 @@ func (p *pubsubProvider) evictFromTopic(sessionID runtime.SessionID, topic strin
 	if err != nil || ch == nil {
 		return
 	}
-	_ = ch.EvictUser(connID, "live:pubsub-unsubscribe")
+	_ = ch.EvictUser(connID, "server:pubsub-unsubscribe")
+}
+
+func contextWithSession(ctx context.Context, sess *session.LiveSession) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, sessionContextKey{}, sess)
+}
+
+func sessionFromContext(ctx context.Context) *session.LiveSession {
+	if ctx == nil {
+		return nil
+	}
+	if sess, ok := ctx.Value(sessionContextKey{}).(*session.LiveSession); ok {
+		return sess
+	}
+	return nil
+}
+
+// serverError constructs a protocol error message.
+func serverError(sid session.SessionID, code string, err error) protocol.ServerError {
+	msg := ""
+	if err != nil {
+		msg = err.Error()
+	}
+	return protocol.ServerError{
+		T:       "error",
+		SID:     string(sid),
+		Code:    code,
+		Message: msg,
+	}
 }

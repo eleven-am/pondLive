@@ -4,27 +4,27 @@ import (
 	"sync"
 	"time"
 
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
-// TTLStore persists session expiry metadata.
+// TTLStore persists session expiry metadata for runtime2 sessions.
 type TTLStore interface {
-	Touch(id runtime.SessionID, ttl time.Duration) error
-	Remove(id runtime.SessionID) error
-	Expired(now time.Time) ([]runtime.SessionID, error)
+	Touch(id session.SessionID, ttl time.Duration) error
+	Remove(id session.SessionID) error
+	Expired(now time.Time) ([]session.SessionID, error)
 }
 
-// NewInMemoryTTLStore returns a TTL store backed by an in-memory map.
+// NewInMemoryTTLStore returns an in-memory TTL store implementation.
 func NewInMemoryTTLStore() TTLStore {
-	return &inMemoryTTLStore{items: make(map[runtime.SessionID]time.Time)}
+	return &inMemoryTTLStore{items: make(map[session.SessionID]time.Time)}
 }
 
 type inMemoryTTLStore struct {
 	mu    sync.Mutex
-	items map[runtime.SessionID]time.Time
+	items map[session.SessionID]time.Time
 }
 
-func (s *inMemoryTTLStore) Touch(id runtime.SessionID, ttl time.Duration) error {
+func (s *inMemoryTTLStore) Touch(id session.SessionID, ttl time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if ttl <= 0 {
@@ -35,17 +35,17 @@ func (s *inMemoryTTLStore) Touch(id runtime.SessionID, ttl time.Duration) error 
 	return nil
 }
 
-func (s *inMemoryTTLStore) Remove(id runtime.SessionID) error {
+func (s *inMemoryTTLStore) Remove(id session.SessionID) error {
 	s.mu.Lock()
 	delete(s.items, id)
 	s.mu.Unlock()
 	return nil
 }
 
-func (s *inMemoryTTLStore) Expired(now time.Time) ([]runtime.SessionID, error) {
+func (s *inMemoryTTLStore) Expired(now time.Time) ([]session.SessionID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var expired []runtime.SessionID
+	var expired []session.SessionID
 	for id, exp := range s.items {
 		if exp.IsZero() {
 			continue

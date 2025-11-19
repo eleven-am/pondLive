@@ -1,8 +1,10 @@
 package html
 
+import "github.com/eleven-am/pondlive/go/internal/dom2"
+
 // WheelEvent represents mouse wheel events.
 type WheelEvent struct {
-	Event
+	dom2.Event
 	DeltaX   float64 // Horizontal scroll amount
 	DeltaY   float64 // Vertical scroll amount
 	DeltaZ   float64 // Z-axis scroll amount
@@ -27,24 +29,24 @@ func (WheelEvent) props() []string {
 
 // WheelHandler provides wheel event handlers.
 type WheelHandler struct {
-	ref RefListener
+	ref dom2.RefListener
 }
 
 // NewWheelHandler creates a new WheelHandler.
-func NewWheelHandler(ref RefListener) *WheelHandler {
+func NewWheelHandler(ref dom2.RefListener) *WheelHandler {
 	return &WheelHandler{ref: ref}
 }
 
 // OnWheel registers a handler for the "wheel" event.
-func (h *WheelHandler) OnWheel(handler func(WheelEvent) Updates) {
+func (h *WheelHandler) OnWheel(handler func(WheelEvent) dom2.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildWheelEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildWheelEvent(evt)) }
 	h.ref.AddListener("wheel", wrapped, WheelEvent{}.props())
 }
 
-func buildWheelEvent(evt Event) WheelEvent {
+func buildWheelEvent(evt dom2.Event) WheelEvent {
 	detail := extractDetail(evt.Payload)
 	return WheelEvent{
 		Event:    evt,

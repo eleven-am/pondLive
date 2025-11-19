@@ -1,11 +1,11 @@
 package router
 
 import (
-	h "github.com/eleven-am/pondlive/go/internal/html"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
-func RouterRedirect(ctx runtime.Ctx, to string) h.Node {
+func Redirect(ctx runtime.Ctx, to string) *dom2.StructuredNode {
 	state := requireRouterState(ctx)
 	target := resolveHref(state.getLoc(), to)
 	href := BuildHref(target.Path, target.Query, target.Hash)
@@ -13,5 +13,5 @@ func RouterRedirect(ctx runtime.Ctx, to string) h.Node {
 		performLocationUpdate(ctx, target, true, true)
 		return nil
 	}, href)
-	return h.Fragment()
+	return dom2.FragmentNode()
 }

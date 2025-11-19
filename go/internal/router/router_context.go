@@ -4,13 +4,13 @@ import (
 	"net/url"
 
 	"github.com/eleven-am/pondlive/go/internal/route"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 type Location = route.Location
 
-var LocationCtx = runtime.NewContext(Location{Path: "/"})
-var ParamsCtx = runtime.NewContext(map[string]string{})
+var LocationCtx = runtime.CreateContext[Location](Location{Path: "/"})
+var ParamsCtx = runtime.CreateContext[map[string]string](map[string]string{})
 
 func UseLocation(ctx runtime.Ctx) Location {
 	loc := LocationCtx.Use(ctx)
@@ -20,12 +20,7 @@ func UseLocation(ctx runtime.Ctx) Location {
 func UseParams(ctx runtime.Ctx) map[string]string {
 	params := ParamsCtx.Use(ctx)
 	if len(params) == 0 {
-		sess := ctx.Session()
-		fallback := sessionParams(sess)
-		if len(fallback) == 0 {
-			return map[string]string{}
-		}
-		return fallback
+		return map[string]string{}
 	}
 	cp := make(map[string]string, len(params))
 	for k, v := range params {

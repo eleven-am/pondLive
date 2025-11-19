@@ -1,8 +1,10 @@
 package html
 
+import "github.com/eleven-am/pondlive/go/internal/dom2"
+
 // LoadEvent represents resource loading events (load, error, progress, etc).
 type LoadEvent struct {
-	Event
+	dom2.Event
 	Loaded float64 // Bytes loaded (for progress events)
 	Total  float64 // Total bytes (for progress events)
 }
@@ -17,69 +19,69 @@ func (LoadEvent) props() []string {
 
 // LoadHandler provides resource loading event handlers.
 type LoadHandler struct {
-	ref RefListener
+	ref dom2.RefListener
 }
 
 // NewLoadHandler creates a new LoadHandler.
-func NewLoadHandler(ref RefListener) *LoadHandler {
+func NewLoadHandler(ref dom2.RefListener) *LoadHandler {
 	return &LoadHandler{ref: ref}
 }
 
 // OnLoad registers a handler for the "load" event.
-func (h *LoadHandler) OnLoad(handler func(LoadEvent) Updates) {
+func (h *LoadHandler) OnLoad(handler func(LoadEvent) dom2.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildLoadEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildLoadEvent(evt)) }
 	h.ref.AddListener("load", wrapped, LoadEvent{}.props())
 }
 
 // OnError registers a handler for the "error" event.
-func (h *LoadHandler) OnError(handler func(LoadEvent) Updates) {
+func (h *LoadHandler) OnError(handler func(LoadEvent) dom2.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildLoadEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildLoadEvent(evt)) }
 	h.ref.AddListener("error", wrapped, LoadEvent{}.props())
 }
 
 // OnAbort registers a handler for the "abort" event.
-func (h *LoadHandler) OnAbort(handler func(LoadEvent) Updates) {
+func (h *LoadHandler) OnAbort(handler func(LoadEvent) dom2.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildLoadEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildLoadEvent(evt)) }
 	h.ref.AddListener("abort", wrapped, LoadEvent{}.props())
 }
 
 // OnLoadStart registers a handler for the "loadstart" event.
-func (h *LoadHandler) OnLoadStart(handler func(LoadEvent) Updates) {
+func (h *LoadHandler) OnLoadStart(handler func(LoadEvent) dom2.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildLoadEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildLoadEvent(evt)) }
 	h.ref.AddListener("loadstart", wrapped, LoadEvent{}.props())
 }
 
 // OnLoadEnd registers a handler for the "loadend" event.
-func (h *LoadHandler) OnLoadEnd(handler func(LoadEvent) Updates) {
+func (h *LoadHandler) OnLoadEnd(handler func(LoadEvent) dom2.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildLoadEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildLoadEvent(evt)) }
 	h.ref.AddListener("loadend", wrapped, LoadEvent{}.props())
 }
 
 // OnProgress registers a handler for the "progress" event.
-func (h *LoadHandler) OnProgress(handler func(LoadEvent) Updates) {
+func (h *LoadHandler) OnProgress(handler func(LoadEvent) dom2.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt Event) Updates { return handler(buildLoadEvent(evt)) }
+	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildLoadEvent(evt)) }
 	h.ref.AddListener("progress", wrapped, LoadEvent{}.props())
 }
 
-func buildLoadEvent(evt Event) LoadEvent {
+func buildLoadEvent(evt dom2.Event) LoadEvent {
 	detail := extractDetail(evt.Payload)
 	return LoadEvent{
 		Event:  evt,

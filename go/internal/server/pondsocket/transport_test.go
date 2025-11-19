@@ -41,6 +41,9 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 	ch := &stubChannel{}
 	tr := newTransport(ch, "user-1")
 
+	if err := tr.SendBoot(protocol.Boot{}); err != nil {
+		t.Fatalf("SendBoot: %v", err)
+	}
 	if err := tr.SendInit(protocol.Init{}); err != nil {
 		t.Fatalf("SendInit: %v", err)
 	}
@@ -49,9 +52,6 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 	}
 	if err := tr.SendFrame(protocol.Frame{}); err != nil {
 		t.Fatalf("SendFrame: %v", err)
-	}
-	if err := tr.SendTemplate(protocol.TemplateFrame{}); err != nil {
-		t.Fatalf("SendTemplate: %v", err)
 	}
 	if err := tr.SendEventAck(protocol.EventAck{}); err != nil {
 		t.Fatalf("SendEventAck: %v", err)
@@ -79,7 +79,7 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 		t.Fatalf("expected 10 calls, got %d", len(ch.calls))
 	}
 
-	want := []string{"init", "resume", "frame", "template", "evt-ack", "error", "diagnostic", "pubsub", "upload", "domreq"}
+	want := []string{"boot", "init", "resume", "frame", "evt-ack", "error", "diagnostic", "pubsub", "upload", "domreq"}
 	for i, event := range want {
 		if ch.calls[i].event != event {
 			t.Fatalf("call %d expecting event %q, got %q", i, event, ch.calls[i].event)
@@ -89,6 +89,10 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 		}
 
 		switch payload := ch.calls[i].payload.(type) {
+		case protocol.Boot:
+			if payload.T != "boot" {
+				t.Fatalf("expected boot payload T, got %q", payload.T)
+			}
 		case protocol.Init:
 			if payload.T != "init" {
 				t.Fatalf("expected init payload T, got %q", payload.T)
@@ -100,10 +104,6 @@ func TestTransportSendsNormalizedEvents(t *testing.T) {
 		case protocol.Frame:
 			if payload.T != "frame" {
 				t.Fatalf("expected frame payload T, got %q", payload.T)
-			}
-		case protocol.TemplateFrame:
-			if payload.T != "template" {
-				t.Fatalf("expected template payload T, got %q", payload.T)
 			}
 		case protocol.EventAck:
 			if payload.T != "evt-ack" {

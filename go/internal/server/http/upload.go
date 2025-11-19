@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	runtime "github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
+	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
 const UploadPathPrefix = "/pondlive/upload/"
@@ -28,29 +29,30 @@ func NewUploadHandler(reg *server.SessionRegistry) *UploadHandler {
 // ServeHTTP accepts POST uploads addressed to /pondlive/upload/{sid}/{uploadId}.
 func (h *UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h == nil || h.registry == nil {
-		http.Error(w, "live: upload handler not available", http.StatusServiceUnavailable)
+		http.Error(w, "server2: upload handler not available", http.StatusServiceUnavailable)
 		return
 	}
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		http.Error(w, "live: unsupported method", http.StatusMethodNotAllowed)
+		http.Error(w, "server2: unsupported method", http.StatusMethodNotAllowed)
 		return
 	}
+
 	sid, uploadID := extractUploadTarget(r.URL.Path)
 	if sid == "" || uploadID == "" {
-		http.Error(w, "live: invalid upload target", http.StatusBadRequest)
+		http.Error(w, "server2: invalid upload target", http.StatusBadRequest)
 		return
 	}
 
-	session, ok := h.registry.Lookup(runtime.SessionID(sid))
-	if !ok || session == nil {
-		http.Error(w, "live: session not found", http.StatusNotFound)
+	sess, ok := h.registry.Lookup(session.SessionID(sid))
+	if !ok || sess == nil {
+		http.Error(w, "server2: session not found", http.StatusNotFound)
 		return
 	}
 
-	component := session.ComponentSession()
+	component := sess.ComponentSession()
 	if component == nil {
-		http.Error(w, "live: session unavailable", http.StatusGone)
+		http.Error(w, "server2: session unavailable", http.StatusGone)
 		return
 	}
 
@@ -58,7 +60,7 @@ func (h *UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	reader, err := r.MultipartReader()
 	if err != nil {
-		http.Error(w, "live: expected multipart form", http.StatusBadRequest)
+		http.Error(w, "server2: expected multipart form", http.StatusBadRequest)
 		return
 	}
 
@@ -87,7 +89,7 @@ func (h *UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if stageErr != nil {
 		component.HandleUploadError(uploadID, stageErr)
-		_ = session.Flush()
+		_ = sess.Flush()
 		status := http.StatusInternalServerError
 		switch {
 		case errors.Is(stageErr, runtime.ErrUploadTooLarge):
@@ -96,37 +98,38 @@ func (h *UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			status = http.StatusBadRequest
 		}
 		cleanupUploadedFile(staged)
-		http.Error(w, "live: failed to process upload", status)
+		http.Error(w, "server2: failed to process upload", status)
 		return
 	}
+
 	if staged.Reader == nil {
-		component.HandleUploadError(uploadID, errors.New("runtime: missing upload payload"))
-		_ = session.Flush()
+		component.HandleUploadError(uploadID, errors.New("runtime2: missing upload payload"))
+		_ = sess.Flush()
 		cleanupUploadedFile(staged)
-		http.Error(w, "live: missing file", http.StatusBadRequest)
+		http.Error(w, "server2: missing file", http.StatusBadRequest)
 		return
 	}
 
-	if _, err := component.CompleteUpload(uploadID, staged); err != nil {
-		component.HandleUploadError(uploadID, err)
-		_ = session.Flush()
-		cleanupUploadedFile(staged)
-		http.Error(w, "live: upload handler failed", http.StatusInternalServerError)
-		return
-	}
+	component.HandleUploadComplete(uploadID, staged.FileMeta)
 
-	if component.Dirty() {
-		if err := session.Flush(); err != nil {
-			http.Error(w, "live: failed to flush upload", http.StatusInternalServerError)
-			return
-		}
+	if err := sess.Flush(); err != nil {
+		cleanupUploadedFile(staged)
+		http.Error(w, "server2: failed to flush upload", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(struct {
 		Status string              `json:"status"`
 		File   protocol.UploadMeta `json:"file"`
-	}{Status: "ok", File: protocol.UploadMeta{Name: staged.FileMeta.Name, Size: staged.FileMeta.Size, Type: staged.FileMeta.Type}})
+	}{
+		Status: "ok",
+		File: protocol.UploadMeta{
+			Name: staged.FileMeta.Name,
+			Size: staged.FileMeta.Size,
+			Type: staged.FileMeta.Type,
+		},
+	})
 }
 
 func extractUploadTarget(p string) (string, string) {

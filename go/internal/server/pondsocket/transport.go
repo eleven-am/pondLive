@@ -7,7 +7,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 )
 
-var errTransportClosed = errors.New("live: transport closed")
+var errTransportClosed = errors.New("server: transport closed")
 
 type channelSender interface {
 	BroadcastTo(event string, payload any, userIDs ...string) error
@@ -32,6 +32,13 @@ func (t *transport) Close() error {
 	return nil
 }
 
+func (t *transport) SendBoot(boot protocol.Boot) error {
+	if boot.T == "" {
+		boot.T = "boot"
+	}
+	return t.send("boot", boot)
+}
+
 func (t *transport) SendInit(init protocol.Init) error {
 	if init.T == "" {
 		init.T = "init"
@@ -51,13 +58,6 @@ func (t *transport) SendFrame(frame protocol.Frame) error {
 		frame.T = "frame"
 	}
 	return t.send("frame", frame)
-}
-
-func (t *transport) SendTemplate(frame protocol.TemplateFrame) error {
-	if frame.T == "" {
-		frame.T = "template"
-	}
-	return t.send("template", frame)
 }
 
 func (t *transport) SendEventAck(ack protocol.EventAck) error {
@@ -109,7 +109,7 @@ func (t *transport) send(event string, payload any) error {
 	ch := t.channel
 	target := t.target
 	if ch == nil || target == "" {
-		return errors.New("live: transport missing channel or recipient")
+		return errors.New("server: transport missing channel or recipient")
 	}
 	return ch.BroadcastTo(event, payload, target)
 }
