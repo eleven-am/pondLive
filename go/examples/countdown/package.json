@@ -1,0 +1,16 @@
+{
+  "name": "tailwindcounter",
+  "version": "1.0.0",
+  "description": "This example boots a complete LiveUI application with TailwindCSS styling. It shows how to:",
+  "main": "tailwind.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "tailwindcss": "^4.1.16"
+  }
+}
