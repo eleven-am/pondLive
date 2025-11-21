@@ -60,11 +60,18 @@ func (c *Controller) SetLocation(loc Location) {
 }
 
 // SetMatch marks a route as matched and stores its details.
+// If the route is already matched with the same pattern and path, this is a no-op
+// to prevent unnecessary re-renders.
 func (c *Controller) SetMatch(pattern string, params map[string]string, path string) {
 	if c == nil {
 		return
 	}
 	state := c.Get()
+
+	if state.Matched && state.Pattern == pattern && state.Path == path {
+		return
+	}
+
 	c.Set(&State{
 		Location: state.Location,
 		Matched:  true,

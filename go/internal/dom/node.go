@@ -29,6 +29,7 @@ type StructuredNode struct {
 	Handlers []HandlerMeta           `json:"handlers,omitempty"`
 	Router   *RouterMeta             `json:"router,omitempty"`
 	Upload   *UploadMeta             `json:"upload,omitempty"`
+	Script   *ScriptMeta             `json:"script,omitempty"`
 	Events   map[string]EventBinding `json:"-"` // Builder-time event bindings
 
 	// Type safety for refs (not serialized)
@@ -90,6 +91,18 @@ type UploadBinding struct {
 	MaxSize  int64
 }
 
+// ScriptMeta describes script execution configuration
+type ScriptMeta struct {
+	ScriptID string `json:"scriptId"`
+	Script   string `json:"script"`
+}
+
+// ScriptBinding is the runtime representation of script metadata
+type ScriptBinding struct {
+	ScriptID string
+	Script   string
+}
+
 // Validate ensures the node structure is correct
 func (n *StructuredNode) Validate() error {
 	if n == nil {
@@ -143,6 +156,9 @@ func (n *StructuredNode) Validate() error {
 		}
 		if len(n.UploadBindings) > 0 {
 			return fmt.Errorf("only elements can have upload bindings")
+		}
+		if n.Script != nil {
+			return fmt.Errorf("only elements can have script metadata")
 		}
 		if n.RefID != "" {
 			return fmt.Errorf("only elements can have ref IDs")

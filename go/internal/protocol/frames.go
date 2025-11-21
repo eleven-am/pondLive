@@ -195,3 +195,19 @@ type Location struct {
 	Query string `json:"q"`
 	Hash  string `json:"hash"`
 }
+
+// Script protocol
+type ScriptEvent struct {
+	T        string         `json:"t"`
+	SID      string         `json:"sid"`
+	ScriptID string         `json:"scriptId"`
+	Event    string         `json:"event"`
+	Data     map[string]any `json:"data"`
+}
+
+type ScriptMessage struct {
+	T        string         `json:"t"`
+	SID      string         `json:"sid"`
+	ScriptID string         `json:"scriptId"`
+	Data     map[string]any `json:"data"`
+}

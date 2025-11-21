@@ -3,6 +3,7 @@ import {Patcher} from './patcher';
 import {Router} from './router';
 import {Uploader} from './uploader';
 import {EffectExecutor} from './effects';
+import {ScriptExecutor} from './scripts';
 import {Logger} from './logger';
 import {ChannelState} from '@eleven-am/pondsocket-client';
 import {
@@ -14,9 +15,10 @@ import {
     Location as ProtoLocation,
     NavMessage,
     ResumeOK,
+    ScriptEvent,
     ServerMessage
 } from './protocol';
-import {Effect, RouterMeta, UploadMeta} from './types';
+import {Effect, RouterMeta, ScriptMeta, UploadMeta} from './types';
 
 export interface RuntimeConfig {
     root: Node;
@@ -37,6 +39,7 @@ export class Runtime {
     private readonly router: Router;
     private readonly uploader: Uploader;
     private readonly effects: EffectExecutor;
+    private readonly scripts: ScriptExecutor;
     private readonly refs = new Map<string, Element>();
 
     private cseq = 0;
@@ -56,12 +59,19 @@ export class Runtime {
             location: config.location
         });
 
+        this.scripts = new ScriptExecutor({
+            sessionId: config.sessionId,
+            onMessage: (msg) => this.transport.send(msg)
+        });
+
         this.patcher = new Patcher(config.root, {
             onEvent: (_event, handler, data) => this.handleEvent(handler, data),
             onRef: (refId, el) => this.refs.set(refId, el),
             onRefDelete: (refId) => this.refs.delete(refId),
             onRouter: (meta) => this.handleRouterClick(meta),
-            onUpload: (meta, files) => this.handleUpload(meta, files)
+            onUpload: (meta, files) => this.handleUpload(meta, files),
+            onScript: (meta, el) => this.handleScript(meta, el),
+            onScriptCleanup: (scriptId) => this.scripts.cleanup(scriptId)
         });
 
         this.router = new Router((type, path, query, hash) => {
@@ -116,6 +126,9 @@ export class Runtime {
                 break;
             case 'dom_req':
                 this.handleDOMRequest(msg);
+                break;
+            case 'script:event':
+                this.handleScriptEvent(msg);
                 break;
             case 'evt_ack':
                 break;
@@ -196,6 +209,14 @@ export class Runtime {
 
     private handleUpload(meta: UploadMeta, files: FileList): void {
         this.uploader.upload(meta, files);
+    }
+
+    private handleScript(meta: ScriptMeta, el: Element): void {
+        this.scripts.execute(meta, el);
+    }
+
+    private handleScriptEvent(msg: ScriptEvent): void {
+        this.scripts.handleEvent(msg.scriptId, msg.event, msg.data);
     }
 
     private sendNav(type: 'nav' | 'pop', path: string, query: string, hash: string): void {

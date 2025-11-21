@@ -17,6 +17,8 @@ describe('Patcher', () => {
             onRefDelete: vi.fn(),
             onRouter: vi.fn(),
             onUpload: vi.fn(),
+            onScript: vi.fn(),
+            onScriptCleanup: vi.fn(),
         };
 
         patcher = new Patcher(root, callbacks);
@@ -845,6 +847,428 @@ describe('Patcher', () => {
             patcher.apply(patches);
 
             expect(root.querySelector('div')!.innerHTML).toBe('<strong>bold</strong>');
+        });
+    });
+
+    describe('Script Cleanup System', () => {
+        describe('setScript and delScript', () => {
+            it('should call onScript when setScript patch is applied', () => {
+                root.innerHTML = '<div></div>';
+                const patches: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-1', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(patches);
+
+                expect(callbacks.onScript).toHaveBeenCalledWith(
+                    { scriptId: 'script-1', script: '(el, t) => {}' },
+                    root.querySelector('div')
+                );
+            });
+
+            it('should call onScriptCleanup when delScript patch is applied', () => {
+                root.innerHTML = '<div></div>';
+                const setPatches: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-1', script: '(el, t) => {}' }
+                    }
+                ];
+                const delPatches: Patch[] = [
+                    { seq: 1, path: [0], op: 'delScript' }
+                ];
+
+                patcher.apply(setPatches);
+                expect(callbacks.onScriptCleanup).not.toHaveBeenCalled();
+
+                patcher.apply(delPatches);
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-1');
+            });
+
+            it('should handle delScript on element without script', () => {
+                root.innerHTML = '<div></div>';
+                const patches: Patch[] = [
+                    { seq: 0, path: [0], op: 'delScript' }
+                ];
+
+                expect(() => patcher.apply(patches)).not.toThrow();
+                expect(callbacks.onScriptCleanup).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('cleanup on delChild', () => {
+            it('should call cleanup when element with script is removed', () => {
+                root.innerHTML = '<div><span></span></div>';
+
+                const setScript: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0, 0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-1', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScript);
+
+                const delChild: Patch[] = [
+                    { seq: 1, path: [0], op: 'delChild', index: 0 }
+                ];
+                patcher.apply(delChild);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-1');
+                expect(root.querySelector('span')).toBeNull();
+            });
+
+            it('should cleanup multiple nested scripts when parent is removed', () => {
+                root.innerHTML = '<div><ul><li></li><li></li></ul></div>';
+
+                const setScripts: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0, 0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-ul', script: '(el, t) => {}' }
+                    },
+                    {
+                        seq: 1,
+                        path: [0, 0, 0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-li-1', script: '(el, t) => {}' }
+                    },
+                    {
+                        seq: 2,
+                        path: [0, 0, 1],
+                        op: 'setScript',
+                        value: { scriptId: 'script-li-2', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScripts);
+
+                const delChild: Patch[] = [
+                    { seq: 3, path: [0], op: 'delChild', index: 0 }
+                ];
+                patcher.apply(delChild);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-ul');
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-li-1');
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-li-2');
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledTimes(3);
+            });
+
+            it('should handle removing element without scripts', () => {
+                root.innerHTML = '<div><span>text</span></div>';
+
+                const patches: Patch[] = [
+                    { seq: 0, path: [0], op: 'delChild', index: 0 }
+                ];
+
+                expect(() => patcher.apply(patches)).not.toThrow();
+                expect(callbacks.onScriptCleanup).not.toHaveBeenCalled();
+            });
+
+            it('should cleanup deeply nested scripts', () => {
+                root.innerHTML = '<div><section><article><p></p></article></section></div>';
+
+                const setScript: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0, 0, 0, 0],
+                        op: 'setScript',
+                        value: { scriptId: 'deep-script', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScript);
+
+                const delChild: Patch[] = [
+                    { seq: 1, path: [0], op: 'delChild', index: 0 }
+                ];
+                patcher.apply(delChild);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('deep-script');
+            });
+        });
+
+        describe('cleanup on replaceNode', () => {
+            it('should call cleanup when replacing element with script', () => {
+                root.innerHTML = '<div></div>';
+
+                const setScript: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-1', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScript);
+
+                const replace: Patch[] = [
+                    {
+                        seq: 1,
+                        path: [0],
+                        op: 'replaceNode',
+                        value: { tag: 'span', children: [{ text: 'new' }] }
+                    }
+                ];
+                patcher.apply(replace);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-1');
+                expect(root.querySelector('div')).toBeNull();
+                expect(root.querySelector('span')).not.toBeNull();
+            });
+
+            it('should cleanup nested scripts when replacing parent', () => {
+                root.innerHTML = '<div><span></span><p></p></div>';
+
+                const setScripts: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0, 0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-span', script: '(el, t) => {}' }
+                    },
+                    {
+                        seq: 1,
+                        path: [0, 1],
+                        op: 'setScript',
+                        value: { scriptId: 'script-p', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScripts);
+
+                const replace: Patch[] = [
+                    {
+                        seq: 2,
+                        path: [0],
+                        op: 'replaceNode',
+                        value: { tag: 'article', children: [{ text: 'new content' }] }
+                    }
+                ];
+                patcher.apply(replace);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-span');
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-p');
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledTimes(2);
+            });
+
+            it('should handle replacing element without scripts', () => {
+                root.innerHTML = '<div>old</div>';
+
+                const patches: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0],
+                        op: 'replaceNode',
+                        value: { tag: 'span', children: [{ text: 'new' }] }
+                    }
+                ];
+
+                expect(() => patcher.apply(patches)).not.toThrow();
+                expect(callbacks.onScriptCleanup).not.toHaveBeenCalled();
+            });
+
+            it('should cleanup script on element being replaced and not affect new element', () => {
+                root.innerHTML = '<div></div>';
+
+                const setScript: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0],
+                        op: 'setScript',
+                        value: { scriptId: 'old-script', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScript);
+
+                const replace: Patch[] = [
+                    {
+                        seq: 1,
+                        path: [0],
+                        op: 'replaceNode',
+                        value: {
+                            tag: 'div',
+                            script: { scriptId: 'new-script', script: '(el, t) => {}' }
+                        }
+                    }
+                ];
+                patcher.apply(replace);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('old-script');
+                expect(callbacks.onScript).toHaveBeenCalledWith(
+                    { scriptId: 'new-script', script: '(el, t) => {}' },
+                    root.querySelector('div')
+                );
+            });
+        });
+
+        describe('complex cleanup scenarios', () => {
+            it('should handle mixed content with some scripts and some non-scripts', () => {
+                root.innerHTML = '<div><span></span><p></p><a></a></div>';
+
+                const setScripts: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0, 0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-span', script: '(el, t) => {}' }
+                    },
+                    {
+                        seq: 1,
+                        path: [0, 2],
+                        op: 'setScript',
+                        value: { scriptId: 'script-a', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScripts);
+
+                const delChild: Patch[] = [
+                    { seq: 2, path: [], op: 'delChild', index: 0 }
+                ];
+                patcher.apply(delChild);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-span');
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-a');
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledTimes(2);
+            });
+
+            it('should cleanup script when element tree is removed', () => {
+                root.innerHTML = '<div id="app"><header><nav></nav></header><main><section></section></main></div>';
+
+                const setScripts: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0, 0, 0],
+                        op: 'setScript',
+                        value: { scriptId: 'nav-script', script: '(el, t) => {}' }
+                    },
+                    {
+                        seq: 1,
+                        path: [0, 1, 0],
+                        op: 'setScript',
+                        value: { scriptId: 'section-script', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScripts);
+
+                const delChild: Patch[] = [
+                    { seq: 2, path: [], op: 'delChild', index: 0 }
+                ];
+                patcher.apply(delChild);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('nav-script');
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('section-script');
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledTimes(2);
+            });
+
+            it('should only cleanup once when same script is explicitly deleted then element is removed', () => {
+                root.innerHTML = '<div><span></span></div>';
+
+                const setScript: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0, 0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-1', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScript);
+
+                const delScript: Patch[] = [
+                    { seq: 1, path: [0, 0], op: 'delScript' }
+                ];
+                patcher.apply(delScript);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledTimes(1);
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-1');
+
+                const delChild: Patch[] = [
+                    { seq: 2, path: [0], op: 'delChild', index: 0 }
+                ];
+                patcher.apply(delChild);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledTimes(1);
+            });
+
+            it('should handle text and comment nodes in tree without errors', () => {
+                root.innerHTML = '<div>text<!--comment--><span></span></div>';
+
+                const setScript: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0, 2],
+                        op: 'setScript',
+                        value: { scriptId: 'script-1', script: '(el, t) => {}' }
+                    }
+                ];
+                patcher.apply(setScript);
+
+                const delChild: Patch[] = [
+                    { seq: 1, path: [], op: 'delChild', index: 0 }
+                ];
+
+                expect(() => patcher.apply(delChild)).not.toThrow();
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-1');
+            });
+        });
+
+        describe('script lifecycle integration', () => {
+            it('should cleanup old script when setScript is called on same element', () => {
+                root.innerHTML = '<div></div>';
+
+                const setScript1: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-1', script: '(el, t) => { /* v1 */ }' }
+                    }
+                ];
+                patcher.apply(setScript1);
+
+                expect(callbacks.onScript).toHaveBeenCalledTimes(1);
+
+                const setScript2: Patch[] = [
+                    {
+                        seq: 1,
+                        path: [0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-2', script: '(el, t) => { /* v2 */ }' }
+                    }
+                ];
+                patcher.apply(setScript2);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-1');
+                expect(callbacks.onScript).toHaveBeenCalledTimes(2);
+            });
+
+            it('should create element with script via addChild', () => {
+                root.innerHTML = '<div></div>';
+
+                const addChild: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0],
+                        op: 'addChild',
+                        index: 0,
+                        value: {
+                            tag: 'span',
+                            script: { scriptId: 'child-script', script: '(el, t) => {}' }
+                        }
+                    }
+                ];
+                patcher.apply(addChild);
+
+                expect(callbacks.onScript).toHaveBeenCalledWith(
+                    { scriptId: 'child-script', script: '(el, t) => {}' },
+                    root.querySelector('span')
+                );
+            });
         });
     });
 });

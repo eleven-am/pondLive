@@ -25,6 +25,9 @@ type ComponentSession struct {
 	uploads  map[string]*uploadSlot
 	uploadMu sync.Mutex
 
+	scripts  map[string]*scriptSlot
+	scriptMu sync.Mutex
+
 	pendingEffects  []effectTask
 	pendingCleanups []cleanupTask
 	pendingPubsub   []pubsubTask
@@ -51,6 +54,9 @@ type ComponentSession struct {
 	// Router support - callback to get initial location (set by session package)
 	getInitialLocation func() (path string, query map[string]string, hash string)
 
+	// Auto-flush callback for live sessions - triggers flush when components mark dirty
+	autoFlush func()
+
 	mu sync.Mutex
 }
 
@@ -74,6 +80,7 @@ func NewSession[P any](root Component[P], props P) *ComponentSession {
 		components: make(map[string]*component),
 		handlers:   make(map[string]dom.EventHandler),
 		uploads:    make(map[string]*uploadSlot),
+		scripts:    make(map[string]*scriptSlot),
 		pubsubSubs: make(map[string]pubsubSubscription),
 	}
 	sess.root = newComponent(sess, nil, "root", root, props)
@@ -101,6 +108,17 @@ func (s *ComponentSession) SetPubsubProvider(p PubsubProvider) {
 // SetInitialLocationProvider installs a callback to get the initial location for router support.
 func (s *ComponentSession) SetInitialLocationProvider(fn func() (path string, query map[string]string, hash string)) {
 	s.getInitialLocation = fn
+}
+
+// SetAutoFlush configures the auto-flush callback for live sessions.
+// When set, any component marking itself dirty will trigger this callback.
+func (s *ComponentSession) SetAutoFlush(fn func()) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.autoFlush = fn
+	s.mu.Unlock()
 }
 
 // GetInitialLocation returns the initial location if available.
@@ -376,11 +394,25 @@ func (s *ComponentSession) markDirty(comp *component) {
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.dirty == nil {
 		s.dirty = make(map[*component]struct{})
 	}
 	s.dirty[comp] = struct{}{}
+	autoFlush := s.autoFlush
+	s.mu.Unlock()
+
+	if autoFlush != nil {
+		autoFlush()
+	}
+}
+
+func (s *ComponentSession) HasDirtyComponents() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.dirty) > 0
 }
 
 func (s *ComponentSession) enqueueDOMAction(effect dom.DOMActionEffect) {

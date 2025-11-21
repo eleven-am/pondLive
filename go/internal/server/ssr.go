@@ -268,6 +268,8 @@ func (b *bootCaptureTransport) LastSeq() int {
 	return b.lastSeq
 }
 
+func (b *bootCaptureTransport) IsLive() bool { return false }
+
 func (b *bootCaptureTransport) SendBoot(protocol.Boot) error                   { return nil }
 func (b *bootCaptureTransport) SendInit(protocol.Init) error                   { return nil }
 func (b *bootCaptureTransport) SendResume(protocol.ResumeOK) error             { return nil }

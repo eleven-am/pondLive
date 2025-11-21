@@ -31,6 +31,7 @@ type (
 	PopMsg                            = router.PopMsg
 	HeaderState                       = session.HeaderState
 	Styles                            = runtime.Styles
+	ScriptHandle                      = runtime.ScriptHandle
 )
 
 // Component wraps a stateless component function so it can be invoked directly
@@ -459,4 +460,34 @@ func NewContext[T any](def T) *Context[T] {
 //	}
 func UseStyles(ctx Ctx, css string) *Styles {
 	return runtime.UseStyles(ctx, css)
+}
+
+// UseScript creates a client-side script that runs in the browser. The script
+// receives the element it's attached to and a transport object for bidirectional
+// communication with the server.
+//
+// Example - Auto-incrementing counter:
+//
+//	func AutoCounter(ctx live.Ctx) h.Node {
+//	    count, setCount := live.UseState(ctx, 0)
+//
+//	    script := live.UseScript(ctx, `
+//	        (element, transport) => {
+//	            const interval = setInterval(() => {
+//	                transport.send({ tick: true });
+//	            }, 1000);
+//	            return () => clearInterval(interval);
+//	        }
+//	    `)
+//
+//	    script.OnMessage(func(data map[string]any) {
+//	        setCount(count() + 1)
+//	    })
+//
+//	    div := h.Div(h.Textf("Count: %d", count()))
+//	    script.AttachTo(div)
+//	    return div
+//	}
+func UseScript(ctx Ctx, script string) ScriptHandle {
+	return runtime.UseScript(ctx, script)
 }

@@ -1,4 +1,4 @@
-import {HandlerMeta, Patch, PatcherCallbacks, RouterMeta, StructuredNode, UploadMeta} from './types';
+import {HandlerMeta, Patch, PatcherCallbacks, RouterMeta, ScriptMeta, StructuredNode, UploadMeta} from './types';
 import {Logger} from './logger';
 
 export class Patcher {
@@ -7,6 +7,7 @@ export class Patcher {
     private handlerStore = new WeakMap<Element, Map<string, (e: Event) => void>>();
     private routerStore = new WeakMap<Element, (e: Event) => void>();
     private uploadStore = new WeakMap<HTMLInputElement, (e: Event) => void>();
+    private scriptStore = new WeakMap<Element, string>();
 
     constructor(root: Node, callbacks: PatcherCallbacks) {
         this.root = root;
@@ -66,6 +67,12 @@ export class Patcher {
                 break;
             case 'delUpload':
                 this.delUpload(node as HTMLInputElement);
+                break;
+            case 'setScript':
+                this.setScript(node as Element, patch.value as ScriptMeta);
+                break;
+            case 'delScript':
+                this.delScript(node as Element);
                 break;
             case 'setRef':
                 this.callbacks.onRef(patch.value as string, node as Element);
@@ -334,10 +341,28 @@ export class Patcher {
         el.accept = '';
     }
 
+    private setScript(el: Element, meta: ScriptMeta): void {
+        Logger.info('Patcher', 'setScript', el, meta);
+        this.delScript(el);
+
+        this.scriptStore.set(el, meta.scriptId);
+        this.callbacks.onScript(meta, el);
+    }
+
+    private delScript(el: Element): void {
+        Logger.info('Patcher', 'delScript', el);
+        const scriptId = this.scriptStore.get(el);
+        if (scriptId) {
+            this.scriptStore.delete(el);
+            this.callbacks.onScriptCleanup(scriptId);
+        }
+    }
+
     private replaceNode(oldNode: Node, newNodeData: StructuredNode): void {
         Logger.info('Patcher', 'replaceNode', oldNode, newNodeData);
         const newNode = this.createNode(newNodeData);
         if (newNode && oldNode.parentNode) {
+            this.cleanupScriptsInTree(oldNode);
             oldNode.parentNode.replaceChild(newNode, oldNode);
         }
     }
@@ -355,7 +380,23 @@ export class Patcher {
         Logger.info('Patcher', 'delChild', parent, index);
         const child = parent.childNodes[index];
         if (child) {
+            this.cleanupScriptsInTree(child);
             parent.removeChild(child);
+        }
+    }
+
+    private cleanupScriptsInTree(node: Node): void {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as Element;
+            const scriptId = this.scriptStore.get(el);
+            if (scriptId) {
+                this.scriptStore.delete(el);
+                this.callbacks.onScriptCleanup(scriptId);
+            }
+
+            for (let i = 0; i < node.childNodes.length; i++) {
+                this.cleanupScriptsInTree(node.childNodes[i]);
+            }
         }
     }
 
@@ -401,6 +442,10 @@ export class Patcher {
 
         if (data.upload && el instanceof HTMLInputElement) {
             this.setUpload(el, data.upload);
+        }
+
+        if (data.script) {
+            this.setScript(el, data.script);
         }
 
         if (data.refId) {

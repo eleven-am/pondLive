@@ -10,7 +10,6 @@ import (
 type Location = route.Location
 
 var LocationCtx = runtime.CreateContext[Location](Location{Path: "/"})
-var ParamsCtx = runtime.CreateContext[map[string]string](map[string]string{})
 
 func UseLocation(ctx runtime.Ctx) Location {
 	controller := UseRouterState(ctx)
@@ -63,6 +62,7 @@ func UseSearchParam(ctx runtime.Ctx, key string) (func() []string, func([]string
 		next := cloneLocation(state.Location)
 		next.Query = SetSearch(next.Query, lower, values...)
 		controller.SetLocation(next)
+		recordNavigation(ctx, next, true)
 	}
 	return get, set
 }

@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -33,7 +34,7 @@ func updateSearchWithNavigation(ctx runtime.Ctx, patch func(url.Values) url.Valu
 	}
 	next := current
 	next.Query = canonicalizeValues(nextQuery)
-	performLocationUpdate(ctx, next, replace, true)
+	performLocationUpdate(ctx, next, replace)
 }
 
 func applyNavigation(ctx runtime.Ctx, href string, replace bool) {
@@ -41,10 +42,10 @@ func applyNavigation(ctx runtime.Ctx, href string, replace bool) {
 	state := controller.Get()
 	current := state.Location
 	target := resolveHref(current, href)
-	performLocationUpdate(ctx, target, replace, true)
+	performLocationUpdate(ctx, target, replace)
 }
 
-func performLocationUpdate(ctx runtime.Ctx, target Location, replace bool, record bool) {
+func performLocationUpdate(ctx runtime.Ctx, target Location, replace bool) {
 	controller := UseRouterState(ctx)
 	state := controller.Get()
 	current := state.Location
@@ -53,9 +54,7 @@ func performLocationUpdate(ctx runtime.Ctx, target Location, replace bool, recor
 		return
 	}
 	controller.SetLocation(canon)
-	if record {
-		recordNavigation(ctx, canon, replace)
-	}
+	recordNavigation(ctx, canon, replace)
 }
 
 func resolveHref(base Location, href string) Location {
@@ -103,5 +102,6 @@ func locationFromURL(u *url.URL) Location {
 
 func recordNavigation(ctx runtime.Ctx, loc Location, replace bool) {
 	href := BuildHref(loc.Path, loc.Query, loc.Hash)
+	fmt.Println("Navigating to:", href, "replace:", replace)
 	ctx.EnqueueNavigation(href, replace)
 }

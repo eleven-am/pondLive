@@ -7,7 +7,6 @@ package main
 import (
 	"context"
 	"embed"
-	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -40,8 +39,8 @@ func main() {
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(assets))))
 	mux.Handle("/", app.Handler())
 
-	log.Println("countdown timer listening on http://localhost:8081")
-	if err := http.ListenAndServe(":8081", mux); err != nil {
+	log.Println("countdown timer listening on http://localhost:8080")
+	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -52,7 +51,7 @@ func countdown(ctx ui.Ctx) ui.Node {
 
 	ui.UseMetaTags(ctx, &ui.Meta{
 		Title:       "LiveUI Countdown Timer",
-		Description: "A countdown timer example using LiveUI and client-side scripts.",
+		Description: "A countdown timer example using LiveUI and UseScript.",
 		Links: []ui.LinkTag{
 			{
 				Rel:  "stylesheet",
@@ -116,16 +115,6 @@ func countdown(ctx ui.Ctx) ui.Node {
 		return nil
 	}
 
-	addFive := func(h.Event) h.Updates {
-		setSeconds(seconds() + 5)
-		return nil
-	}
-
-	timerDiv := h.Div(
-		h.Class("text-center"),
-	)
-	timerScript.AttachTo(timerDiv)
-
 	statusText := "Ready"
 	statusColor := "text-slate-300"
 	if isRunning() {
@@ -137,63 +126,47 @@ func countdown(ctx ui.Ctx) ui.Node {
 	}
 
 	return h.Div(
-		h.Class("bg-slate-900", "text-slate-100", "min-h-screen", "flex", "items-center", "justify-center"),
+		h.Class("bg-slate-900", "text-slate-100", "min-h-screen", "flex", "items-center", "justify-center", "p-4"),
 		h.Div(
-			h.Class("bg-slate-800", "rounded-2xl", "shadow-xl", "p-8", "w-full", "max-w-md", "space-y-6"),
-			h.Header(
-				h.Class("text-center"),
-				h.H1(
-					h.Class("text-3xl", "font-semibold"),
-					h.Text("Countdown Timer"),
-				),
-				h.P(
-					h.Class("mt-2", "text-slate-300"),
-					h.Text("A countdown timer using LiveUI with UseScript for interval management."),
-				),
+			h.Class("text-center", "space-y-8"),
+			h.H1(
+				h.Class("text-4xl", "font-bold", "text-slate-300"),
+				h.Text("Countdown Timer"),
 			),
-			timerDiv.With(
+			h.Div(
+				h.Class("bg-slate-800", "rounded-3xl", "p-12", "shadow-2xl"),
+				h.Attach(timerScript),
 				h.Div(
-					h.Class("text-8xl", "font-bold", "tabular-nums", "my-8"),
+					h.Class("text-9xl", "font-bold", "tabular-nums", "mb-4", "text-white"),
 					h.Textf("%d", seconds()),
 				),
 				h.P(
-					h.Class("text-sm", statusColor),
+					h.Class("text-lg", "font-medium", statusColor),
 					h.Text(statusText),
 				),
 			),
 			h.Div(
-				h.Class("flex", "flex-wrap", "gap-3", "justify-center"),
+				h.Class("flex", "gap-4", "justify-center"),
 				h.Button(
-					h.Class("bg-green-600", "hover:bg-green-500", "disabled:bg-slate-700", "disabled:text-slate-500", "text-white", "font-medium", "px-6", "py-2", "rounded-xl", "transition"),
+					h.Class("bg-green-600", "hover:bg-green-500", "disabled:opacity-30", "disabled:cursor-not-allowed", "text-white", "font-semibold", "px-8", "py-3", "rounded-xl", "transition", "min-w-24"),
 					h.Attr("type", "button"),
 					h.If(isRunning() || seconds() == 0, h.Attr("disabled", "")),
 					h.On("click", start),
 					h.Text("Start"),
 				),
 				h.Button(
-					h.Class("bg-yellow-600", "hover:bg-yellow-500", "disabled:bg-slate-700", "disabled:text-slate-500", "text-white", "font-medium", "px-6", "py-2", "rounded-xl", "transition"),
+					h.Class("bg-red-600", "hover:bg-red-500", "disabled:opacity-30", "disabled:cursor-not-allowed", "text-white", "font-semibold", "px-8", "py-3", "rounded-xl", "transition", "min-w-24"),
 					h.Attr("type", "button"),
 					h.If(!isRunning(), h.Attr("disabled", "")),
 					h.On("click", stop),
 					h.Text("Stop"),
 				),
 				h.Button(
-					h.Class("bg-blue-600", "hover:bg-blue-500", "text-white", "font-medium", "px-6", "py-2", "rounded-xl", "transition"),
+					h.Class("bg-slate-600", "hover:bg-slate-500", "text-white", "font-semibold", "px-8", "py-3", "rounded-xl", "transition", "min-w-24"),
 					h.Attr("type", "button"),
 					h.On("click", reset),
 					h.Text("Reset"),
 				),
-				h.Button(
-					h.Class("bg-indigo-600", "hover:bg-indigo-500", "disabled:bg-slate-700", "disabled:text-slate-500", "text-white", "font-medium", "px-6", "py-2", "rounded-xl", "transition"),
-					h.Attr("type", "button"),
-					h.If(isRunning(), h.Attr("disabled", "")),
-					h.On("click", addFive),
-					h.Text("+5s"),
-				),
-			),
-			h.Footer(
-				h.Class("text-xs", "text-slate-400", "text-center", "mt-4"),
-				h.Text(fmt.Sprintf("Click Start to begin the countdown. Using UseScript for timer control.")),
 			),
 		),
 	)

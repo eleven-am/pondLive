@@ -1,4 +1,4 @@
-import {DOMResponse, ServerMessage, UploadMessage, Location as ProtoLocation} from './protocol';
+import {DOMResponse, ServerMessage, UploadMessage, ScriptMessage, Location as ProtoLocation} from './protocol';
 
 // ============================================================================
 // Patch Types
@@ -18,6 +18,8 @@ export type OpKind =
     | 'delRouter'
     | 'setUpload'
     | 'delUpload'
+    | 'setScript'
+    | 'delScript'
     | 'setRef'
     | 'delRef'
     | 'replaceNode'
@@ -43,7 +45,7 @@ export interface HandlerMeta {
 }
 
 export interface RouterMeta {
-    pathValue: string;
+    path: string;
     query?: string;
     hash?: string;
     replace?: boolean;
@@ -56,6 +58,11 @@ export interface UploadMeta {
     accept?: string[];
 }
 
+export interface ScriptMeta {
+    scriptId: string;
+    script: string;
+}
+
 export interface StructuredNode {
     tag?: string;
     text?: string;
@@ -66,6 +73,7 @@ export interface StructuredNode {
     handlers?: HandlerMeta[];
     router?: RouterMeta;
     upload?: UploadMeta;
+    script?: ScriptMeta;
     refId?: string;
     unsafeHTML?: string;
 }
@@ -79,6 +87,8 @@ export type RefCallback = (refId: string, el: Element) => void;
 export type RefDeleteCallback = (refId: string) => void;
 export type RouterCallback = (meta: RouterMeta) => void;
 export type UploadCallback = (meta: UploadMeta, files: FileList) => void;
+export type ScriptCallback = (meta: ScriptMeta, el: Element) => void;
+export type ScriptCleanupCallback = (scriptId: string) => void;
 
 export interface PatcherCallbacks {
     onEvent: EventCallback;
@@ -86,6 +96,8 @@ export interface PatcherCallbacks {
     onRefDelete: RefDeleteCallback;
     onRouter: RouterCallback;
     onUpload: UploadCallback;
+    onScript: ScriptCallback;
+    onScriptCleanup: ScriptCleanupCallback;
 }
 
 // ============================================================================
@@ -169,4 +181,25 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 export interface LoggerConfig {
     enabled: boolean;
     level: LogLevel;
+}
+
+// ============================================================================
+// Script Types
+// ============================================================================
+
+export interface ScriptTransport {
+    send(data: Record<string, unknown>): void;
+    on(event: string, handler: (data: Record<string, unknown>) => void): void;
+}
+
+export interface ScriptInstance {
+    cleanup?: () => void;
+    eventHandlers: Map<string, (data: Record<string, unknown>) => void>;
+}
+
+export type ScriptMessageCallback = (msg: ScriptMessage) => void;
+
+export interface ScriptExecutorConfig {
+    sessionId: string;
+    onMessage: ScriptMessageCallback;
 }

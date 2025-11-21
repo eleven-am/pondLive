@@ -16,6 +16,8 @@ const (
 	OpDelRouter    OpKind = "delRouter"
 	OpSetUpload    OpKind = "setUpload"
 	OpDelUpload    OpKind = "delUpload"
+	OpSetScript    OpKind = "setScript"
+	OpDelScript    OpKind = "delScript"
 	OpSetRef       OpKind = "setRef"
 	OpDelRef       OpKind = "delRef"
 	OpSetComponent OpKind = "setComponent"

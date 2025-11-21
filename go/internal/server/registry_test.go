@@ -23,6 +23,10 @@ type stubTransport struct {
 	dom         []protocol.DOMRequest
 }
 
+func (s *stubTransport) IsLive() bool {
+	return !s.closed
+}
+
 func (s *stubTransport) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -12,15 +12,16 @@ import (
 type Component func(runtime.Ctx) *dom.StructuredNode
 
 func documentRoot(sess *LiveSession, app Component) runtime.Component[struct{}] {
-	initial := &router.State{
-		Location: toRouterLocation(sess.InitialLocation()),
-		Matched:  false,
-		Pattern:  "",
-		Params:   make(map[string]string),
-		Path:     "",
-	}
-
 	return func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
+
+		initial := &router.State{
+			Location: toRouterLocation(sess.InitialLocation()),
+			Matched:  false,
+			Pattern:  "",
+			Params:   make(map[string]string),
+			Path:     "",
+		}
+
 		current, setCurrent := runtime.UseState(ctx, initial)
 		controller := runtime.UseMemo(ctx, func() *router.Controller {
 			return router.NewController(current, setCurrent)

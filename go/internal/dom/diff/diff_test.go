@@ -754,3 +754,299 @@ func TestDiffKeyedComplexReorder(t *testing.T) {
 		t.Fatalf("expected move operations")
 	}
 }
+
+// ============================================================
+// SCRIPT DIFFING TESTS
+// ============================================================
+
+func TestDiffScript(t *testing.T) {
+	prev := dom.ElementNode("div")
+	next := dom.ElementNode("div")
+	next.Script = &dom.ScriptMeta{
+		ScriptID: "timer1",
+		Script:   "(el, transport) => { console.log('hello'); }",
+	}
+	patches := Diff(prev, next)
+
+	t.Logf("Got %d patches", len(patches))
+	for i, p := range patches {
+		t.Logf("Patch %d: Op=%s, Value=%v", i, p.Op, p.Value)
+	}
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpSetScript {
+			found = true
+			script := p.Value.(*dom.ScriptMeta)
+			if script.ScriptID != "timer1" {
+				t.Fatalf("expected scriptID=timer1, got %s", script.ScriptID)
+			}
+			if script.Script != "(el, transport) => { console.log('hello'); }" {
+				t.Fatalf("unexpected script content: %s", script.Script)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected setScript op")
+	}
+}
+
+func TestDiffScriptRemoval(t *testing.T) {
+	prev := dom.ElementNode("div")
+	prev.Script = &dom.ScriptMeta{
+		ScriptID: "timer1",
+		Script:   "(el, transport) => { console.log('hello'); }",
+	}
+	next := dom.ElementNode("div")
+	patches := Diff(prev, next)
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpDelScript {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected delScript op")
+	}
+}
+
+func TestDiffScriptChange(t *testing.T) {
+	prev := dom.ElementNode("div")
+	prev.Script = &dom.ScriptMeta{
+		ScriptID: "timer1",
+		Script:   "(el, transport) => { console.log('hello'); }",
+	}
+	next := dom.ElementNode("div")
+	next.Script = &dom.ScriptMeta{
+		ScriptID: "timer1",
+		Script:   "(el, transport) => { console.log('world'); }",
+	}
+	patches := Diff(prev, next)
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpSetScript {
+			found = true
+			script := p.Value.(*dom.ScriptMeta)
+			if script.Script != "(el, transport) => { console.log('world'); }" {
+				t.Fatalf("expected updated script, got %s", script.Script)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected setScript op when script content changes")
+	}
+}
+
+func TestDiffScriptIDChange(t *testing.T) {
+	prev := dom.ElementNode("div")
+	prev.Script = &dom.ScriptMeta{
+		ScriptID: "timer1",
+		Script:   "(el, transport) => { console.log('hello'); }",
+	}
+	next := dom.ElementNode("div")
+	next.Script = &dom.ScriptMeta{
+		ScriptID: "timer2",
+		Script:   "(el, transport) => { console.log('hello'); }",
+	}
+	patches := Diff(prev, next)
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpSetScript {
+			found = true
+			script := p.Value.(*dom.ScriptMeta)
+			if script.ScriptID != "timer2" {
+				t.Fatalf("expected scriptID=timer2, got %s", script.ScriptID)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected setScript op when script ID changes")
+	}
+}
+
+func TestDiffScriptUnchanged(t *testing.T) {
+	prev := dom.ElementNode("div")
+	prev.Script = &dom.ScriptMeta{
+		ScriptID: "timer1",
+		Script:   "(el, transport) => { console.log('hello'); }",
+	}
+	next := dom.ElementNode("div")
+	next.Script = &dom.ScriptMeta{
+		ScriptID: "timer1",
+		Script:   "(el, transport) => { console.log('hello'); }",
+	}
+	patches := Diff(prev, next)
+
+	for _, p := range patches {
+		if p.Op == OpSetScript || p.Op == OpDelScript {
+			t.Fatalf("should not produce script operations when unchanged, got %#v", p)
+		}
+	}
+}
+
+// ============================================================
+// SCRIPT EXTRACTION TESTS
+// ============================================================
+
+func TestExtractMetadata_Script(t *testing.T) {
+	node := dom.ElementNode("div")
+	node.Script = &dom.ScriptMeta{
+		ScriptID: "timer1",
+		Script:   "(el, transport) => { console.log('hello'); }",
+	}
+
+	patches := ExtractMetadata(node)
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpSetScript {
+			found = true
+			script := p.Value.(*dom.ScriptMeta)
+			if script.ScriptID != "timer1" {
+				t.Fatalf("expected scriptID=timer1, got %s", script.ScriptID)
+			}
+			if script.Script != "(el, transport) => { console.log('hello'); }" {
+				t.Fatalf("unexpected script content: %s", script.Script)
+			}
+			if len(p.Path) != 0 {
+				t.Fatalf("expected empty path for root script, got %v", p.Path)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected setScript op in extraction")
+	}
+}
+
+func TestExtractMetadata_NestedScript(t *testing.T) {
+	child := dom.ElementNode("button")
+	child.Script = &dom.ScriptMeta{
+		ScriptID: "click1",
+		Script:   "(el, transport) => { el.click(); }",
+	}
+
+	parent := dom.ElementNode("div").WithChildren(child)
+
+	patches := ExtractMetadata(parent)
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpSetScript {
+			found = true
+			script := p.Value.(*dom.ScriptMeta)
+			if script.ScriptID != "click1" {
+				t.Fatalf("expected scriptID=click1, got %s", script.ScriptID)
+			}
+			if !reflect.DeepEqual(p.Path, []int{0}) {
+				t.Fatalf("expected path [0] for first child, got %v", p.Path)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected setScript op for nested script")
+	}
+}
+
+func TestExtractMetadata_MultipleScripts(t *testing.T) {
+	child1 := dom.ElementNode("div")
+	child1.Script = &dom.ScriptMeta{
+		ScriptID: "script1",
+		Script:   "() => { console.log('1'); }",
+	}
+
+	child2 := dom.ElementNode("div")
+	child2.Script = &dom.ScriptMeta{
+		ScriptID: "script2",
+		Script:   "() => { console.log('2'); }",
+	}
+
+	parent := dom.ElementNode("div").WithChildren(child1, child2)
+	parent.Script = &dom.ScriptMeta{
+		ScriptID: "script0",
+		Script:   "() => { console.log('0'); }",
+	}
+
+	patches := ExtractMetadata(parent)
+
+	scriptCount := 0
+	foundIDs := make(map[string]bool)
+
+	for _, p := range patches {
+		if p.Op == OpSetScript {
+			scriptCount++
+			script := p.Value.(*dom.ScriptMeta)
+			foundIDs[script.ScriptID] = true
+		}
+	}
+
+	if scriptCount != 3 {
+		t.Fatalf("expected 3 scripts, got %d", scriptCount)
+	}
+	if !foundIDs["script0"] || !foundIDs["script1"] || !foundIDs["script2"] {
+		t.Fatalf("expected script0, script1, script2, got %v", foundIDs)
+	}
+}
+
+func TestExtractMetadata_ScriptWithHandlers(t *testing.T) {
+	node := dom.ElementNode("button")
+	node.Script = &dom.ScriptMeta{
+		ScriptID: "btn1",
+		Script:   "(el, transport) => { console.log('script'); }",
+	}
+	node.Handlers = []dom.HandlerMeta{
+		{Event: "click"},
+	}
+
+	patches := ExtractMetadata(node)
+
+	foundScript := false
+	foundHandlers := false
+
+	for _, p := range patches {
+		if p.Op == OpSetScript {
+			foundScript = true
+		}
+		if p.Op == OpSetHandlers {
+			foundHandlers = true
+		}
+	}
+
+	if !foundScript {
+		t.Fatalf("expected setScript op")
+	}
+	if !foundHandlers {
+		t.Fatalf("expected setHandlers op")
+	}
+}
+
+func TestExtractMetadata_ScriptInFragment(t *testing.T) {
+	child := dom.ElementNode("div")
+	child.Script = &dom.ScriptMeta{
+		ScriptID: "frag1",
+		Script:   "() => {}",
+	}
+
+	fragment := dom.FragmentNode(child)
+
+	patches := ExtractMetadata(fragment)
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpSetScript {
+			found = true
+			script := p.Value.(*dom.ScriptMeta)
+			if script.ScriptID != "frag1" {
+				t.Fatalf("expected scriptID=frag1, got %s", script.ScriptID)
+			}
+			if !reflect.DeepEqual(p.Path, []int{0}) {
+				t.Fatalf("expected path [0] for fragment child, got %v", p.Path)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected setScript op in fragment")
+	}
+}

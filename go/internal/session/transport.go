@@ -7,6 +7,10 @@ import (
 // Transport delivers protocol messages to the client connection backing a session.
 // This interface mirrors the pattern from runtime1.Transport but works with runtime2/session.
 type Transport interface {
+	// IsLive returns true if this is a live WebSocket connection that supports
+	// real-time updates. Returns false for SSR or other non-live transports.
+	IsLive() bool
+
 	// Session lifecycle messages
 	SendBoot(boot protocol.Boot) error
 	SendInit(init protocol.Init) error

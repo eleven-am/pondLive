@@ -27,6 +27,10 @@ func newTransport(ch channelSender, target string) *transport {
 	}
 }
 
+func (t *transport) IsLive() bool {
+	return true
+}
+
 func (t *transport) Close() error {
 	t.closed.Store(true)
 	return nil

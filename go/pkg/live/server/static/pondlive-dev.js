@@ -1160,6 +1160,7 @@ var LiveUIModule = (() => {
     Patcher: () => Patcher,
     Router: () => Router,
     Runtime: () => Runtime,
+    ScriptExecutor: () => ScriptExecutor,
     Transport: () => Transport,
     Uploader: () => Uploader,
     boot: () => boot
@@ -1253,6 +1254,7 @@ var LiveUIModule = (() => {
       this.handlerStore = /* @__PURE__ */ new WeakMap();
       this.routerStore = /* @__PURE__ */ new WeakMap();
       this.uploadStore = /* @__PURE__ */ new WeakMap();
+      this.scriptStore = /* @__PURE__ */ new WeakMap();
       this.root = root;
       this.callbacks = callbacks;
     }
@@ -1307,6 +1309,12 @@ var LiveUIModule = (() => {
           break;
         case "delUpload":
           this.delUpload(node);
+          break;
+        case "setScript":
+          this.setScript(node, patch.value);
+          break;
+        case "delScript":
+          this.delScript(node);
           break;
         case "setRef":
           this.callbacks.onRef(patch.value, node);
@@ -1541,10 +1549,25 @@ var LiveUIModule = (() => {
       el.multiple = false;
       el.accept = "";
     }
+    setScript(el, meta) {
+      Logger.info("Patcher", "setScript", el, meta);
+      this.delScript(el);
+      this.scriptStore.set(el, meta.scriptId);
+      this.callbacks.onScript(meta, el);
+    }
+    delScript(el) {
+      Logger.info("Patcher", "delScript", el);
+      const scriptId = this.scriptStore.get(el);
+      if (scriptId) {
+        this.scriptStore.delete(el);
+        this.callbacks.onScriptCleanup(scriptId);
+      }
+    }
     replaceNode(oldNode, newNodeData) {
       Logger.info("Patcher", "replaceNode", oldNode, newNodeData);
       const newNode = this.createNode(newNodeData);
       if (newNode && oldNode.parentNode) {
+        this.cleanupScriptsInTree(oldNode);
         oldNode.parentNode.replaceChild(newNode, oldNode);
       }
     }
@@ -1559,7 +1582,21 @@ var LiveUIModule = (() => {
       Logger.info("Patcher", "delChild", parent, index);
       const child = parent.childNodes[index];
       if (child) {
+        this.cleanupScriptsInTree(child);
         parent.removeChild(child);
+      }
+    }
+    cleanupScriptsInTree(node) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node;
+        const scriptId = this.scriptStore.get(el);
+        if (scriptId) {
+          this.scriptStore.delete(el);
+          this.callbacks.onScriptCleanup(scriptId);
+        }
+        for (let i = 0; i < node.childNodes.length; i++) {
+          this.cleanupScriptsInTree(node.childNodes[i]);
+        }
       }
     }
     moveChild(parent, move) {
@@ -1595,6 +1632,9 @@ var LiveUIModule = (() => {
       if (data.upload && el instanceof HTMLInputElement) {
         this.setUpload(el, data.upload);
       }
+      if (data.script) {
+        this.setScript(el, data.script);
+      }
       if (data.refId) {
         this.callbacks.onRef(data.refId, el);
       }
@@ -1619,7 +1659,7 @@ var LiveUIModule = (() => {
       window.addEventListener("popstate", () => this.handlePopState());
     }
     navigate(meta) {
-      const path = meta.pathValue ?? window.location.pathname;
+      const path = meta.path ?? window.location.pathname;
       const query = meta.query !== void 0 ? meta.query : window.location.search;
       const hash = meta.hash !== void 0 ? meta.hash : window.location.hash;
       const cleanQuery = query.startsWith("?") ? query.substring(1) : query;
@@ -1895,6 +1935,76 @@ var LiveUIModule = (() => {
     }
   };
 
+  // src/scripts.ts
+  var ScriptExecutor = class {
+    constructor(config) {
+      this.scripts = /* @__PURE__ */ new Map();
+      this.sessionId = config.sessionId;
+      this.onMessage = config.onMessage;
+    }
+    async execute(meta, element) {
+      const { scriptId, script } = meta;
+      this.cleanup(scriptId);
+      const instance = {
+        eventHandlers: /* @__PURE__ */ new Map()
+      };
+      const transport = {
+        send: (data) => {
+          this.onMessage({
+            t: "script:message",
+            sid: this.sessionId,
+            scriptId,
+            data
+          });
+        },
+        on: (event, handler) => {
+          instance.eventHandlers.set(event, handler);
+        }
+      };
+      try {
+        const scriptFn = new Function("element", "transport", `return (${script})(element, transport)`);
+        const cleanup = await scriptFn(element, transport);
+        if (typeof cleanup === "function") {
+          instance.cleanup = cleanup;
+        }
+        this.scripts.set(scriptId, instance);
+        Logger.debug("ScriptExecutor", "Script executed", scriptId);
+      } catch (error) {
+        Logger.error("ScriptExecutor", "Script execution failed", scriptId, error);
+      }
+    }
+    handleEvent(scriptId, event, data) {
+      const instance = this.scripts.get(scriptId);
+      if (!instance) {
+        Logger.warn("ScriptExecutor", "Script instance not found", scriptId);
+        return;
+      }
+      const handler = instance.eventHandlers.get(event);
+      if (!handler) {
+        Logger.warn("ScriptExecutor", "Event handler not found", scriptId, event);
+        return;
+      }
+      try {
+        handler(data);
+      } catch (error) {
+        Logger.error("ScriptExecutor", "Event handler failed", scriptId, event, error);
+      }
+    }
+    cleanup(scriptId) {
+      const instance = this.scripts.get(scriptId);
+      if (!instance) return;
+      if (instance.cleanup) {
+        try {
+          instance.cleanup();
+        } catch (error) {
+          Logger.error("ScriptExecutor", "Cleanup failed", scriptId, error);
+        }
+      }
+      this.scripts.delete(scriptId);
+      Logger.debug("ScriptExecutor", "Script cleaned up", scriptId);
+    }
+  };
+
   // src/runtime.ts
   var import_pondsocket_client2 = __toESM(require_pondsocket_client(), 1);
   var Runtime = class {
@@ -1912,12 +2022,18 @@ var LiveUIModule = (() => {
         ack: config.seq,
         location: config.location
       });
+      this.scripts = new ScriptExecutor({
+        sessionId: config.sessionId,
+        onMessage: (msg) => this.transport.send(msg)
+      });
       this.patcher = new Patcher(config.root, {
         onEvent: (_event, handler, data) => this.handleEvent(handler, data),
         onRef: (refId, el) => this.refs.set(refId, el),
         onRefDelete: (refId) => this.refs.delete(refId),
         onRouter: (meta) => this.handleRouterClick(meta),
-        onUpload: (meta, files) => this.handleUpload(meta, files)
+        onUpload: (meta, files) => this.handleUpload(meta, files),
+        onScript: (meta, el) => this.handleScript(meta, el),
+        onScriptCleanup: (scriptId) => this.scripts.cleanup(scriptId)
       });
       this.router = new Router((type, path, query, hash) => {
         this.sendNav(type, path, query, hash);
@@ -1963,6 +2079,9 @@ var LiveUIModule = (() => {
           break;
         case "dom_req":
           this.handleDOMRequest(msg);
+          break;
+        case "script:event":
+          this.handleScriptEvent(msg);
           break;
         case "evt_ack":
           break;
@@ -2029,6 +2148,12 @@ var LiveUIModule = (() => {
     }
     handleUpload(meta, files) {
       this.uploader.upload(meta, files);
+    }
+    handleScript(meta, el) {
+      this.scripts.execute(meta, el);
+    }
+    handleScriptEvent(msg) {
+      this.scripts.handleEvent(msg.scriptId, msg.event, msg.data);
     }
     sendNav(type, path, query, hash) {
       const msg = { t: type, sid: this.sessionId, path, q: query, hash };

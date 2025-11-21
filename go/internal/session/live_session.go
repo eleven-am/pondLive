@@ -78,6 +78,7 @@ type LiveSession struct {
 	touchObservers map[int]func(time.Time)
 	nextObserverID int
 
+	flushing    bool
 	clientAsset string
 }
 
@@ -146,6 +147,17 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 			}
 		}
 		return sess.initialPath, query, sess.initialHash
+	})
+
+	sess.component.SetAutoFlush(func() {
+		sess.mu.Lock()
+		transport := sess.transport
+		alreadyFlushing := sess.flushing
+		sess.mu.Unlock()
+
+		if transport != nil && transport.IsLive() && !alreadyFlushing {
+			_ = sess.Flush()
+		}
 	})
 
 	return sess
@@ -369,13 +381,46 @@ func (s *LiveSession) seedRouterState(loc Location) {
 }
 
 // Flush renders dirty components, diffs the tree, and sends patches.
+// For SSR (non-live transport), flushes up to 3 times to handle synchronous
+// state updates like router matching and layout effects.
+// For WebSocket (live transport), flushes once - async updates trigger auto-flush.
 func (s *LiveSession) Flush() error {
 	if s == nil || s.component == nil {
 		return errors.New("session: not initialized")
 	}
-	if err := s.component.Flush(); err != nil {
-		return err
+
+	s.mu.Lock()
+	transport := s.transport
+	s.flushing = true
+	s.mu.Unlock()
+
+	defer func() {
+		s.mu.Lock()
+		s.flushing = false
+		s.mu.Unlock()
+	}()
+
+	isLive := transport != nil && transport.IsLive()
+
+	if isLive {
+
+		if err := s.component.Flush(); err != nil {
+			return err
+		}
+		return s.dispatchPendingCookies()
 	}
+
+	const maxFlushes = 3
+	for i := 0; i < maxFlushes; i++ {
+		if err := s.component.Flush(); err != nil {
+			return err
+		}
+
+		if !s.component.HasDirtyComponents() {
+			break
+		}
+	}
+
 	return s.dispatchPendingCookies()
 }
 

@@ -11,6 +11,6 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "tailwindcss": "^4.1.16"
+    "tailwindcss": "^3.4.1"
   }
 }

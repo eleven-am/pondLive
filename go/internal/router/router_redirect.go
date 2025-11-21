@@ -11,7 +11,7 @@ func Redirect(ctx runtime.Ctx, to string) *dom.StructuredNode {
 	target := resolveHref(state.Location, to)
 	href := BuildHref(target.Path, target.Query, target.Hash)
 	runtime.UseEffect(ctx, func() runtime.Cleanup {
-		performLocationUpdate(ctx, target, true, true)
+		performLocationUpdate(ctx, target, true)
 		return nil
 	}, href)
 	return dom.FragmentNode()

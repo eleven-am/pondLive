@@ -129,6 +129,10 @@ func (m *mockTransport) SendFrame(frame protocol.Frame) error {
 	return nil
 }
 
+func (m *mockTransport) IsLive() bool {
+	return true
+}
+
 func (m *mockTransport) SendEventAck(ack protocol.EventAck) error {
 	return nil
 }

@@ -73,7 +73,6 @@ const (
 	PondSocketPath = "/live"
 	UploadPath     = "/__upload"
 	CookiePath     = "/__cookie"
-	NavPath        = "/__nav"
 )
 
 // NewApp constructs a LiveUI application stack using the supplied component.
@@ -155,8 +154,6 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 	mux.Handle(UploadPath, server.NewUploadHandler(registry))
 
 	mux.Handle(CookiePath, server.NewCookieHandler(registry))
-
-	mux.Handle(NavPath, server.NewNavHandler(registry))
 
 	mux.Handle("/", ssrHandler)
 

@@ -131,7 +131,15 @@ export interface DOMRequest {
     args?: unknown[];
 }
 
-export type ServerMessage = Boot | Init | Frame | ResumeOK | EventAck | ServerError | Diagnostic | DOMRequest;
+export interface ScriptEvent {
+    t: 'script:event';
+    sid: string;
+    scriptId: string;
+    event: string;
+    data: Record<string, unknown>;
+}
+
+export type ServerMessage = Boot | Init | Frame | ResumeOK | EventAck | ServerError | Diagnostic | DOMRequest | ScriptEvent;
 
 export interface Join {
     t: 'join';
@@ -182,4 +190,11 @@ export interface UploadMessage {
     error?: string;
 }
 
-export type ClientMessage = Join | ClientAck | ClientEvent | NavMessage | DOMResponse | UploadMessage;
+export interface ScriptMessage {
+    t: 'script:message';
+    sid: string;
+    scriptId: string;
+    data: Record<string, unknown>;
+}
+
+export type ClientMessage = Join | ClientAck | ClientEvent | NavMessage | DOMResponse | UploadMessage | ScriptMessage;
