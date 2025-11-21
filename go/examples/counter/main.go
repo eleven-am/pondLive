@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"embed"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -47,18 +48,31 @@ func main() {
 
 func counter(ctx ui.Ctx) ui.Node {
 	count, setCount := ui.UseState(ctx, 0)
+	ui.UseMetaTags(ctx, &ui.Meta{
+		Title:       fmt.Sprintf("LiveUI Tailwind Counter: %d", count()),
+		Description: "A simple counter example using LiveUI and TailwindCSS.",
+		Meta:        nil,
+		Links: []ui.LinkTag{
+			{
+				Rel:  "stylesheet",
+				Href: "/static/tailwind.css",
+			},
+		},
+		Scripts: nil,
+	})
 
 	decRef := ui.UseElement[*h.ButtonRef](ctx)
 	decRef.OnClick(func(evt h.ClickEvent) h.Updates {
+		x, err := decRef.GetBoundingClientRect()
+		fmt.Printf("Button bounding rect: %+v, err: %v\n", x, err)
 		setCount(count() - 1)
 		return nil
 	})
 
-	incRef := ui.UseElement[*h.ButtonRef](ctx)
-	incRef.OnClick(func(evt h.ClickEvent) h.Updates {
+	increment := func(h.Event) h.Updates {
 		setCount(count() + 1)
 		return nil
-	})
+	}
 
 	return h.Div(
 		h.Class("bg-slate-900", "text-slate-100", "min-h-screen", "flex", "items-center", "justify-center"),
@@ -90,7 +104,7 @@ func counter(ctx ui.Ctx) ui.Node {
 				h.Button(
 					h.Class("bg-indigo-500", "hover:bg-indigo-400", "text-lg", "font-medium", "px-4", "py-2", "rounded-xl", "transition"),
 					h.Attr("type", "button"),
-					h.Attach(incRef),
+					h.On("click", increment),
 					h.Text("+"),
 				),
 			),

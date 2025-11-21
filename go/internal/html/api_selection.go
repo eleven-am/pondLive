@@ -1,12 +1,12 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // SelectionEvent represents text selection events.
 type SelectionEvent struct {
-	dom2.Event
+	dom.Event
 }
 
 // props returns the list of properties this event needs from the client.
@@ -14,19 +14,19 @@ func (SelectionEvent) props() []string {
 	return []string{}
 }
 
-func buildSelectionEvent(evt dom2.Event) SelectionEvent {
+func buildSelectionEvent(evt dom.Event) SelectionEvent {
 	return SelectionEvent{
 		Event: evt,
 	}
 }
 
 // SelectionAPI provides actions and events for text selection in input and textarea elements.
-type SelectionAPI[T dom2.ElementDescriptor] struct {
-	ref *dom2.ElementRef[T]
-	ctx dom2.Dispatcher
+type SelectionAPI[T dom.ElementDescriptor] struct {
+	ref *dom.ElementRef[T]
+	ctx dom.Dispatcher
 }
 
-func NewSelectionAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Dispatcher) *SelectionAPI[T] {
+func NewSelectionAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *SelectionAPI[T] {
 	return &SelectionAPI[T]{ref: ref, ctx: ctx}
 }
 
@@ -43,7 +43,7 @@ func NewSelectionAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2
 //
 //	return h.Input(h.Attach(inputRef), h.Value("Select this text"))
 func (a *SelectionAPI[T]) Select() {
-	dom2.DOMCall[T](a.ctx, a.ref, "select")
+	dom.DOMCall[T](a.ctx, a.ref, "select")
 }
 
 // SetSelectionRange sets the selection range for text in the input or textarea element.
@@ -56,7 +56,7 @@ func (a *SelectionAPI[T]) Select() {
 //
 //	return h.Input(h.Attach(inputRef), h.Value("Hello world"))
 func (a *SelectionAPI[T]) SetSelectionRange(start, end int) {
-	dom2.DOMCall[T](a.ctx, a.ref, "setSelectionRange", start, end)
+	dom.DOMCall[T](a.ctx, a.ref, "setSelectionRange", start, end)
 }
 
 // ============================================================================
@@ -74,11 +74,11 @@ func (a *SelectionAPI[T]) SetSelectionRange(start, end int) {
 //	})
 //
 //	return h.Input(h.Attach(inputRef), h.Value("Selectable text"))
-func (a *SelectionAPI[T]) OnSelectStart(handler func(SelectionEvent) dom2.Updates) {
+func (a *SelectionAPI[T]) OnSelectStart(handler func(SelectionEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildSelectionEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildSelectionEvent(evt)) }
 	a.ref.AddListener("selectstart", wrapped, SelectionEvent{}.props())
 }
 
@@ -93,10 +93,10 @@ func (a *SelectionAPI[T]) OnSelectStart(handler func(SelectionEvent) dom2.Update
 //	})
 //
 //	return h.Input(h.Attach(inputRef), h.Value("Selectable text"))
-func (a *SelectionAPI[T]) OnSelectionChange(handler func(SelectionEvent) dom2.Updates) {
+func (a *SelectionAPI[T]) OnSelectionChange(handler func(SelectionEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildSelectionEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildSelectionEvent(evt)) }
 	a.ref.AddListener("selectionchange", wrapped, SelectionEvent{}.props())
 }

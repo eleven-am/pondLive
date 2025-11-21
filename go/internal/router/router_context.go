@@ -13,12 +13,15 @@ var LocationCtx = runtime.CreateContext[Location](Location{Path: "/"})
 var ParamsCtx = runtime.CreateContext[map[string]string](map[string]string{})
 
 func UseLocation(ctx runtime.Ctx) Location {
-	loc := LocationCtx.Use(ctx)
-	return cloneLocation(loc)
+	controller := UseRouterState(ctx)
+	state := controller.Get()
+	return cloneLocation(state.Location)
 }
 
 func UseParams(ctx runtime.Ctx) map[string]string {
-	params := ParamsCtx.Use(ctx)
+	controller := UseRouterState(ctx)
+	state := controller.Get()
+	params := state.Params
 	if len(params) == 0 {
 		return map[string]string{}
 	}
@@ -43,11 +46,11 @@ func UseSearch(ctx runtime.Ctx) url.Values {
 }
 
 func UseSearchParam(ctx runtime.Ctx, key string) (func() []string, func([]string)) {
-	state := requireRouterState(ctx)
+	controller := UseRouterState(ctx)
 	lower := key
 	get := func() []string {
-		loc := state.getLoc()
-		values := loc.Query[lower]
+		state := controller.Get()
+		values := state.Location.Query[lower]
 		if len(values) == 0 {
 			return nil
 		}
@@ -56,10 +59,10 @@ func UseSearchParam(ctx runtime.Ctx, key string) (func() []string, func([]string
 		return out
 	}
 	set := func(values []string) {
-		loc := state.getLoc()
-		next := cloneLocation(loc)
+		state := controller.Get()
+		next := cloneLocation(state.Location)
 		next.Query = SetSearch(next.Query, lower, values...)
-		state.setLoc(next)
+		controller.SetLocation(next)
 	}
 	return get, set
 }

@@ -13,6 +13,7 @@ import (
 
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
+	"github.com/eleven-am/pondlive/go/pkg/live/meta"
 	"github.com/eleven-am/pondlive/go/pkg/live/server"
 )
 
@@ -51,13 +52,13 @@ func main() {
 }
 
 func HomePage(ctx ui.Ctx) h.Node {
-	ui.UseMetadata(ctx, &ui.Meta{
+	meta.UseMetaTags(ctx, &meta.Meta{
 		Title:       "Scoped Styles Demo",
 		Description: "Demonstrating component-scoped CSS with UseStyles",
 	})
 
 	return h.Html(
-		h.Head(
+		meta.Head(
 			h.Meta(h.Attr("charset", "utf-8")),
 			h.TitleEl(h.Text("Scoped Styles Demo")),
 		),

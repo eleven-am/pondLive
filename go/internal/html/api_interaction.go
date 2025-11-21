@@ -1,7 +1,7 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // ============================================================================
@@ -10,7 +10,7 @@ import (
 
 // MouseEvent represents mouse events (mousedown, mouseup, mousemove, etc).
 type MouseEvent struct {
-	dom2.Event
+	dom.Event
 	Button    int     // Which mouse button
 	Buttons   int     // Which buttons are pressed
 	ClientX   float64 // X coordinate relative to viewport
@@ -41,7 +41,7 @@ func (MouseEvent) props() []string {
 	}
 }
 
-func buildMouseEvent(evt dom2.Event) MouseEvent {
+func buildMouseEvent(evt dom.Event) MouseEvent {
 	detail := extractDetail(evt.Payload)
 	return MouseEvent{
 		Event:     evt,
@@ -66,7 +66,7 @@ func buildMouseEvent(evt dom2.Event) MouseEvent {
 
 // ClickEvent represents mouse click events (click, dblclick, contextmenu).
 type ClickEvent struct {
-	dom2.Event
+	dom.Event
 	Detail   int     // Number of clicks
 	AltKey   bool    // Alt key pressed
 	CtrlKey  bool    // Control key pressed
@@ -96,7 +96,7 @@ func (ClickEvent) props() []string {
 	}
 }
 
-func buildClickEvent(evt dom2.Event) ClickEvent {
+func buildClickEvent(evt dom.Event) ClickEvent {
 	detail := extractDetail(evt.Payload)
 	return ClickEvent{
 		Event:    evt,
@@ -120,20 +120,20 @@ func buildClickEvent(evt dom2.Event) ClickEvent {
 
 // FocusEvent represents focus and blur events.
 type FocusEvent struct {
-	dom2.Event
+	dom.Event
 }
 
 func (FocusEvent) props() []string {
 	return []string{}
 }
 
-func buildFocusEvent(evt dom2.Event) FocusEvent {
+func buildFocusEvent(evt dom.Event) FocusEvent {
 	return FocusEvent{Event: evt}
 }
 
 // KeyboardEvent represents keyboard events (keydown, keyup, keypress).
 type KeyboardEvent struct {
-	dom2.Event
+	dom.Event
 	Key         string // The key value
 	Code        string // Physical key code
 	Location    int    // Location of the key on keyboard
@@ -153,7 +153,7 @@ func (KeyboardEvent) props() []string {
 	}
 }
 
-func buildKeyboardEvent(evt dom2.Event) KeyboardEvent {
+func buildKeyboardEvent(evt dom.Event) KeyboardEvent {
 	detail := extractDetail(evt.Payload)
 	return KeyboardEvent{
 		Event:       evt,
@@ -171,7 +171,7 @@ func buildKeyboardEvent(evt dom2.Event) KeyboardEvent {
 
 // PointerEvent represents pointer events (pointerdown, pointerup, pointermove, etc).
 type PointerEvent struct {
-	dom2.Event
+	dom.Event
 	PointerType string  // Type of pointer (mouse, pen, touch)
 	PointerID   int     // Unique pointer identifier
 	Button      int     // Which button
@@ -207,7 +207,7 @@ func (PointerEvent) props() []string {
 	}
 }
 
-func buildPointerEvent(evt dom2.Event) PointerEvent {
+func buildPointerEvent(evt dom.Event) PointerEvent {
 	detail := extractDetail(evt.Payload)
 	return PointerEvent{
 		Event:       evt,
@@ -235,7 +235,7 @@ func buildPointerEvent(evt dom2.Event) PointerEvent {
 
 // TouchEvent represents touch events (touchstart, touchend, touchmove, touchcancel).
 type TouchEvent struct {
-	dom2.Event
+	dom.Event
 	AltKey   bool // Alt key pressed
 	CtrlKey  bool // Control key pressed
 	ShiftKey bool // Shift key pressed
@@ -248,7 +248,7 @@ func (TouchEvent) props() []string {
 	}
 }
 
-func buildTouchEvent(evt dom2.Event) TouchEvent {
+func buildTouchEvent(evt dom.Event) TouchEvent {
 	detail := extractDetail(evt.Payload)
 	return TouchEvent{
 		Event:    evt,
@@ -261,7 +261,7 @@ func buildTouchEvent(evt dom2.Event) TouchEvent {
 
 // DragEvent represents drag and drop events.
 type DragEvent struct {
-	dom2.Event
+	dom.Event
 	ClientX  float64 // X coordinate relative to viewport
 	ClientY  float64 // Y coordinate relative to viewport
 	ScreenX  float64 // X coordinate relative to screen
@@ -280,7 +280,7 @@ func (DragEvent) props() []string {
 	}
 }
 
-func buildDragEvent(evt dom2.Event) DragEvent {
+func buildDragEvent(evt dom.Event) DragEvent {
 	detail := extractDetail(evt.Payload)
 	return DragEvent{
 		Event:    evt,
@@ -300,12 +300,12 @@ func buildDragEvent(evt dom2.Event) DragEvent {
 // ============================================================================
 
 // InteractionAPI provides actions and events for all user interaction (mouse, keyboard, touch, pointer, drag, focus).
-type InteractionAPI[T dom2.ElementDescriptor] struct {
-	ref *dom2.ElementRef[T]
-	ctx dom2.Dispatcher
+type InteractionAPI[T dom.ElementDescriptor] struct {
+	ref *dom.ElementRef[T]
+	ctx dom.Dispatcher
 }
 
-func NewInteractionAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Dispatcher) *InteractionAPI[T] {
+func NewInteractionAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *InteractionAPI[T] {
 	return &InteractionAPI[T]{ref: ref, ctx: ctx}
 }
 
@@ -322,7 +322,7 @@ func NewInteractionAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx do
 //
 //	return h.Button(h.Attach(buttonRef), h.Text("Submit"))
 func (a *InteractionAPI[T]) Click() {
-	dom2.DOMCall[T](a.ctx, a.ref, "click")
+	dom.DOMCall[T](a.ctx, a.ref, "click")
 }
 
 // Focus programmatically sets focus on the element, making it the active element for keyboard input.
@@ -334,7 +334,7 @@ func (a *InteractionAPI[T]) Click() {
 //
 //	return h.Input(h.Attach(inputRef), h.Type("text"))
 func (a *InteractionAPI[T]) Focus() {
-	dom2.DOMCall[T](a.ctx, a.ref, "focus")
+	dom.DOMCall[T](a.ctx, a.ref, "focus")
 }
 
 // Blur programmatically removes focus from the element.
@@ -346,7 +346,7 @@ func (a *InteractionAPI[T]) Focus() {
 //
 //	return h.Input(h.Attach(inputRef), h.Type("search"))
 func (a *InteractionAPI[T]) Blur() {
-	dom2.DOMCall[T](a.ctx, a.ref, "blur")
+	dom.DOMCall[T](a.ctx, a.ref, "blur")
 }
 
 // ============================================================================
@@ -364,11 +364,11 @@ func (a *InteractionAPI[T]) Blur() {
 //	})
 //
 //	return h.Canvas(h.Attach(canvasRef), h.Width("800"), h.Height("600"))
-func (a *InteractionAPI[T]) OnMouseDown(handler func(MouseEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnMouseDown(handler func(MouseEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMouseEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildMouseEvent(evt)) }
 	a.ref.AddListener("mousedown", wrapped, MouseEvent{}.props())
 }
 
@@ -383,11 +383,11 @@ func (a *InteractionAPI[T]) OnMouseDown(handler func(MouseEvent) dom2.Updates) {
 //	})
 //
 //	return h.Canvas(h.Attach(canvasRef))
-func (a *InteractionAPI[T]) OnMouseUp(handler func(MouseEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnMouseUp(handler func(MouseEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMouseEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildMouseEvent(evt)) }
 	a.ref.AddListener("mouseup", wrapped, MouseEvent{}.props())
 }
 
@@ -402,11 +402,11 @@ func (a *InteractionAPI[T]) OnMouseUp(handler func(MouseEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(divRef), h.Text("Move your mouse here"))
-func (a *InteractionAPI[T]) OnMouseMove(handler func(MouseEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnMouseMove(handler func(MouseEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMouseEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildMouseEvent(evt)) }
 	a.ref.AddListener("mousemove", wrapped, MouseEvent{}.props())
 }
 
@@ -421,11 +421,11 @@ func (a *InteractionAPI[T]) OnMouseMove(handler func(MouseEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(tooltipRef), h.Text("Hover me"))
-func (a *InteractionAPI[T]) OnMouseEnter(handler func(MouseEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnMouseEnter(handler func(MouseEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMouseEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildMouseEvent(evt)) }
 	a.ref.AddListener("mouseenter", wrapped, MouseEvent{}.props())
 }
 
@@ -440,11 +440,11 @@ func (a *InteractionAPI[T]) OnMouseEnter(handler func(MouseEvent) dom2.Updates) 
 //	})
 //
 //	return h.Div(h.Attach(tooltipRef), h.Text("Hover me"))
-func (a *InteractionAPI[T]) OnMouseLeave(handler func(MouseEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnMouseLeave(handler func(MouseEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMouseEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildMouseEvent(evt)) }
 	a.ref.AddListener("mouseleave", wrapped, MouseEvent{}.props())
 }
 
@@ -459,11 +459,11 @@ func (a *InteractionAPI[T]) OnMouseLeave(handler func(MouseEvent) dom2.Updates) 
 //	})
 //
 //	return h.Div(h.Attach(divRef), h.Text("Hover over me"))
-func (a *InteractionAPI[T]) OnMouseOver(handler func(MouseEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnMouseOver(handler func(MouseEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMouseEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildMouseEvent(evt)) }
 	a.ref.AddListener("mouseover", wrapped, MouseEvent{}.props())
 }
 
@@ -478,11 +478,11 @@ func (a *InteractionAPI[T]) OnMouseOver(handler func(MouseEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(divRef), h.Text("Hover over me"))
-func (a *InteractionAPI[T]) OnMouseOut(handler func(MouseEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnMouseOut(handler func(MouseEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildMouseEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildMouseEvent(evt)) }
 	a.ref.AddListener("mouseout", wrapped, MouseEvent{}.props())
 }
 
@@ -501,11 +501,11 @@ func (a *InteractionAPI[T]) OnMouseOut(handler func(MouseEvent) dom2.Updates) {
 //	})
 //
 //	return h.Button(h.Attach(buttonRef), h.Text("Click me"))
-func (a *InteractionAPI[T]) OnClick(handler func(ClickEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnClick(handler func(ClickEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildClickEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildClickEvent(evt)) }
 	a.ref.AddListener("click", wrapped, ClickEvent{}.props())
 }
 
@@ -520,11 +520,11 @@ func (a *InteractionAPI[T]) OnClick(handler func(ClickEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(divRef), h.Text("Double-click me"))
-func (a *InteractionAPI[T]) OnDoubleClick(handler func(ClickEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnDoubleClick(handler func(ClickEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildClickEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildClickEvent(evt)) }
 	a.ref.AddListener("dblclick", wrapped, ClickEvent{}.props())
 }
 
@@ -539,11 +539,11 @@ func (a *InteractionAPI[T]) OnDoubleClick(handler func(ClickEvent) dom2.Updates)
 //	})
 //
 //	return h.Div(h.Attach(divRef), h.Text("Right-click me"))
-func (a *InteractionAPI[T]) OnContextMenu(handler func(ClickEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnContextMenu(handler func(ClickEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildClickEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildClickEvent(evt)) }
 	a.ref.AddListener("contextmenu", wrapped, ClickEvent{}.props())
 }
 
@@ -562,11 +562,11 @@ func (a *InteractionAPI[T]) OnContextMenu(handler func(ClickEvent) dom2.Updates)
 //	})
 //
 //	return h.Input(h.Attach(inputRef), h.Type("text"))
-func (a *InteractionAPI[T]) OnFocus(handler func(FocusEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnFocus(handler func(FocusEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildFocusEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildFocusEvent(evt)) }
 	a.ref.AddListener("focus", wrapped, FocusEvent{}.props())
 }
 
@@ -581,11 +581,11 @@ func (a *InteractionAPI[T]) OnFocus(handler func(FocusEvent) dom2.Updates) {
 //	})
 //
 //	return h.Input(h.Attach(inputRef), h.Type("email"))
-func (a *InteractionAPI[T]) OnBlur(handler func(FocusEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnBlur(handler func(FocusEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildFocusEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildFocusEvent(evt)) }
 	a.ref.AddListener("blur", wrapped, FocusEvent{}.props())
 }
 
@@ -606,11 +606,11 @@ func (a *InteractionAPI[T]) OnBlur(handler func(FocusEvent) dom2.Updates) {
 //	})
 //
 //	return h.Input(h.Attach(inputRef), h.Type("text"))
-func (a *InteractionAPI[T]) OnKeyDown(handler func(KeyboardEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnKeyDown(handler func(KeyboardEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildKeyboardEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildKeyboardEvent(evt)) }
 	a.ref.AddListener("keydown", wrapped, KeyboardEvent{}.props())
 }
 
@@ -625,11 +625,11 @@ func (a *InteractionAPI[T]) OnKeyDown(handler func(KeyboardEvent) dom2.Updates) 
 //	})
 //
 //	return h.Input(h.Attach(inputRef), h.Type("text"))
-func (a *InteractionAPI[T]) OnKeyUp(handler func(KeyboardEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnKeyUp(handler func(KeyboardEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildKeyboardEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildKeyboardEvent(evt)) }
 	a.ref.AddListener("keyup", wrapped, KeyboardEvent{}.props())
 }
 
@@ -644,11 +644,11 @@ func (a *InteractionAPI[T]) OnKeyUp(handler func(KeyboardEvent) dom2.Updates) {
 //	})
 //
 //	return h.Input(h.Attach(inputRef), h.Type("text"))
-func (a *InteractionAPI[T]) OnKeyPress(handler func(KeyboardEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnKeyPress(handler func(KeyboardEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildKeyboardEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildKeyboardEvent(evt)) }
 	a.ref.AddListener("keypress", wrapped, KeyboardEvent{}.props())
 }
 
@@ -667,11 +667,11 @@ func (a *InteractionAPI[T]) OnKeyPress(handler func(KeyboardEvent) dom2.Updates)
 //	})
 //
 //	return h.Canvas(h.Attach(canvasRef))
-func (a *InteractionAPI[T]) OnPointerDown(handler func(PointerEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnPointerDown(handler func(PointerEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildPointerEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildPointerEvent(evt)) }
 	a.ref.AddListener("pointerdown", wrapped, PointerEvent{}.props())
 }
 
@@ -686,11 +686,11 @@ func (a *InteractionAPI[T]) OnPointerDown(handler func(PointerEvent) dom2.Update
 //	})
 //
 //	return h.Canvas(h.Attach(canvasRef))
-func (a *InteractionAPI[T]) OnPointerUp(handler func(PointerEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnPointerUp(handler func(PointerEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildPointerEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildPointerEvent(evt)) }
 	a.ref.AddListener("pointerup", wrapped, PointerEvent{}.props())
 }
 
@@ -705,11 +705,11 @@ func (a *InteractionAPI[T]) OnPointerUp(handler func(PointerEvent) dom2.Updates)
 //	})
 //
 //	return h.Div(h.Attach(divRef))
-func (a *InteractionAPI[T]) OnPointerMove(handler func(PointerEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnPointerMove(handler func(PointerEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildPointerEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildPointerEvent(evt)) }
 	a.ref.AddListener("pointermove", wrapped, PointerEvent{}.props())
 }
 
@@ -724,11 +724,11 @@ func (a *InteractionAPI[T]) OnPointerMove(handler func(PointerEvent) dom2.Update
 //	})
 //
 //	return h.Div(h.Attach(divRef))
-func (a *InteractionAPI[T]) OnPointerEnter(handler func(PointerEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnPointerEnter(handler func(PointerEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildPointerEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildPointerEvent(evt)) }
 	a.ref.AddListener("pointerenter", wrapped, PointerEvent{}.props())
 }
 
@@ -743,11 +743,11 @@ func (a *InteractionAPI[T]) OnPointerEnter(handler func(PointerEvent) dom2.Updat
 //	})
 //
 //	return h.Div(h.Attach(divRef))
-func (a *InteractionAPI[T]) OnPointerLeave(handler func(PointerEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnPointerLeave(handler func(PointerEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildPointerEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildPointerEvent(evt)) }
 	a.ref.AddListener("pointerleave", wrapped, PointerEvent{}.props())
 }
 
@@ -762,11 +762,11 @@ func (a *InteractionAPI[T]) OnPointerLeave(handler func(PointerEvent) dom2.Updat
 //	})
 //
 //	return h.Div(h.Attach(divRef))
-func (a *InteractionAPI[T]) OnPointerOver(handler func(PointerEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnPointerOver(handler func(PointerEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildPointerEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildPointerEvent(evt)) }
 	a.ref.AddListener("pointerover", wrapped, PointerEvent{}.props())
 }
 
@@ -781,11 +781,11 @@ func (a *InteractionAPI[T]) OnPointerOver(handler func(PointerEvent) dom2.Update
 //	})
 //
 //	return h.Div(h.Attach(divRef))
-func (a *InteractionAPI[T]) OnPointerOut(handler func(PointerEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnPointerOut(handler func(PointerEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildPointerEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildPointerEvent(evt)) }
 	a.ref.AddListener("pointerout", wrapped, PointerEvent{}.props())
 }
 
@@ -800,11 +800,11 @@ func (a *InteractionAPI[T]) OnPointerOut(handler func(PointerEvent) dom2.Updates
 //	})
 //
 //	return h.Canvas(h.Attach(canvasRef))
-func (a *InteractionAPI[T]) OnPointerCancel(handler func(PointerEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnPointerCancel(handler func(PointerEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildPointerEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildPointerEvent(evt)) }
 	a.ref.AddListener("pointercancel", wrapped, PointerEvent{}.props())
 }
 
@@ -823,11 +823,11 @@ func (a *InteractionAPI[T]) OnPointerCancel(handler func(PointerEvent) dom2.Upda
 //	})
 //
 //	return h.Div(h.Attach(divRef))
-func (a *InteractionAPI[T]) OnTouchStart(handler func(TouchEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnTouchStart(handler func(TouchEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildTouchEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildTouchEvent(evt)) }
 	a.ref.AddListener("touchstart", wrapped, TouchEvent{}.props())
 }
 
@@ -842,11 +842,11 @@ func (a *InteractionAPI[T]) OnTouchStart(handler func(TouchEvent) dom2.Updates) 
 //	})
 //
 //	return h.Div(h.Attach(divRef))
-func (a *InteractionAPI[T]) OnTouchEnd(handler func(TouchEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnTouchEnd(handler func(TouchEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildTouchEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildTouchEvent(evt)) }
 	a.ref.AddListener("touchend", wrapped, TouchEvent{}.props())
 }
 
@@ -861,11 +861,11 @@ func (a *InteractionAPI[T]) OnTouchEnd(handler func(TouchEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(divRef))
-func (a *InteractionAPI[T]) OnTouchMove(handler func(TouchEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnTouchMove(handler func(TouchEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildTouchEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildTouchEvent(evt)) }
 	a.ref.AddListener("touchmove", wrapped, TouchEvent{}.props())
 }
 
@@ -880,11 +880,11 @@ func (a *InteractionAPI[T]) OnTouchMove(handler func(TouchEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(divRef))
-func (a *InteractionAPI[T]) OnTouchCancel(handler func(TouchEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnTouchCancel(handler func(TouchEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildTouchEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildTouchEvent(evt)) }
 	a.ref.AddListener("touchcancel", wrapped, TouchEvent{}.props())
 }
 
@@ -903,11 +903,11 @@ func (a *InteractionAPI[T]) OnTouchCancel(handler func(TouchEvent) dom2.Updates)
 //	})
 //
 //	return h.Div(h.Attach(divRef), h.Draggable(true))
-func (a *InteractionAPI[T]) OnDrag(handler func(DragEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnDrag(handler func(DragEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildDragEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildDragEvent(evt)) }
 	a.ref.AddListener("drag", wrapped, DragEvent{}.props())
 }
 
@@ -922,11 +922,11 @@ func (a *InteractionAPI[T]) OnDrag(handler func(DragEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(divRef), h.Draggable(true))
-func (a *InteractionAPI[T]) OnDragStart(handler func(DragEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnDragStart(handler func(DragEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildDragEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildDragEvent(evt)) }
 	a.ref.AddListener("dragstart", wrapped, DragEvent{}.props())
 }
 
@@ -941,11 +941,11 @@ func (a *InteractionAPI[T]) OnDragStart(handler func(DragEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(divRef), h.Draggable(true))
-func (a *InteractionAPI[T]) OnDragEnd(handler func(DragEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnDragEnd(handler func(DragEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildDragEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildDragEvent(evt)) }
 	a.ref.AddListener("dragend", wrapped, DragEvent{}.props())
 }
 
@@ -960,11 +960,11 @@ func (a *InteractionAPI[T]) OnDragEnd(handler func(DragEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(dropZoneRef), h.Text("Drop here"))
-func (a *InteractionAPI[T]) OnDragEnter(handler func(DragEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnDragEnter(handler func(DragEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildDragEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildDragEvent(evt)) }
 	a.ref.AddListener("dragenter", wrapped, DragEvent{}.props())
 }
 
@@ -979,11 +979,11 @@ func (a *InteractionAPI[T]) OnDragEnter(handler func(DragEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(dropZoneRef), h.Text("Drop here"))
-func (a *InteractionAPI[T]) OnDragLeave(handler func(DragEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnDragLeave(handler func(DragEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildDragEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildDragEvent(evt)) }
 	a.ref.AddListener("dragleave", wrapped, DragEvent{}.props())
 }
 
@@ -998,11 +998,11 @@ func (a *InteractionAPI[T]) OnDragLeave(handler func(DragEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(dropZoneRef), h.Text("Drop here"))
-func (a *InteractionAPI[T]) OnDragOver(handler func(DragEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnDragOver(handler func(DragEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildDragEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildDragEvent(evt)) }
 	a.ref.AddListener("dragover", wrapped, DragEvent{}.props())
 }
 
@@ -1017,10 +1017,10 @@ func (a *InteractionAPI[T]) OnDragOver(handler func(DragEvent) dom2.Updates) {
 //	})
 //
 //	return h.Div(h.Attach(dropZoneRef), h.Text("Drop here"))
-func (a *InteractionAPI[T]) OnDrop(handler func(DragEvent) dom2.Updates) {
+func (a *InteractionAPI[T]) OnDrop(handler func(DragEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildDragEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildDragEvent(evt)) }
 	a.ref.AddListener("drop", wrapped, DragEvent{}.props())
 }

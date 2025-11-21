@@ -176,10 +176,6 @@ func BestMatch(path string, rawQuery string, patterns []string) (Match, int, boo
 	return best, bestIdx, true
 }
 
-func normalizePath(path string) string {
-	return Normalize(path)
-}
-
 func normalizePattern(pattern string) string {
 	if pattern == "" {
 		return "/"

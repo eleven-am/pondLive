@@ -1,6 +1,6 @@
 package protocol
 
-import dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+import dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 
 // Boot initializes a new session with the initial DOM tree
 type Boot struct {
@@ -8,7 +8,7 @@ type Boot struct {
 	SID      string        `json:"sid"`
 	Ver      int           `json:"ver"`
 	Seq      int           `json:"seq"`
-	HTML     string        `json:"html"`
+	JSON     string        `json:"json"`
 	Location Location      `json:"location"`
 	Client   *ClientConfig `json:"client,omitempty"`
 	Errors   []ServerError `json:"errors,omitempty"`
@@ -174,6 +174,7 @@ type DOMRequest struct {
 
 type DOMResponse struct {
 	T      string         `json:"t"`
+	SID    string         `json:"sid,omitempty"`
 	ID     string         `json:"id"`
 	Values map[string]any `json:"values,omitempty"`
 	Result any            `json:"result,omitempty"`

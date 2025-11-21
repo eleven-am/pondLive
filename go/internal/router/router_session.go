@@ -6,19 +6,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
-// Helper functions to access router session entry from context
-
-func ensureSessionRouterEntry(ctx runtime.Ctx) *sessionEntry {
-	entry := SessionEntryCtx.Use(ctx)
-	if entry == nil {
-		entry = &sessionEntry{}
-	}
-	return entry
-}
-
-func loadSessionRouterEntry(ctx runtime.Ctx) *sessionEntry {
-	return SessionEntryCtx.Use(ctx)
-}
+// Session helper functions removed - router state now managed via Controller
 
 // getInitialLocationFromSession gets the initial location from ComponentSession
 func getInitialLocationFromSession(sess *runtime.ComponentSession) Location {

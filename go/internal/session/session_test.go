@@ -4,15 +4,15 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 func TestLiveSessionBasic(t *testing.T) {
-	root := func(ctx runtime.Ctx, props struct{}) *dom2.StructuredNode {
-		return dom2.ElementNode("div").WithChildren(dom2.TextNode("Hello"))
+	root := func(ctx runtime.Ctx, props struct{}) *dom.StructuredNode {
+		return dom.ElementNode("div").WithChildren(dom.TextNode("Hello"))
 	}
 
 	sess := NewLiveSession(SessionID("test"), 1, root, struct{}{}, nil)
@@ -26,10 +26,10 @@ func TestLiveSessionBasic(t *testing.T) {
 }
 
 func TestLiveSessionHeaders(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		headers := UseHeader(ctx)
 		ua, _ := headers.GetHeader("User-Agent")
-		return dom2.ElementNode("div").WithChildren(dom2.TextNode(ua))
+		return dom.ElementNode("div").WithChildren(dom.TextNode(ua))
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -45,14 +45,14 @@ func TestLiveSessionHeaders(t *testing.T) {
 }
 
 func TestLiveSessionDocumentRoot(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		headers := UseHeader(ctx)
 		token, ok := headers.GetCookie("session")
 		text := "no session"
 		if ok && token != nil {
 			text = token.Value
 		}
-		return dom2.ElementNode("div").WithChildren(dom2.TextNode(text))
+		return dom.ElementNode("div").WithChildren(dom.TextNode(text))
 	}
 
 	transport := &mockTransport{}
@@ -72,14 +72,14 @@ func TestLiveSessionDocumentRoot(t *testing.T) {
 func TestLiveSessionEventHandling(t *testing.T) {
 	var clicked bool
 
-	root := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		btn := dom2.ElementNode("button").WithChildren(dom2.TextNode("Click"))
-		btn.Events = map[string]dom2.EventBinding{
+	root := func(ctx runtime.Ctx) *dom.StructuredNode {
+		btn := dom.ElementNode("button").WithChildren(dom.TextNode("Click"))
+		btn.Events = map[string]dom.EventBinding{
 			"click": {
 				Key: "btn:h0",
-				Handler: func(ev dom2.Event) dom2.Updates {
+				Handler: func(ev dom.Event) dom.Updates {
 					clicked = true
-					return dom2.Rerender()
+					return dom.Rerender()
 				},
 			},
 		}
@@ -95,7 +95,7 @@ func TestLiveSessionEventHandling(t *testing.T) {
 		t.Fatalf("initial flush failed: %v", err)
 	}
 
-	if err := sess.HandleEvent("btn:h0", dom2.Event{}); err != nil {
+	if err := sess.HandleEvent("btn:h0", dom.Event{}); err != nil {
 		t.Fatalf("handle event failed: %v", err)
 	}
 
@@ -160,10 +160,10 @@ func (m *mockTransport) Close() error {
 func TestLiveSessionTransport(t *testing.T) {
 	var setText func(string)
 
-	root := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	root := func(ctx runtime.Ctx) *dom.StructuredNode {
 		text, set := runtime.UseState(ctx, "initial")
 		setText = set
-		return dom2.ElementNode("div").WithChildren(dom2.TextNode(text()))
+		return dom.ElementNode("div").WithChildren(dom.TextNode(text()))
 	}
 
 	transport := &mockTransport{}
@@ -194,9 +194,9 @@ func TestLiveSessionTransport(t *testing.T) {
 
 func TestDocumentRootProvidesRouterLocation(t *testing.T) {
 	var seen router.Location
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		seen = router.UseLocation(ctx)
-		return dom2.ElementNode("div")
+		return dom.ElementNode("div")
 	}
 
 	transport := &mockTransport{}
@@ -234,7 +234,7 @@ func TestDocumentRootRouterLocationClone(t *testing.T) {
 		trigger  func(bool)
 	)
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		loc := router.UseLocation(ctx)
 		captured = append(captured, loc)
 		flag, setFlag := runtime.UseState(ctx, false)
@@ -242,7 +242,7 @@ func TestDocumentRootRouterLocationClone(t *testing.T) {
 			trigger = setFlag
 		}
 		_ = flag
-		return dom2.ElementNode("div")
+		return dom.ElementNode("div")
 	}
 
 	transport := &mockTransport{}
@@ -275,10 +275,10 @@ func TestDocumentRootRouterLocationClone(t *testing.T) {
 }
 
 func TestLiveSessionCookies(t *testing.T) {
-	root := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	root := func(ctx runtime.Ctx) *dom.StructuredNode {
 		headers := UseHeader(ctx)
 		headers.SetCookie(&http.Cookie{Name: "session", Value: "abc123"})
-		return dom2.ElementNode("div")
+		return dom.ElementNode("div")
 	}
 
 	transport := &mockTransport{}
@@ -325,8 +325,8 @@ func TestLiveSessionCookies(t *testing.T) {
 }
 
 func TestLiveSessionCookieDeletes(t *testing.T) {
-	root := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	root := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	transport := &mockTransport{}

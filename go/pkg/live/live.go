@@ -1,7 +1,7 @@
 package live
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/session"
@@ -20,7 +20,7 @@ type (
 	Context[T any]                    = runtime.Context[T]
 	SessionID                         = session.SessionID
 	Session                           = runtime.ComponentSession
-	ScrollOptions                     = dom2.ScrollOptions
+	ScrollOptions                     = dom.ScrollOptions
 	PubsubMessage[T any]              = runtime.PubsubMessage[T]
 	PubsubHandle[T any]               = runtime.PubsubHandle[T]
 	PubsubOption[T any]               = runtime.PubsubOption[T]
@@ -29,6 +29,7 @@ type (
 	RuntimeComponent[P any]           = runtime.Component[P]
 	NavMsg                            = router.NavMsg
 	PopMsg                            = router.PopMsg
+	HeaderState                       = session.HeaderState
 )
 
 // Component wraps a stateless component function so it can be invoked directly
@@ -50,12 +51,10 @@ func Component(fn func(Ctx) h.Node) func(Ctx, ...RenderOption) h.Node {
 	if fn == nil {
 		return nil
 	}
-	wrapped := func(ctx Ctx, _ struct{}) h.Node {
+	wrapped := func(ctx Ctx) *dom.StructuredNode {
 		return fn(ctx)
 	}
-	return func(ctx Ctx, opts ...RenderOption) h.Node {
-		return runtime.Render(ctx, wrapped, struct{}{}, opts...)
-	}
+	return runtime.NoPropsComponent(wrapped, fn)
 }
 
 // PropsComponent wraps a component function that expects props so it can be
@@ -74,9 +73,10 @@ func PropsComponent[P any](fn func(Ctx, P) h.Node) func(Ctx, P, ...RenderOption)
 	if fn == nil {
 		return nil
 	}
-	return func(ctx Ctx, props P, opts ...RenderOption) h.Node {
-		return runtime.Render(ctx, fn, props, opts...)
+	wrapped := func(ctx Ctx, props P) *dom.StructuredNode {
+		return fn(ctx, props)
 	}
+	return runtime.PropsComponent(wrapped, fn)
 }
 
 // Render invokes the supplied child component with props, returning its node.
@@ -306,6 +306,14 @@ type hookable[R any] interface {
 //
 //	    return h.Div(h.Attach(divRef), h.Text("Scrollable content"))
 //	}
+func UseElement[R hookable[R]](ctx Ctx) R {
+	var zero R
+	return zero.HookBuild(ctx)
+}
+
+func UseHeader(ctx Ctx) HeaderState {
+	return session.UseHeader(ctx)
+}
 
 // UseStream renders and manages a keyed list. It returns a fragment node and a
 // handle exposing mutation helpers for the backing collection. Each item must have

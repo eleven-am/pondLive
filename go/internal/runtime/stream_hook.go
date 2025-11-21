@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // StreamItem represents a keyed value managed by UseStream.
@@ -38,9 +38,9 @@ type streamHandle[T any] struct {
 // Keys are automatically applied to enable efficient diffing.
 func UseStream[T any](
 	ctx Ctx,
-	renderRow func(StreamItem[T]) *dom2.StructuredNode,
+	renderRow func(StreamItem[T]) *dom.StructuredNode,
 	initial ...StreamItem[T],
-) (*dom2.StructuredNode, StreamHandle[T]) {
+) (*dom.StructuredNode, StreamHandle[T]) {
 	if renderRow == nil {
 		panic("runtime2: UseStream requires a row renderer")
 	}
@@ -65,13 +65,13 @@ func UseStream[T any](
 
 func renderStreamFragment[T any](
 	items []StreamItem[T],
-	renderRow func(StreamItem[T]) *dom2.StructuredNode,
-) *dom2.StructuredNode {
+	renderRow func(StreamItem[T]) *dom.StructuredNode,
+) *dom.StructuredNode {
 	if len(items) == 0 {
-		return &dom2.StructuredNode{Fragment: true}
+		return &dom.StructuredNode{Fragment: true}
 	}
 
-	children := make([]*dom2.StructuredNode, 0, len(items))
+	children := make([]*dom.StructuredNode, 0, len(items))
 	for _, item := range items {
 		node := buildStreamRow(item, renderRow)
 		if node != nil {
@@ -79,7 +79,7 @@ func renderStreamFragment[T any](
 		}
 	}
 
-	return &dom2.StructuredNode{
+	return &dom.StructuredNode{
 		Fragment: true,
 		Children: children,
 	}
@@ -87,8 +87,8 @@ func renderStreamFragment[T any](
 
 func buildStreamRow[T any](
 	item StreamItem[T],
-	renderRow func(StreamItem[T]) *dom2.StructuredNode,
-) *dom2.StructuredNode {
+	renderRow func(StreamItem[T]) *dom.StructuredNode,
+) *dom.StructuredNode {
 	if item.Key == "" {
 		panic("runtime2: UseStream items require a non-empty key")
 	}

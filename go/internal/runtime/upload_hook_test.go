@@ -3,16 +3,16 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestUseUploadBasic(t *testing.T) {
 	var handle UploadHandle
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UseUpload(ctx)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -31,14 +31,14 @@ func TestUseUploadBasic(t *testing.T) {
 func TestUseUploadBindTo(t *testing.T) {
 	var handle UploadHandle
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UseUpload(ctx)
 		handle.Accept("image/*", "video/*")
 		handle.AllowMultiple(true)
 		handle.MaxSize(1024 * 1024 * 10)
 
-		node := &dom2.StructuredNode{Tag: "input"}
-		handle.BindTo(node)
+		node := &dom.StructuredNode{Tag: "input"}
+		handle.AttachTo(node)
 		return node
 	}
 
@@ -72,7 +72,7 @@ func TestUseUploadCallbacks(t *testing.T) {
 	var completeCount int
 	var errorCount int
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UseUpload(ctx)
 		handle.OnChange(func(meta FileMeta) {
 			changeCount++
@@ -83,7 +83,7 @@ func TestUseUploadCallbacks(t *testing.T) {
 		handle.OnError(func(err error) {
 			errorCount++
 		})
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -106,9 +106,9 @@ func TestUseUploadCallbacks(t *testing.T) {
 func TestUseUploadProgress(t *testing.T) {
 	var handle UploadHandle
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UseUpload(ctx)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -137,12 +137,12 @@ func TestUseUploadComplete(t *testing.T) {
 	var handle UploadHandle
 	var completed bool
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UseUpload(ctx)
 		handle.OnComplete(func(meta FileMeta) {
 			completed = true
 		})
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -169,12 +169,12 @@ func TestUseUploadError(t *testing.T) {
 	var handle UploadHandle
 	var errorReceived error
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UseUpload(ctx)
 		handle.OnError(func(err error) {
 			errorReceived = err
 		})
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -201,9 +201,9 @@ func TestUseUploadError(t *testing.T) {
 func TestUseUploadCancel(t *testing.T) {
 	var handle UploadHandle
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UseUpload(ctx)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -224,10 +224,10 @@ func TestUseUploadCancel(t *testing.T) {
 func TestUseUploadMaxSize(t *testing.T) {
 	var handle UploadHandle
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UseUpload(ctx)
 		handle.MaxSize(1024 * 1024)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -247,10 +247,10 @@ func TestUseUploadMaxSize(t *testing.T) {
 func TestUseUploadMultipleSlots(t *testing.T) {
 	var handle1, handle2 UploadHandle
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle1 = UseUpload(ctx)
 		handle2 = UseUpload(ctx)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -264,11 +264,11 @@ func TestUseUploadMultipleSlots(t *testing.T) {
 	id1 := handle1.slot.id
 	id2 := handle2.slot.id
 
-	if !endsWith(id1, ":root:u0") {
-		t.Errorf("expected first upload ID to end with ':root:u0', got %q", id1)
+	if !endsWith(id1, ":u0") {
+		t.Errorf("expected first upload ID to end with ':u0', got %q", id1)
 	}
-	if !endsWith(id2, ":root:u1") {
-		t.Errorf("expected second upload ID to end with ':root:u1', got %q", id2)
+	if !endsWith(id2, ":u1") {
+		t.Errorf("expected second upload ID to end with ':u1', got %q", id2)
 	}
 }
 

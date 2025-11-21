@@ -1,6 +1,20 @@
 package runtime
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/eleven-am/pondlive/go/internal/dom"
+)
+
+type (
+	ElementDescriptor               = dom.ElementDescriptor
+	ElementRef[T ElementDescriptor] = dom.ElementRef[T]
+)
+
+// NewElementRef constructs a new element ref bound to the provided descriptor and id.
+func NewElementRef[T ElementDescriptor](id string, descriptor T) *ElementRef[T] {
+	return dom.NewElementRef(id, descriptor)
+}
 
 // StateOpt configures a state cell.
 type StateOpt[T any] interface{ applyStateOpt(*stateCell[T]) }
@@ -97,6 +111,57 @@ func UseRef[T any](ctx Ctx, zero T) *Ref[T] {
 		panicHookMismatch(ctx.comp, idx, "UseRef", ctx.frame.cells[idx])
 	}
 	return ref
+}
+
+type elementRefCell[T ElementDescriptor] struct {
+	ref   *ElementRef[T]
+	state any
+}
+
+func (c *elementRefCell[T]) resetAttachment() {
+	if c == nil || c.ref == nil {
+		return
+	}
+	c.ref.ResetAttachment()
+}
+
+// UseElement creates and returns a typed element ref for the given descriptor.
+// The ref persists across renders and provides event binding and state caching.
+func UseElement[T ElementDescriptor](ctx Ctx) *ElementRef[T] {
+	if ctx.frame == nil {
+		panic("runtime: UseElement called outside render")
+	}
+	idx := ctx.frame.idx
+	ctx.frame.idx++
+	if idx >= len(ctx.frame.cells) {
+		if ctx.sess == nil {
+			panic("runtime: UseElement requires an active session")
+		}
+		var descriptor T
+		id := ctx.sess.allocateElementRefID()
+		ref := NewElementRef[T](id, descriptor)
+		cell := &elementRefCell[T]{ref: ref}
+		ref.InstallState(
+			func() any {
+				return cell.state
+			},
+			func(next any) {
+				if reflect.DeepEqual(cell.state, next) {
+					return
+				}
+				cell.state = next
+				if ctx.sess != nil {
+					ctx.sess.markDirty(ctx.comp)
+				}
+			},
+		)
+		ctx.frame.cells = append(ctx.frame.cells, cell)
+	}
+	cell, ok := ctx.frame.cells[idx].(*elementRefCell[T])
+	if !ok {
+		panicHookMismatch(ctx.comp, idx, "UseElement", ctx.frame.cells[idx])
+	}
+	return cell.ref
 }
 
 type memoCell[T any] struct {

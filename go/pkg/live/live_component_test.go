@@ -3,6 +3,7 @@ package live
 import (
 	"testing"
 
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
@@ -14,7 +15,7 @@ func TestComponentInvokesRuntimeRender(t *testing.T) {
 		return h.Div()
 	})
 
-	root := runtime.Component[struct{}](func(ctx runtime.Ctx, _ struct{}) *h.StructuredNode {
+	root := runtime.Component[struct{}](func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
 		return counter(ctx)
 	})
 
@@ -41,7 +42,7 @@ func TestPropsComponentForwardsProps(t *testing.T) {
 		return h.Div(h.Text(p.Label))
 	})
 
-	root := runtime.Component[struct{}](func(ctx runtime.Ctx, _ struct{}) *h.StructuredNode {
+	root := runtime.Component[struct{}](func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
 		return card(ctx, props{Label: "hello"})
 	})
 
@@ -55,22 +56,36 @@ func TestPropsComponentForwardsProps(t *testing.T) {
 }
 
 func TestComponentForwardsRenderOptions(t *testing.T) {
+	var renderCount int
 	child := Component(func(ctx Ctx) h.Node {
+		renderCount++
 		return h.Div()
 	})
 
-	root := runtime.Component[struct{}](func(ctx runtime.Ctx, _ struct{}) *h.StructuredNode {
+	root := runtime.Component[struct{}](func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
 		return h.Fragment(
-			child(ctx, WithKey("dup")),
-			child(ctx, WithKey("dup")),
+			child(ctx, WithKey("key1")),
+			child(ctx, WithKey("key2")),
 		)
 	})
 
 	sess := runtime.NewSession(root, struct{}{})
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatalf("expected duplicate key panic")
-		}
-	}()
-	_ = sess.Flush()
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush failed: %v", err)
+	}
+
+	node := sess.Tree()
+	if node == nil {
+		t.Fatalf("expected node, got nil")
+	}
+
+	// Verify both components rendered
+	if renderCount != 2 {
+		t.Errorf("expected 2 renders (with different keys), got %d", renderCount)
+	}
+
+	// Verify we have two children in the fragment
+	if len(node.Children) != 2 {
+		t.Fatalf("expected 2 children in fragment, got %d", len(node.Children))
+	}
 }

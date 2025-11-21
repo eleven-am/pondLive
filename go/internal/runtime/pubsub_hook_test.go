@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 // testPubsubProvider implements PubsubProvider for testing
@@ -89,9 +89,9 @@ func TestUsePubsubBasic(t *testing.T) {
 	provider := newTestPubsubProvider()
 	var handle PubsubHandle[string]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UsePubsub(ctx, "test-topic", WithPubsubProvider[string](provider))
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -120,9 +120,9 @@ func TestUsePubsubReceiveMessage(t *testing.T) {
 	provider := newTestPubsubProvider()
 	var handle PubsubHandle[string]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UsePubsub(ctx, "test-topic", WithPubsubProvider[string](provider))
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -158,9 +158,9 @@ func TestUsePubsubMultipleMessages(t *testing.T) {
 	provider := newTestPubsubProvider()
 	var handle PubsubHandle[int]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UsePubsub(ctx, "numbers", WithPubsubProvider[int](provider))
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -191,7 +191,7 @@ func TestUsePubsubPublish(t *testing.T) {
 	var handle PubsubHandle[string]
 
 	var received string
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		h := UsePubsub(ctx, "echo", WithPubsubProvider[string](provider))
 		handle = h
 
@@ -200,7 +200,7 @@ func TestUsePubsubPublish(t *testing.T) {
 			received = msgs[len(msgs)-1].Payload
 		}
 
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -235,12 +235,12 @@ func TestUsePubsubCustomCodec(t *testing.T) {
 		return int(data[0]) - 100, nil
 	}
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UsePubsub(ctx, "custom",
 			WithPubsubProvider[int](provider),
 			WithPubsubCodec(encode, decode),
 		)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -267,10 +267,10 @@ func TestUsePubsubCustomCodec(t *testing.T) {
 func TestUsePubsubNoProvider(t *testing.T) {
 	var handle PubsubHandle[string]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 
 		handle = UsePubsub[string](ctx, "test")
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -302,10 +302,10 @@ func TestUsePubsubMultipleSubscriptions(t *testing.T) {
 	var handle1 PubsubHandle[string]
 	var handle2 PubsubHandle[int]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle1 = UsePubsub(ctx, "topic1", WithPubsubProvider[string](provider))
 		handle2 = UsePubsub(ctx, "topic2", WithPubsubProvider[int](provider))
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -344,13 +344,13 @@ func TestUsePubsubTopicChange(t *testing.T) {
 	var getTopic string
 	var setTopic func(string)
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		get, set := UseState(ctx, "topic-a")
 		getTopic = get()
 		setTopic = func(val string) { set(val) }
 
 		handle = UsePubsub(ctx, getTopic, WithPubsubProvider[string](provider))
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -383,9 +383,9 @@ func TestUsePubsubMessageImmutability(t *testing.T) {
 	provider := newTestPubsubProvider()
 	var handle PubsubHandle[string]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		handle = UsePubsub(ctx, "test", WithPubsubProvider[string](provider))
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})

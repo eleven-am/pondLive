@@ -4,22 +4,31 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
+
+// Helper to create a test controller with given location
+func testController(loc Location) *Controller {
+	state := &RouterState{Location: loc}
+	return NewController(
+		func() *RouterState { return state },
+		func(s *RouterState) { state = s },
+	)
+}
 
 // Test route matching and rendering
 func TestRouteMatching(t *testing.T) {
 	var matchedRoute string
 
-	homePage := func(ctx Ctx, _ Match) *dom2.StructuredNode {
+	homePage := func(ctx Ctx, _ Match) *dom.StructuredNode {
 		matchedRoute = "home"
-		return dom2.TextNode("Home")
+		return dom.TextNode("Home")
 	}
 
-	userPage := func(ctx Ctx, _ Match) *dom2.StructuredNode {
+	userPage := func(ctx Ctx, _ Match) *dom.StructuredNode {
 		matchedRoute = "user"
-		return dom2.TextNode("User")
+		return dom.TextNode("User")
 	}
 
 	entries := []routeEntry{
@@ -29,13 +38,11 @@ func TestRouteMatching(t *testing.T) {
 
 	matchedRoute = ""
 	initialLoc := Location{Path: "/"}
-	getLoc := func() Location { return initialLoc }
-	setLoc := func(Location) {}
-	state := routerState{getLoc: getLoc, setLoc: setLoc}
+	controller := testController(initialLoc)
 
-	appFunc := func(ctx Ctx, _ struct{}) *dom2.StructuredNode {
-		return RouterStateCtx.Provide(ctx, state, func(rctx Ctx) *dom2.StructuredNode {
-			return renderRoutes(rctx, entries)
+	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
+		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
+			return renderRoutes(rctx, buildTrie(entries))
 		})
 	}
 
@@ -48,13 +55,11 @@ func TestRouteMatching(t *testing.T) {
 
 	matchedRoute = ""
 	initialLoc2 := Location{Path: "/users/123"}
-	getLoc2 := func() Location { return initialLoc2 }
-	setLoc2 := func(Location) {}
-	state2 := routerState{getLoc: getLoc2, setLoc: setLoc2}
+	controller2 := testController(initialLoc2)
 
-	appFunc2 := func(ctx Ctx, _ struct{}) *dom2.StructuredNode {
-		return RouterStateCtx.Provide(ctx, state2, func(rctx Ctx) *dom2.StructuredNode {
-			return renderRoutes(rctx, entries)
+	appFunc2 := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
+		return ProvideRouterState(ctx, controller2, func(rctx Ctx) *dom.StructuredNode {
+			return renderRoutes(rctx, buildTrie(entries))
 		})
 	}
 
@@ -80,23 +85,21 @@ func TestUseLocationContext(t *testing.T) {
 
 	var capturedLoc Location
 
-	page := func(ctx Ctx, _ Match) *dom2.StructuredNode {
+	page := func(ctx Ctx, _ Match) *dom.StructuredNode {
 		capturedLoc = UseLocation(ctx)
-		return dom2.FragmentNode()
+		return dom.FragmentNode()
 	}
 
 	entries := []routeEntry{
 		{pattern: "/test/path", component: page},
 	}
 
-	getLoc := func() Location { return initialLoc }
-	setLoc := func(Location) {}
-	state := routerState{getLoc: getLoc, setLoc: setLoc}
+	controller := testController(initialLoc)
 
-	appFunc := func(ctx Ctx, _ struct{}) *dom2.StructuredNode {
-		return RouterStateCtx.Provide(ctx, state, func(rctx Ctx) *dom2.StructuredNode {
-			return LocationCtx.Provide(rctx, initialLoc, func(lctx Ctx) *dom2.StructuredNode {
-				return renderRoutes(lctx, entries)
+	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
+		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
+			return LocationCtx.Provide(rctx, initialLoc, func(lctx Ctx) *dom.StructuredNode {
+				return renderRoutes(lctx, buildTrie(entries))
 			})
 		})
 	}
@@ -122,11 +125,11 @@ func TestUseParamsExtractsParams(t *testing.T) {
 	var capturedID string
 	var capturedSlug string
 
-	page := func(ctx Ctx, _ Match) *dom2.StructuredNode {
+	page := func(ctx Ctx, _ Match) *dom.StructuredNode {
 		params := UseParams(ctx)
 		capturedID = params["id"]
 		capturedSlug = params["slug"]
-		return dom2.FragmentNode()
+		return dom.FragmentNode()
 	}
 
 	entries := []routeEntry{
@@ -134,13 +137,11 @@ func TestUseParamsExtractsParams(t *testing.T) {
 	}
 
 	initialLoc := Location{Path: "/posts/42/hello-world"}
-	getLoc := func() Location { return initialLoc }
-	setLoc := func(Location) {}
-	state := routerState{getLoc: getLoc, setLoc: setLoc}
+	controller := testController(initialLoc)
 
-	appFunc := func(ctx Ctx, _ struct{}) *dom2.StructuredNode {
-		return RouterStateCtx.Provide(ctx, state, func(rctx Ctx) *dom2.StructuredNode {
-			return renderRoutes(rctx, entries)
+	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
+		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
+			return renderRoutes(rctx, buildTrie(entries))
 		})
 	}
 
@@ -160,10 +161,10 @@ func TestUseParamsExtractsParams(t *testing.T) {
 func TestUseSearchParamReturnsValues(t *testing.T) {
 	var capturedValues []string
 
-	page := func(ctx Ctx, _ Match) *dom2.StructuredNode {
+	page := func(ctx Ctx, _ Match) *dom.StructuredNode {
 		get, _ := UseSearchParam(ctx, "tab")
 		capturedValues = get()
-		return dom2.FragmentNode()
+		return dom.FragmentNode()
 	}
 
 	entries := []routeEntry{
@@ -177,13 +178,11 @@ func TestUseSearchParamReturnsValues(t *testing.T) {
 	initialLoc.Query.Set("tab", "profile")
 	initialLoc.Query.Add("tab", "security")
 
-	getLoc := func() Location { return initialLoc }
-	setLoc := func(Location) {}
-	state := routerState{getLoc: getLoc, setLoc: setLoc}
+	controller := testController(initialLoc)
 
-	appFunc := func(ctx Ctx, _ struct{}) *dom2.StructuredNode {
-		return RouterStateCtx.Provide(ctx, state, func(rctx Ctx) *dom2.StructuredNode {
-			return renderRoutes(rctx, entries)
+	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
+		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
+			return renderRoutes(rctx, buildTrie(entries))
 		})
 	}
 
@@ -207,14 +206,14 @@ func TestUseSearchParamReturnsValues(t *testing.T) {
 func TestRouteSpecificity(t *testing.T) {
 	var matchedRoute string
 
-	wildcardPage := func(ctx Ctx, _ Match) *dom2.StructuredNode {
+	wildcardPage := func(ctx Ctx, _ Match) *dom.StructuredNode {
 		matchedRoute = "wildcard"
-		return dom2.FragmentNode()
+		return dom.FragmentNode()
 	}
 
-	paramPage := func(ctx Ctx, _ Match) *dom2.StructuredNode {
+	paramPage := func(ctx Ctx, _ Match) *dom.StructuredNode {
 		matchedRoute = "param"
-		return dom2.FragmentNode()
+		return dom.FragmentNode()
 	}
 
 	entries := []routeEntry{
@@ -223,13 +222,11 @@ func TestRouteSpecificity(t *testing.T) {
 	}
 
 	initialLoc := Location{Path: "/items/123"}
-	getLoc := func() Location { return initialLoc }
-	setLoc := func(Location) {}
-	state := routerState{getLoc: getLoc, setLoc: setLoc}
+	controller := testController(initialLoc)
 
-	appFunc := func(ctx Ctx, _ struct{}) *dom2.StructuredNode {
-		return RouterStateCtx.Provide(ctx, state, func(rctx Ctx) *dom2.StructuredNode {
-			return renderRoutes(rctx, entries)
+	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
+		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
+			return renderRoutes(rctx, buildTrie(entries))
 		})
 	}
 
@@ -243,8 +240,8 @@ func TestRouteSpecificity(t *testing.T) {
 
 // Test no route match returns fragment
 func TestNoRouteMatchReturnsFragment(t *testing.T) {
-	homePage := func(ctx Ctx, _ Match) *dom2.StructuredNode {
-		return dom2.TextNode("Home")
+	homePage := func(ctx Ctx, _ Match) *dom.StructuredNode {
+		return dom.TextNode("Home")
 	}
 
 	entries := []routeEntry{
@@ -252,13 +249,11 @@ func TestNoRouteMatchReturnsFragment(t *testing.T) {
 	}
 
 	initialLoc := Location{Path: "/404"}
-	getLoc := func() Location { return initialLoc }
-	setLoc := func(Location) {}
-	state := routerState{getLoc: getLoc, setLoc: setLoc}
+	controller := testController(initialLoc)
 
-	appFunc := func(ctx Ctx, _ struct{}) *dom2.StructuredNode {
-		return RouterStateCtx.Provide(ctx, state, func(rctx Ctx) *dom2.StructuredNode {
-			return renderRoutes(rctx, entries)
+	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
+		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
+			return renderRoutes(rctx, buildTrie(entries))
 		})
 	}
 
@@ -277,7 +272,7 @@ func TestUseLocationClonesLocation(t *testing.T) {
 
 	var captured1, captured2 Location
 
-	page := func(ctx Ctx, _ Match) *dom2.StructuredNode {
+	page := func(ctx Ctx, _ Match) *dom.StructuredNode {
 		captured1 = UseLocation(ctx)
 		captured2 = UseLocation(ctx)
 
@@ -285,21 +280,19 @@ func TestUseLocationClonesLocation(t *testing.T) {
 		captured1.Query.Set("key", "modified")
 		captured1.Hash = "modified"
 
-		return dom2.FragmentNode()
+		return dom.FragmentNode()
 	}
 
 	entries := []routeEntry{
 		{pattern: "/test", component: page},
 	}
 
-	getLoc := func() Location { return testLoc }
-	setLoc := func(Location) {}
-	state := routerState{getLoc: getLoc, setLoc: setLoc}
+	controller := testController(testLoc)
 
-	appFunc := func(ctx Ctx, _ struct{}) *dom2.StructuredNode {
-		return RouterStateCtx.Provide(ctx, state, func(rctx Ctx) *dom2.StructuredNode {
-			return LocationCtx.Provide(rctx, testLoc, func(lctx Ctx) *dom2.StructuredNode {
-				return renderRoutes(lctx, entries)
+	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
+		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
+			return LocationCtx.Provide(rctx, testLoc, func(lctx Ctx) *dom.StructuredNode {
+				return renderRoutes(lctx, buildTrie(entries))
 			})
 		})
 	}
@@ -318,4 +311,12 @@ func TestUseLocationClonesLocation(t *testing.T) {
 	if captured2.Hash != "hash" {
 		t.Errorf("expected hash 'hash', got %q (mutation leaked)", captured2.Hash)
 	}
+}
+
+func buildTrie(entries []routeEntry) *RouterTrie {
+	t := NewRouterTrie()
+	for _, e := range entries {
+		t.Insert(e.pattern, e)
+	}
+	return t
 }

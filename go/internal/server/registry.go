@@ -85,7 +85,7 @@ func (r *SessionRegistry) Remove(id session.SessionID) {
 	release.release()
 }
 
-// Attach binds a transport to the given session and connection id.
+// Attach binds transport to the given session and connection id.
 func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport session.Transport) (*session.LiveSession, error) {
 	if connID == "" || transport == nil {
 		return nil, errors.New("server: missing connection or transport")

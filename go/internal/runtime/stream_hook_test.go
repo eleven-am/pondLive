@@ -3,21 +3,21 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestUseStreamBasic(t *testing.T) {
 	var handle StreamHandle[string]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		items := []StreamItem[string]{
 			{Key: "a", Value: "Item A"},
 			{Key: "b", Value: "Item B"},
 		}
 
-		frag, h := UseStream(ctx, func(item StreamItem[string]) *dom2.StructuredNode {
-			return &dom2.StructuredNode{Tag: "div", Text: item.Value}
+		frag, h := UseStream(ctx, func(item StreamItem[string]) *dom.StructuredNode {
+			return &dom.StructuredNode{Tag: "div", Text: item.Value}
 		}, items...)
 
 		handle = h
@@ -43,12 +43,12 @@ func TestUseStreamBasic(t *testing.T) {
 func TestUseStreamAppend(t *testing.T) {
 	var handle StreamHandle[int]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		_, h := UseStream(ctx, func(item StreamItem[int]) *dom2.StructuredNode {
-			return &dom2.StructuredNode{Tag: "div"}
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		_, h := UseStream(ctx, func(item StreamItem[int]) *dom.StructuredNode {
+			return &dom.StructuredNode{Tag: "div"}
 		})
 		handle = h
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -76,13 +76,13 @@ func TestUseStreamAppend(t *testing.T) {
 func TestUseStreamPrepend(t *testing.T) {
 	var handle StreamHandle[string]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		initial := []StreamItem[string]{{Key: "b", Value: "B"}}
-		_, h := UseStream(ctx, func(item StreamItem[string]) *dom2.StructuredNode {
-			return &dom2.StructuredNode{Tag: "div"}
+		_, h := UseStream(ctx, func(item StreamItem[string]) *dom.StructuredNode {
+			return &dom.StructuredNode{Tag: "div"}
 		}, initial...)
 		handle = h
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -104,17 +104,17 @@ func TestUseStreamPrepend(t *testing.T) {
 func TestUseStreamDelete(t *testing.T) {
 	var handle StreamHandle[string]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		initial := []StreamItem[string]{
 			{Key: "a", Value: "A"},
 			{Key: "b", Value: "B"},
 			{Key: "c", Value: "C"},
 		}
-		_, h := UseStream(ctx, func(item StreamItem[string]) *dom2.StructuredNode {
-			return &dom2.StructuredNode{Tag: "div"}
+		_, h := UseStream(ctx, func(item StreamItem[string]) *dom.StructuredNode {
+			return &dom.StructuredNode{Tag: "div"}
 		}, initial...)
 		handle = h
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -139,13 +139,13 @@ func TestUseStreamDelete(t *testing.T) {
 func TestUseStreamReplace(t *testing.T) {
 	var handle StreamHandle[string]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		initial := []StreamItem[string]{{Key: "a", Value: "old"}}
-		_, h := UseStream(ctx, func(item StreamItem[string]) *dom2.StructuredNode {
-			return &dom2.StructuredNode{Tag: "div"}
+		_, h := UseStream(ctx, func(item StreamItem[string]) *dom.StructuredNode {
+			return &dom.StructuredNode{Tag: "div"}
 		}, initial...)
 		handle = h
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -167,12 +167,12 @@ func TestUseStreamReplace(t *testing.T) {
 func TestUseStreamUpsert(t *testing.T) {
 	var handle StreamHandle[int]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		_, h := UseStream(ctx, func(item StreamItem[int]) *dom2.StructuredNode {
-			return &dom2.StructuredNode{Tag: "div"}
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		_, h := UseStream(ctx, func(item StreamItem[int]) *dom.StructuredNode {
+			return &dom.StructuredNode{Tag: "div"}
 		})
 		handle = h
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -199,13 +199,13 @@ func TestUseStreamUpsert(t *testing.T) {
 func TestUseStreamClear(t *testing.T) {
 	var handle StreamHandle[string]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		initial := []StreamItem[string]{{Key: "a", Value: "A"}}
-		_, h := UseStream(ctx, func(item StreamItem[string]) *dom2.StructuredNode {
-			return &dom2.StructuredNode{Tag: "div"}
+		_, h := UseStream(ctx, func(item StreamItem[string]) *dom.StructuredNode {
+			return &dom.StructuredNode{Tag: "div"}
 		}, initial...)
 		handle = h
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -224,10 +224,10 @@ func TestUseStreamClear(t *testing.T) {
 }
 
 func TestUseStreamKeyAutoAssign(t *testing.T) {
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		items := []StreamItem[string]{{Key: "test", Value: "value"}}
-		frag, _ := UseStream(ctx, func(item StreamItem[string]) *dom2.StructuredNode {
-			return &dom2.StructuredNode{Tag: "div"}
+		frag, _ := UseStream(ctx, func(item StreamItem[string]) *dom.StructuredNode {
+			return &dom.StructuredNode{Tag: "div"}
 		}, items...)
 		return frag
 	}

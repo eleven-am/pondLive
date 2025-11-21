@@ -24,8 +24,9 @@ func ReplaceWithSearch(ctx runtime.Ctx, patch func(url.Values) url.Values) {
 }
 
 func updateSearchWithNavigation(ctx runtime.Ctx, patch func(url.Values) url.Values, replace bool) {
-	state := requireRouterState(ctx)
-	current := state.getLoc()
+	controller := UseRouterState(ctx)
+	state := controller.Get()
+	current := state.Location
 	nextQuery := cloneValues(current.Query)
 	if patch != nil {
 		nextQuery = patch(nextQuery)
@@ -36,20 +37,22 @@ func updateSearchWithNavigation(ctx runtime.Ctx, patch func(url.Values) url.Valu
 }
 
 func applyNavigation(ctx runtime.Ctx, href string, replace bool) {
-	state := requireRouterState(ctx)
-	current := state.getLoc()
+	controller := UseRouterState(ctx)
+	state := controller.Get()
+	current := state.Location
 	target := resolveHref(current, href)
 	performLocationUpdate(ctx, target, replace, true)
 }
 
 func performLocationUpdate(ctx runtime.Ctx, target Location, replace bool, record bool) {
-	state := requireRouterState(ctx)
-	current := state.getLoc()
+	controller := UseRouterState(ctx)
+	state := controller.Get()
+	current := state.Location
 	canon := canonicalizeLocation(target)
 	if LocEqual(current, canon) {
 		return
 	}
-	state.setLoc(canon)
+	controller.SetLocation(canon)
 	if record {
 		recordNavigation(ctx, canon, replace)
 	}
@@ -65,6 +68,15 @@ func resolveHref(base Location, href string) Location {
 		next.Hash = normalizeHash(trimmed)
 		return canonicalizeLocation(next)
 	}
+
+	if strings.HasPrefix(trimmed, "/") {
+		parsed, err := url.Parse(trimmed)
+		if err != nil {
+			return base
+		}
+		return locationFromURL(parsed)
+	}
+
 	baseURL := &url.URL{
 		Path:     base.Path,
 		RawQuery: encodeQuery(base.Query),
@@ -89,40 +101,15 @@ func locationFromURL(u *url.URL) Location {
 	return canonicalizeLocation(loc)
 }
 
-func parseQuery(raw string) url.Values {
-	if raw == "" {
-		return url.Values{}
-	}
-	vals, err := url.ParseQuery(raw)
-	if err != nil {
-		return url.Values{}
-	}
-	return canonicalizeValues(vals)
-}
-
 func currentSessionLocation(ctx runtime.Ctx) Location {
-	if entry := loadSessionRouterEntry(ctx); entry != nil {
-		entry.mu.Lock()
-		defer entry.mu.Unlock()
-		return cloneLocation(entry.navigation.loc)
-	}
-	return canonicalizeLocation(Location{Path: "/"})
+
+	controller := UseRouterState(ctx)
+	state := controller.Get()
+	return cloneLocation(state.Location)
 }
 
 func recordNavigation(ctx runtime.Ctx, loc Location, replace bool) {
-	msg := NavMsg{
-		T:    "nav",
-		Path: loc.Path,
-		Q:    encodeQuery(loc.Query),
-		Hash: loc.Hash,
-	}
-	if replace {
-		msg.T = "replace"
-	}
-	if entry := loadSessionRouterEntry(ctx); entry != nil {
-		entry.mu.Lock()
-		entry.navigation.history = append(entry.navigation.history, msg)
-		entry.navigation.pending = append(entry.navigation.pending, msg)
-		entry.mu.Unlock()
-	}
+
+	_ = loc
+	_ = replace
 }

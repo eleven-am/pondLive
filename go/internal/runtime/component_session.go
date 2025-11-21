@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 const maxEffectsPerFlush = 64
@@ -17,9 +17,9 @@ type ComponentSession struct {
 	dirty      map[*component]struct{}
 	components map[string]*component
 
-	prevTree *dom2.StructuredNode
+	prevTree *dom.StructuredNode
 
-	handlers   map[string]dom2.EventHandler
+	handlers   map[string]dom.EventHandler
 	handlersMu sync.RWMutex
 
 	uploads  map[string]*uploadSlot
@@ -35,8 +35,8 @@ type ComponentSession struct {
 
 	mountedComponents map[*component]struct{}
 
-	domActions      []dom2.DOMActionEffect
-	domActionSender func([]dom2.DOMActionEffect) error
+	domActions      []dom.DOMActionEffect
+	domActionSender func([]dom.DOMActionEffect) error
 	domGetHandler   func(ref string, selectors ...string) (map[string]any, error)
 	domCallHandler  func(ref string, method string, args ...any) (any, error)
 
@@ -69,7 +69,7 @@ func NewSession[P any](root Component[P], props P) *ComponentSession {
 	sess := &ComponentSession{
 		dirty:      make(map[*component]struct{}),
 		components: make(map[string]*component),
-		handlers:   make(map[string]dom2.EventHandler),
+		handlers:   make(map[string]dom.EventHandler),
 		uploads:    make(map[string]*uploadSlot),
 		pubsubSubs: make(map[string]pubsubSubscription),
 	}
@@ -111,7 +111,7 @@ func (s *ComponentSession) GetInitialLocation() (path string, query map[string]s
 
 // Tree returns the last rendered StructuredNode tree.
 // Returns nil if no render has occurred yet.
-func (s *ComponentSession) Tree() *dom2.StructuredNode {
+func (s *ComponentSession) Tree() *dom.StructuredNode {
 	if s == nil {
 		return nil
 	}
@@ -133,12 +133,17 @@ func (s *ComponentSession) Flush() error {
 		isFirstRender := s.prevTree == nil
 		s.mu.Unlock()
 
+		fmt.Printf("[FLUSH] isFirstRender=%v, dirtyComponents=%d\n", isFirstRender, len(dirtyComponents))
+
 		s.clearRenderedFlags()
 
 		if isFirstRender {
+			s.resetRefsForComponent(s.root)
 			s.root.render()
 		} else {
+			fmt.Printf("[FLUSH] Rendering %d dirty components...\n", len(dirtyComponents))
 			for _, comp := range dirtyComponents {
+				s.resetRefsForComponent(comp)
 				comp.render()
 			}
 		}
@@ -147,9 +152,13 @@ func (s *ComponentSession) Flush() error {
 
 		nextTree := s.root.node
 
+		dom.AssignHandlerKeys(nextTree, s.root.id)
+
 		var patches []dom2diff.Patch
 		if s.prevTree != nil {
+			fmt.Printf("[FLUSH] Calling Diff()...\n")
 			patches = dom2diff.Diff(s.prevTree, nextTree)
+			fmt.Printf("[FLUSH] Diff() generated %d patches\n", len(patches))
 		}
 
 		handlers := s.collectHandlersFromTree(nextTree)
@@ -183,7 +192,7 @@ func (s *ComponentSession) Flush() error {
 		runEffects(effects)
 
 		s.mu.Lock()
-		actions := append([]dom2.DOMActionEffect(nil), s.domActions...)
+		actions := append([]dom.DOMActionEffect(nil), s.domActions...)
 		s.domActions = nil
 		sender := s.domActionSender
 		s.mu.Unlock()
@@ -202,16 +211,38 @@ func (s *ComponentSession) collectDirtyComponentsLocked() []*component {
 	if len(s.dirty) == 0 {
 		return nil
 	}
-	result := make([]*component, 0, len(s.dirty))
+
+	allDirty := make([]*component, 0, len(s.dirty))
 	for comp := range s.dirty {
-		result = append(result, comp)
+		allDirty = append(allDirty, comp)
+	}
+
+	result := make([]*component, 0, len(allDirty))
+	for _, comp := range allDirty {
+		hasAncestorDirty := false
+		ancestor := comp.parent
+		for ancestor != nil {
+			if _, isDirty := s.dirty[ancestor]; isDirty {
+				hasAncestorDirty = true
+				break
+			}
+			ancestor = ancestor.parent
+		}
+
+		if !hasAncestorDirty {
+			result = append(result, comp)
+		}
+	}
+
+	for comp := range s.dirty {
 		delete(s.dirty, comp)
 	}
+
 	return result
 }
 
-func (s *ComponentSession) collectHandlersFromTree(node *dom2.StructuredNode) map[string]dom2.EventHandler {
-	handlers := make(map[string]dom2.EventHandler)
+func (s *ComponentSession) collectHandlersFromTree(node *dom.StructuredNode) map[string]dom.EventHandler {
+	handlers := make(map[string]dom.EventHandler)
 	if node == nil {
 		return handlers
 	}
@@ -219,7 +250,7 @@ func (s *ComponentSession) collectHandlersFromTree(node *dom2.StructuredNode) ma
 	return handlers
 }
 
-func (s *ComponentSession) collectHandlersFromNode(node *dom2.StructuredNode, handlers map[string]dom2.EventHandler) {
+func (s *ComponentSession) collectHandlersFromNode(node *dom.StructuredNode, handlers map[string]dom.EventHandler) {
 	if node == nil {
 		return
 	}
@@ -247,10 +278,27 @@ func runEffects(tasks []effectTask) {
 	}
 }
 
-// clearRenderedFlags clears the renderedThisFlush flag for all components that were rendered last flush.
 func (s *ComponentSession) clearRenderedFlags() {
 	for comp := range s.mountedComponents {
 		comp.renderedThisFlush = false
+	}
+}
+
+func (s *ComponentSession) resetRefsForComponent(comp *component) {
+	if comp == nil {
+		return
+	}
+
+	if comp.frame != nil {
+		for _, cell := range comp.frame.cells {
+			if refCell, ok := cell.(interface{ resetAttachment() }); ok {
+				refCell.resetAttachment()
+			}
+		}
+	}
+
+	for _, child := range comp.children {
+		s.resetRefsForComponent(child)
 	}
 }
 
@@ -329,6 +377,7 @@ func (s *ComponentSession) markDirty(comp *component) {
 	if s == nil || comp == nil {
 		return
 	}
+	fmt.Printf("[DIRTY] Component marked dirty (id=%s)\n", comp.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.dirty == nil {
@@ -337,7 +386,7 @@ func (s *ComponentSession) markDirty(comp *component) {
 	s.dirty[comp] = struct{}{}
 }
 
-func (s *ComponentSession) enqueueDOMAction(effect dom2.DOMActionEffect) {
+func (s *ComponentSession) enqueueDOMAction(effect dom.DOMActionEffect) {
 	if s == nil {
 		return
 	}
@@ -349,7 +398,7 @@ func (s *ComponentSession) enqueueDOMAction(effect dom2.DOMActionEffect) {
 	s.mu.Unlock()
 }
 
-func (s *ComponentSession) SetDOMActionSender(fn func([]dom2.DOMActionEffect) error) {
+func (s *ComponentSession) SetDOMActionSender(fn func([]dom.DOMActionEffect) error) {
 	s.mu.Lock()
 	s.domActionSender = fn
 	s.mu.Unlock()
@@ -405,7 +454,7 @@ func (s *ComponentSession) withRecovery(phase string, fn func() error) error {
 }
 
 // HandleEvent dispatches an event to the registered handler.
-func (s *ComponentSession) HandleEvent(id string, ev dom2.Event) error {
+func (s *ComponentSession) HandleEvent(id string, ev dom.Event) error {
 	if s == nil {
 		return errors.New("runtime2: session is nil")
 	}
@@ -419,7 +468,10 @@ func (s *ComponentSession) HandleEvent(id string, ev dom2.Event) error {
 			return fmt.Errorf("runtime2: handler not found: %s", id)
 		}
 
-		if updates := handler(ev); updates != nil {
+		fmt.Printf("[EVENT] Calling handler id=%s, eventName=%s\n", id, ev.Name)
+		updates := handler(ev)
+		fmt.Printf("[EVENT] Handler returned updates=%v\n", updates != nil)
+		if updates != nil {
 			s.markDirty(s.root)
 		}
 		return nil
@@ -449,11 +501,9 @@ func (s *ComponentSession) Reset() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Collect all cleanups before resetting
 	var allCleanups []cleanupTask
 	allCleanups = append(allCleanups, s.pendingCleanups...)
 
-	// Walk component tree and collect effect cleanups
 	s.walkComponentTree(s.root, func(comp *component) {
 		if comp.frame != nil {
 			for _, cell := range comp.frame.cells {
@@ -464,15 +514,12 @@ func (s *ComponentSession) Reset() bool {
 		}
 	})
 
-	// Clear all pending tasks
 	s.pendingEffects = nil
 	s.pendingCleanups = nil
 	s.pendingPubsub = nil
 
-	// Mark root dirty to trigger full re-render
 	s.markDirtyLocked(s.root)
 
-	// Run all cleanups after releasing lock
 	go func() {
 		for _, task := range allCleanups {
 			if task.run != nil {
@@ -500,7 +547,6 @@ func (s *ComponentSession) ResetComponent(id string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Collect effect cleanups for this component
 	var cleanups []cleanupTask
 	if comp.frame != nil {
 		for _, cell := range comp.frame.cells {
@@ -510,10 +556,8 @@ func (s *ComponentSession) ResetComponent(id string) bool {
 		}
 	}
 
-	// Mark component dirty to trigger re-render
 	s.markDirtyLocked(comp)
 
-	// Run cleanups after releasing lock
 	go func() {
 		for _, task := range cleanups {
 			if task.run != nil {

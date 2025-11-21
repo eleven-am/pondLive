@@ -10,7 +10,7 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
-	livehttp "github.com/eleven-am/pondlive/go/internal/server/http"
+	"github.com/eleven-am/pondlive/go/internal/server"
 	"github.com/eleven-am/pondlive/go/internal/session"
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
@@ -89,6 +89,13 @@ type App struct {
 	provider runtime.PubsubProvider
 }
 
+const (
+	PondSocketPath = "/live"
+	UploadPath     = "/__upload"
+	CookiePath     = "/__cookie"
+	NavPath        = "/__nav"
+)
+
 // NewApp constructs a LiveUI application stack using the supplied component.
 // The returned handler automatically serves the embedded client script, PondSocket
 // endpoint, upload handler, and cookie negotiation endpoint used by SetCookie
@@ -114,16 +121,6 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 		devMode = *applied.devMode
 	}
 
-	managerCfg := &livehttp.Config[struct{}]{
-		Component:   adaptComponent(component),
-		ClientAsset: clientScriptPath(devMode),
-	}
-	if applied.version > 0 {
-		managerCfg.Version = applied.version
-	}
-	if applied.idGenerator != nil {
-		managerCfg.IDGenerator = applied.idGenerator
-	}
 	var sessionCfg *session.Config
 	if applied.session != nil {
 		clone := *applied.session
@@ -135,50 +132,59 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 		}
 		sessionCfg.DevMode = *applied.devMode
 	}
-	if sessionCfg != nil {
-		managerCfg.Session = sessionCfg
-	}
-	if strings.TrimSpace(applied.clientAssetURL) != "" {
-		managerCfg.ClientAsset = applied.clientAssetURL
-	}
 
-	manager := livehttp.NewManager(managerCfg)
+	clientAsset := clientScriptPath(devMode)
+	if strings.TrimSpace(applied.clientAssetURL) != "" {
+		clientAsset = applied.clientAssetURL
+	}
 
 	pondManager := pond.NewManager(ctx)
-	pondEndpoint, err := manager.RegisterPondSocket(pondManager)
+
+	registry := server.NewSessionRegistry()
+	endpoint, err := server.Register(pondManager, PondSocketPath, registry)
 	if err != nil {
 		return nil, err
 	}
 
-	prefix := trimPatternPrefix(livehttp.PondSocketPattern)
-	route := endpointFromPrefix(prefix)
-	manager.SetClientConfig(protocol.ClientConfig{Endpoint: route, UploadEndpoint: livehttp.UploadPathPrefix})
+	pubsubProvider := endpoint.PubsubProvider()
 
-	scriptPath := managerCfg.ClientAsset
+	ssrHandler := server.NewSSRHandler(server.SSRConfig{
+		Registry:       registry,
+		Component:      adaptComponent(component),
+		Version:        applied.version,
+		IDGenerator:    applied.idGenerator,
+		SessionConfig:  sessionCfg,
+		ClientAsset:    clientAsset,
+		ClientConfig:   &protocol.ClientConfig{Endpoint: PondSocketPath, UploadEndpoint: UploadPath},
+		PubsubProvider: pubsubProvider,
+	})
+
+	mux := http.NewServeMux()
+
+	scriptPath := clientAsset
 	if strings.TrimSpace(scriptPath) == "" {
 		scriptPath = clientScriptPath(devMode)
 	}
-	scriptHandler := embeddedClientScriptHandler(scriptPath)
-	sourceMapPath := ""
-	sourceMapHandler := http.Handler(nil)
+	mux.Handle(scriptPath, embeddedClientScriptHandler(scriptPath))
+
 	if devMode {
-		sourceMapPath = clientSourceMapPath(scriptPath)
-		sourceMapHandler = embeddedClientSourceMapHandler(sourceMapPath)
+		sourceMapPath := clientSourceMapPath(scriptPath)
+		if strings.TrimSpace(sourceMapPath) != "" {
+			mux.Handle(sourceMapPath, embeddedClientSourceMapHandler(sourceMapPath))
+		}
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle(route, pondManager.HTTPHandler())
-	mux.Handle(scriptPath, scriptHandler)
-	if devMode && sourceMapHandler != nil && strings.TrimSpace(sourceMapPath) != "" {
-		mux.Handle(sourceMapPath, sourceMapHandler)
-	}
-	mux.Handle(livehttp.UploadPathPrefix, livehttp.NewUploadHandler(manager.Registry()))
-	mux.Handle(livehttp.CookiePath, livehttp.NewCookieHandler(manager.Registry()))
-	mux.Handle("/", manager)
+	mux.Handle(PondSocketPath, pondManager.HTTPHandler())
 
-	provider := pondEndpoint.PubsubProvider()
+	mux.Handle(UploadPath, server.NewUploadHandler(registry))
 
-	return &App{handler: mux, provider: provider}, nil
+	mux.Handle(CookiePath, server.NewCookieHandler(registry))
+
+	mux.Handle(NavPath, server.NewNavHandler(registry))
+
+	mux.Handle("/", ssrHandler)
+
+	return &App{handler: mux, provider: pubsubProvider}, nil
 }
 
 func adaptComponent(fn Component) runtime.Component[struct{}] {
@@ -188,40 +194,6 @@ func adaptComponent(fn Component) runtime.Component[struct{}] {
 	return func(ctx runtime.Ctx, _ struct{}) h.Node {
 		return fn(ctx)
 	}
-}
-
-func trimPatternPrefix(pattern string) string {
-	if pattern == "" {
-		return "/"
-	}
-	cutoff := len(pattern)
-	for _, marker := range []string{":", "*"} {
-		if idx := strings.Index(pattern, marker); idx >= 0 && idx < cutoff {
-			cutoff = idx
-		}
-	}
-	prefix := pattern[:cutoff]
-	if prefix == "" {
-		prefix = "/"
-	}
-	if !strings.HasSuffix(prefix, "/") {
-		prefix += "/"
-	}
-	return prefix
-}
-
-func endpointFromPrefix(prefix string) string {
-	if prefix == "" {
-		return "/"
-	}
-	trimmed := strings.TrimSuffix(prefix, "/")
-	if trimmed == "" {
-		return "/"
-	}
-	if !strings.HasPrefix(trimmed, "/") {
-		trimmed = "/" + trimmed
-	}
-	return trimmed
 }
 
 // Handler exposes the combined HTTP handler serving both SSR and websocket traffic.

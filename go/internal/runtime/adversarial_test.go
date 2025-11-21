@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 // This test demonstrates that child component updates do not propagate into
@@ -15,17 +15,17 @@ import (
 func TestChildComponentStateUpdateProducesPatch(t *testing.T) {
 	var setChildText func(string)
 
-	child := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	child := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		value, set := UseState(ctx, "old")
 		setChildText = set
-		return dom2.ElementNode("span").WithChildren(dom2.TextNode(value()))
+		return dom.ElementNode("span").WithChildren(dom.TextNode(value()))
 	}
 
-	parent := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	parent := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		childNode := Render(ctx, child, struct{}{})
-		return &dom2.StructuredNode{
+		return &dom.StructuredNode{
 			Tag:      "div",
-			Children: []*dom2.StructuredNode{childNode},
+			Children: []*dom.StructuredNode{childNode},
 		}
 	}
 
@@ -63,18 +63,18 @@ func TestUsePubsubUnsubscribeInvoked(t *testing.T) {
 	provider := &mockPubsubProvider{}
 	var setVisible func(bool)
 
-	subscriber := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	subscriber := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		UsePubsub[int](ctx, "topic", WithPubsubProvider[int](provider))
-		return &dom2.StructuredNode{Tag: "span", Text: "sub"}
+		return &dom.StructuredNode{Tag: "span", Text: "sub"}
 	}
 
-	root := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	root := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		visible, set := UseState(ctx, true)
 		setVisible = func(v bool) { set(v) }
 		if visible() {
 			return Render(ctx, subscriber, struct{}{})
 		}
-		return &dom2.StructuredNode{Tag: "div", Text: "hidden"}
+		return &dom.StructuredNode{Tag: "div", Text: "hidden"}
 	}
 
 	sess := NewSession(root, struct{}{})

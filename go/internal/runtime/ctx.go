@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // Ctx represents the runtime context passed to every component render call.
@@ -26,7 +26,7 @@ func (c Ctx) ComponentID() string {
 }
 
 // Render renders a child component with optional key.
-func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) *dom2.StructuredNode {
+func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) *dom.StructuredNode {
 	if ctx.sess == nil || ctx.comp == nil {
 		panic("runtime2: render called outside component context")
 	}
@@ -37,7 +37,19 @@ func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) *dom
 		}
 	}
 	adapter := newComponentAdapter(fn)
-	child := ctx.comp.ensureChild(adapter, cfg.key, props)
+
+	key := cfg.key
+	if key == "" {
+		ptr := cfg.origPointer
+		if ptr == 0 {
+			ptr = adapter.pointer()
+		}
+		key = fmt.Sprintf("auto:%x", ptr)
+	}
+
+	fmt.Printf("[DEBUG] Render: key=%s, origPointer=%x, adapterPointer=%x\n", key, cfg.origPointer, adapter.pointer())
+
+	child := ctx.comp.ensureChild(adapter, key, props)
 	child.callable = adapter
 	child.sess = ctx.sess
 
@@ -57,7 +69,7 @@ func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) *dom
 	child.props = props
 
 	if child.wrapper == nil {
-		child.wrapper = &dom2.StructuredNode{
+		child.wrapper = &dom.StructuredNode{
 			ComponentID: child.id,
 		}
 	}
@@ -71,7 +83,8 @@ func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) *dom
 }
 
 type renderOptions struct {
-	key string
+	key         string
+	origPointer uintptr // Original function pointer for auto-key generation
 }
 
 type RenderOption interface{ applyRenderOption(*renderOptions) }
@@ -85,36 +98,55 @@ func WithKey(key string) RenderOption {
 	return renderOptionFunc(func(o *renderOptions) { o.key = key })
 }
 
-func NoPropsComponent(fn func(Ctx) *dom2.StructuredNode) func(Ctx, ...RenderOption) *dom2.StructuredNode {
+// withOriginalPointer is internal - stores the original function pointer for auto-key
+func withOriginalPointer(ptr uintptr) RenderOption {
+	return renderOptionFunc(func(o *renderOptions) { o.origPointer = ptr })
+}
+
+// NoPropsComponent is like NoPropsComponent but takes an additional
+// original function parameter to use for stable key generation
+func NoPropsComponent[F any](fn func(Ctx) *dom.StructuredNode, original F) func(Ctx, ...RenderOption) *dom.StructuredNode {
 	if fn == nil {
 		return nil
 	}
-	wrapped := func(ctx Ctx, _ struct{}) *dom2.StructuredNode {
+
+	origPtr := reflect.ValueOf(original).Pointer()
+
+	wrapped := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
 		return fn(ctx)
 	}
-	return func(ctx Ctx, opts ...RenderOption) *dom2.StructuredNode {
+	return func(ctx Ctx, opts ...RenderOption) *dom.StructuredNode {
+
+		opts = append(opts, withOriginalPointer(origPtr))
 		return Render(ctx, wrapped, struct{}{}, opts...)
 	}
 }
 
-func PropsComponent[P any](fn func(Ctx, P) *dom2.StructuredNode) func(Ctx, P, ...RenderOption) *dom2.StructuredNode {
+// PropsComponent is like PropsComponent but takes an additional
+// original function parameter to use for stable key generation
+func PropsComponent[P any, F any](fn func(Ctx, P) *dom.StructuredNode, original F) func(Ctx, P, ...RenderOption) *dom.StructuredNode {
 	if fn == nil {
 		return nil
 	}
-	return func(ctx Ctx, props P, opts ...RenderOption) *dom2.StructuredNode {
+
+	origPtr := reflect.ValueOf(original).Pointer()
+
+	return func(ctx Ctx, props P, opts ...RenderOption) *dom.StructuredNode {
+
+		opts = append(opts, withOriginalPointer(origPtr))
 		return Render(ctx, fn, props, opts...)
 	}
 }
 
-// EnqueueDOMAction implements dom2.Dispatcher by enqueuing a DOM action effect.
-func (c Ctx) EnqueueDOMAction(effect dom2.DOMActionEffect) {
+// EnqueueDOMAction implements dom.Dispatcher by enqueuing a DOM action effect.
+func (c Ctx) EnqueueDOMAction(effect dom.DOMActionEffect) {
 	if c.sess == nil {
 		return
 	}
 	c.sess.enqueueDOMAction(effect)
 }
 
-// DOMGet implements dom2.Dispatcher by requesting property values from the client.
+// DOMGet implements dom.Dispatcher by requesting property values from the client.
 func (c Ctx) DOMGet(ref string, selectors ...string) (map[string]any, error) {
 	if c.sess == nil {
 		return nil, fmt.Errorf("runtime2: DOMGet requires session context")
@@ -122,7 +154,7 @@ func (c Ctx) DOMGet(ref string, selectors ...string) (map[string]any, error) {
 	return c.sess.domGet(ref, selectors...)
 }
 
-// DOMAsyncCall implements dom2.Dispatcher by calling a method on the client and returning the result.
+// DOMAsyncCall implements dom.Dispatcher by calling a method on the client and returning the result.
 func (c Ctx) DOMAsyncCall(ref string, method string, args ...any) (any, error) {
 	if c.sess == nil {
 		return nil, fmt.Errorf("runtime2: DOMAsyncCall requires session context")

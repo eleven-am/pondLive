@@ -3,17 +3,17 @@ package session
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 func TestNew(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		headers := UseHeader(ctx)
 		ua, _ := headers.GetHeader("User-Agent")
 
-		return dom2.ElementNode("div").WithChildren(
-			dom2.ElementNode("p").WithChildren(dom2.TextNode("User-Agent: " + ua)),
+		return dom.ElementNode("div").WithChildren(
+			dom.ElementNode("p").WithChildren(dom.TextNode("User-Agent: " + ua)),
 		)
 	}
 
@@ -50,16 +50,16 @@ func TestNew(t *testing.T) {
 func TestNewWithStateChanges(t *testing.T) {
 	var setCount func(int)
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		headers := UseHeader(ctx)
 		count, set := runtime.UseState(ctx, 0)
 		setCount = set
 
 		ua, _ := headers.GetHeader("User-Agent")
 
-		return dom2.ElementNode("div").WithChildren(
-			dom2.ElementNode("p").WithChildren(dom2.TextNode("UA: "+ua)),
-			dom2.ElementNode("p").WithChildren(dom2.TextNode("Count: "+string(rune('0'+count())))),
+		return dom.ElementNode("div").WithChildren(
+			dom.ElementNode("p").WithChildren(dom.TextNode("UA: "+ua)),
+			dom.ElementNode("p").WithChildren(dom.TextNode("Count: "+string(rune('0'+count())))),
 		)
 	}
 

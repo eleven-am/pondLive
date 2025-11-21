@@ -3,38 +3,38 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestComponentWrapperDiff(t *testing.T) {
-	prevSpan := dom2.ElementNode("span").WithChildren(dom2.TextNode("old"))
-	nextSpan := dom2.ElementNode("span").WithChildren(dom2.TextNode("new"))
+	prevSpan := dom.ElementNode("span").WithChildren(dom.TextNode("old"))
+	nextSpan := dom.ElementNode("span").WithChildren(dom.TextNode("new"))
 
 	t.Logf("prevSpan ptr: %p, text: %q", prevSpan, prevSpan.Text)
 	t.Logf("nextSpan ptr: %p, text: %q", nextSpan, nextSpan.Text)
 
-	prevWrapper := &dom2.StructuredNode{
+	prevWrapper := &dom.StructuredNode{
 		ComponentID: "child1",
-		Children:    []*dom2.StructuredNode{prevSpan},
+		Children:    []*dom.StructuredNode{prevSpan},
 	}
 
-	nextWrapper := &dom2.StructuredNode{
+	nextWrapper := &dom.StructuredNode{
 		ComponentID: "child1",
-		Children:    []*dom2.StructuredNode{nextSpan},
+		Children:    []*dom.StructuredNode{nextSpan},
 	}
 
 	t.Logf("prevWrapper.Children[0] ptr: %p", prevWrapper.Children[0])
 	t.Logf("nextWrapper.Children[0] ptr: %p", nextWrapper.Children[0])
 
-	prevDiv := &dom2.StructuredNode{
+	prevDiv := &dom.StructuredNode{
 		Tag:      "div",
-		Children: []*dom2.StructuredNode{prevWrapper},
+		Children: []*dom.StructuredNode{prevWrapper},
 	}
 
-	nextDiv := &dom2.StructuredNode{
+	nextDiv := &dom.StructuredNode{
 		Tag:      "div",
-		Children: []*dom2.StructuredNode{nextWrapper},
+		Children: []*dom.StructuredNode{nextWrapper},
 	}
 
 	patches := dom2diff.Diff(prevDiv, nextDiv)

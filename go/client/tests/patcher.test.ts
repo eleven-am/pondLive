@@ -1,125 +1,196 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { DomRegistry } from '../src/dom-registry';
 import { Patcher } from '../src/patcher';
-import type { ListInsOp, FrameMessage, ComponentPathDescriptor } from '../src/types';
-import { getSlotBindings, registerSlotTable } from '../src/events';
+import { EventManager } from '../src/events';
+import { Router } from '../src/router';
 import { RefRegistry } from '../src/refs';
-
-function createFrame(patch: any[]): FrameMessage {
-  return {
-    t: 'frame',
-    sid: 'sid',
-    ver: 1,
-    patch: patch as any,
-    handlers: {},
-    refs: {},
-    bindings: {},
-  };
-}
+import { ClientNode, Patch } from '../src/types';
+import { hydrate } from '../src/vdom';
 
 describe('Patcher', () => {
+  let root: ClientNode;
+  let container: HTMLElement;
+  let events: any;
+  let router: any;
+  let uploads: any;
+  let refs: Map<string, ClientNode>;
+  let patcher: Patcher;
+
   beforeEach(() => {
-    registerSlotTable(undefined);
+    container = document.createElement('div');
+    container.innerHTML = '<div id="target">Original</div>';
+
+    const json: StructuredNode = {
+      tag: 'div',
+      children: [
+        {
+          tag: 'div',
+          attrs: { id: ['target'] },
+          children: [{ text: 'Original' }]
+        }
+      ]
+    };
+
+    // Mocks
+    events = { attach: vi.fn(), detach: vi.fn() } as any;
+    router = { attach: vi.fn(), detach: vi.fn() } as any; // Updated router mock
+    uploads = { bind: vi.fn(), unbind: vi.fn() } as any; // New uploads mock
+    refs = new Map<string, ClientNode>() as any; // Updated refs to be a Map
+
+    root = hydrate(json, container, refs);
+    patcher = new Patcher(root, events, router, uploads, refs); // Updated Patcher constructor call
   });
 
-  it('applies setText operations to slot nodes', () => {
-    const registry = new DomRegistry();
-    const slot = document.createElement('span');
-    registry.registerSlotAnchors([{ slot: 1, componentId: '', textChildIndex: 0 }], undefined);
-    registry['slots'].set(1, slot);
-    const patcher = new Patcher(registry);
-    patcher.applyFrame(createFrame([
-      ['setText', 1, 'hello'],
-    ]));
-    expect(slot.textContent).toBe('hello');
+  it('setText', () => {
+    const patch: Patch = {
+      op: 'setText',
+      path: [0, 0], // div -> text
+      value: 'Updated'
+    };
+    patcher.apply(patch);
+    expect(container.textContent).toBe('Updated');
+    expect(root.children![0].children![0].text).toBe('Updated');
   });
 
-  it('inserts list rows and registers nested metadata', () => {
-    const registry = new DomRegistry();
-    const list = document.createElement('div');
-    registry.registerLists([{ slot: 5, componentId: '', path: [] }], undefined);
-    registry['lists'].set(5, { container: list, rows: new Map(), order: [] } as any);
-    const patcher = new Patcher(registry);
-    const insert: ListInsOp = ['ins', 0, {
-      key: 'row-1',
-      html: '<div class="row"><span>Row</span></div>',
-      componentPaths: [],
-      bindings: { slots: { 9: [{ event: 'click', handler: 'h5' }] } },
-    }];
-    patcher.applyFrame(createFrame([
-      ['list', 5, insert],
-    ]));
-    expect(list.innerHTML).toContain('Row');
-    const rowRecord = registry.getRow(5, 'row-1');
-    expect(rowRecord?.nodes[0]).toBeInstanceOf(Element);
-    expect(getSlotBindings(9)).toMatchObject([{ event: 'click', handler: 'h5' }]);
+  it('setAttr', () => {
+    const patch: Patch = {
+      op: 'setAttr',
+      path: [0], // div
+      value: { class: ['new-class', 'another'] }
+    };
+    patcher.apply(patch);
+    const div = container.firstElementChild!;
+    expect(div.getAttribute('class')).toBe('new-class another');
   });
 
-  it('registers ref bindings for inserted rows', () => {
-    const registry = new DomRegistry();
-    const runtimeStub = { sendEvent: vi.fn() } as any;
-    const refs = new RefRegistry(runtimeStub);
-    refs.apply({
-      add: {
-        'ref:btn': {
-          tag: 'button',
-          events: { click: { props: [] } },
-        },
-      },
-    });
-    const list = document.createElement('div');
-    registry.registerLists([{ slot: 7, componentId: '', path: [] }], undefined);
-    registry['lists'].set(7, { container: list, rows: new Map(), order: [] } as any);
-    const patcher = new Patcher(registry, refs);
-    const componentPaths: ComponentPathDescriptor[] = [
-      {
-        componentId: 'cmp-row',
-        firstChild: [{ kind: 'dom', index: 0 }],
-        lastChild: [{ kind: 'dom', index: 0 }],
-      },
-    ];
-    const insert: ListInsOp = ['ins', 0, {
-      key: 'alpha',
-      html: '<div class="row"><button type="button">Click</button></div>',
-      componentPaths,
-      bindings: {
-        refs: [
+  it('delAttr', () => {
+    const div = container.firstElementChild!;
+    div.setAttribute('data-test', 'value');
+
+    const patch: Patch = {
+      op: 'delAttr',
+      path: [0],
+      name: 'data-test'
+    };
+    patcher.apply(patch);
+    expect(div.hasAttribute('data-test')).toBe(false);
+  });
+
+  it('addChild', () => {
+    const patch: Patch = {
+      op: 'addChild',
+      path: [0], // Add to div
+      index: 1,
+      value: { tag: 'span', children: [{ text: 'New' }] }
+    };
+    patcher.apply(patch);
+
+    const div = container.firstElementChild!;
+    expect(div.children).toHaveLength(1); // Original text + new span? No, text is node, span is element.
+    // Original: <div>"Original"</div>
+    // Added: <span>"New"</span> at index 1
+
+    expect(div.childNodes).toHaveLength(2);
+    expect(div.childNodes[1].nodeName).toBe('SPAN');
+    expect(div.childNodes[1].textContent).toBe('New');
+
+    expect(events.attach).toHaveBeenCalled();
+    expect(router.attach).toHaveBeenCalled();
+  });
+
+  it('delChild', () => {
+    const patch: Patch = {
+      op: 'delChild',
+      path: [0], // div
+      index: 0 // delete text node "Original"
+    };
+    patcher.apply(patch);
+
+    const div = container.firstElementChild!;
+    expect(div.childNodes).toHaveLength(0);
+    expect(div.textContent).toBe('');
+
+    expect(events.detach).toHaveBeenCalled();
+    expect(router.detach).toHaveBeenCalled();
+  });
+
+  it('replaceNode', () => {
+    const patch: Patch = {
+      op: 'replaceNode',
+      path: [0], // Replace the div
+      value: { tag: 'p', children: [{ text: 'Replaced' }] }
+    };
+    patcher.apply(patch);
+
+    expect(container.firstElementChild!.tagName).toBe('P');
+    expect(container.textContent).toBe('Replaced');
+
+    expect(events.detach).toHaveBeenCalled();
+    expect(events.attach).toHaveBeenCalled();
+  });
+
+  it('setStyle', () => {
+    const patch: Patch = {
+      op: 'setStyle',
+      path: [0],
+      value: { color: 'red', 'font-size': '12px' }
+    };
+    patcher.apply(patch);
+    const div = container.firstElementChild as HTMLElement;
+    expect(div.style.color).toBe('red');
+    expect(div.style.fontSize).toBe('12px');
+  });
+
+  it('setStyleDecl', () => {
+    // Setup style element
+    const styleEl = document.createElement('style');
+    styleEl.textContent = '.test { color: blue; }';
+    container.appendChild(styleEl);
+    // We need to manually attach it to a ClientNode
+    const styleNode: ClientNode = { tag: 'style', el: styleEl };
+    root.children!.push(styleNode);
+
+    // In JSDOM, style sheets might need some help or might not parse fully without layout.
+    // But let's try.
+    // Note: JSDOM support for CSSStyleSheet is limited.
+    // We might need to mock the sheet if JSDOM doesn't parse it.
+    if (!styleEl.sheet) {
+      // Mock sheet
+      const sheet = {
+        cssRules: [
           {
-            componentId: 'cmp-row',
-            refId: 'ref:btn',
-            path: [{ kind: 'dom', index: 0 }],
-          },
-        ],
-      },
-    }];
-    patcher.applyOps([
-      ['list', 7, insert],
-    ]);
-    const button = list.querySelector('button');
-    expect(button).toBeInstanceOf(HTMLButtonElement);
-    expect(refs.get('ref:btn')).toBe(button);
+            selectorText: '.test',
+            style: { setProperty: vi.fn(), removeProperty: vi.fn() }
+          }
+        ]
+      } as any;
+      Object.defineProperty(styleEl, 'sheet', { value: sheet });
+    }
+
+    const patch: Patch = {
+      op: 'setStyleDecl',
+      path: [1], // The style node we added
+      selector: '.test',
+      name: 'color',
+      value: 'green'
+    };
+    patcher.apply(patch);
+
+    const rule = styleEl.sheet!.cssRules[0] as CSSStyleRule;
+    // If mocked
+    if (vi.isMockFunction(rule.style.setProperty)) {
+      expect(rule.style.setProperty).toHaveBeenCalledWith('color', 'green');
+    } else {
+      expect(rule.style.color).toBe('green');
+    }
   });
 
-  it('handles fragment rows with multiple root nodes', () => {
-    const registry = new DomRegistry();
-    const list = document.createElement('div');
-    registry.registerLists([{ slot: 11, componentId: '', path: [] }], undefined);
-    registry['lists'].set(11, { container: list, rows: new Map(), order: [] } as any);
-    const patcher = new Patcher(registry);
-    const insert: ListInsOp = ['ins', 0, {
-      key: 'multi',
-      html: '<p>First</p><p>Second</p>',
-      componentPaths: [],
-    }];
-    patcher.applyOps([
-      ['list', 11, insert],
-    ]);
-    expect(list.querySelectorAll('p')).toHaveLength(2);
-    const record = registry.getRow(11, 'multi');
-    expect(record?.nodes.length).toBe(2);
-    patcher.applyOps([
-      ['list', 11, ['del', 'multi']],
-    ]);
-    expect(list.childNodes.length).toBe(0);
+  it('setRef', () => {
+    const patch: Patch = {
+      op: 'setRef',
+      path: [0],
+      value: 'my-ref'
+    };
+    patcher.apply(patch);
+    expect(refs.get('my-ref')).toBe(root.children![0]);
   });
 });

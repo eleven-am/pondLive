@@ -3,26 +3,26 @@ package html
 import (
 	"fmt"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // Text creates an escaped text node.
-func Text(s string) *dom2.StructuredNode { return dom2.TextNode(s) }
+func Text(s string) *dom.StructuredNode { return dom.TextNode(s) }
 
 // Textf formats according to fmt.Sprintf and wraps result in a text node.
-func Textf(format string, args ...any) *dom2.StructuredNode {
-	return dom2.TextNode(fmt.Sprintf(format, args...))
+func Textf(format string, args ...any) *dom.StructuredNode {
+	return dom.TextNode(fmt.Sprintf(format, args...))
 }
 
 // Fragment constructs a fragment node from children.
-func Fragment(children ...dom2.Item) *dom2.StructuredNode { return dom2.FragmentNode(children...) }
+func Fragment(children ...dom.Item) *dom.StructuredNode { return dom.FragmentNode(children...) }
 
 // Comment creates an HTML comment node.
-func Comment(value string) *dom2.StructuredNode { return dom2.CommentNode(value) }
+func Comment(value string) *dom.StructuredNode { return dom.CommentNode(value) }
 
 // WrapComponent wraps a component subtree so render passes can attach metadata.
-func WrapComponent(id string, child dom2.Item) *dom2.StructuredNode {
-	comp := dom2.ComponentNode(id)
+func WrapComponent(id string, child dom.Item) *dom.StructuredNode {
+	comp := dom.ComponentNode(id)
 	if child != nil {
 		child.ApplyTo(comp)
 	}
@@ -30,7 +30,7 @@ func WrapComponent(id string, child dom2.Item) *dom2.StructuredNode {
 }
 
 // If includes the node when cond is true; otherwise it contributes nothing.
-func If(cond bool, node dom2.Item) dom2.Item {
+func If(cond bool, node dom.Item) dom.Item {
 	if cond {
 		return node
 	}
@@ -38,7 +38,7 @@ func If(cond bool, node dom2.Item) dom2.Item {
 }
 
 // IfFn evaluates fn when cond is true.
-func IfFn(cond bool, fn func() dom2.Item) dom2.Item {
+func IfFn(cond bool, fn func() dom.Item) dom.Item {
 	if cond && fn != nil {
 		return fn()
 	}
@@ -47,7 +47,7 @@ func IfFn(cond bool, fn func() dom2.Item) dom2.Item {
 
 // Ternary returns whenTrue when cond is true, otherwise whenFalse.
 // Missing branches fall back to a noop node.
-func Ternary(cond bool, whenTrue, whenFalse dom2.Item) dom2.Item {
+func Ternary(cond bool, whenTrue, whenFalse dom.Item) dom.Item {
 	if cond {
 		if whenTrue != nil {
 			return whenTrue
@@ -59,7 +59,7 @@ func Ternary(cond bool, whenTrue, whenFalse dom2.Item) dom2.Item {
 }
 
 // TernaryFn evaluates the matching branch when cond is true or false.
-func TernaryFn(cond bool, whenTrue, whenFalse func() dom2.Item) dom2.Item {
+func TernaryFn(cond bool, whenTrue, whenFalse func() dom.Item) dom.Item {
 	if cond {
 		if whenTrue != nil {
 			return whenTrue()
@@ -72,17 +72,17 @@ func TernaryFn(cond bool, whenTrue, whenFalse func() dom2.Item) dom2.Item {
 
 type noopNode struct{}
 
-func (noopNode) ApplyTo(*dom2.StructuredNode) {}
-func (noopNode) ToHTML() string               { return "" }
-func (noopNode) ToJSON() ([]byte, error)      { return []byte("null"), nil }
-func (noopNode) Validate() error              { return nil }
+func (noopNode) ApplyTo(*dom.StructuredNode) {}
+func (noopNode) ToHTML() string              { return "" }
+func (noopNode) ToJSON() ([]byte, error)     { return []byte("null"), nil }
+func (noopNode) Validate() error             { return nil }
 
 // Map renders a slice into a fragment using render.
-func Map[T any](xs []T, render func(T) dom2.Item) *dom2.StructuredNode {
+func Map[T any](xs []T, render func(T) dom.Item) *dom.StructuredNode {
 	if len(xs) == 0 || render == nil {
 		return Fragment()
 	}
-	children := make([]dom2.Item, 0, len(xs))
+	children := make([]dom.Item, 0, len(xs))
 	for _, v := range xs {
 		child := render(v)
 		if child == nil {
@@ -95,12 +95,12 @@ func Map[T any](xs []T, render func(T) dom2.Item) *dom2.StructuredNode {
 }
 
 // MapIdx renders a slice with index-aware render function.
-func MapIdx[T any](xs []T, render func(int, T) dom2.Item) *dom2.StructuredNode {
+func MapIdx[T any](xs []T, render func(int, T) dom.Item) *dom.StructuredNode {
 	if len(xs) == 0 || render == nil {
 		return Fragment()
 	}
 
-	children := make([]dom2.Item, 0, len(xs))
+	children := make([]dom.Item, 0, len(xs))
 
 	for i, v := range xs {
 		child := render(i, v)

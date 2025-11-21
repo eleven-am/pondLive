@@ -1,7 +1,7 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	internalhtml "github.com/eleven-am/pondlive/go/internal/html"
 )
 
@@ -16,42 +16,46 @@ var (
 	Ternary       = internalhtml.Ternary
 	TernaryFn     = internalhtml.TernaryFn
 
-	// Props from dom2
-	Attr   = dom2.Attr
-	ID     = dom2.ID
-	Href   = dom2.Href
-	Src    = dom2.Src
-	Target = dom2.Target
-	Rel    = dom2.Rel
-	Title  = dom2.Title
-	Alt    = dom2.Alt
-	Type   = dom2.Type
-	Value  = dom2.Value
-	Name   = dom2.Name
-	Data   = dom2.Data
-	Aria   = dom2.Aria
-	Class  = dom2.Class
-	Style  = dom2.Style
-	Key    = dom2.Key
-	Upload = dom2.Upload
+	// Props from dom
+	Attr   = dom.Attr
+	ID     = dom.ID
+	Href   = dom.Href
+	Src    = dom.Src
+	Target = dom.Target
+	Rel    = dom.Rel
+	Title  = dom.Title
+	Alt    = dom.Alt
+	Type   = dom.Type
+	Value  = dom.Value
+	Name   = dom.Name
+	Data   = dom.Data
+	Aria   = dom.Aria
+	Class  = dom.Class
+	Style  = dom.Style
+	Key    = dom.Key
+	Upload = dom.Upload
 
-	// Event and state
-	Rerender = dom2.Rerender
+	// Events
+	On     = dom.On
+	OnWith = dom.OnWith
+
+	// State
+	Rerender = dom.Rerender
 )
 
-// Prop type from dom2
-type Prop = dom2.Prop
+// Prop type from dom
+type Prop = dom.Prop
 
 // Map renders a slice into a fragment using render.
 func Map[T any](xs []T, render func(T) Node) Node {
-	return internalhtml.Map(xs, func(t T) dom2.Item {
+	return internalhtml.Map(xs, func(t T) dom.Item {
 		return render(t)
 	})
 }
 
 // MapIdx renders a slice with index-aware render function.
 func MapIdx[T any](xs []T, render func(int, T) Node) Node {
-	return internalhtml.MapIdx(xs, func(i int, t T) dom2.Item {
+	return internalhtml.MapIdx(xs, func(i int, t T) dom.Item {
 		return render(i, t)
 	})
 }
@@ -61,9 +65,13 @@ func RenderHTML(n Node) string {
 	return n.ToHTML()
 }
 
-// Attach binds an element ref to the element. This is a wrapper around dom2.Attach.
-func Attach[T dom2.ElementDescriptor](ref *dom2.ElementRef[T]) Prop {
-	return dom2.Attach(ref)
+// Attachment is an interface for types that can be attached to elements.
+type Attachment = dom.Attachment
+
+// Attach binds an element ref to the element. This is a wrapper around dom.Attach.
+// It accepts both raw ElementRef[T] and wrapper refs like *ButtonRef.
+func Attach(target Attachment) Prop {
+	return dom.Attach(target)
 }
 
 // Fragment creates a fragment node.

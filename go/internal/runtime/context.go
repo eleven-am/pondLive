@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // contextID uniquely identifies a context type.
@@ -31,7 +31,7 @@ func CreateContext[T any](defaultValue T) *Context[T] {
 // Provide renders children with this context value available.
 // The value is provided to all descendants until another provider overrides it.
 // Creates a component boundary to scope the provider value.
-func (c *Context[T]) Provide(ctx Ctx, value T, children func(Ctx) *dom2.StructuredNode) *dom2.StructuredNode {
+func (c *Context[T]) Provide(ctx Ctx, value T, children func(Ctx) *dom.StructuredNode) *dom.StructuredNode {
 	if ctx.comp == nil {
 		panic("runtime2: Context.Provide called outside component render")
 	}
@@ -39,10 +39,10 @@ func (c *Context[T]) Provide(ctx Ctx, value T, children func(Ctx) *dom2.Structur
 	type providerProps struct {
 		contextID contextID
 		value     any
-		children  func(Ctx) *dom2.StructuredNode
+		children  func(Ctx) *dom.StructuredNode
 	}
 
-	provider := func(pctx Ctx, props providerProps) *dom2.StructuredNode {
+	provider := func(pctx Ctx, props providerProps) *dom.StructuredNode {
 		if pctx.comp.providers == nil {
 			pctx.comp.providers = make(map[contextID]any)
 		}

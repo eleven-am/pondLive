@@ -1,112 +1,118 @@
-import type { SlotBinding, BindingTable } from './types';
+import { ClientNode, HandlerMeta } from './types';
 import { Logger } from './logger';
+import { extractEventDetail } from './event-detail';
 
-const slotTable = new Map<number, SlotBinding[]>();
-const eventSlots = new Map<string, Set<number>>();
-const eventObservers = new Set<(event: string) => void>();
+type ListenerRecord = {
+    handlerId: string;
+    listener: EventListener;
+};
 
-export function registerSlotTable(table?: BindingTable | null): void {
-  slotTable.clear();
-  eventSlots.clear();
-  if (!table) {
-    Logger.debug('[Events]', 'cleared slot table');
-    return;
-  }
-  for (const [key, value] of Object.entries(table)) {
-    const slotId = Number(key);
-    if (Number.isNaN(slotId)) {
-      continue;
+export class EventManager {
+    private listeners = new WeakMap<Node, Map<string, ListenerRecord[]>>();
+
+    constructor(private channel: any, private sid: string) { }
+
+    attach(node: ClientNode) {
+        if (!node) return;
+
+        
+        if (node.el && node.handlers && node.handlers.length > 0) {
+            this.bindEvents(node);
+        }
+
+        
+        if (node.children) {
+            for (const child of node.children) {
+                this.attach(child);
+            }
+        }
     }
-    const bindings = cloneBindings(value);
-    slotTable.set(slotId, bindings);
-    addEventIndex(slotId, bindings);
-  }
-  Logger.debug('[Events]', 'registered slot table', { slots: slotTable.size });
-}
 
-export function registerBindingsForSlot(slotId: number, specs: SlotBinding[] | null | undefined): void {
-  if (!Number.isFinite(slotId)) {
-    return;
-  }
-  slotTable.delete(slotId);
-  eventSlots.forEach((set) => set.delete(slotId));
-  if (!Array.isArray(specs)) {
-    return;
-  }
-  const bindings = cloneBindings(specs);
-  slotTable.set(slotId, bindings);
-  addEventIndex(slotId, bindings);
-  Logger.debug('[Events]', 'registered slot bindings', { slotId, count: bindings.length });
-}
+    detach(node: ClientNode) {
+        if (!node) return;
 
-export function getSlotBindings(slotId: number): SlotBinding[] | undefined {
-  const bindings = slotTable.get(slotId);
-  return bindings ? cloneBindings(bindings) : undefined;
-}
+        
+        if (node.el) {
+            this.unbindEvents(node.el);
+        }
 
-export function forEachSlotBinding(callback: (slotId: number, bindings: SlotBinding[]) => void): void {
-  slotTable.forEach((bindings, slotId) => {
-    callback(slotId, cloneBindings(bindings));
-  });
-}
-
-export function getSlotsForEvent(event: string): number[] {
-  const set = eventSlots.get(event);
-  return set ? Array.from(set) : [];
-}
-
-export function getRegisteredSlotEvents(): string[] {
-  return Array.from(eventSlots.keys());
-}
-
-export function observeSlotEvents(observer: (event: string) => void): () => void {
-  eventObservers.add(observer);
-  return () => eventObservers.delete(observer);
-}
-
-function addEventIndex(slotId: number, bindings: SlotBinding[]): void {
-  bindings.forEach((binding) => {
-    const event = binding.event;
-    if (!event) {
-      return;
+        
+        if (node.children) {
+            for (const child of node.children) {
+                this.detach(child);
+            }
+        }
     }
-    const set = eventSlots.get(event) ?? new Set<number>();
-    const hadEvent = set.size > 0;
-    set.add(slotId);
-    eventSlots.set(event, set);
-    if (!hadEvent && set.size === 1) {
-      notifyObservers([event]);
-    }
-    Logger.debug('[Events]', 'indexed event', { event, slotId, totalSlots: set.size });
-  });
-}
 
-function notifyObservers(events: string[]): void {
-  if (!Array.isArray(events)) {
-    return;
-  }
-  events.forEach((event) => {
-    if (!event) {
-      return;
-    }
-    eventObservers.forEach((observer) => {
-      try {
-        observer(event);
-      } catch {
-        /* ignore */
-      }
-    });
-  });
-}
+    private bindEvents(node: ClientNode) {
+        if (!node.el || !node.handlers) return;
 
-function cloneBindings(specs: SlotBinding[] | undefined): SlotBinding[] {
-  if (!Array.isArray(specs)) {
-    return [];
-  }
-  return specs.map((spec) => ({
-    event: spec?.event ?? '',
-    handler: spec?.handler ?? '',
-    listen: Array.isArray(spec?.listen) ? [...spec.listen] : undefined,
-    props: Array.isArray(spec?.props) ? [...spec.props] : undefined,
-  }));
+        const el = node.el;
+        let nodeListeners = this.listeners.get(el);
+        if (!nodeListeners) {
+            nodeListeners = new Map();
+            this.listeners.set(el, nodeListeners);
+        }
+
+        for (const h of node.handlers) {
+            if (!h || !h.event || !h.handler) continue;
+
+            const existing = nodeListeners.get(h.event) || [];
+            const duplicate = existing.some((rec) => rec.handlerId === h.handler);
+            if (duplicate) {
+                continue;
+            }
+
+            const listener = (e: Event) => {
+                const preventDefault = !(h.listen && h.listen.includes('allowDefault'));
+                if (preventDefault && e.cancelable) {
+                    e.preventDefault();
+                }
+
+                this.triggerHandler(h, e, node);
+
+                if (!h.listen || !h.listen.includes('bubble')) {
+                    e.stopPropagation();
+                }
+            };
+
+            el.addEventListener(h.event, listener);
+            nodeListeners.set(h.event, [...existing, { handlerId: h.handler, listener }]);
+            Logger.debug('Events', 'Attached listener', { event: h.event, handler: h.handler });
+        }
+    }
+
+    private unbindEvents(el: Node) {
+        const nodeListeners = this.listeners.get(el);
+        if (!nodeListeners) return;
+
+        for (const [event, records] of nodeListeners.entries()) {
+            for (const rec of records) {
+                el.removeEventListener(event, rec.listener);
+            }
+        }
+        this.listeners.delete(el);
+    }
+
+    private triggerHandler(handler: HandlerMeta, e: Event, node: ClientNode) {
+        Logger.debug('Events', 'Triggering handler', { handlerId: handler.handler, type: e.type });
+
+        const refElement = node.el instanceof Element ? node.el : undefined;
+        const detail = extractEventDetail(e, handler.props, { refElement });
+
+        const payload: any = {
+            name: e.type
+        };
+
+        if (detail !== undefined) {
+            payload.detail = detail;
+        }
+
+        this.channel.sendMessage('evt', {
+            t: 'evt',
+            sid: this.sid,
+            hid: handler.handler,
+            payload: payload
+        });
+    }
 }

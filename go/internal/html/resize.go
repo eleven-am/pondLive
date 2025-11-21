@@ -1,10 +1,10 @@
 package html
 
-import "github.com/eleven-am/pondlive/go/internal/dom2"
+import "github.com/eleven-am/pondlive/go/internal/dom"
 
 // ResizeEvent represents window/element resize events.
 type ResizeEvent struct {
-	dom2.Event
+	dom.Event
 	// Note: ResizeObserver contentRect would need special handling
 	// For now, just basic event structure
 }
@@ -16,24 +16,24 @@ func (ResizeEvent) props() []string {
 
 // ResizeHandler provides resize event handlers.
 type ResizeHandler struct {
-	ref dom2.RefListener
+	ref dom.RefListener
 }
 
 // NewResizeHandler creates a new ResizeHandler.
-func NewResizeHandler(ref dom2.RefListener) *ResizeHandler {
+func NewResizeHandler(ref dom.RefListener) *ResizeHandler {
 	return &ResizeHandler{ref: ref}
 }
 
 // OnResize registers a handler for the "resize" event.
-func (h *ResizeHandler) OnResize(handler func(ResizeEvent) dom2.Updates) {
+func (h *ResizeHandler) OnResize(handler func(ResizeEvent) dom.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildResizeEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildResizeEvent(evt)) }
 	h.ref.AddListener("resize", wrapped, ResizeEvent{}.props())
 }
 
-func buildResizeEvent(evt dom2.Event) ResizeEvent {
+func buildResizeEvent(evt dom.Event) ResizeEvent {
 	return ResizeEvent{
 		Event: evt,
 	}

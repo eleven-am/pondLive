@@ -6,7 +6,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 var ErrUploadTooLarge = errors.New("runtime2: upload exceeds limit")
@@ -45,8 +45,8 @@ type UploadHandle struct {
 	slot *uploadSlot
 }
 
-// BindTo applies upload metadata to a StructuredNode (typically an input[type=file] element).
-func (h UploadHandle) BindTo(node *dom2.StructuredNode) {
+// AttachTo implements the Attachment interface, allowing UploadHandle to be used with h.Attach.
+func (h UploadHandle) AttachTo(node *dom.StructuredNode) {
 	if h.slot == nil || node == nil {
 		return
 	}
@@ -164,12 +164,12 @@ type uploadSlot struct {
 	cancelled bool
 }
 
-func (slot *uploadSlot) registerBinding(node *dom2.StructuredNode) {
+func (slot *uploadSlot) registerBinding(node *dom.StructuredNode) {
 	if slot == nil || node == nil || slot.id == "" {
 		return
 	}
 
-	binding := dom2.UploadBinding{
+	binding := dom.UploadBinding{
 		UploadID: slot.id,
 		Multiple: slot.multiple,
 		MaxSize:  slot.maxSize,

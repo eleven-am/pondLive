@@ -1,13 +1,13 @@
 package runtime
 
-import "github.com/eleven-am/pondlive/go/internal/dom2"
+import "github.com/eleven-am/pondlive/go/internal/dom"
 
-func cloneTree(node *dom2.StructuredNode) *dom2.StructuredNode {
+func cloneTree(node *dom.StructuredNode) *dom.StructuredNode {
 	if node == nil {
 		return nil
 	}
 
-	clone := &dom2.StructuredNode{
+	clone := &dom.StructuredNode{
 		ComponentID: node.ComponentID,
 		Tag:         node.Tag,
 		Text:        node.Text,
@@ -19,7 +19,7 @@ func cloneTree(node *dom2.StructuredNode) *dom2.StructuredNode {
 	}
 
 	if len(node.Children) > 0 {
-		clone.Children = make([]*dom2.StructuredNode, len(node.Children))
+		clone.Children = make([]*dom.StructuredNode, len(node.Children))
 		for i, child := range node.Children {
 			clone.Children[i] = cloneTree(child)
 		}
@@ -35,7 +35,7 @@ func cloneTree(node *dom2.StructuredNode) *dom2.StructuredNode {
 		clone.Styles = cloneStyles(node.Styles)
 	}
 	if len(node.Handlers) > 0 {
-		clone.Handlers = append([]dom2.HandlerMeta(nil), node.Handlers...)
+		clone.Handlers = append([]dom.HandlerMeta(nil), node.Handlers...)
 	}
 	if node.Router != nil {
 		r := *node.Router
@@ -46,10 +46,10 @@ func cloneTree(node *dom2.StructuredNode) *dom2.StructuredNode {
 		clone.Upload = &u
 	}
 	if len(node.UploadBindings) > 0 {
-		clone.UploadBindings = append([]dom2.UploadBinding(nil), node.UploadBindings...)
+		clone.UploadBindings = append([]dom.UploadBinding(nil), node.UploadBindings...)
 	}
 	if len(node.Events) > 0 {
-		clone.Events = make(map[string]dom2.EventBinding, len(node.Events))
+		clone.Events = make(map[string]dom.EventBinding, len(node.Events))
 		for k, v := range node.Events {
 			clone.Events[k] = v
 		}

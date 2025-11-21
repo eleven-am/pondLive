@@ -3,29 +3,29 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestDOMActionSenderReceivesEffects(t *testing.T) {
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		UseEffect(ctx, func() Cleanup {
-			ctx.EnqueueDOMAction(dom2.DOMActionEffect{
+			ctx.EnqueueDOMAction(dom.DOMActionEffect{
 				Kind:   "dom.call",
 				Ref:    "ref:1",
 				Method: "focus",
 			})
 			return nil
 		})
-		return dom2.ElementNode("div")
+		return dom.ElementNode("div")
 	}
 
 	sess := NewSession(comp, struct{}{})
 	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
 
-	var batches [][]dom2.DOMActionEffect
-	sess.SetDOMActionSender(func(effects []dom2.DOMActionEffect) error {
-		copyBatch := append([]dom2.DOMActionEffect(nil), effects...)
+	var batches [][]dom.DOMActionEffect
+	sess.SetDOMActionSender(func(effects []dom.DOMActionEffect) error {
+		copyBatch := append([]dom.DOMActionEffect(nil), effects...)
 		batches = append(batches, copyBatch)
 		return nil
 	})
@@ -46,8 +46,8 @@ func TestDOMActionSenderReceivesEffects(t *testing.T) {
 }
 
 func TestDOMGetHandler(t *testing.T) {
-	sess := NewSession(func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	sess := NewSession(func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}, struct{}{})
 
 	sess.SetDOMRequestHandlers(func(ref string, selectors ...string) (map[string]any, error) {
@@ -67,8 +67,8 @@ func TestDOMGetHandler(t *testing.T) {
 }
 
 func TestDOMGetHandlerMissing(t *testing.T) {
-	sess := NewSession(func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	sess := NewSession(func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}, struct{}{})
 
 	if _, err := sess.domGet("ref:1"); err == nil {
@@ -77,8 +77,8 @@ func TestDOMGetHandlerMissing(t *testing.T) {
 }
 
 func TestDOMAsyncCallHandler(t *testing.T) {
-	sess := NewSession(func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	sess := NewSession(func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}, struct{}{})
 
 	sess.SetDOMRequestHandlers(nil, func(ref string, method string, args ...any) (any, error) {
@@ -100,8 +100,8 @@ func TestDOMAsyncCallHandler(t *testing.T) {
 }
 
 func TestDOMAsyncCallHandlerMissing(t *testing.T) {
-	sess := NewSession(func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	sess := NewSession(func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}, struct{}{})
 
 	if _, err := sess.domAsyncCall("ref:1", "focus"); err == nil {
@@ -110,8 +110,8 @@ func TestDOMAsyncCallHandlerMissing(t *testing.T) {
 }
 
 func TestEffectBatchingLimitsExecution(t *testing.T) {
-	sess := NewSession(func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	sess := NewSession(func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}, struct{}{})
 	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
 

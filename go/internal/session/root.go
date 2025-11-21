@@ -1,35 +1,44 @@
 package session
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/meta"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 // Component represents a root component with no props, matching the pattern from examples.
 // This is the typical signature for app components: func(ctx Ctx) *Node
-type Component func(runtime.Ctx) *dom2.StructuredNode
+type Component func(runtime.Ctx) *dom.StructuredNode
 
-// documentRoot wraps a no-props component with context providers and adapts it to runtime2.Component[struct{}].
-// This is internal and used by New() and NewLiveSession().
-// It provides HeaderContext and RouterState at the root level.
 func documentRoot(sess *LiveSession, app Component) runtime.Component[struct{}] {
-	return func(ctx runtime.Ctx, _ struct{}) *dom2.StructuredNode {
-		initial := toRouterLocation(sess.InitialLocation())
-		getLoc, setLoc := runtime.UseState(ctx, initial, runtime.WithEqual(router.LocEqual))
+	return documentRootGeneric(sess, func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
+		return app(ctx)
+	})
+}
 
-		stateProvider := router.StateProvider{
-			Get: func() router.Location { return cloneRouterLocation(getLoc()) },
-			Set: func(loc router.Location) { setLoc(loc) },
+func documentRootGeneric[P any](sess *LiveSession, app runtime.Component[P]) runtime.Component[P] {
+	return func(ctx runtime.Ctx, props P) *dom.StructuredNode {
+		initial := &router.RouterState{
+			Location: toRouterLocation(sess.InitialLocation()),
+			Matched:  false,
+			Pattern:  "",
+			Params:   make(map[string]string),
+			Path:     "",
 		}
+		current, setCurrent := runtime.UseState(ctx, initial)
 
-		sess.registerRouterState(func(loc Location) {
-			setLoc(toRouterLocation(loc))
+		controller := runtime.UseMemo(ctx, func() *router.Controller {
+			return router.NewController(current, setCurrent)
 		})
 
-		return router.ProvideState(ctx, stateProvider, func(rctx runtime.Ctx) *dom2.StructuredNode {
-			return HeaderContext.Provide(rctx, sess.Header(), func(hctx runtime.Ctx) *dom2.StructuredNode {
-				return app(hctx)
+		sess.registerRouterState(func(loc Location) {
+			controller.SetLocation(toRouterLocation(loc))
+		})
+
+		return router.ProvideRouterState(ctx, controller, func(rctx runtime.Ctx) *dom.StructuredNode {
+			return HeaderContext.Provide(rctx, sess.Header(), func(hctx runtime.Ctx) *dom.StructuredNode {
+				return meta.Provider(hctx, sess.clientAsset, app, props)
 			})
 		})
 	}

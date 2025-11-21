@@ -1,10 +1,10 @@
 package html
 
-import "github.com/eleven-am/pondlive/go/internal/dom2"
+import "github.com/eleven-am/pondlive/go/internal/dom"
 
 // StorageEvent represents Web Storage (localStorage/sessionStorage) change events.
 type StorageEvent struct {
-	dom2.Event
+	dom.Event
 	Key         string // Key being changed
 	OldValue    string // Previous value
 	NewValue    string // New value
@@ -24,24 +24,24 @@ func (StorageEvent) props() []string {
 
 // StorageHandler provides storage event handlers.
 type StorageHandler struct {
-	ref dom2.RefListener
+	ref dom.RefListener
 }
 
 // NewStorageHandler creates a new StorageHandler.
-func NewStorageHandler(ref dom2.RefListener) *StorageHandler {
+func NewStorageHandler(ref dom.RefListener) *StorageHandler {
 	return &StorageHandler{ref: ref}
 }
 
 // OnStorage registers a handler for the "storage" event.
-func (h *StorageHandler) OnStorage(handler func(StorageEvent) dom2.Updates) {
+func (h *StorageHandler) OnStorage(handler func(StorageEvent) dom.Updates) {
 	if h.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildStorageEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildStorageEvent(evt)) }
 	h.ref.AddListener("storage", wrapped, StorageEvent{}.props())
 }
 
-func buildStorageEvent(evt dom2.Event) StorageEvent {
+func buildStorageEvent(evt dom.Event) StorageEvent {
 	detail := extractDetail(evt.Payload)
 	return StorageEvent{
 		Event:       evt,

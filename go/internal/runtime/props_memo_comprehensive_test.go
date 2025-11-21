@@ -3,8 +3,8 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestPropsOptimizationComprehensive(t *testing.T) {
@@ -12,23 +12,23 @@ func TestPropsOptimizationComprehensive(t *testing.T) {
 	child1Renders := 0
 	child2Renders := 0
 
-	child1 := func(ctx Ctx, props struct{ Value string }) *dom2.StructuredNode {
+	child1 := func(ctx Ctx, props struct{ Value string }) *dom.StructuredNode {
 		child1Renders++
-		return dom2.ElementNode("span").WithChildren(dom2.TextNode(props.Value))
+		return dom.ElementNode("span").WithChildren(dom.TextNode(props.Value))
 	}
 
-	child2 := func(ctx Ctx, props struct{ Value string }) *dom2.StructuredNode {
+	child2 := func(ctx Ctx, props struct{ Value string }) *dom.StructuredNode {
 		child2Renders++
-		return dom2.ElementNode("span").WithChildren(dom2.TextNode(props.Value))
+		return dom.ElementNode("span").WithChildren(dom.TextNode(props.Value))
 	}
 
 	var setParentCount func(int)
-	parent := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	parent := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		parentRenders++
 		count, set := UseState(ctx, 0)
 		setParentCount = set
 
-		return dom2.ElementNode("div").WithChildren(
+		return dom.ElementNode("div").WithChildren(
 			Render(ctx, child1, struct{ Value string }{Value: "static"}),
 			Render(ctx, child2, struct{ Value string }{Value: string(rune('0' + count()))}),
 		)

@@ -4,30 +4,30 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestDiffDebug(t *testing.T) {
 	var setChildText func(string)
 
-	child := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	child := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		value, set := UseState(ctx, "old")
 		setChildText = set
-		return &dom2.StructuredNode{Tag: "span", Text: value()}
+		return &dom.StructuredNode{Tag: "span", Text: value()}
 	}
 
-	parent := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	parent := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		childNode := Render(ctx, child, struct{}{})
-		return &dom2.StructuredNode{
+		return &dom.StructuredNode{
 			Tag:      "div",
-			Children: []*dom2.StructuredNode{childNode},
+			Children: []*dom.StructuredNode{childNode},
 		}
 	}
 
 	sess := NewSession(parent, struct{}{})
 
-	var prevTree, nextTree *dom2.StructuredNode
+	var prevTree, nextTree *dom.StructuredNode
 	flushCount := 0
 	sess.SetPatchSender(func(patches []dom2diff.Patch) error {
 		flushCount++
@@ -87,7 +87,7 @@ func TestDiffDebug(t *testing.T) {
 	}
 }
 
-func printTree(n *dom2.StructuredNode, depth int) {
+func printTree(n *dom.StructuredNode, depth int) {
 	if n == nil {
 		return
 	}

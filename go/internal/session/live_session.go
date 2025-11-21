@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	"github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/dom/diff"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
@@ -77,6 +77,8 @@ type LiveSession struct {
 
 	touchObservers map[int]func(time.Time)
 	nextObserverID int
+
+	clientAsset string
 }
 
 // Config captures the optional configuration for a LiveSession.
@@ -88,6 +90,7 @@ type Config struct {
 	DevMode        bool
 	DOMGetTimeout  time.Duration
 	DOMCallTimeout time.Duration
+	ClientAsset    string
 }
 
 // NewLiveSession constructs a session runtime for the given component tree with generic props.
@@ -115,18 +118,22 @@ func NewLiveSession[P any](id SessionID, version int, root runtime.Component[P],
 			effectiveConfig.Clock = cfg.Clock
 		}
 		effectiveConfig.DevMode = cfg.DevMode
+		effectiveConfig.ClientAsset = cfg.ClientAsset
 	}
 
 	sess := &LiveSession{
-		id:        id,
-		version:   version,
-		component: runtime.NewSession(root, props),
-		header:    newHeaderState(),
-		lifecycle: NewLifecycle(effectiveConfig.Clock, effectiveConfig.TTL),
-		transport: effectiveConfig.Transport,
-		devMode:   effectiveConfig.DevMode,
-		nextSeq:   1,
+		id:          id,
+		version:     version,
+		header:      newHeaderState(),
+		lifecycle:   NewLifecycle(effectiveConfig.Clock, effectiveConfig.TTL),
+		transport:   effectiveConfig.Transport,
+		devMode:     effectiveConfig.DevMode,
+		clientAsset: effectiveConfig.ClientAsset,
+		nextSeq:     1,
 	}
+
+	wrapped := documentRootGeneric(sess, root)
+	sess.component = runtime.NewSession(wrapped, props)
 
 	sess.configureRuntime(effectiveConfig)
 
@@ -179,6 +186,8 @@ func (s *LiveSession) configureRuntime(cfg Config) {
 		s.component.SetDOMActionSender(s.sendDOMActions)
 		s.component.SetDOMRequestHandlers(s.performDOMGet, s.performDOMCall)
 	}
+
+	s.clientAsset = cfg.ClientAsset
 }
 
 // ID returns the session identifier.
@@ -365,6 +374,7 @@ func (s *LiveSession) Flush() error {
 	if s == nil || s.component == nil {
 		return errors.New("session: not initialized")
 	}
+	fmt.Printf("[SESSION] Flush() called\n")
 	if err := s.component.Flush(); err != nil {
 		return err
 	}
@@ -373,7 +383,7 @@ func (s *LiveSession) Flush() error {
 
 // Tree returns the last rendered StructuredNode tree. Must be called after Flush().
 // Returns nil if no render has occurred yet.
-func (s *LiveSession) Tree() *dom2.StructuredNode {
+func (s *LiveSession) Tree() *dom.StructuredNode {
 	if s == nil || s.component == nil {
 		return nil
 	}
@@ -398,7 +408,7 @@ func (s *LiveSession) DeliverPubsub(topic string, payload []byte, meta map[strin
 }
 
 // HandleEvent dispatches an event to the registered handler.
-func (s *LiveSession) HandleEvent(id string, ev dom2.Event) error {
+func (s *LiveSession) HandleEvent(id string, ev dom.Event) error {
 	if s == nil || s.component == nil {
 		return errors.New("session: not initialized")
 	}
@@ -436,9 +446,14 @@ func (s *LiveSession) handleLocationMessage(msg router.NavMsg, pop bool) error {
 		Hash:  strings.TrimSpace(msg.Hash),
 	}
 
+	fmt.Printf("[NAV] START navigation to %s\n", loc.Path)
 	s.seedRouterState(loc)
+	fmt.Printf("[NAV] Router state seeded\n")
 	s.Touch()
-	return s.Flush()
+	fmt.Printf("[NAV] Calling Flush()...\n")
+	err := s.Flush()
+	fmt.Printf("[NAV] Flush() completed\n")
+	return err
 }
 
 // onPatch is called by ComponentSession when patches are ready to send.
@@ -468,7 +483,7 @@ func (s *LiveSession) onPatch(patches []diff.Patch) error {
 	return transport.SendFrame(frame)
 }
 
-func (s *LiveSession) sendDOMActions(effects []dom2.DOMActionEffect) error {
+func (s *LiveSession) sendDOMActions(effects []dom.DOMActionEffect) error {
 	if s == nil || len(effects) == 0 {
 		return nil
 	}
@@ -712,7 +727,6 @@ func (s *LiveSession) HandleRouterReset(componentID string) error {
 
 	s.Touch()
 
-	// Reset the specific component
 	if !s.component.ResetComponent(trimmed) {
 		return fmt.Errorf("session: component %s not found", trimmed)
 	}
@@ -735,7 +749,6 @@ func (s *LiveSession) Recover() error {
 
 	s.Touch()
 
-	// Reset all components and re-render
 	if !s.component.Reset() {
 		return errors.New("session: reset failed")
 	}
@@ -922,7 +935,7 @@ func cloneCookieBatch(in CookieBatch) CookieBatch {
 	return out
 }
 
-func convertDOMActionEffect(effect dom2.DOMActionEffect) protocol.DOMActionEffect {
+func convertDOMActionEffect(effect dom.DOMActionEffect) protocol.DOMActionEffect {
 	out := protocol.DOMActionEffect{
 		Type:     effect.Type,
 		Kind:     effect.Kind,

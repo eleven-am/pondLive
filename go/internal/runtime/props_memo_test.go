@@ -3,20 +3,20 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestChildSkipsRenderWhenPropsSame(t *testing.T) {
 	renders := 0
 
-	child := func(ctx Ctx, props string) *dom2.StructuredNode {
+	child := func(ctx Ctx, props string) *dom.StructuredNode {
 		renders++
-		return dom2.ElementNode("span").WithChildren(dom2.TextNode(props))
+		return dom.ElementNode("span").WithChildren(dom.TextNode(props))
 	}
 
-	parent := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return dom2.ElementNode("div").WithChildren(
+	parent := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return dom.ElementNode("div").WithChildren(
 			Render(ctx, child, "hello"),
 		)
 	}
@@ -43,15 +43,15 @@ func TestChildRerendersWhenPropsChange(t *testing.T) {
 	renders := 0
 	var setParentText func(string)
 
-	child := func(ctx Ctx, props string) *dom2.StructuredNode {
+	child := func(ctx Ctx, props string) *dom.StructuredNode {
 		renders++
-		return dom2.ElementNode("span").WithChildren(dom2.TextNode(props))
+		return dom.ElementNode("span").WithChildren(dom.TextNode(props))
 	}
 
-	parent := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	parent := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		text, set := UseState(ctx, "hello")
 		setParentText = set
-		return dom2.ElementNode("div").WithChildren(
+		return dom.ElementNode("div").WithChildren(
 			Render(ctx, child, text()),
 		)
 	}

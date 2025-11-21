@@ -3,17 +3,17 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestContextDefault(t *testing.T) {
 	ctx := CreateContext("default")
 
 	var value string
-	comp := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		value = ctx.Use(rctx)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -32,13 +32,13 @@ func TestContextProvide(t *testing.T) {
 	ctx := CreateContext("default")
 
 	var childValue string
-	child := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	child := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		childValue = ctx.Use(rctx)
-		return &dom2.StructuredNode{Tag: "span"}
+		return &dom.StructuredNode{Tag: "span"}
 	}
 
-	parent := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
-		return ctx.Provide(rctx, "provided", func(pctx Ctx) *dom2.StructuredNode {
+	parent := func(rctx Ctx, props struct{}) *dom.StructuredNode {
+		return ctx.Provide(rctx, "provided", func(pctx Ctx) *dom.StructuredNode {
 			return Render(pctx, child, struct{}{})
 		})
 	}
@@ -60,21 +60,21 @@ func TestContextNestedProviders(t *testing.T) {
 
 	var value1, value2, value3 int
 
-	leaf := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	leaf := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		value3 = ctx.Use(rctx)
-		return &dom2.StructuredNode{Tag: "span"}
+		return &dom.StructuredNode{Tag: "span"}
 	}
 
-	middle := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	middle := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		value2 = ctx.Use(rctx)
-		return ctx.Provide(rctx, 20, func(pctx Ctx) *dom2.StructuredNode {
+		return ctx.Provide(rctx, 20, func(pctx Ctx) *dom.StructuredNode {
 			return Render(pctx, leaf, struct{}{})
 		})
 	}
 
-	root := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	root := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		value1 = ctx.Use(rctx)
-		return ctx.Provide(rctx, 10, func(pctx Ctx) *dom2.StructuredNode {
+		return ctx.Provide(rctx, 10, func(pctx Ctx) *dom.StructuredNode {
 			return Render(pctx, middle, struct{}{})
 		})
 	}
@@ -104,15 +104,15 @@ func TestContextMultipleContexts(t *testing.T) {
 	var strValue string
 	var intValue int
 
-	child := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	child := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		strValue = strCtx.Use(rctx)
 		intValue = intCtx.Use(rctx)
-		return &dom2.StructuredNode{Tag: "span"}
+		return &dom.StructuredNode{Tag: "span"}
 	}
 
-	parent := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
-		return strCtx.Provide(rctx, "hello", func(pctx1 Ctx) *dom2.StructuredNode {
-			return intCtx.Provide(pctx1, 100, func(pctx2 Ctx) *dom2.StructuredNode {
+	parent := func(rctx Ctx, props struct{}) *dom.StructuredNode {
+		return strCtx.Provide(rctx, "hello", func(pctx1 Ctx) *dom.StructuredNode {
+			return intCtx.Provide(pctx1, 100, func(pctx2 Ctx) *dom.StructuredNode {
 				return Render(pctx2, child, struct{}{})
 			})
 		})
@@ -138,26 +138,26 @@ func TestContextProviderScope(t *testing.T) {
 
 	var child1Value, child2Value string
 
-	child1 := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	child1 := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		child1Value = ctx.Use(rctx)
-		return &dom2.StructuredNode{Tag: "span"}
+		return &dom.StructuredNode{Tag: "span"}
 	}
 
-	child2 := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	child2 := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		child2Value = ctx.Use(rctx)
-		return &dom2.StructuredNode{Tag: "span"}
+		return &dom.StructuredNode{Tag: "span"}
 	}
 
-	root := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
-		providedChild := ctx.Provide(rctx, "scoped", func(pctx Ctx) *dom2.StructuredNode {
+	root := func(rctx Ctx, props struct{}) *dom.StructuredNode {
+		providedChild := ctx.Provide(rctx, "scoped", func(pctx Ctx) *dom.StructuredNode {
 			return Render(pctx, child1, struct{}{})
 		})
 
 		regularChild := Render(rctx, child2, struct{}{})
 
-		return &dom2.StructuredNode{
+		return &dom.StructuredNode{
 			Tag:      "div",
-			Children: []*dom2.StructuredNode{providedChild, regularChild},
+			Children: []*dom.StructuredNode{providedChild, regularChild},
 		}
 	}
 
@@ -202,15 +202,15 @@ func TestContextWithStruct(t *testing.T) {
 	var userName string
 	var userID int
 
-	child := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	child := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		user := userCtx.Use(rctx)
 		userName = user.Name
 		userID = user.ID
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
-	parent := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
-		return userCtx.Provide(rctx, User{Name: "Alice", ID: 123}, func(pctx Ctx) *dom2.StructuredNode {
+	parent := func(rctx Ctx, props struct{}) *dom.StructuredNode {
+		return userCtx.Provide(rctx, User{Name: "Alice", ID: 123}, func(pctx Ctx) *dom.StructuredNode {
 			return Render(pctx, child, struct{}{})
 		})
 	}

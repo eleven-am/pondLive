@@ -62,19 +62,3 @@ func MergeSearch(q url.Values, other url.Values) url.Values {
 	}
 	return out
 }
-
-func ClearSearch(url.Values) url.Values {
-	return url.Values{}
-}
-
-func ParseHref(href string) Location {
-	trimmed := strings.TrimSpace(href)
-	if trimmed == "" {
-		return canonicalizeLocation(Location{Path: "/"})
-	}
-	parsed, err := url.Parse(trimmed)
-	if err != nil {
-		return canonicalizeLocation(Location{Path: "/"})
-	}
-	return locationFromURL(parsed)
-}

@@ -4,26 +4,26 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestChildDebug(t *testing.T) {
 	var setChildText func(string)
 
-	child := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	child := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		value, set := UseState(ctx, "old")
 		setChildText = set
 		fmt.Printf("Child rendering with value: %s\n", value())
-		return dom2.ElementNode("span").WithChildren(dom2.TextNode(value()))
+		return dom.ElementNode("span").WithChildren(dom.TextNode(value()))
 	}
 
-	parent := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	parent := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		fmt.Println("Parent rendering")
 		childNode := Render(ctx, child, struct{}{})
-		return &dom2.StructuredNode{
+		return &dom.StructuredNode{
 			Tag:      "div",
-			Children: []*dom2.StructuredNode{childNode},
+			Children: []*dom.StructuredNode{childNode},
 		}
 	}
 

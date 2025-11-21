@@ -1,222 +1,391 @@
-import { DomRegistry } from './dom-registry';
-import { registerBindingsForSlot } from './events';
-import { applyRouterBindings } from './router-bindings';
-import { applyComponentRanges } from './manifest';
-import { RefRegistry } from './refs';
-import { UploadManager } from './uploads';
+import { ClientNode, Patch, StructuredNode } from './types';
 import { Logger } from './logger';
-import type {
-  DiffOp,
-  FrameMessage,
-  ListChildOp,
-  ListInsOp,
-  ListDelOp,
-  ListMovOp,
-  ComponentPathDescriptor,
-  SlotPathDescriptor,
-  ListPathDescriptor,
-  BindingsPayload,
-} from './types';
+import { hydrate } from './vdom';
+import { Router } from './router';
+import { UploadManager } from './uploads';
+
+import { EventManager } from './events';
 
 export class Patcher {
-  constructor(private dom: DomRegistry, private refs?: RefRegistry, private uploads?: UploadManager) {}
+    constructor(
+        private root: ClientNode,
+        private events: EventManager,
+        private router: Router,
+        private uploads: UploadManager,
+        private refs: Map<string, ClientNode>
+    ) {}
 
-  applyFrame(frame: FrameMessage): void {
-    if (!Array.isArray(frame.patch)) {
-      return;
-    }
-    Logger.debug('[Patcher]', 'applying frame patch', { opCount: frame.patch.length });
-    this.applyOps(frame.patch);
-  }
+    apply(patch: Patch) {
+        const target = this.traverse(patch.path);
+        if (!target) {
+            Logger.warn('Patcher', 'Target not found for path', patch.path);
+            return;
+        }
 
-  applyOps(ops: DiffOp[]): void {
-    Logger.debug('[Patcher]', 'applying ops', { count: ops.length });
-    for (const op of ops) {
-      if (!Array.isArray(op) || op.length === 0) {
-        continue;
-      }
-      const kind = op[0];
-      switch (kind) {
-        case 'setText':
-          this.applySetText(op[1], op[2]);
-          break;
-        case 'setAttrs':
-          this.applySetAttrs(op[1], op[2] || {});
-          break;
-        case 'list':
-          this.applyList(op[1], op.slice(2) as ListChildOp[]);
-          break;
-      }
+        switch (patch.op) {
+            case 'setText':
+                this.setText(target, patch.value);
+                break;
+            case 'setAttr':
+                this.setAttr(target, patch.value);
+                break;
+            case 'delAttr':
+                this.delAttr(target, patch.name!);
+                break;
+            case 'setStyleDecl':
+                this.setStyleDecl(target, patch.selector!, patch.name!, patch.value);
+                break;
+            case 'delStyleDecl':
+                this.delStyleDecl(target, patch.selector!, patch.name!);
+                break;
+            case 'replaceNode':
+                this.replaceNode(target, patch.value, patch.path);
+                break;
+            case 'addChild':
+                this.addChild(target, patch.value, patch.index!);
+                break;
+            case 'delChild':
+                this.delChild(target, patch.index!);
+                break;
+            case 'moveChild':
+                this.moveChild(target, patch.value);
+                break;
+            case 'setRef':
+                this.setRef(target, patch.value);
+                break;
+            case 'delRef':
+                this.delRef(target);
+                break;
+            case 'setComment':
+                this.setComment(target, patch.value);
+                break;
+            case 'setStyle':
+                this.setStyle(target, patch.value);
+                break;
+            case 'delStyle':
+                this.delStyle(target, patch.name!);
+                break;
+            case 'setHandlers':
+                this.setHandlers(target, patch.value);
+                break;
+            case 'setRouter':
+                this.setRouter(target, patch.value);
+                break;
+            case 'delRouter':
+                this.delRouter(target);
+                break;
+            case 'setUpload':
+                this.setUpload(target, patch.value);
+                break;
+            case 'delUpload':
+                this.delUpload(target);
+                break;
+            case 'setComponent':
+                target.componentId = patch.value;
+                break;
+            default:
+                Logger.warn('Patcher', 'Unsupported op', patch.op);
+        }
     }
-  }
 
-  private applySetText(slotId: number, value: string): void {
-    const node = this.dom.getSlot(slotId);
-    if (!node) {
-      Logger.debug('[Patcher]', 'setText skipped (missing slot)', { slotId });
-      return;
+    private traverse(path: number[]): ClientNode | null {
+        let current = this.root;
+        for (const idx of path) {
+            if (!current.children || !current.children[idx]) {
+                return null;
+            }
+            current = current.children[idx];
+        }
+        return current;
     }
-    if (node instanceof Text) {
-      node.textContent = value ?? '';
-      Logger.debug('[Patcher]', 'setText applied', { slotId, nodeType: 'Text' });
-      return;
-    }
-    if (node instanceof Element) {
-      node.textContent = value ?? '';
-      Logger.debug('[Patcher]', 'setText applied', { slotId, nodeType: node.tagName });
-    }
-  }
 
-  private applySetAttrs(slotId: number, attrs: Record<string, string>): void {
-    const node = this.dom.getSlot(slotId);
-    if (!(node instanceof Element)) {
-      Logger.debug('[Patcher]', 'setAttrs skipped (non-element)', { slotId });
-      return;
+    private setText(node: ClientNode, text: string) {
+        if (node.el) {
+            node.el.textContent = text;
+        }
+        node.text = text;
     }
-    Object.entries(attrs ?? {}).forEach(([key, value]) => {
-      if (value === null || value === undefined || value === '') {
-        node.removeAttribute(key);
-      } else {
-        node.setAttribute(key, value);
-      }
-    });
-    Logger.debug('[Patcher]', 'setAttrs applied', { slotId, keys: Object.keys(attrs ?? {}) });
-  }
 
-  private applyList(slotId: number, childOps: ListChildOp[]): void {
-    const container = this.dom.getList(slotId);
-    if (!(container instanceof Element)) {
-      Logger.debug('[Patcher]', 'list op skipped (no container)', { slotId });
-      return;
+    private setAttr(node: ClientNode, attrs: Record<string, string[]>) {
+        if (node.el && node.el instanceof Element) {
+            for (const [name, tokens] of Object.entries(attrs)) {
+                node.el.setAttribute(name, tokens.join(' '));
+            }
+        }
+        if (!node.attrs) node.attrs = {};
+        Object.assign(node.attrs, attrs);
     }
-    Logger.debug('[Patcher]', 'list patch', { slotId, opCount: childOps.length });
-    childOps.forEach((op) => {
-      if (!Array.isArray(op)) {
-        return;
-      }
-      switch (op[0]) {
-        case 'del':
-          this.applyListDelete(slotId, container, op as ListDelOp);
-          break;
-        case 'ins':
-          this.applyListInsert(slotId, container, op as ListInsOp);
-          break;
-        case 'mov':
-          this.applyListMove(slotId, container, op as ListMovOp);
-          break;
-      }
-    });
-  }
 
-  private applyListDelete(slotId: number, container: Element, op: ListDelOp): void {
-    const key = op[1];
-    const record = this.dom.getRow(slotId, key);
-    if (!record) {
-      Logger.debug('[Patcher]', 'list delete skipped (missing row)', { slotId, key });
-      return;
+    private delAttr(node: ClientNode, name: string) {
+        if (node.el && node.el instanceof Element) {
+            node.el.removeAttribute(name);
+        }
+        if (node.attrs) delete node.attrs[name];
     }
-    record.nodes.forEach((node) => {
-      if (node.parentNode === container) {
-        container.removeChild(node);
-      }
-    });
-    this.dom.deleteRow(slotId, key);
-    Logger.debug('[Patcher]', 'list delete applied', { slotId, key });
-  }
 
-  private applyListInsert(slotId: number, container: Element, op: ListInsOp): void {
-    const [_, index, payload] = op;
-    const html = payload?.html ?? '';
-    if (!html) {
-      Logger.debug('[Patcher]', 'list insert skipped (no html)', { slotId, index });
-      return;
-    }
-    const template = document.createElement('template');
-    template.innerHTML = html;
-    const fragment = template.content;
-    const nodes = Array.from(fragment.childNodes);
-    if (nodes.length === 0) {
-      Logger.debug('[Patcher]', 'list insert skipped (no nodes)', { slotId, index });
-      return;
-    }
-    const beforeKey = this.dom.getRowKeyAt(slotId, index);
-    const before = beforeKey ? this.dom.getRowFirstNode(slotId, beforeKey) : null;
-    container.insertBefore(fragment, before ?? null);
-    this.dom.insertRow(slotId, payload?.key ?? '', nodes, index);
-    const root = nodes.find((node): node is Element => node instanceof Element) ?? null;
-    if (root) {
-      this.registerRowMetadata(
-        root,
-        payload?.componentPaths ?? [],
-        payload?.slotPaths,
-        payload?.listPaths,
-        payload?.bindings,
-      );
-    }
-    Logger.debug('[Patcher]', 'list insert applied', {
-      slotId,
-      index,
-      key: payload?.key,
-      nodeCount: nodes.length,
-    });
-  }
+    private replaceNode(oldNode: ClientNode, newJson: StructuredNode, path: number[]) {
+        if (!oldNode.el || !oldNode.el.parentNode) {
+            Logger.warn('Patcher', 'Cannot replace node without parent', oldNode);
+            return;
+        }
 
-  private applyListMove(slotId: number, container: Element, op: ListMovOp): void {
-    const from = op[1];
-    const to = op[2];
-    if (from === to) {
-      return;
+        const newDom = this.render(newJson);
+        oldNode.el.parentNode.replaceChild(newDom, oldNode.el);
+
+        this.events.detach(oldNode);
+        this.router.detach(oldNode);
+        this.uploads.unbind(oldNode);
+        this.detachRefsRecursively(oldNode);
+
+        const parentPath = path.slice(0, -1);
+        const childIdx = path[path.length - 1];
+        const parent = this.traverse(parentPath);
+
+        if (parent && parent.children) {
+            const newNode = hydrate(newJson, newDom, this.refs);
+            parent.children[childIdx] = newNode;
+            this.events.attach(newNode);
+            this.router.attach(newNode);
+        }
     }
-    const currentKey = this.dom.getRowKeyAt(slotId, from);
-    if (!currentKey) {
-      Logger.debug('[Patcher]', 'list move skipped (missing source key)', { slotId, from, to });
-      return;
+
+    private render(json: StructuredNode): Node {
+        if (json.text) {
+            return document.createTextNode(json.text);
+        }
+        if (json.tag) {
+            const el = document.createElement(json.tag);
+            if (json.attrs) {
+                for (const [k, v] of Object.entries(json.attrs)) {
+                    el.setAttribute(k, v.join(' '));
+                }
+            }
+            if (json.children) {
+                for (const child of json.children) {
+                    el.appendChild(this.render(child));
+                }
+            }
+            return el;
+        }
+        if (json.children && json.children.length > 0) {
+            const fragment = document.createDocumentFragment();
+            for (const child of json.children) {
+                fragment.appendChild(this.render(child));
+            }
+            return fragment;
+        }
+        return document.createComment(json.comment || '');
     }
-    const record = this.dom.getRow(slotId, currentKey);
-    if (!record) {
-      Logger.debug('[Patcher]', 'list move skipped (missing record)', { slotId, from, to });
-      return;
+
+    private addChild(parent: ClientNode, childJson: StructuredNode, index: number) {
+        if (!parent.el || !parent.el.childNodes) {
+            Logger.warn('Patcher', 'Cannot add child to non-element', parent);
+            return;
+        }
+
+        const newDom = this.render(childJson);
+        const newClientNode = hydrate(childJson, newDom, this.refs);
+
+        if (!parent.children) parent.children = [];
+        const safeIndex = Math.max(0, Math.min(index, parent.children.length));
+
+        if (safeIndex >= parent.children.length) {
+            parent.el.appendChild(newDom);
+            parent.children.push(newClientNode);
+        } else {
+            let referenceNode: Node | null = null;
+            for (let i = safeIndex; i < parent.children.length; i++) {
+                if (parent.children[i].el) {
+                    referenceNode = parent.children[i].el;
+                    break;
+                }
+            }
+
+            if (referenceNode) {
+                parent.el.insertBefore(newDom, referenceNode);
+            } else {
+                parent.el.appendChild(newDom);
+            }
+            parent.children.splice(safeIndex, 0, newClientNode);
+        }
+
+        this.events.attach(newClientNode);
+        this.router.attach(newClientNode);
     }
-    const targetKey = this.dom.getRowKeyAt(slotId, to);
-    const beforeNode = targetKey ? this.dom.getRowFirstNode(slotId, targetKey) : null;
-    record.nodes.forEach((node) => {
-      if (node.parentNode !== container) {
-        return;
-      }
-      container.insertBefore(node, beforeNode ?? null);
-    });
-    this.dom.moveRow(slotId, currentKey, to);
-    Logger.debug('[Patcher]', 'list move applied', { slotId, from, to, key: currentKey });
-  }
-  private registerRowMetadata(
-    root: Element,
-    componentPaths?: ComponentPathDescriptor[] | null,
-    slotPaths?: SlotPathDescriptor[] | null,
-    listPaths?: ListPathDescriptor[] | null,
-    bindings?: BindingsPayload | null,
-  ): void {
-    const overrides = applyComponentRanges(componentPaths ?? [], { root });
-    this.dom.registerSlotAnchors(slotPaths ?? undefined, overrides);
-    this.dom.registerLists(listPaths ?? undefined, overrides);
-    if (bindings?.slots) {
-      Object.entries(bindings.slots).forEach(([slot, specs]) => {
-        registerBindingsForSlot(Number(slot), specs);
-      });
+
+    private delChild(parent: ClientNode, index: number) {
+        if (!parent.children || !parent.children[index]) {
+            Logger.warn('Patcher', 'Cannot delete missing child', {
+                index,
+                childrenLength: parent.children?.length,
+                parentTag: parent.tag,
+                parentComponentId: parent.componentId
+            });
+            return;
+        }
+
+        const child = parent.children[index];
+        if (child.el && parent.el && child.el.parentNode === parent.el) {
+            parent.el.removeChild(child.el);
+        }
+        parent.children.splice(index, 1);
+
+        this.events.detach(child);
+        this.router.detach(child);
+        this.uploads.unbind(child);
+        this.detachRefsRecursively(child);
     }
-    if (bindings?.router) {
-      applyRouterBindings(bindings.router, overrides);
+
+    private moveChild(parent: ClientNode, value: any) {
+        if (!parent.children || parent.children.length === 0) {
+            Logger.warn('Patcher', 'Cannot move child in empty parent', { value });
+            return;
+        }
+
+        let fromIdx = value.oldIdx;
+        const toIdx = Math.max(0, Math.min(value.newIdx, parent.children.length));
+
+        // Prefer resolving by key when available to avoid stale indexes.
+        if (value.key) {
+            const key = value.key as string;
+            const found = parent.children.findIndex((c) => c && c.key === key);
+            if (found >= 0) {
+                fromIdx = found;
+            }
+        }
+
+        if (fromIdx < 0 || fromIdx >= parent.children.length) {
+            Logger.warn('Patcher', 'Cannot move missing child', { fromIdx, value });
+            return;
+        }
+
+        const child = parent.children[fromIdx];
+
+        parent.children.splice(fromIdx, 1);
+        const insertIdx = Math.max(0, Math.min(toIdx, parent.children.length));
+        parent.children.splice(insertIdx, 0, child);
+
+        if (!parent.el || !child.el) return;
+
+        let referenceNode: Node | null = null;
+        for (let i = insertIdx + 1; i < parent.children.length; i++) {
+            if (parent.children[i].el) {
+                referenceNode = parent.children[i].el;
+                break;
+            }
+        }
+
+        if (referenceNode) {
+            parent.el.insertBefore(child.el, referenceNode);
+        } else {
+            parent.el.appendChild(child.el);
+        }
     }
-    if (bindings?.refs) {
-      this.refs?.registerBindings(bindings.refs, overrides);
+
+    private setRef(node: ClientNode, refId: string) {
+        node.refId = refId;
+        this.refs.set(refId, node);
     }
-    if (bindings?.uploads) {
-      this.uploads?.registerBindings(bindings.uploads, overrides, { replace: false });
+
+    private delRef(node: ClientNode) {
+        if (node.refId) {
+            this.refs.delete(node.refId);
+            delete node.refId;
+        }
     }
-    Logger.debug('[Patcher]', 'row metadata registered', {
-      slots: bindings?.slots ? Object.keys(bindings.slots).length : 0,
-      routers: bindings?.router?.length ?? 0,
-      refs: bindings?.refs?.length ?? 0,
-      uploads: bindings?.uploads?.length ?? 0,
-    });
-  }
+
+    private setComment(node: ClientNode, comment: string) {
+        if (node.el) {
+            node.el.textContent = comment;
+        }
+        node.comment = comment;
+    }
+
+    private setStyle(node: ClientNode, styles: Record<string, string>) {
+        if (node.el && node.el instanceof HTMLElement) {
+            for (const [name, value] of Object.entries(styles)) {
+                node.el.style.setProperty(name, value);
+            }
+        }
+        if (!node.style) node.style = {};
+        Object.assign(node.style, styles);
+    }
+
+    private setStyleDecl(node: ClientNode, selector: string, name: string, value: string) {
+        if (node.el && node.el instanceof HTMLStyleElement && node.el.sheet) {
+            const sheet = node.el.sheet;
+            
+            for (let i = 0; i < sheet.cssRules.length; i++) {
+                const rule = sheet.cssRules[i] as CSSStyleRule;
+                if (rule.selectorText === selector) {
+                    rule.style.setProperty(name, value);
+                    return;
+                }
+            }
+            
+            const idx = sheet.cssRules.length;
+            try {
+                sheet.insertRule(`${selector} { ${name}: ${value}; }`, idx);
+            } catch (e) {
+                Logger.warn('Patcher', 'Failed to insert rule', { selector, error: e });
+            }
+        }
+    }
+
+    private delStyleDecl(node: ClientNode, selector: string, name: string) {
+        if (node.el && node.el instanceof HTMLStyleElement && node.el.sheet) {
+            const sheet = node.el.sheet;
+            for (let i = 0; i < sheet.cssRules.length; i++) {
+                const rule = sheet.cssRules[i] as CSSStyleRule;
+                if (rule.selectorText === selector) {
+                    rule.style.removeProperty(name);
+                    return;
+                }
+            }
+        }
+    }
+
+    private delStyle(node: ClientNode, name: string) {
+        if (node.el && node.el instanceof HTMLElement) {
+            node.el.style.removeProperty(name);
+        }
+        if (node.style) delete node.style[name];
+    }
+
+    private setHandlers(node: ClientNode, handlers: any) {
+        this.events.detach(node);
+        node.handlers = handlers;
+        this.events.attach(node);
+    }
+
+    private setRouter(node: ClientNode, router: any) {
+        this.router.detach(node);
+        node.router = router;
+        this.router.attach(node);
+    }
+
+    private delRouter(node: ClientNode) {
+        this.router.detach(node);
+        delete node.router;
+    }
+
+    private setUpload(node: ClientNode, meta: any) {
+        this.uploads.bind(node, meta);
+    }
+
+    private delUpload(node: ClientNode) {
+        this.uploads.unbind(node);
+    }
+
+    private detachRefsRecursively(node: ClientNode) {
+        this.uploads.unbind(node);
+        if (node.refId) {
+            this.refs.delete(node.refId);
+        }
+        if (node.children) {
+            for (const child of node.children) {
+                this.detachRefsRecursively(child);
+            }
+        }
+    }
 }

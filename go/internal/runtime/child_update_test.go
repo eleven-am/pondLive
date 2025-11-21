@@ -3,21 +3,21 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestChildStateUpdateProducesPatch(t *testing.T) {
 	var setChildText func(string)
 
-	child := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	child := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		value, set := UseState(ctx, "old")
 		setChildText = set
-		return dom2.ElementNode("span").WithChildren(dom2.TextNode(value()))
+		return dom.ElementNode("span").WithChildren(dom.TextNode(value()))
 	}
 
-	parent := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return dom2.ElementNode("div").WithChildren(
+	parent := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return dom.ElementNode("div").WithChildren(
 			Render(ctx, child, struct{}{}),
 		)
 	}

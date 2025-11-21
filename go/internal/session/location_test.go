@@ -4,13 +4,13 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
 func TestInitialLocation(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -38,8 +38,8 @@ func TestInitialLocation(t *testing.T) {
 }
 
 func TestInitialLocationClone(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -86,8 +86,8 @@ func TestCloneQueryNil(t *testing.T) {
 }
 
 func TestInitialLocationDefaultsToEmpty(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -113,8 +113,8 @@ func TestInitialLocationNilSession(t *testing.T) {
 }
 
 func TestMergeRequestMultipleQueryValues(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -136,8 +136,8 @@ func TestMergeRequestMultipleQueryValues(t *testing.T) {
 }
 
 func TestMergeRequestEncodedQuery(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -155,8 +155,8 @@ func TestMergeRequestEncodedQuery(t *testing.T) {
 }
 
 func TestMergeRequestRootPath(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -171,8 +171,8 @@ func TestMergeRequestRootPath(t *testing.T) {
 }
 
 func TestMergeRequestPreservesHash(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -189,8 +189,8 @@ func TestMergeRequestPreservesHash(t *testing.T) {
 }
 
 func TestMergeRequestOverwrites(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -219,8 +219,8 @@ func TestMergeRequestOverwrites(t *testing.T) {
 }
 
 func TestMergeRequestNilRequest(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)
@@ -282,8 +282,8 @@ func TestCloneQueryEmpty(t *testing.T) {
 }
 
 func TestMergeRequestWithComplexPath(t *testing.T) {
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
-		return dom2.ElementNode("div")
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
+		return dom.ElementNode("div")
 	}
 
 	sess := New(SessionID("test"), 1, app, nil)

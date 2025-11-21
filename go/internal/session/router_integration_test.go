@@ -3,7 +3,7 @@ package session
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
@@ -13,12 +13,12 @@ import (
 func TestRouterStateInRoot(t *testing.T) {
 	var lastPath string
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		loc := router.UseLocation(ctx)
 		lastPath = loc.Path
 
-		return dom2.ElementNode("div").WithChildren(
-			dom2.TextNode("Path: " + loc.Path),
+		return dom.ElementNode("div").WithChildren(
+			dom.TextNode("Path: " + loc.Path),
 		)
 	}
 
@@ -51,13 +51,13 @@ func TestRouterStateWithQuery(t *testing.T) {
 	var lastPath string
 	var lastTab string
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		loc := router.UseLocation(ctx)
 		lastPath = loc.Path
 		lastTab = loc.Query.Get("tab")
 
-		return dom2.ElementNode("div").WithChildren(
-			dom2.TextNode("Path: " + loc.Path + " Tab: " + lastTab),
+		return dom.ElementNode("div").WithChildren(
+			dom.TextNode("Path: " + loc.Path + " Tab: " + lastTab),
 		)
 	}
 
@@ -93,12 +93,12 @@ func TestRouterStateWithQuery(t *testing.T) {
 func TestRouterStateWithHash(t *testing.T) {
 	var lastHash string
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		loc := router.UseLocation(ctx)
 		lastHash = loc.Hash
 
-		return dom2.ElementNode("div").WithChildren(
-			dom2.TextNode("Hash: " + loc.Hash),
+		return dom.ElementNode("div").WithChildren(
+			dom.TextNode("Hash: " + loc.Hash),
 		)
 	}
 
@@ -126,16 +126,16 @@ func TestRouterStateWithHash(t *testing.T) {
 func TestRouterParams(t *testing.T) {
 	var lastUserID string
 
-	userPage := func(ctx runtime.Ctx, match router.Match) *dom2.StructuredNode {
+	userPage := func(ctx runtime.Ctx, match router.Match) *dom.StructuredNode {
 		params := router.UseParams(ctx)
 		lastUserID = params["id"]
 
-		return dom2.ElementNode("div").WithChildren(
-			dom2.TextNode("User: " + lastUserID),
+		return dom.ElementNode("div").WithChildren(
+			dom.TextNode("User: " + lastUserID),
 		)
 	}
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		return router.Router(ctx,
 			router.Routes(ctx,
 				router.Route(ctx, router.RouteProps{
@@ -170,19 +170,19 @@ func TestRouterParams(t *testing.T) {
 func TestRouterSearchParams(t *testing.T) {
 	var lastFilter string
 
-	listPage := func(ctx runtime.Ctx, match router.Match) *dom2.StructuredNode {
+	listPage := func(ctx runtime.Ctx, match router.Match) *dom.StructuredNode {
 		get, _ := router.UseSearchParam(ctx, "filter")
 		values := get()
 		if len(values) > 0 {
 			lastFilter = values[0]
 		}
 
-		return dom2.ElementNode("div").WithChildren(
-			dom2.TextNode("Filter: " + lastFilter),
+		return dom.ElementNode("div").WithChildren(
+			dom.TextNode("Filter: " + lastFilter),
 		)
 	}
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		return router.Router(ctx,
 			router.Routes(ctx,
 				router.Route(ctx, router.RouteProps{
@@ -218,22 +218,22 @@ func TestRouterNestedRoutes(t *testing.T) {
 	var layoutRendered bool
 	var profileRendered bool
 
-	layout := func(ctx runtime.Ctx, _ router.Match) *dom2.StructuredNode {
+	layout := func(ctx runtime.Ctx, _ router.Match) *dom.StructuredNode {
 		layoutRendered = true
-		return dom2.ElementNode("div").WithChildren(
-			dom2.TextNode("Settings Layout"),
+		return dom.ElementNode("div").WithChildren(
+			dom.TextNode("Settings Layout"),
 			router.Outlet(ctx),
 		)
 	}
 
-	profilePage := func(ctx runtime.Ctx, _ router.Match) *dom2.StructuredNode {
+	profilePage := func(ctx runtime.Ctx, _ router.Match) *dom.StructuredNode {
 		profileRendered = true
-		return dom2.ElementNode("div").WithChildren(
-			dom2.TextNode("Profile Page"),
+		return dom.ElementNode("div").WithChildren(
+			dom.TextNode("Profile Page"),
 		)
 	}
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		return router.Router(ctx,
 			router.Routes(ctx,
 				router.Route(ctx, router.RouteProps{
@@ -280,15 +280,15 @@ func TestRouterWithHeaderContext(t *testing.T) {
 	var lastPath string
 	var lastUserAgent string
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		loc := router.UseLocation(ctx)
 		headers := UseHeader(ctx)
 
 		lastPath = loc.Path
 		lastUserAgent, _ = headers.GetHeader("User-Agent")
 
-		return dom2.ElementNode("div").WithChildren(
-			dom2.TextNode("Path: " + lastPath + " UA: " + lastUserAgent),
+		return dom.ElementNode("div").WithChildren(
+			dom.TextNode("Path: " + lastPath + " UA: " + lastUserAgent),
 		)
 	}
 
@@ -321,10 +321,10 @@ func TestRouterWithHeaderContext(t *testing.T) {
 func TestRouterStateIsolation(t *testing.T) {
 	var path1, path2 string
 
-	app := func(ctx runtime.Ctx) *dom2.StructuredNode {
+	app := func(ctx runtime.Ctx) *dom.StructuredNode {
 		loc := router.UseLocation(ctx)
-		return dom2.ElementNode("div").WithChildren(
-			dom2.TextNode(loc.Path),
+		return dom.ElementNode("div").WithChildren(
+			dom.TextNode(loc.Path),
 		)
 	}
 

@@ -29,7 +29,6 @@
     "jsdom": "^25.0.1",
     "terser": "^5.44.0",
     "typescript": "^5.9.3",
-    "patch-package": "^8.0.0",
     "vitest": "^2.1.5"
   }
 }

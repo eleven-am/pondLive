@@ -3,13 +3,13 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestNewSession(t *testing.T) {
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return &dom2.StructuredNode{Tag: "div"}
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -29,8 +29,8 @@ func TestNewSession(t *testing.T) {
 }
 
 func TestFlushBasic(t *testing.T) {
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return &dom2.StructuredNode{Tag: "div"}
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -54,9 +54,9 @@ func TestFlushBasic(t *testing.T) {
 
 func TestFlushDirtyTracking(t *testing.T) {
 	count := 0
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		count++
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -86,14 +86,14 @@ func TestFlushDirtyTracking(t *testing.T) {
 }
 
 func TestHandlerCollection(t *testing.T) {
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		node := &dom2.StructuredNode{Tag: "button"}
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		node := &dom.StructuredNode{Tag: "button"}
 		if node.Events == nil {
-			node.Events = make(map[string]dom2.EventBinding)
+			node.Events = make(map[string]dom.EventBinding)
 		}
-		node.Events["click"] = dom2.EventBinding{
+		node.Events["click"] = dom.EventBinding{
 			Key: "test:h0",
-			Handler: func(ev dom2.Event) dom2.Updates {
+			Handler: func(ev dom.Event) dom.Updates {
 				return nil
 			},
 		}
@@ -121,16 +121,16 @@ func TestHandlerCollection(t *testing.T) {
 
 func TestHandleEvent(t *testing.T) {
 	called := false
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		node := &dom2.StructuredNode{Tag: "button"}
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		node := &dom.StructuredNode{Tag: "button"}
 		if node.Events == nil {
-			node.Events = make(map[string]dom2.EventBinding)
+			node.Events = make(map[string]dom.EventBinding)
 		}
-		node.Events["click"] = dom2.EventBinding{
+		node.Events["click"] = dom.EventBinding{
 			Key: "test:h0",
-			Handler: func(ev dom2.Event) dom2.Updates {
+			Handler: func(ev dom.Event) dom.Updates {
 				called = true
-				return dom2.Rerender()
+				return dom.Rerender()
 			},
 		}
 		return node
@@ -143,7 +143,7 @@ func TestHandleEvent(t *testing.T) {
 		t.Fatalf("flush failed: %v", err)
 	}
 
-	ev := dom2.Event{Name: "click"}
+	ev := dom.Event{Name: "click"}
 	if err := sess.HandleEvent("test:h0", ev); err != nil {
 		t.Fatalf("HandleEvent failed: %v", err)
 	}
@@ -162,8 +162,8 @@ func TestHandleEvent(t *testing.T) {
 }
 
 func TestHandleEventNotFound(t *testing.T) {
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return &dom2.StructuredNode{Tag: "div"}
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -173,7 +173,7 @@ func TestHandleEventNotFound(t *testing.T) {
 		t.Fatalf("flush failed: %v", err)
 	}
 
-	ev := dom2.Event{Name: "click"}
+	ev := dom.Event{Name: "click"}
 	err := sess.HandleEvent("unknown:h0", ev)
 
 	if err == nil {
@@ -182,8 +182,8 @@ func TestHandleEventNotFound(t *testing.T) {
 }
 
 func TestAllocateRefID(t *testing.T) {
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
-		return &dom2.StructuredNode{Tag: "div"}
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -204,15 +204,15 @@ func TestAllocateRefID(t *testing.T) {
 }
 
 func TestComponentTree(t *testing.T) {
-	childComp := func(ctx Ctx, props string) *dom2.StructuredNode {
-		return &dom2.StructuredNode{Tag: "span", Text: props}
+	childComp := func(ctx Ctx, props string) *dom.StructuredNode {
+		return &dom.StructuredNode{Tag: "span", Text: props}
 	}
 
-	parentComp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	parentComp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		child := Render(ctx, childComp, "hello")
-		return &dom2.StructuredNode{
+		return &dom.StructuredNode{
 			Tag:      "div",
-			Children: []*dom2.StructuredNode{child},
+			Children: []*dom.StructuredNode{child},
 		}
 	}
 

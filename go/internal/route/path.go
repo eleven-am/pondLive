@@ -40,13 +40,6 @@ func NormalizeParts(path string) PathParts {
 	}
 }
 
-// Normalize canonicalizes a URL path by trimming whitespace, removing query and
-// hash fragments, ensuring a single leading slash, and collapsing redundant
-// separators.
-func Normalize(path string) string {
-	return NormalizeParts(path).Path
-}
-
 // NormalizeHash removes any leading hash prefix from the provided fragment,
 // returning the canonical value suitable for Location usage.
 func NormalizeHash(hash string) string {

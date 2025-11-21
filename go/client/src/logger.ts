@@ -3,36 +3,34 @@ export interface LoggerOptions {
 }
 
 export class Logger {
-  private static debugEnabled = false;
+  private static debugMode = false;
 
-  static configure(options?: LoggerOptions): void {
-    Logger.debugEnabled = Boolean(options?.debug);
+  static configure(options: LoggerOptions) {
+    this.debugMode = options.debug ?? false;
   }
 
-  static debug(...args: unknown[]): void {
-    if (!Logger.debugEnabled) {
-      return;
+  static debug(tag: string, message: string, data?: any) {
+    if (!this.debugMode) return;
+    if (data) {
+      console.debug(`[${tag}] ${message}`, data);
+    } else {
+      console.debug(`[${tag}] ${message}`);
     }
-    Logger.emit('log', 'debug', args);
   }
 
-  static info(...args: unknown[]): void {
-    Logger.emit('log', 'info', args);
-  }
-
-  static warn(...args: unknown[]): void {
-    Logger.emit('warn', 'warn', args);
-  }
-
-  static error(...args: unknown[]): void {
-    Logger.emit('error', 'error', args);
-  }
-
-  private static emit(method: 'log' | 'warn' | 'error', level: string, args: unknown[]): void {
-    if (typeof console === 'undefined') {
-      return;
+  static warn(tag: string, message: string, error?: any) {
+    if (error) {
+      console.warn(`[${tag}] ${message}`, error);
+    } else {
+      console.warn(`[${tag}] ${message}`);
     }
-    const emitter = (console[method] as (...data: unknown[]) => void) ?? console.log;
-    emitter(`[LiveUI][${level}]`, ...args);
+  }
+
+  static error(tag: string, message: string, error?: any) {
+    if (error) {
+      console.error(`[${tag}] ${message}`, error);
+    } else {
+      console.error(`[${tag}] ${message}`);
+    }
   }
 }

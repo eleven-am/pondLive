@@ -3,19 +3,19 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestUseEffectBasic(t *testing.T) {
 	effectRan := false
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		UseEffect(ctx, func() Cleanup {
 			effectRan = true
 			return nil
 		})
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -35,7 +35,7 @@ func TestUseEffectCleanup(t *testing.T) {
 	cleanupCount := 0
 
 	var setDep func(int)
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		dep, set := UseState(ctx, 1)
 		setDep = set
 
@@ -46,7 +46,7 @@ func TestUseEffectCleanup(t *testing.T) {
 			}
 		}, dep())
 
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -89,7 +89,7 @@ func TestUseEffectSameDeps(t *testing.T) {
 	effectCount := 0
 
 	var triggerRender func()
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		count, setCount := UseState(ctx, 0)
 		triggerRender = func() { setCount(count() + 1) }
 
@@ -98,7 +98,7 @@ func TestUseEffectSameDeps(t *testing.T) {
 			return nil
 		}, 42)
 
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -125,7 +125,7 @@ func TestUseEffectMultipleDeps(t *testing.T) {
 
 	var setA func(int)
 	var setB func(string)
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		a, setALocal := UseState(ctx, 1)
 		b, setBLocal := UseState(ctx, "hello")
 		setA = setALocal
@@ -136,7 +136,7 @@ func TestUseEffectMultipleDeps(t *testing.T) {
 			return nil
 		}, a(), b())
 
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -178,7 +178,7 @@ func TestUseEffectMultipleDeps(t *testing.T) {
 func TestUseEffectExecutionOrder(t *testing.T) {
 	var order []string
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		UseEffect(ctx, func() Cleanup {
 			order = append(order, "effect1")
 			return func() {
@@ -193,7 +193,7 @@ func TestUseEffectExecutionOrder(t *testing.T) {
 			}
 		}, 2)
 
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -219,7 +219,7 @@ func TestUseEffectWithStateUpdate(t *testing.T) {
 	var countInEffect int
 
 	var setCount func(int)
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		count, set := UseState(ctx, 0)
 		setCount = set
 
@@ -229,7 +229,7 @@ func TestUseEffectWithStateUpdate(t *testing.T) {
 			return nil
 		}, count())
 
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -262,7 +262,7 @@ func TestUseEffectNoDeps(t *testing.T) {
 	effectCount := 0
 
 	var triggerRender func()
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		count, setCount := UseState(ctx, 0)
 		triggerRender = func() { setCount(count() + 1) }
 
@@ -271,7 +271,7 @@ func TestUseEffectNoDeps(t *testing.T) {
 			return nil
 		})
 
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})

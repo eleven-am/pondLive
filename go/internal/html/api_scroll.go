@@ -1,12 +1,12 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom2"
+	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // ScrollEvent represents scroll events.
 type ScrollEvent struct {
-	dom2.Event
+	dom.Event
 	ScrollTop    float64 // Current vertical scroll position
 	ScrollLeft   float64 // Current horizontal scroll position
 	ScrollHeight float64 // Total scrollable height
@@ -27,7 +27,7 @@ func (ScrollEvent) props() []string {
 	}
 }
 
-func buildScrollEvent(evt dom2.Event) ScrollEvent {
+func buildScrollEvent(evt dom.Event) ScrollEvent {
 	detail := extractDetail(evt.Payload)
 	return ScrollEvent{
 		Event:        evt,
@@ -41,12 +41,12 @@ func buildScrollEvent(evt dom2.Event) ScrollEvent {
 }
 
 // ScrollAPI provides actions and events for scrollable elements.
-type ScrollAPI[T dom2.ElementDescriptor] struct {
-	ref *dom2.ElementRef[T]
-	ctx dom2.Dispatcher
+type ScrollAPI[T dom.ElementDescriptor] struct {
+	ref *dom.ElementRef[T]
+	ctx dom.Dispatcher
 }
 
-func NewScrollAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Dispatcher) *ScrollAPI[T] {
+func NewScrollAPI[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *ScrollAPI[T] {
 	return &ScrollAPI[T]{ref: ref, ctx: ctx}
 }
 
@@ -59,11 +59,11 @@ func NewScrollAPI[T dom2.ElementDescriptor](ref *dom2.ElementRef[T], ctx dom2.Di
 // Example:
 //
 //	divRef := ui.UseElement[*h.DivRef](ctx)
-//	divRef.ScrollIntoView(dom2.ScrollOptions{Behavior: "smooth", Block: "center"})
+//	divRef.ScrollIntoView(dom.ScrollOptions{Behavior: "smooth", Block: "center"})
 //
 //	return h.Div(h.Attach(divRef), h.Text("Scroll to me"))
-func (a *ScrollAPI[T]) ScrollIntoView(opts dom2.ScrollOptions) {
-	dom2.DOMScrollIntoView[T](a.ctx, a.ref, opts)
+func (a *ScrollAPI[T]) ScrollIntoView(opts dom.ScrollOptions) {
+	dom.DOMScrollIntoView[T](a.ctx, a.ref, opts)
 }
 
 // SetScrollTop sets the vertical scroll position of the element.
@@ -75,7 +75,7 @@ func (a *ScrollAPI[T]) ScrollIntoView(opts dom2.ScrollOptions) {
 //
 //	return h.Div(h.Attach(divRef), h.Text("Scrollable content"))
 func (a *ScrollAPI[T]) SetScrollTop(value float64) {
-	dom2.DOMSet[T](a.ctx, a.ref, "scrollTop", value)
+	dom.DOMSet[T](a.ctx, a.ref, "scrollTop", value)
 }
 
 // SetScrollLeft sets the horizontal scroll position of the element.
@@ -87,7 +87,7 @@ func (a *ScrollAPI[T]) SetScrollTop(value float64) {
 //
 //	return h.Div(h.Attach(divRef), h.Text("Scrollable content"))
 func (a *ScrollAPI[T]) SetScrollLeft(value float64) {
-	dom2.DOMSet[T](a.ctx, a.ref, "scrollLeft", value)
+	dom.DOMSet[T](a.ctx, a.ref, "scrollLeft", value)
 }
 
 // ============================================================================
@@ -105,10 +105,10 @@ func (a *ScrollAPI[T]) SetScrollLeft(value float64) {
 //	})
 //
 //	return h.Div(h.Attach(divRef), h.Text("Scrollable content"))
-func (a *ScrollAPI[T]) OnScroll(handler func(ScrollEvent) dom2.Updates) {
+func (a *ScrollAPI[T]) OnScroll(handler func(ScrollEvent) dom.Updates) {
 	if a.ref == nil || handler == nil {
 		return
 	}
-	wrapped := func(evt dom2.Event) dom2.Updates { return handler(buildScrollEvent(evt)) }
+	wrapped := func(evt dom.Event) dom.Updates { return handler(buildScrollEvent(evt)) }
 	a.ref.AddListener("scroll", wrapped, ScrollEvent{}.props())
 }

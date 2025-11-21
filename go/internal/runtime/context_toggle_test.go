@@ -3,8 +3,8 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestContextProviderToggle(t *testing.T) {
@@ -12,15 +12,15 @@ func TestContextProviderToggle(t *testing.T) {
 	var seen []string
 	var setValue func(string)
 
-	child := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	child := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		seen = append(seen, ctx.Use(rctx))
-		return dom2.ElementNode("span")
+		return dom.ElementNode("span")
 	}
 
-	parent := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	parent := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		value, set := UseState(rctx, "A")
 		setValue = set
-		return ctx.Provide(rctx, value(), func(pctx Ctx) *dom2.StructuredNode {
+		return ctx.Provide(rctx, value(), func(pctx Ctx) *dom.StructuredNode {
 			return Render(pctx, child, struct{}{})
 		})
 	}
@@ -51,7 +51,7 @@ func TestMultipleContextFlip(t *testing.T) {
 	}
 	var setColor func(string)
 
-	leaf := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	leaf := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		snapshots = append(snapshots, struct {
 			color string
 			size  int
@@ -59,14 +59,14 @@ func TestMultipleContextFlip(t *testing.T) {
 			color: colorCtx.Use(rctx),
 			size:  sizeCtx.Use(rctx),
 		})
-		return dom2.ElementNode("span")
+		return dom.ElementNode("span")
 	}
 
-	parent := func(rctx Ctx, props struct{}) *dom2.StructuredNode {
+	parent := func(rctx Ctx, props struct{}) *dom.StructuredNode {
 		color, set := UseState(rctx, "red")
 		setColor = set
-		return colorCtx.Provide(rctx, color(), func(pctx Ctx) *dom2.StructuredNode {
-			return sizeCtx.Provide(pctx, 20, func(qctx Ctx) *dom2.StructuredNode {
+		return colorCtx.Provide(rctx, color(), func(pctx Ctx) *dom.StructuredNode {
+			return sizeCtx.Provide(pctx, 20, func(qctx Ctx) *dom.StructuredNode {
 				return Render(qctx, leaf, struct{}{})
 			})
 		})

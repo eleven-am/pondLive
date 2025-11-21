@@ -10,10 +10,6 @@ var LiveUIModule = (() => {
   var __commonJS = (cb, mod) => function __require() {
     return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
   };
-  var __export = (target, all) => {
-    for (var name in all)
-      __defProp(target, name, { get: all[name], enumerable: true });
-  };
   var __copyProps = (to, from, except, desc) => {
     if (from && typeof from === "object" || typeof from === "function") {
       for (let key of __getOwnPropNames(from))
@@ -30,7 +26,6 @@ var LiveUIModule = (() => {
     isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
     mod
   ));
-  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
   // node_modules/@eleven-am/pondsocket-common/subjects/subject.js
   var require_subject = __commonJS({
@@ -1152,2543 +1147,678 @@ var LiveUIModule = (() => {
     }
   });
 
-  // src/entry.ts
-  var entry_exports = {};
-  __export(entry_exports, {
-    LiveRuntime: () => LiveRuntime,
-    LiveUI: () => LiveUI,
-    bootClient: () => bootClient
-  });
-
   // src/runtime.ts
   var import_pondsocket_client = __toESM(require_pondsocket_client(), 1);
 
   // src/logger.ts
-  var _Logger = class _Logger {
+  var Logger = class {
     static configure(options) {
-      _Logger.debugEnabled = Boolean(options?.debug);
+      this.debugMode = options.debug ?? false;
     }
-    static debug(...args) {
-      if (!_Logger.debugEnabled) {
-        return;
-      }
-      _Logger.emit("log", "debug", args);
-    }
-    static info(...args) {
-      _Logger.emit("log", "info", args);
-    }
-    static warn(...args) {
-      _Logger.emit("warn", "warn", args);
-    }
-    static error(...args) {
-      _Logger.emit("error", "error", args);
-    }
-    static emit(method, level, args) {
-      if (typeof console === "undefined") {
-        return;
-      }
-      const emitter = console[method] ?? console.log;
-      emitter(`[LiveUI][${level}]`, ...args);
-    }
-  };
-  _Logger.debugEnabled = false;
-  var Logger = _Logger;
-
-  // src/boot.ts
-  var BootLoader = class {
-    constructor(options) {
-      this.payload = null;
-      this.options = {
-        debug: options?.debug ?? false,
-        scriptId: options?.scriptId ?? "live-boot"
-      };
-    }
-    load(explicit) {
-      const candidate = explicit ?? this.readWindowPayload() ?? this.readScriptPayload();
-      if (candidate && typeof candidate.sid === "string") {
-        this.payload = candidate;
-        this.cacheToWindow(candidate);
-        if (this.options.debug) {
-          Logger.debug("[boot]", "payload loaded", {
-            sid: candidate.sid,
-            version: candidate.ver,
-            hasHtml: Boolean(candidate.html)
-          });
-        }
-        return this.payload;
-      }
-      if (this.options.debug) {
-        this.log("boot payload unavailable");
-      }
-      return this.payload;
-    }
-    get() {
-      return this.payload;
-    }
-    ensure() {
-      const boot = this.payload ?? this.load();
-      if (!boot || typeof boot.sid !== "string") {
-        throw new Error("[LiveUI] boot payload is required before connecting");
-      }
-      return boot;
-    }
-    readWindowPayload() {
-      if (typeof window === "undefined") {
-        return null;
-      }
-      const globalAny = window;
-      const payload = globalAny.__LIVEUI_BOOT__;
-      if (payload && typeof payload.sid === "string") {
-        return payload;
-      }
-      return null;
-    }
-    readScriptPayload() {
-      if (typeof document === "undefined") {
-        return null;
-      }
-      const script = document.getElementById(this.options.scriptId);
-      const content = script?.textContent;
-      if (!content) {
-        return null;
-      }
-      try {
-        return JSON.parse(content);
-      } catch (error) {
-        this.log("failed to parse boot payload", error);
-        return null;
+    static debug(tag, message, data) {
+      if (!this.debugMode) return;
+      if (data) {
+        console.debug(`[${tag}] ${message}`, data);
+      } else {
+        console.debug(`[${tag}] ${message}`);
       }
     }
-    cacheToWindow(payload) {
-      if (typeof window === "undefined") {
-        return;
-      }
-      const globalAny = window;
-      globalAny.__LIVEUI_BOOT__ = payload;
-    }
-    log(message, error) {
-      if (!this.options.debug) {
-        return;
-      }
+    static warn(tag, message, error) {
       if (error) {
-        Logger.warn("[boot]", message, error);
+        console.warn(`[${tag}] ${message}`, error);
       } else {
-        Logger.warn("[boot]", message);
+        console.warn(`[${tag}] ${message}`);
+      }
+    }
+    static error(tag, message, error) {
+      if (error) {
+        console.error(`[${tag}] ${message}`, error);
+      } else {
+        console.error(`[${tag}] ${message}`);
       }
     }
   };
+  Logger.debugMode = false;
 
-  // src/emitter.ts
-  var TypedEventEmitter = class {
-    constructor() {
-      this.listeners = /* @__PURE__ */ new Map();
+  // src/vdom.ts
+  function hydrate(json, dom, refs) {
+    const isWrapper = !json.tag && !json.text && !json.comment && json.children || json.fragment;
+    const clientNode = { ...json, el: isWrapper ? null : dom, children: void 0 };
+    if (!isWrapper) {
+      dom.__pondNode = clientNode;
     }
-    on(event, listener) {
-      const bucket = this.listeners.get(event) ?? /* @__PURE__ */ new Set();
-      bucket.add(listener);
-      this.listeners.set(event, bucket);
-      return () => this.off(event, listener);
+    if (json.refId && refs) {
+      refs.set(json.refId, clientNode);
     }
-    once(event, listener) {
-      const unsubscribe = this.on(event, (payload) => {
-        unsubscribe();
-        listener(payload);
-      });
-      return unsubscribe;
-    }
-    off(event, listener) {
-      const bucket = this.listeners.get(event);
-      if (!bucket) {
-        return;
-      }
-      bucket.delete(listener);
-      if (bucket.size === 0) {
-        this.listeners.delete(event);
-      }
-    }
-    emit(event, payload) {
-      const bucket = this.listeners.get(event);
-      if (!bucket) {
-        return;
-      }
-      for (const listener of Array.from(bucket)) {
-        try {
-          listener(payload);
-        } catch (error) {
-          Logger.error("event listener error", event, error);
+    if (json.tag) {
+      if (dom.nodeType !== Node.ELEMENT_NODE) {
+        Logger.warn("Hydration", "Type mismatch: expected element", { jsonTag: json.tag, domType: dom.nodeType });
+      } else {
+        const el = dom;
+        if (el.tagName.toLowerCase() !== json.tag.toLowerCase()) {
+          Logger.warn("Hydration", "Tag mismatch", { jsonTag: json.tag, domTag: el.tagName });
         }
       }
+    } else if (json.text !== void 0 && json.text !== "") {
+      if (dom.nodeType !== Node.TEXT_NODE) {
+        Logger.warn("Hydration", "Type mismatch: expected text", { domType: dom.nodeType });
+      }
     }
-    clear() {
-      this.listeners.clear();
+    if (json.children && json.children.length > 0) {
+      clientNode.children = [];
+      const domChildren = Array.from(dom.childNodes).filter(shouldHydrate);
+      hydrateChildren(clientNode.children, json.children, domChildren, dom, refs);
     }
-  };
+    return clientNode;
+  }
+  function hydrateChildren(target, jsonChildren, domChildren, parentDom, refs) {
+    let domIdx = 0;
+    for (let i = 0; i < jsonChildren.length; i++) {
+      const childJson = jsonChildren[i];
+      const isWrapper = !childJson.tag && !childJson.text && !childJson.comment && childJson.children || childJson.fragment;
+      if (isWrapper) {
+        const wrapperNode = { ...childJson, el: null, children: [] };
+        if (childJson.refId && refs) refs.set(childJson.refId, wrapperNode);
+        if (childJson.children) {
+          const consumed = hydrateChildrenWithConsumption(
+            wrapperNode.children,
+            childJson.children,
+            domChildren,
+            domIdx,
+            parentDom,
+            refs
+          );
+          domIdx += consumed;
+        }
+        target.push(wrapperNode);
+        continue;
+      }
+      if (childJson.text === "") {
+        const emptyDomText = document.createTextNode("");
+        const parentEl = parentDom;
+        if (domIdx < domChildren.length) {
+          parentEl.insertBefore(emptyDomText, domChildren[domIdx]);
+        } else {
+          parentEl.appendChild(emptyDomText);
+        }
+        const emptyTextNode = { ...childJson, el: emptyDomText, children: void 0 };
+        target.push(emptyTextNode);
+        continue;
+      }
+      const childDom = domChildren[domIdx];
+      if (!childDom) {
+        Logger.warn("Hydration", "Missing DOM node for child", { index: i, childJson });
+        continue;
+      }
+      const childNode = hydrate(childJson, childDom, refs);
+      target.push(childNode);
+      domIdx++;
+    }
+  }
+  function hydrateChildrenWithConsumption(target, jsonChildren, domChildren, startIdx, parentDom, refs) {
+    let domIdx = startIdx;
+    for (let i = 0; i < jsonChildren.length; i++) {
+      const childJson = jsonChildren[i];
+      const isWrapper = !childJson.tag && !childJson.text && !childJson.comment && childJson.children || childJson.fragment;
+      if (isWrapper) {
+        const wrapperNode = { ...childJson, el: null, children: [] };
+        if (childJson.refId && refs) refs.set(childJson.refId, wrapperNode);
+        if (childJson.children) {
+          const consumed = hydrateChildrenWithConsumption(
+            wrapperNode.children,
+            childJson.children,
+            domChildren,
+            domIdx,
+            parentDom,
+            refs
+          );
+          domIdx += consumed;
+        }
+        target.push(wrapperNode);
+        continue;
+      }
+      if (childJson.text === "") {
+        const emptyDomText = document.createTextNode("");
+        const parentEl = parentDom;
+        if (domIdx < domChildren.length) {
+          parentEl.insertBefore(emptyDomText, domChildren[domIdx]);
+        } else {
+          parentEl.appendChild(emptyDomText);
+        }
+        const emptyTextNode = { ...childJson, el: emptyDomText, children: void 0 };
+        target.push(emptyTextNode);
+        continue;
+      }
+      const childDom = domChildren[domIdx];
+      if (!childDom) {
+        Logger.warn("Hydration", "Missing DOM node for child", { index: i, childJson });
+        continue;
+      }
+      const childNode = hydrate(childJson, childDom, refs);
+      target.push(childNode);
+      domIdx++;
+    }
+    return domIdx - startIdx;
+  }
+  function shouldHydrate(_node) {
+    return true;
+  }
 
-  // src/runtime.ts
-  var DEFAULT_OPTIONS = {
-    endpoint: "/live",
-    uploadEndpoint: "/pondlive/upload/",
-    autoConnect: true,
-    debug: false,
-    reconnect: true,
-    reconnectDelay: 1e3,
-    maxReconnectAttempts: 5
+  // node_modules/jsondiffpatch/lib/clone.js
+  function cloneRegExp(re) {
+    var _a;
+    const regexMatch = /^\/(.*)\/([gimyu]*)$/.exec(re.toString());
+    if (!regexMatch) {
+      throw new Error("Invalid RegExp");
+    }
+    return new RegExp((_a = regexMatch[1]) !== null && _a !== void 0 ? _a : "", regexMatch[2]);
+  }
+  function clone(arg) {
+    if (typeof arg !== "object") {
+      return arg;
+    }
+    if (arg === null) {
+      return null;
+    }
+    if (Array.isArray(arg)) {
+      return arg.map(clone);
+    }
+    if (arg instanceof Date) {
+      return new Date(arg.getTime());
+    }
+    if (arg instanceof RegExp) {
+      return cloneRegExp(arg);
+    }
+    const cloned = {};
+    for (const name in arg) {
+      if (Object.prototype.hasOwnProperty.call(arg, name)) {
+        cloned[name] = clone(arg[name]);
+      }
+    }
+    return cloned;
+  }
+
+  // node_modules/jsondiffpatch/lib/formatters/jsonpatch-apply.js
+  var applyJsonPatchRFC6902 = (target, patch) => {
+    const log = [];
+    for (const op of patch) {
+      try {
+        switch (op.op) {
+          case "add":
+            log.push({ result: add(target, op.path, op.value), op });
+            break;
+          case "remove":
+            log.push({ result: remove(target, op.path), op });
+            break;
+          case "replace":
+            log.push({ result: replace(target, op.path, op.value), op });
+            break;
+          case "move":
+            log.push({ result: move(target, op.path, op.from), op });
+            break;
+          case "copy":
+            log.push({ result: copy(target, op.path, op.from), op });
+            break;
+          case "test":
+            log.push({ result: test(target, op.path, op.value), op });
+            break;
+          default:
+            op;
+            throw new Error(`operation not recognized: ${JSON.stringify(op)}`);
+        }
+      } catch (error) {
+        rollback(target, log, error instanceof Error ? error : new Error(String(error)));
+        throw error;
+      }
+    }
   };
-  var LiveRuntime = class {
-    constructor(options) {
-      this.events = new TypedEventEmitter();
-      this.client = null;
-      this.channel = null;
-      this.bootPayload = null;
-      this.connectPromise = null;
-      this.reconnectTimer = null;
-      this.reconnectAttempts = 0;
-      this.disposed = false;
-      this.state = { status: "disconnected" };
-      this.lastAck = 0;
-      this.sessionId = null;
-      this.version = 0;
-      this.nextEventSeq = 1;
-      this.lastEventAck = 0;
-      this.pendingEvents = [];
-      this.inFlightEvents = [];
-      this.maxInFlightEvents = 2;
-      this.options = {
-        ...DEFAULT_OPTIONS,
-        ...options ?? {}
-      };
-      Logger.configure({ debug: this.options.debug });
-      this.bootLoader = new BootLoader({ debug: this.options.debug });
-      this.bootPayload = this.options.boot ? this.bootLoader.load(this.options.boot) : this.bootLoader.load();
-      this.sessionId = this.bootPayload?.sid ?? null;
-      this.version = this.bootPayload?.ver ?? 0;
-      Logger.debug("[Runtime]", "initialized", {
-        sessionId: this.sessionId,
-        version: this.version,
-        hasBoot: Boolean(this.bootPayload)
-      });
-      if (this.options.autoConnect && this.bootPayload) {
-        void this.connect();
-      }
-    }
-    on(event, listener) {
-      return this.events.on(event, listener);
-    }
-    once(event, listener) {
-      return this.events.once(event, listener);
-    }
-    off(event, listener) {
-      this.events.off(event, listener);
-    }
-    getState() {
-      return this.state;
-    }
-    getBootPayload() {
-      return this.bootPayload;
-    }
-    getSessionId() {
-      return this.sessionId ?? this.bootPayload?.sid ?? null;
-    }
-    getUploadEndpoint() {
-      return this.bootPayload?.client?.upload ?? this.options.uploadEndpoint;
-    }
-    sendUploadMessage(payload) {
-      const sid = this.getSessionId();
-      if (!this.channel || !sid || !payload.id) {
-        return;
-      }
-      const message = {
-        t: "upload",
-        sid,
-        id: payload.id,
-        op: payload.op
-      };
-      if (payload.meta) {
-        message.meta = payload.meta;
-      }
-      if (typeof payload.loaded === "number") {
-        message.loaded = payload.loaded;
-      }
-      if (typeof payload.total === "number") {
-        message.total = payload.total;
-      }
-      if (payload.error) {
-        message.error = payload.error;
-      }
-      Logger.debug("[Runtime]", "\u2192 sending upload message", message);
-      this.channel.sendMessage("upload", message);
-    }
-    sendDOMResponse(payload) {
-      const sid = this.getSessionId();
-      if (!this.channel || !sid || !payload.id) {
-        return;
-      }
-      const message = {
-        t: "domres",
-        sid,
-        id: payload.id
-      };
-      if (payload.values) {
-        message.values = payload.values;
-      }
-      if (payload.result !== void 0) {
-        message.result = payload.result;
-      }
-      if (payload.error) {
-        message.error = payload.error;
-      }
-      Logger.debug("[Runtime]", "\u2192 sending domres", message);
-      this.channel.sendMessage("domres", message);
-    }
-    async connect() {
-      if (this.disposed) {
-        throw new Error("[LiveUI] runtime disposed");
-      }
-      Logger.debug("[Runtime]", "connect requested", {
-        hasBoot: Boolean(this.bootPayload),
-        disposed: this.disposed,
-        state: this.state.status
-      });
-      if (this.channel && this.state.status === "connected") {
-        return;
-      }
-      if (this.connectPromise) {
-        return this.connectPromise;
-      }
-      this.connectPromise = new Promise((resolve, reject) => {
-        try {
-          const boot = this.bootPayload ?? this.bootLoader.load();
-          if (!boot || typeof boot.sid !== "string") {
-            throw new Error("[LiveUI] missing boot payload; call load() before connecting");
-          }
-          this.bootPayload = boot;
-          this.updateState({ status: "connecting" });
-          Logger.debug("[Runtime]", "opening socket", { endpoint: this.options.endpoint });
-          const client = new import_pondsocket_client.PondClient(this.options.endpoint);
-          this.client = client;
-          const joinPayload = this.buildJoinPayload(boot);
-          Logger.debug("[Runtime]", "joining channel", {
-            sid: boot.sid,
-            ack: joinPayload.ack,
-            version: joinPayload.ver
-          });
-          const channel = client.createChannel(`live/${boot.sid}`, joinPayload);
-          this.channel = channel;
-          channel.onChannelStateChange((state) => {
-            Logger.debug("[Runtime]", "channel state changed", state);
-            if (state === import_pondsocket_client.ChannelState.JOINED) {
-              this.reconnectAttempts = 0;
-              this.sessionId = boot.sid;
-              this.version = boot.ver ?? 0;
-              this.updateState({ status: "connected", sessionId: boot.sid, version: this.version });
-              this.events.emit("connected", { sid: boot.sid, version: this.version });
-              Logger.debug("[Runtime]", "session joined", { sid: boot.sid, version: this.version });
-              resolve();
-              this.connectPromise = null;
+  var rollback = (target, log, patchError) => {
+    try {
+      for (const { op, result } of log.reverse()) {
+        switch (op.op) {
+          case "add":
+            unadd(target, op.path, result);
+            break;
+          case "remove":
+            add(target, op.path, result);
+            break;
+          case "replace":
+            replace(target, op.path, result);
+            break;
+          case "move":
+            remove(target, op.path);
+            try {
+              add(target, op.from, result);
+            } catch (error) {
+              add(target, op.path, result);
+              throw error;
             }
-          });
-          channel.onMessage((_event, payload) => {
-            Logger.debug("[Runtime]", "\u2190 received message", payload);
-            this.routeMessage(payload);
-          });
-          channel.onLeave(() => {
-            this.handleChannelLeave();
-          });
-          client.connect();
-          channel.join();
-        } catch (error) {
-          Logger.debug("[Runtime]", "connect failed", error);
-          this.connectPromise = null;
-          this.handleErrorEvent(error);
-          reject(error);
-        }
-      });
-      return this.connectPromise;
-    }
-    disconnect() {
-      this.clearReconnectTimer();
-      this.reconnectAttempts = 0;
-      this.connectPromise = null;
-      if (this.channel) {
-        try {
-          this.channel.leave();
-        } catch (error) {
-          Logger.debug("[Runtime]", "channel leave error", error);
-        }
-        this.channel = null;
-      }
-      if (this.client) {
-        try {
-          this.client.disconnect();
-        } catch (error) {
-          Logger.debug("[Runtime]", "client disconnect error", error);
-        }
-        this.client = null;
-      }
-      this.updateState({ status: "disconnected" });
-      this.events.emit("disconnected", void 0);
-    }
-    destroy() {
-      this.disposed = true;
-      this.disconnect();
-      this.events.clear();
-    }
-    sendEvent(hid, payload, cseq) {
-      const sid = this.sessionId ?? this.bootPayload?.sid;
-      if (!this.channel || !sid) {
-        return;
-      }
-      const seq = this.allocateEventSeq(cseq);
-      this.pendingEvents.push({ hid, payload, seq });
-      this.drainEventQueue();
-    }
-    sendNavigation(path, q, hash = "") {
-      const sid = this.sessionId ?? this.bootPayload?.sid;
-      if (!this.channel || !sid) {
-        return;
-      }
-      Logger.debug("[Runtime]", "send navigation", { path, q, hash });
-      const url = new URL(window.location.href);
-      url.pathname = path;
-      url.search = q;
-      url.hash = hash;
-      window.history.pushState({}, "", url.toString());
-      const message = {
-        t: "nav",
-        sid,
-        path,
-        q,
-        hash
-      };
-      Logger.debug("[Runtime]", "\u2192 sending navigation", message);
-      this.channel.sendMessage("nav", message);
-    }
-    sendPopNavigation(path, q, hash = "") {
-      const sid = this.sessionId ?? this.bootPayload?.sid;
-      if (!this.channel || !sid) {
-        return;
-      }
-      Logger.debug("[Runtime]", "send pop navigation", { path, q, hash });
-      const message = {
-        t: "pop",
-        sid,
-        path,
-        q,
-        hash
-      };
-      Logger.debug("[Runtime]", "\u2192 sending pop navigation", message);
-      this.channel.sendMessage("pop", message);
-    }
-    requestRecover() {
-      const sid = this.sessionId ?? this.bootPayload?.sid;
-      if (!this.channel || !sid) {
-        return;
-      }
-      Logger.debug("[Runtime]", "request recover", { sid });
-      const payload = {
-        t: "recover",
-        sid
-      };
-      Logger.debug("[Runtime]", "\u2192 sending recover", payload);
-      this.channel.sendMessage("recover", payload);
-    }
-    buildJoinPayload(boot) {
-      const ack = this.lastAck || boot.seq || 0;
-      return {
-        sid: boot.sid,
-        ver: boot.ver ?? 0,
-        ack,
-        loc: {
-          path: boot.location?.path ?? "/",
-          q: boot.location?.q ?? "",
-          hash: boot.location?.hash ?? ""
-        }
-      };
-    }
-    routeMessage(msg) {
-      if (!msg || typeof msg.t !== "string") {
-        return;
-      }
-      Logger.debug("[Runtime]", "received message", { type: msg?.t });
-      this.events.emit("message", msg);
-      switch (msg.t) {
-        case "init":
-          this.handleInit(msg);
-          break;
-        case "frame":
-          this.handleFrame(msg);
-          break;
-        case "template":
-          this.events.emit("template", msg);
-          break;
-        case "resume":
-          this.events.emit("resume", msg);
-          break;
-        case "join":
-          this.events.emit("join", msg);
-          break;
-        case "evt-ack":
-          this.handleEventAck(msg);
-          break;
-        case "diagnostic":
-          this.events.emit("diagnostic", msg);
-          break;
-        case "error":
-          this.handleErrorMessage(msg);
-          break;
-        case "upload":
-          this.events.emit("upload", msg);
-          break;
-        case "domreq":
-          this.events.emit("domreq", msg);
-          break;
-        default:
-          break;
-      }
-    }
-    handleInit(msg) {
-      const prevSid = this.sessionId;
-      this.sessionId = msg.sid;
-      if (!prevSid || prevSid !== msg.sid) {
-        this.resetEventSequencing();
-      }
-      this.version = msg.ver;
-      Logger.debug("[Runtime]", "init received", { sid: msg.sid, version: msg.ver, seq: msg.seq });
-      if (typeof msg.seq === "number") {
-        this.lastAck = msg.seq;
-        this.sendAck(msg.seq);
-      }
-      this.events.emit("init", msg);
-      this.markEventFrameApplied();
-    }
-    handleFrame(msg) {
-      this.version = msg.ver;
-      Logger.debug("[Runtime]", "frame received", {
-        version: msg.ver,
-        seq: msg.seq,
-        ops: Array.isArray(msg.patch) ? msg.patch.length : 0
-      });
-      if (typeof msg.seq === "number") {
-        this.lastAck = msg.seq;
-        this.sendAck(msg.seq);
-      }
-      this.events.emit("frame", msg);
-      this.markEventFrameApplied();
-    }
-    handleErrorMessage(msg) {
-      const error = new Error(msg.message ?? "server error");
-      error.name = msg.code ?? "ServerError";
-      this.handleErrorEvent(error);
-    }
-    handleChannelLeave() {
-      Logger.debug("[Runtime]", "channel left, cleaning up");
-      this.channel = null;
-      this.sessionId = null;
-      this.version = 0;
-      this.resetEventSequencing();
-      if (this.client) {
-        try {
-          this.client.disconnect();
-        } catch (error) {
-          Logger.debug("[Runtime]", "client disconnect error", error);
-        }
-        this.client = null;
-      }
-      this.updateState({ status: "disconnected" });
-      this.events.emit("disconnected", void 0);
-      if (!this.disposed && this.options.reconnect) {
-        this.scheduleReconnect();
-      }
-    }
-    scheduleReconnect() {
-      if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
-        return;
-      }
-      if (this.reconnectTimer) {
-        return;
-      }
-      this.reconnectAttempts += 1;
-      const delay = this.options.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-      Logger.debug("[Runtime]", "scheduling reconnect", {
-        attempt: this.reconnectAttempts,
-        delay
-      });
-      this.updateState({ status: "reconnecting", attempt: this.reconnectAttempts });
-      this.reconnectTimer = setTimeout(() => {
-        this.reconnectTimer = null;
-        void this.connect();
-      }, delay);
-    }
-    clearReconnectTimer() {
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-        this.reconnectTimer = null;
-      }
-    }
-    sendAck(seq) {
-      const sid = this.sessionId ?? this.bootPayload?.sid;
-      if (!this.channel || !sid) {
-        return;
-      }
-      Logger.debug("[Runtime]", "acknowledging frame", { seq });
-      const payload = {
-        t: "ack",
-        sid,
-        seq
-      };
-      Logger.debug("[Runtime]", "\u2192 sending ack", payload);
-      this.channel.sendMessage("ack", payload);
-    }
-    drainEventQueue() {
-      if (!this.channel) {
-        return;
-      }
-      const sid = this.sessionId ?? this.bootPayload?.sid;
-      if (!sid) {
-        return;
-      }
-      while (this.pendingEvents.length > 0 && this.inFlightEvents.length < this.maxInFlightEvents) {
-        const next = this.pendingEvents.shift();
-        if (!next) {
-          break;
-        }
-        this.transmitEvent(next, sid);
-      }
-    }
-    transmitEvent(event, sid) {
-      if (!this.channel) {
-        return;
-      }
-      Logger.debug("[Runtime]", "send event", { handler: event.hid, cseq: event.seq });
-      const message = {
-        t: "evt",
-        sid,
-        hid: event.hid,
-        payload: event.payload,
-        cseq: event.seq
-      };
-      Logger.debug("[Runtime]", "\u2192 sending event", message);
-      this.inFlightEvents.push({ seq: event.seq, acked: false, frameApplied: false });
-      this.channel.sendMessage("evt", message);
-    }
-    allocateEventSeq(forced) {
-      if (typeof forced === "number" && forced > 0) {
-        if (forced >= this.nextEventSeq) {
-          this.nextEventSeq = forced + 1;
-        }
-        return forced;
-      }
-      const seq = this.nextEventSeq;
-      this.nextEventSeq += 1;
-      return seq;
-    }
-    handleEventAck(msg) {
-      const ack = typeof msg.cseq === "number" ? msg.cseq : 0;
-      if (ack > this.lastEventAck) {
-        this.lastEventAck = ack;
-      }
-      if (ack >= this.nextEventSeq) {
-        this.nextEventSeq = ack + 1;
-      }
-      this.markEventAcked(ack);
-      this.events.emit("evtack", msg);
-    }
-    resetEventSequencing() {
-      this.nextEventSeq = 1;
-      this.lastEventAck = 0;
-      this.pendingEvents.length = 0;
-      this.inFlightEvents.length = 0;
-    }
-    markEventAcked(seq) {
-      for (const entry of this.inFlightEvents) {
-        if (entry.seq === seq) {
-          entry.acked = true;
-          break;
+            break;
+          case "copy":
+            remove(target, op.path);
+            break;
+          case "test":
+            break;
+          default:
+            op;
+            throw new Error(`operation not recognized: ${JSON.stringify(op)}`);
         }
       }
-      this.releaseCompletedEvent();
+    } catch (error) {
+      const message = (error instanceof Error ? error : new Error(String(error))).message;
+      throw new Error(`patch failed (${patchError.message}), and rollback failed too (${message}), target might be in an inconsistent state`);
     }
-    markEventFrameApplied() {
-      for (const entry of this.inFlightEvents) {
-        if (!entry.frameApplied) {
-          entry.frameApplied = true;
-          break;
+  };
+  var parsePathFromRFC6902 = (path) => {
+    if (typeof path !== "string")
+      return path;
+    if (path.substring(0, 1) !== "/") {
+      throw new Error("JSONPatch paths must start with '/'");
+    }
+    return path.slice(1).split("/").map((part) => part.indexOf("~") === -1 ? part : part.replace(/~1/g, "/").replace(/~0/g, "~"));
+  };
+  var get = (obj, path) => {
+    const parts = Array.isArray(path) ? path : parsePathFromRFC6902(path);
+    return parts.reduce((acc, key) => {
+      if (Array.isArray(acc)) {
+        const index = Number.parseInt(key, 10);
+        if (index < 0 || index > acc.length - 1) {
+          throw new Error(`cannot find /${parts.join("/")} in ${JSON.stringify(obj)} (index out of bounds)`);
         }
+        return acc[index];
       }
-      this.releaseCompletedEvent();
-    }
-    releaseCompletedEvent() {
-      let released = false;
-      while (this.inFlightEvents.length > 0 && this.inFlightEvents[0].acked && this.inFlightEvents[0].frameApplied) {
-        this.inFlightEvents.shift();
-        released = true;
+      if (typeof acc !== "object" || acc === null || !(key in acc)) {
+        throw new Error(`cannot find /${parts.join("/")} in ${JSON.stringify(obj)}`);
       }
-      if (released) {
-        this.drainEventQueue();
+      if (key in acc) {
+        return acc[key];
       }
+    }, obj);
+  };
+  var add = (obj, path, value) => {
+    const parts = parsePathFromRFC6902(path);
+    const last = parts.pop();
+    const parent = get(obj, parts);
+    if (Array.isArray(parent)) {
+      const index = Number.parseInt(last, 10);
+      if (index < 0 || index > parent.length) {
+        throw new Error(`cannot set /${parts.concat([last]).join("/")} in ${JSON.stringify(obj)} (index out of bounds)`);
+      }
+      parent.splice(index, 0, clone(value));
+      return;
     }
-    handleErrorEvent(error) {
-      Logger.warn("[Runtime]", "runtime error", error);
-      this.events.emit("error", { error });
-      this.updateState({ status: "error", error });
+    if (typeof parent !== "object" || parent === null) {
+      throw new Error(`cannot set /${parts.concat([last]).join("/")} in ${JSON.stringify(obj)}`);
     }
-    updateState(next) {
-      this.state = next;
-      this.events.emit("state", next);
+    const existing = parent[last];
+    parent[last] = clone(value);
+    return existing;
+  };
+  var remove = (obj, path) => {
+    const parts = parsePathFromRFC6902(path);
+    const last = parts.pop();
+    const parent = get(obj, parts);
+    if (Array.isArray(parent)) {
+      const index = Number.parseInt(last, 10);
+      if (index < 0 || index > parent.length - 1) {
+        throw new Error(`cannot delete /${parts.concat([last]).join("/")} from ${JSON.stringify(obj)} (index out of bounds)`);
+      }
+      return parent.splice(index, 1)[0];
+    }
+    if (typeof parent !== "object" || parent === null) {
+      throw new Error(`cannot delete /${parts.concat([last]).join("/")} from ${JSON.stringify(obj)}`);
+    }
+    const existing = parent[last];
+    delete parent[last];
+    return existing;
+  };
+  var unadd = (obj, path, previousValue) => {
+    const parts = parsePathFromRFC6902(path);
+    const last = parts.pop();
+    const parent = get(obj, parts);
+    if (Array.isArray(parent)) {
+      const index = Number.parseInt(last, 10);
+      if (index < 0 || index > parent.length - 1) {
+        throw new Error(`cannot un-add (rollback) /${parts.concat([last]).join("/")} from ${JSON.stringify(obj)} (index out of bounds)`);
+      }
+      parent.splice(index, 1);
+    }
+    if (typeof parent !== "object" || parent === null) {
+      throw new Error(`cannot un-add (rollback) /${parts.concat([last]).join("/")} from ${JSON.stringify(obj)}`);
+    }
+    delete parent[last];
+    if (previousValue !== void 0) {
+      parent[last] = previousValue;
+    }
+  };
+  var replace = (obj, path, value) => {
+    const parts = parsePathFromRFC6902(path);
+    const last = parts.pop();
+    const parent = get(obj, parts);
+    if (Array.isArray(parent)) {
+      const index = Number.parseInt(last, 10);
+      if (index < 0 || index > parent.length - 1) {
+        throw new Error(`cannot replace /${parts.concat([last]).join("/")} in ${JSON.stringify(obj)} (index out of bounds)`);
+      }
+      const existing2 = parent[index];
+      parent[index] = clone(value);
+      return existing2;
+    }
+    if (typeof parent !== "object" || parent === null) {
+      throw new Error(`cannot replace /${parts.concat([last]).join("/")} in ${JSON.stringify(obj)}`);
+    }
+    const existing = parent[last];
+    parent[last] = clone(value);
+    return existing;
+  };
+  var move = (obj, path, from) => {
+    const value = remove(obj, from);
+    try {
+      add(obj, path, value);
+    } catch (error) {
+      add(obj, from, value);
+      throw error;
+    }
+  };
+  var copy = (obj, path, from) => {
+    const value = get(obj, from);
+    return add(obj, path, clone(value));
+  };
+  var test = (obj, path, value) => {
+    const actualValue = get(obj, path);
+    if (JSON.stringify(value) !== JSON.stringify(actualValue)) {
+      throw new Error(`test failed for /${path} in ${JSON.stringify(obj)} (expected: ${JSON.stringify(value)}, found: ${JSON.stringify(actualValue)})`);
     }
   };
 
-  // src/manifest.ts
-  var componentRanges = /* @__PURE__ */ new Map();
-  function registerComponentRanges(ranges) {
-    ranges.forEach((range, id) => {
-      if (id) {
-        componentRanges.set(id, range);
-      }
-    });
-    const rangeData = Array.from(componentRanges.entries()).map(([id, range]) => ({
-      id: id.substring(0, 12) + "...",
-      container: range.container.nodeName,
-      start: range.startIndex,
-      end: range.endIndex,
-      childCount: range.container.childNodes.length
-    }));
-    Logger.debug("[Manifest]", "registered component ranges", { count: componentRanges.size, ranges: rangeData });
-  }
-  function getComponentRange(id) {
-    return componentRanges.get(id);
-  }
-  if (typeof window !== "undefined") {
-    window.__DEBUG_COMPONENT_RANGES__ = componentRanges;
-  }
-  function resolveSlotAnchors(descriptors, overrides) {
-    const anchors = /* @__PURE__ */ new Map();
-    if (!Array.isArray(descriptors)) {
-      return anchors;
-    }
-    for (const descriptor of descriptors) {
-      if (!descriptor) continue;
-      const slotId = Number(descriptor.slot);
-      if (!Number.isInteger(slotId) || slotId < 0 || anchors.has(slotId)) {
-        continue;
-      }
-      const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
-      if (!range) {
-        continue;
-      }
-      const anchor = resolveNodeBySegments(range, descriptor.path);
-      if (!anchor) {
-        continue;
-      }
-      let target = anchor;
-      const textIndex = Number(descriptor.textChildIndex);
-      if (Number.isInteger(textIndex) && textIndex >= 0) {
-        if (anchor instanceof Text) {
-          target = anchor;
-        } else if (anchor instanceof Element || anchor instanceof DocumentFragment) {
-          const existing = anchor.childNodes.item(textIndex);
-          if (existing) {
-            target = existing;
-          } else if (typeof document !== "undefined") {
-            const textNode = document.createTextNode("");
-            const before = anchor.childNodes.item(textIndex) ?? null;
-            anchor.insertBefore(textNode, before);
-            target = textNode;
-          }
-        } else {
-          target = null;
-        }
-      }
-      if (!target) {
-        continue;
-      }
-      anchors.set(slotId, target);
-      Logger.debug("[Manifest]", "slot anchor resolved", {
-        slotId,
-        componentId: descriptor.componentId,
-        targetNode: target.nodeName,
-        path: descriptor.path,
-        textChildIndex: descriptor.textChildIndex
-      });
-    }
-    return anchors;
-  }
-  function resolveListContainers(descriptors, overrides) {
-    const containers = /* @__PURE__ */ new Map();
-    Logger.debug("[Manifest]", "resolveListContainers START", {
-      descriptorsIsArray: Array.isArray(descriptors),
-      descriptorsLength: Array.isArray(descriptors) ? descriptors.length : "N/A",
-      hasOverrides: Boolean(overrides)
-    });
-    if (!Array.isArray(descriptors)) {
-      Logger.debug("[Manifest]", "resolveListContainers: descriptors not an array, returning empty");
-      return containers;
-    }
-    for (let i = 0; i < descriptors.length; i++) {
-      const descriptor = descriptors[i];
-      Logger.debug("[Manifest]", `resolveListContainers: processing descriptor[${i}]`, {
-        descriptor,
-        hasDescriptor: Boolean(descriptor)
-      });
-      if (!descriptor) continue;
-      const slotId = Number(descriptor.slot);
-      if (!Number.isInteger(slotId) || slotId < 0 || containers.has(slotId)) {
-        Logger.debug("[Manifest]", `resolveListContainers: skipping descriptor[${i}] - invalid slot`, {
-          slotId,
-          isInteger: Number.isInteger(slotId),
-          alreadyHas: containers.has(slotId)
-        });
-        continue;
-      }
-      const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
-      if (!range) {
-        Logger.debug("[Manifest]", `resolveListContainers: descriptor[${i}] - NO RANGE FOUND`, {
-          componentId: descriptor.componentId,
-          hasOverride: Boolean(overrides?.get(descriptor.componentId)),
-          hasComponentRange: Boolean(getComponentRange(descriptor.componentId))
-        });
-        continue;
-      }
-      Logger.debug("[Manifest]", `resolveListContainers: descriptor[${i}] - found range`, {
-        componentId: descriptor.componentId,
-        range,
-        atRoot: descriptor.atRoot
-      });
-      if (descriptor.atRoot) {
-        const element = resolveRangeContainerElement(range);
-        if (element) {
-          Logger.debug("[Manifest]", `resolveListContainers: descriptor[${i}] - resolved atRoot element`, {
-            slotId,
-            elementNodeName: element.nodeName
-          });
-          containers.set(slotId, element);
-        } else {
-          Logger.debug("[Manifest]", `resolveListContainers: descriptor[${i}] - atRoot but no container element`);
-        }
-        continue;
-      }
-      const node = resolveNodeBySegments(range, descriptor.path);
-      Logger.debug("[Manifest]", `resolveListContainers: descriptor[${i}] - resolved node by segments`, {
-        nodeType: node?.nodeName,
-        isElement: node instanceof Element
-      });
-      if (!(node instanceof Element)) {
-        Logger.debug("[Manifest]", `resolveListContainers: descriptor[${i}] - node not an Element, skipping`);
-        continue;
-      }
-      containers.set(slotId, node);
-      Logger.debug("[Manifest]", `resolveListContainers: descriptor[${i}] - SUCCESS`, {
-        slotId,
-        elementNodeName: node.nodeName
-      });
-    }
-    Logger.debug("[Manifest]", "resolveListContainers END", { containerCount: containers.size });
-    return containers;
-  }
-  function applyComponentRanges(descriptors, options) {
-    const ranges = computeComponentRanges(descriptors, options);
-    registerComponentRanges(ranges);
-    return ranges;
-  }
-  function computeComponentRanges(descriptors, options) {
-    const ranges = /* @__PURE__ */ new Map();
-    if (!Array.isArray(descriptors)) {
-      return ranges;
-    }
-    const root = options?.root ?? document.body ?? document;
-    const baseRange = root ? { container: root, startIndex: 0, endIndex: root.childNodes.length - 1 } : null;
-    const pending = /* @__PURE__ */ new Map();
-    descriptors.forEach((descriptor) => {
-      if (descriptor && typeof descriptor.componentId === "string") {
-        pending.set(descriptor.componentId, descriptor);
-      }
-    });
-    let progressed = true;
-    while (pending.size > 0 && progressed) {
-      progressed = false;
-      for (const [id, descriptor] of Array.from(pending.entries())) {
-        const parentRange = descriptor.parentId ? ranges.get(descriptor.parentId) : baseRange;
-        if (!parentRange) {
-          continue;
-        }
-        Logger.debug("[Manifest]", "computing component range", {
-          id,
-          parentId: descriptor.parentId,
-          parentPath: descriptor.parentPath,
-          firstChild: descriptor.firstChild,
-          lastChild: descriptor.lastChild,
-          parentRangeContainer: parentRange.container.nodeName,
-          parentRangeStart: parentRange.startIndex,
-          parentRangeEnd: parentRange.endIndex
-        });
-        const firstNode = resolveNodeForComponent(parentRange, descriptor.parentPath, descriptor.firstChild);
-        const lastNode = resolveNodeForComponent(parentRange, descriptor.parentPath, descriptor.lastChild);
-        Logger.debug("[Manifest]", "resolved boundary nodes", {
-          id,
-          firstNode: firstNode?.nodeName,
-          lastNode: lastNode?.nodeName
-        });
-        const container = chooseComponentContainer(firstNode, lastNode, parentRange.container);
-        const topLevelFirst = ascendToContainer(firstNode, container) ?? firstNode;
-        const topLevelLast = ascendToContainer(lastNode, container) ?? lastNode ?? topLevelFirst;
-        let startIndex = topLevelFirst ? getNodeIndex(container, topLevelFirst) : parentRange.startIndex;
-        if (startIndex < 0) {
-          startIndex = parentRange.startIndex;
-        }
-        let endIndex = topLevelLast ? getNodeIndex(container, topLevelLast) : startIndex;
-        if (endIndex < startIndex) {
-          endIndex = startIndex;
-        }
-        Logger.debug("[Manifest]", "computed component range", {
-          id,
-          container: container.nodeName,
-          startIndex,
-          endIndex
-        });
-        ranges.set(id, { container, startIndex, endIndex });
-        pending.delete(id);
-        progressed = true;
-      }
-    }
-    return ranges;
-  }
-  function resolveNodeInComponent(componentId, path, overrides) {
-    const range = overrides?.get(componentId) ?? getComponentRange(componentId);
-    if (!range) {
-      return null;
-    }
-    return resolveNodeBySegments(range, path);
-  }
-  function resolveNodeBySegments(range, segments) {
-    if (!range || range.endIndex < range.startIndex) {
-      Logger.debug("[Manifest]", "resolveNodeBySegments: invalid range", { range });
-      return null;
-    }
-    const container = range.container;
-    if (!container) {
-      Logger.debug("[Manifest]", "resolveNodeBySegments: no container", { range });
-      return null;
-    }
-    Logger.debug("[Manifest]", "resolveNodeBySegments START", {
-      segments,
-      rangeInfo: {
-        containerNodeName: container.nodeName,
-        startIndex: range.startIndex,
-        endIndex: range.endIndex,
-        childCount: container.childNodes.length
-      }
-    });
-    if (!Array.isArray(segments) || segments.length === 0) {
-      const root = resolveRangeRoot(range);
-      Logger.debug("[Manifest]", "resolveNodeBySegments: using range root", { result: root?.nodeName });
-      return root;
-    }
-    let current = null;
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i];
-      if (!segment) {
-        continue;
-      }
-      if (!current) {
-        current = resolveRangeChild(range, segment.index);
-        Logger.debug("[Manifest]", "resolveNodeBySegments: selecting top-level child", {
-          step: i,
-          offset: segment.index,
-          node: current?.nodeName
-        });
-        if (!current) {
-          return null;
-        }
-        continue;
-      }
-      if (!(current instanceof Element || current instanceof DocumentFragment)) {
-        Logger.debug("[Manifest]", "resolveNodeBySegments: current not Element/Fragment", {
-          step: i,
-          current: current?.nodeName
-        });
-        return null;
-      }
-      const clamped = clampIndex(current, segment.index);
-      const next = current.childNodes.item(clamped) ?? null;
-      Logger.debug("[Manifest]", "resolveNodeBySegments: navigating dom segment", {
-        step: i,
-        index: segment.index,
-        clamped,
-        currentNodeName: current.nodeName,
-        nextNodeName: next?.nodeName
-      });
-      current = next;
-      if (!current) {
-        return null;
-      }
-    }
-    Logger.debug("[Manifest]", "resolveNodeBySegments END", { result: current?.nodeName });
-    return current ?? resolveRangeRoot(range);
-  }
-  function resolveNodeForComponent(range, parentPath, childPath) {
-    const combined = combineSegments(parentPath, childPath);
-    if (combined) {
-      return resolveNodeBySegments(range, combined);
-    }
-    return resolveNodeBySegments(range, parentPath) ?? resolveNodeBySegments(range, childPath);
-  }
-  function combineSegments(base, extra) {
-    const result = [];
-    if (Array.isArray(base) && base.length > 0) {
-      result.push(...base);
-    }
-    if (Array.isArray(extra) && extra.length > 0) {
-      result.push(...extra);
-    }
-    return result.length > 0 ? result : void 0;
-  }
-  function chooseComponentContainer(firstNode, lastNode, fallback) {
-    const firstAncestors = collectAncestorParents(firstNode);
-    if (!lastNode) {
-      return firstAncestors[0] ?? fallback;
-    }
-    const lastAncestors = collectAncestorParents(lastNode);
-    for (const ancestor of firstAncestors) {
-      if (lastAncestors.includes(ancestor)) {
-        return ancestor;
-      }
-    }
-    return firstAncestors[0] ?? lastAncestors[0] ?? fallback;
-  }
-  function collectAncestorParents(node) {
-    const parents = [];
-    let current = node;
-    while (current && current.parentNode) {
-      const parent = current.parentNode;
-      parents.push(parent);
-      current = parent;
-    }
-    return parents;
-  }
-  function ascendToContainer(node, container) {
-    if (!node || !container) {
-      return node;
-    }
-    let current = node;
-    while (current && current.parentNode && current.parentNode !== container) {
-      current = current.parentNode;
-    }
-    return current;
-  }
-  function clampIndex(container, index) {
-    const max = container.childNodes.length - 1;
-    if (max < 0) {
-      return 0;
-    }
-    if (index < 0) {
-      return 0;
-    }
-    if (index > max) {
-      return max;
-    }
-    return index;
-  }
-  function getNodeIndex(container, node) {
-    if (!container || !node) {
-      return -1;
-    }
-    const nodes = container.childNodes;
-    for (let i = 0; i < nodes.length; i++) {
-      if (nodes.item(i) === node) {
-        return i;
-      }
-    }
-    return -1;
-  }
-  function resolveRangeRoot(range) {
-    return resolveRangeChild(range, 0);
-  }
-  function resolveRangeChild(range, offset) {
-    const container = range.container;
-    if (!container || container.childNodes.length === 0) {
-      return null;
-    }
-    const start = clampIndex(container, range.startIndex);
-    const end = Math.max(start, clampIndex(container, range.endIndex));
-    const span = end - start;
-    const normalizedOffset = Number.isFinite(offset) ? offset : 0;
-    const clampedOffset = normalizedOffset <= 0 ? 0 : normalizedOffset >= span ? span : normalizedOffset;
-    const index = start + clampedOffset;
-    return container.childNodes.item(index) ?? null;
-  }
-  function resolveRangeContainerElement(range) {
-    const container = range.container;
-    if (container instanceof Element) {
-      return container;
-    }
-    if (container instanceof Document) {
-      return container.body ?? container.documentElement ?? null;
-    }
-    if (container instanceof DocumentFragment) {
-      const first = container.firstElementChild;
-      return first ?? null;
-    }
-    return null;
-  }
-
-  // src/dom-registry.ts
-  var DomRegistry = class {
-    constructor() {
-      this.slots = /* @__PURE__ */ new Map();
-      this.lists = /* @__PURE__ */ new Map();
-    }
-    reset() {
-      this.slots.clear();
-      this.lists.clear();
-      Logger.debug("[DomRegistry]", "reset");
-    }
-    prime(componentPaths, options) {
-      return applyComponentRanges(componentPaths, options);
-    }
-    registerSlotAnchors(descriptors, overrides) {
-      const anchors = resolveSlotAnchors(descriptors, overrides);
-      anchors.forEach((node, id) => this.slots.set(id, node));
-      Logger.debug("[DomRegistry]", "registered slot anchors", { count: anchors.size });
-    }
-    registerListContainers(descriptors, overrides, rowMeta) {
-      const containers = resolveListContainers(descriptors, overrides);
-      containers.forEach((element, id) => {
-        const info = rowMeta?.get(id);
-        const { rows, order } = collectRows(element, info);
-        this.lists.set(id, { container: element, rows, order });
-      });
-      Logger.debug("[DomRegistry]", "registered list containers", { count: containers.size });
-    }
-    registerSlots(slotDescriptors) {
-      if (!Array.isArray(slotDescriptors)) {
-        return;
-      }
-      slotDescriptors.forEach((slot) => {
-        if (slot && typeof slot.anchorId === "number" && !this.slots.has(slot.anchorId)) {
-          const placeholder = typeof document !== "undefined" ? document.createTextNode("") : null;
-          if (placeholder) {
-            this.slots.set(slot.anchorId, placeholder);
-          }
-        }
-      });
-      Logger.debug("[DomRegistry]", "registered additional slots", { total: this.slots.size });
-    }
-    getSlot(id) {
-      return this.slots.get(id);
-    }
-    registerLists(listDescriptors, overrides, rowMeta) {
-      this.registerListContainers(listDescriptors, overrides, rowMeta);
-    }
-    getList(id) {
-      return this.lists.get(id)?.container;
-    }
-    getRow(slotId, key) {
-      return this.lists.get(slotId)?.rows.get(key);
-    }
-    insertRow(slotId, key, nodes, index) {
-      if (!key || nodes.length === 0) {
-        return;
-      }
-      const list = this.lists.get(slotId);
-      if (!list) {
-        return;
-      }
-      list.rows.set(key, { nodes: [...nodes] });
-      const clamped = clampIndex2(list.order.length, index);
-      list.order.splice(clamped, 0, key);
-      Logger.debug("[DomRegistry]", "inserted row", { slotId, key, index: clamped });
-    }
-    deleteRow(slotId, key) {
-      const list = this.lists.get(slotId);
-      if (!list) {
-        return;
-      }
-      list.rows.delete(key);
-      const idx = list.order.indexOf(key);
-      if (idx >= 0) {
-        list.order.splice(idx, 1);
-      }
-      Logger.debug("[DomRegistry]", "deleted row", { slotId, key });
-    }
-    moveRow(slotId, key, toIndex) {
-      const list = this.lists.get(slotId);
-      if (!list) {
-        return;
-      }
-      const current = list.order.indexOf(key);
-      if (current === -1) {
-        return;
-      }
-      list.order.splice(current, 1);
-      const clamped = clampIndex2(list.order.length, toIndex);
-      list.order.splice(clamped, 0, key);
-      Logger.debug("[DomRegistry]", "moved row", { slotId, key, to: clamped });
-    }
-    getRowKeyAt(slotId, index) {
-      const list = this.lists.get(slotId);
-      if (!list) {
-        return void 0;
-      }
-      const order = list.order ?? [];
-      if (index < 0 || index >= order.length) {
-        return void 0;
-      }
-      return order[index];
-    }
-    getRowFirstNode(slotId, key) {
-      const record = this.getRow(slotId, key);
-      return record?.nodes[0];
-    }
-  };
-  function collectRows(container, meta) {
-    const rows = /* @__PURE__ */ new Map();
-    const order = [];
-    if (!container || !Array.isArray(meta) || meta.length === 0) {
-      return { rows, order };
-    }
-    const nodes = Array.from(container.childNodes);
-    let cursor = 0;
-    for (const info of meta) {
-      if (!info || !info.key) {
-        continue;
-      }
-      const count = Math.max(1, Number(info.count) || 1);
-      const span = [];
-      for (let i = 0; i < count && cursor < nodes.length; i += 1, cursor += 1) {
-        const node = nodes[cursor];
-        if (node) {
-          span.push(node);
-        }
-      }
-      if (span.length === 0) {
-        continue;
-      }
-      rows.set(info.key, { nodes: span });
-      order.push(info.key);
-    }
-    return { rows, order };
-  }
-  function clampIndex2(length, index) {
-    if (!Number.isFinite(index) || index < 0) {
-      return 0;
-    }
-    if (index > length) {
-      return length;
-    }
-    return index;
-  }
-
-  // src/refs.ts
-  var RefRegistry = class {
-    constructor() {
-      this.meta = /* @__PURE__ */ new Map();
-      this.bindings = /* @__PURE__ */ new Map();
-    }
-    clear() {
-      Array.from(this.bindings.keys()).forEach((id) => this.detach(id));
-      this.meta.clear();
-      Logger.debug("[Refs]", "cleared all bindings");
-    }
-    apply(delta) {
-      if (!delta) {
-        return;
-      }
-      if (Array.isArray(delta.del)) {
-        for (const id of delta.del) {
-          this.detach(id);
-          this.meta.delete(id);
-        }
-      }
-      if (delta.add) {
-        for (const [id, meta] of Object.entries(delta.add)) {
-          if (id) {
-            this.meta.set(id, meta);
-          }
-        }
-      }
-      Logger.debug("[Refs]", "applied ref delta", {
-        added: delta.add ? Object.keys(delta.add).length : 0,
-        removed: delta.del?.length ?? 0
-      });
-    }
-    registerBindings(descriptors, overrides) {
-      if (!Array.isArray(descriptors)) {
-        return;
-      }
-      Logger.debug("[Refs]", "registering ref bindings", { count: descriptors.length });
-      descriptors.forEach((descriptor, index) => {
-        if (!descriptor || typeof descriptor.refId !== "string" || descriptor.refId.length === 0) {
-          return;
-        }
-        Logger.debug("[Refs]", "processing ref binding", {
-          index,
-          descriptor: {
-            componentId: descriptor.componentId,
-            path: descriptor.path,
-            refId: descriptor.refId
-          },
-          hasRefId: !!descriptor.refId,
-          refIdLength: descriptor.refId?.length ?? 0
-        });
-        Logger.debug("[Refs]", "resolving node for ref", {
-          refId: descriptor.refId,
-          componentId: descriptor.componentId,
-          path: descriptor.path
-        });
-        const node = resolveNodeInComponent(descriptor.componentId, descriptor.path, overrides);
-        Logger.debug("[Refs]", "node resolved", {
-          refId: descriptor.refId,
-          node,
-          isElement: node instanceof Element,
-          nodeType: node?.nodeType,
-          nodeName: node?.nodeName
-        });
-        if (node instanceof Element) {
-          Logger.debug("[Refs]", "attaching ref", { refId: descriptor.refId, node });
-          this.attach(descriptor.refId, node);
-        } else {
-          Logger.debug("[Refs]", "node is not Element, detaching", { refId: descriptor.refId, node });
-          this.detach(descriptor.refId);
-        }
-      });
-    }
-    get(id) {
-      return this.bindings.get(id)?.element;
-    }
-    attach(refId, element) {
-      const meta = this.meta.get(refId);
-      if (!meta) {
-        return;
-      }
-      const existing = this.bindings.get(refId);
-      if (existing && existing.element === element) {
-        return;
-      }
-      this.detach(refId);
-      const listeners = /* @__PURE__ */ new Map();
-      this.bindings.set(refId, { element, listeners });
-      Logger.debug("[Refs]", "attached ref", {
-        refId,
-        tag: element.tagName
-      });
-    }
-    detach(refId) {
-      const binding = this.bindings.get(refId);
-      if (!binding) {
-        return;
-      }
-      binding.listeners.forEach((listener, event) => {
-        binding.element.removeEventListener(event, listener);
-      });
-      this.bindings.delete(refId);
-      Logger.debug("[Refs]", "detached ref", { refId });
-    }
-  };
-
-  // src/events.ts
-  var slotTable = /* @__PURE__ */ new Map();
-  var eventSlots = /* @__PURE__ */ new Map();
-  var eventObservers = /* @__PURE__ */ new Set();
-  function registerSlotTable(table) {
-    slotTable.clear();
-    eventSlots.clear();
-    if (!table) {
-      Logger.debug("[Events]", "cleared slot table");
-      return;
-    }
-    for (const [key, value] of Object.entries(table)) {
-      const slotId = Number(key);
-      if (Number.isNaN(slotId)) {
-        continue;
-      }
-      const bindings = cloneBindings(value);
-      slotTable.set(slotId, bindings);
-      addEventIndex(slotId, bindings);
-    }
-    Logger.debug("[Events]", "registered slot table", { slots: slotTable.size });
-  }
-  function registerBindingsForSlot(slotId, specs) {
-    if (!Number.isFinite(slotId)) {
-      return;
-    }
-    slotTable.delete(slotId);
-    eventSlots.forEach((set) => set.delete(slotId));
-    if (!Array.isArray(specs)) {
-      return;
-    }
-    const bindings = cloneBindings(specs);
-    slotTable.set(slotId, bindings);
-    addEventIndex(slotId, bindings);
-    Logger.debug("[Events]", "registered slot bindings", { slotId, count: bindings.length });
-  }
-  function getSlotBindings(slotId) {
-    const bindings = slotTable.get(slotId);
-    return bindings ? cloneBindings(bindings) : void 0;
-  }
-  function getSlotsForEvent(event) {
-    const set = eventSlots.get(event);
-    return set ? Array.from(set) : [];
-  }
-  function getRegisteredSlotEvents() {
-    return Array.from(eventSlots.keys());
-  }
-  function observeSlotEvents(observer) {
-    eventObservers.add(observer);
-    return () => eventObservers.delete(observer);
-  }
-  function addEventIndex(slotId, bindings) {
-    bindings.forEach((binding) => {
-      const event = binding.event;
-      if (!event) {
-        return;
-      }
-      const set = eventSlots.get(event) ?? /* @__PURE__ */ new Set();
-      const hadEvent = set.size > 0;
-      set.add(slotId);
-      eventSlots.set(event, set);
-      if (!hadEvent && set.size === 1) {
-        notifyObservers([event]);
-      }
-      Logger.debug("[Events]", "indexed event", { event, slotId, totalSlots: set.size });
-    });
-  }
-  function notifyObservers(events) {
-    if (!Array.isArray(events)) {
-      return;
-    }
-    events.forEach((event) => {
-      if (!event) {
-        return;
-      }
-      eventObservers.forEach((observer) => {
-        try {
-          observer(event);
-        } catch {
-        }
-      });
-    });
-  }
-  function cloneBindings(specs) {
-    if (!Array.isArray(specs)) {
-      return [];
-    }
-    return specs.map((spec) => ({
-      event: spec?.event ?? "",
-      handler: spec?.handler ?? "",
-      listen: Array.isArray(spec?.listen) ? [...spec.listen] : void 0,
-      props: Array.isArray(spec?.props) ? [...spec.props] : void 0
-    }));
-  }
-
-  // src/router-bindings.ts
-  var routerMeta = /* @__PURE__ */ new WeakMap();
-  function applyRouterBindings(descriptors, overrides) {
-    if (!Array.isArray(descriptors)) {
-      return;
-    }
-    let applied = 0;
-    descriptors.forEach((descriptor, index) => {
-      Logger.debug("[Router]", `processing binding ${index}`, {
-        componentId: descriptor?.componentId?.substring(0, 12) + "...",
-        pathLength: descriptor?.path?.length,
-        pathValue: descriptor?.pathValue
-      });
-      if (!descriptor || typeof descriptor.componentId !== "string") {
-        Logger.debug("[Router]", `skipping binding ${index}: invalid descriptor`);
-        return;
-      }
-      const range = overrides?.get(descriptor.componentId) ?? getComponentRange(descriptor.componentId);
-      if (range) {
-        Logger.debug("[Router]", `component range for binding ${index}`, {
-          container: range.container.nodeName,
-          start: range.startIndex,
-          end: range.endIndex,
-          childCount: range.container.childNodes.length
-        });
-      } else {
-        Logger.debug("[Router]", `no component range found for binding ${index}`);
-      }
-      let node = resolveNodeInComponent(descriptor.componentId, descriptor.path, overrides);
-      Logger.debug("[Router]", `resolved node for binding ${index}`, {
-        nodeType: node?.nodeName,
-        isElement: node instanceof Element
-      });
-      if (!(node instanceof Element) && range && range.container instanceof Element) {
-        Logger.debug("[Router]", `binding ${index} falling back to range container`, {
-          containerNodeName: range.container.nodeName
-        });
-        node = range.container;
-      }
-      if (!(node instanceof Element)) {
-        Logger.debug("[Router]", `binding ${index} failed: node is not an Element`);
-        return;
-      }
-      routerMeta.set(node, {
-        path: descriptor.pathValue ?? void 0,
-        query: descriptor.query ?? void 0,
-        hash: descriptor.hash ?? void 0,
-        replace: descriptor.replace ?? void 0
-      });
-      node.__routerDebug = {
-        path: descriptor.pathValue,
-        appliedAt: Date.now(),
-        componentId: descriptor.componentId
-      };
-      Logger.debug("[Router]", `binding ${index} applied successfully`, {
-        path: descriptor.pathValue,
-        nodeName: node.nodeName,
-        isConnected: node.isConnected,
-        hasParent: !!node.parentElement
-      });
-      applied += 1;
-    });
-    Logger.debug("[Router]", "applied router bindings", { count: applied });
-  }
-  function getRouterMeta(element) {
-    if (!element) {
-      return void 0;
-    }
-    let current = element;
-    while (current) {
-      const meta = routerMeta.get(current);
-      if (meta?.path) {
-        return meta;
-      }
-      current = current.parentElement;
-    }
-    return void 0;
-  }
-
-  // src/patcher.ts
+  // src/patcher-new.ts
   var Patcher = class {
-    constructor(dom, refs, uploads) {
-      this.dom = dom;
-      this.refs = refs;
+    constructor(root, events, router, uploads, refs) {
+      this.root = root;
+      this.events = events;
+      this.router = router;
       this.uploads = uploads;
+      this.refs = refs;
+      this.tree = this.extractTree(root);
     }
-    applyFrame(frame) {
-      if (!Array.isArray(frame.patch)) {
-        return;
-      }
-      Logger.debug("[Patcher]", "applying frame patch", { opCount: frame.patch.length });
-      this.applyOps(frame.patch);
-    }
-    applyOps(ops) {
-      Logger.debug("[Patcher]", "applying ops", { count: ops.length });
-      for (const op of ops) {
-        if (!Array.isArray(op) || op.length === 0) {
-          continue;
-        }
-        const kind = op[0];
-        switch (kind) {
-          case "setText":
-            this.applySetText(op[1], op[2]);
-            break;
-          case "setAttrs":
-            this.applySetAttrs(op[1], op[2] || {});
-            break;
-          case "list":
-            this.applyList(op[1], op.slice(2));
-            break;
-        }
-      }
-    }
-    applySetText(slotId, value) {
-      const node = this.dom.getSlot(slotId);
-      if (!node) {
-        Logger.debug("[Patcher]", "setText skipped (missing slot)", { slotId });
-        return;
-      }
-      if (node instanceof Text) {
-        node.textContent = value ?? "";
-        Logger.debug("[Patcher]", "setText applied", { slotId, nodeType: "Text" });
-        return;
-      }
-      if (node instanceof Element) {
-        node.textContent = value ?? "";
-        Logger.debug("[Patcher]", "setText applied", { slotId, nodeType: node.tagName });
-      }
-    }
-    applySetAttrs(slotId, attrs) {
-      const node = this.dom.getSlot(slotId);
-      if (!(node instanceof Element)) {
-        Logger.debug("[Patcher]", "setAttrs skipped (non-element)", { slotId });
-        return;
-      }
-      Object.entries(attrs ?? {}).forEach(([key, value]) => {
-        if (value === null || value === void 0 || value === "") {
-          node.removeAttribute(key);
-        } else {
-          node.setAttribute(key, value);
-        }
-      });
-      Logger.debug("[Patcher]", "setAttrs applied", { slotId, keys: Object.keys(attrs ?? {}) });
-    }
-    applyList(slotId, childOps) {
-      const container = this.dom.getList(slotId);
-      if (!(container instanceof Element)) {
-        Logger.debug("[Patcher]", "list op skipped (no container)", { slotId });
-        return;
-      }
-      Logger.debug("[Patcher]", "list patch", { slotId, opCount: childOps.length });
-      childOps.forEach((op) => {
-        if (!Array.isArray(op)) {
-          return;
-        }
-        switch (op[0]) {
-          case "del":
-            this.applyListDelete(slotId, container, op);
-            break;
-          case "ins":
-            this.applyListInsert(slotId, container, op);
-            break;
-          case "mov":
-            this.applyListMove(slotId, container, op);
-            break;
-        }
-      });
-    }
-    applyListDelete(slotId, container, op) {
-      const key = op[1];
-      const record = this.dom.getRow(slotId, key);
-      if (!record) {
-        Logger.debug("[Patcher]", "list delete skipped (missing row)", { slotId, key });
-        return;
-      }
-      record.nodes.forEach((node) => {
-        if (node.parentNode === container) {
-          container.removeChild(node);
-        }
-      });
-      this.dom.deleteRow(slotId, key);
-      Logger.debug("[Patcher]", "list delete applied", { slotId, key });
-    }
-    applyListInsert(slotId, container, op) {
-      const [_, index, payload] = op;
-      const html = payload?.html ?? "";
-      if (!html) {
-        Logger.debug("[Patcher]", "list insert skipped (no html)", { slotId, index });
-        return;
-      }
-      const template = document.createElement("template");
-      template.innerHTML = html;
-      const fragment = template.content;
-      const nodes = Array.from(fragment.childNodes);
-      if (nodes.length === 0) {
-        Logger.debug("[Patcher]", "list insert skipped (no nodes)", { slotId, index });
-        return;
-      }
-      const beforeKey = this.dom.getRowKeyAt(slotId, index);
-      const before = beforeKey ? this.dom.getRowFirstNode(slotId, beforeKey) : null;
-      container.insertBefore(fragment, before ?? null);
-      this.dom.insertRow(slotId, payload?.key ?? "", nodes, index);
-      const root = nodes.find((node) => node instanceof Element) ?? null;
-      if (root) {
-        this.registerRowMetadata(
-          root,
-          payload?.componentPaths ?? [],
-          payload?.slotPaths,
-          payload?.listPaths,
-          payload?.bindings
-        );
-      }
-      Logger.debug("[Patcher]", "list insert applied", {
-        slotId,
-        index,
-        key: payload?.key,
-        nodeCount: nodes.length
-      });
-    }
-    applyListMove(slotId, container, op) {
-      const from = op[1];
-      const to = op[2];
-      if (from === to) {
-        return;
-      }
-      const currentKey = this.dom.getRowKeyAt(slotId, from);
-      if (!currentKey) {
-        Logger.debug("[Patcher]", "list move skipped (missing source key)", { slotId, from, to });
-        return;
-      }
-      const record = this.dom.getRow(slotId, currentKey);
-      if (!record) {
-        Logger.debug("[Patcher]", "list move skipped (missing record)", { slotId, from, to });
-        return;
-      }
-      const targetKey = this.dom.getRowKeyAt(slotId, to);
-      const beforeNode = targetKey ? this.dom.getRowFirstNode(slotId, targetKey) : null;
-      record.nodes.forEach((node) => {
-        if (node.parentNode !== container) {
-          return;
-        }
-        container.insertBefore(node, beforeNode ?? null);
-      });
-      this.dom.moveRow(slotId, currentKey, to);
-      Logger.debug("[Patcher]", "list move applied", { slotId, from, to, key: currentKey });
-    }
-    registerRowMetadata(root, componentPaths, slotPaths, listPaths, bindings) {
-      const overrides = applyComponentRanges(componentPaths ?? [], { root });
-      this.dom.registerSlotAnchors(slotPaths ?? void 0, overrides);
-      this.dom.registerLists(listPaths ?? void 0, overrides);
-      if (bindings?.slots) {
-        Object.entries(bindings.slots).forEach(([slot, specs]) => {
-          registerBindingsForSlot(Number(slot), specs);
+    apply(patches) {
+      Logger.debug("Patcher", "Applying RFC 6902 patches", { count: patches.length, patches });
+      try {
+        applyJsonPatchRFC6902(this.tree, patches);
+        Logger.debug("Patcher", "Patches applied to tree");
+        this.rebuild();
+        Logger.debug("Patcher", "DOM rebuilt from patched tree");
+      } catch (err) {
+        Logger.error("Patcher", "Failed to apply patches", {
+          error: err,
+          message: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : void 0,
+          patches
         });
       }
-      if (bindings?.router) {
-        applyRouterBindings(bindings.router, overrides);
-      }
-      if (bindings?.refs) {
-        this.refs?.registerBindings(bindings.refs, overrides);
-      }
-      if (bindings?.uploads) {
-        this.uploads?.registerBindings(bindings.uploads, overrides, { replace: false });
-      }
-      Logger.debug("[Patcher]", "row metadata registered", {
-        slots: bindings?.slots ? Object.keys(bindings.slots).length : 0,
-        routers: bindings?.router?.length ?? 0,
-        refs: bindings?.refs?.length ?? 0,
-        uploads: bindings?.uploads?.length ?? 0
-      });
     }
-  };
-
-  // src/uploads.ts
-  var UploadManager = class {
-    constructor(runtime) {
-      this.runtime = runtime;
-      this.bindings = /* @__PURE__ */ new Map();
-      this.elementToUpload = /* @__PURE__ */ new WeakMap();
-      this.active = /* @__PURE__ */ new Map();
-      this.componentBindings = /* @__PURE__ */ new Map();
-    }
-    clear() {
-      this.bindings.forEach((binding) => {
-        binding.element.removeEventListener("change", binding.changeHandler);
-      });
-      this.bindings.clear();
-      this.componentBindings.clear();
-      this.active.forEach((upload) => upload.xhr.abort());
-      this.active.clear();
-      Logger.debug("[Uploads]", "cleared bindings and active uploads");
-    }
-    prime(descriptors, overrides) {
-      this.clear();
-      this.registerBindings(descriptors, overrides);
-      Logger.debug("[Uploads]", "primed upload bindings", { count: descriptors?.length ?? 0 });
-    }
-    registerBindings(descriptors, overrides, options) {
-      if (!Array.isArray(descriptors)) {
-        return;
-      }
-      Logger.debug("[Uploads]", "register bindings", {
-        count: descriptors.length,
-        replace: options?.replace !== false
-      });
-      if (options?.replace === false) {
-        descriptors.forEach((descriptor) => {
-          if (!descriptor || typeof descriptor.uploadId !== "string" || descriptor.uploadId.length === 0) {
-            return;
+    syncTreeToRoot(tree, node) {
+      node.componentId = tree.componentId;
+      node.tag = tree.tag;
+      node.text = tree.text;
+      node.comment = tree.comment;
+      node.fragment = tree.fragment;
+      node.key = tree.key;
+      node.unsafeHtml = tree.unsafeHtml;
+      node.attrs = tree.attrs;
+      node.style = tree.style;
+      node.styles = tree.styles;
+      node.refId = tree.refId;
+      node.handlers = tree.handlers;
+      node.router = tree.router;
+      node.upload = tree.upload;
+      if (node.el) {
+        if (node.text !== void 0 && node.el.nodeType === Node.TEXT_NODE) {
+          node.el.textContent = node.text;
+        } else if (node.el instanceof Element) {
+          if (tree.attrs) {
+            while (node.el.attributes.length > 0) {
+              node.el.removeAttribute(node.el.attributes[0].name);
+            }
+            for (const [k, v] of Object.entries(tree.attrs)) {
+              node.el.setAttribute(k, v.join(" "));
+            }
           }
-          this.attachDescriptor(descriptor, overrides);
+          if (node.el instanceof HTMLElement && tree.style) {
+            node.el.removeAttribute("style");
+            for (const [name, value] of Object.entries(tree.style)) {
+              node.el.style.setProperty(name, value);
+            }
+          }
+        }
+      }
+      if (tree.children && node.children) {
+        if (tree.children.length !== node.children.length) {
+          Logger.debug("Patcher", "Children length mismatch detected", {
+            treeLength: tree.children.length,
+            nodeLength: node.children.length
+          });
+          return false;
+        }
+        for (let i = 0; i < tree.children.length; i++) {
+          const childSynced = this.syncTreeToRoot(tree.children[i], node.children[i]);
+          if (!childSynced) {
+            return false;
+          }
+        }
+      }
+      if (tree.handlers !== node.handlers) {
+        this.events.detach(node);
+        this.events.attach(node);
+      }
+      if (tree.router !== node.router) {
+        this.router.detach(node);
+        this.router.attach(node);
+      }
+      return true;
+    }
+    syncMetadata(tree, node) {
+      node.componentId = tree.componentId;
+      node.tag = tree.tag;
+      node.text = tree.text;
+      node.comment = tree.comment;
+      node.fragment = tree.fragment;
+      node.key = tree.key;
+      node.unsafeHtml = tree.unsafeHtml;
+      node.attrs = tree.attrs;
+      node.style = tree.style;
+      node.styles = tree.styles;
+      node.refId = tree.refId;
+      node.handlers = tree.handlers;
+      node.router = tree.router;
+      node.upload = tree.upload;
+      if (tree.children && node.children && tree.children.length === node.children.length) {
+        for (let i = 0; i < tree.children.length; i++) {
+          this.syncMetadata(tree.children[i], node.children[i]);
+        }
+      }
+    }
+    rebuild() {
+      this.detachAll(this.root);
+      this.refs.clear();
+      if (!this.root.el) {
+        this.rebuildVirtualRoot();
+        return;
+      }
+      while (this.root.el.firstChild) {
+        this.root.el.removeChild(this.root.el.firstChild);
+      }
+      if (this.tree.attrs && this.root.el instanceof Element) {
+        const attrs = this.root.el.attributes;
+        for (let i = attrs.length - 1; i >= 0; i--) {
+          this.root.el.removeAttribute(attrs[i].name);
+        }
+        for (const [k, v] of Object.entries(this.tree.attrs)) {
+          this.root.el.setAttribute(k, v.join(" "));
+        }
+      }
+      if (this.tree.style && this.root.el instanceof HTMLElement) {
+        this.root.el.removeAttribute("style");
+        for (const [name, value] of Object.entries(this.tree.style)) {
+          this.root.el.style.setProperty(name, value);
+        }
+      }
+      if (this.tree.children) {
+        for (const childJson of this.tree.children) {
+          const childDom = this.render(childJson);
+          this.root.el.appendChild(childDom);
+        }
+      }
+      this.root.componentId = this.tree.componentId;
+      this.root.refId = this.tree.refId;
+      this.root.handlers = this.tree.handlers;
+      this.root.router = this.tree.router;
+      this.root.upload = this.tree.upload;
+      if (this.tree.children && this.root.el.childNodes) {
+        this.root.children = [];
+        this.tree.children.forEach((childJson, i) => {
+          const childDom = this.root.el.childNodes[i];
+          const childNode = hydrate(childJson, childDom, this.refs);
+          this.root.children.push(childNode);
         });
-        return;
       }
-      const grouped = /* @__PURE__ */ new Map();
-      descriptors.forEach((descriptor) => {
-        if (!descriptor || typeof descriptor.uploadId !== "string" || descriptor.uploadId.length === 0) {
-          return;
+      this.attachAll(this.root);
+    }
+    extractTree(node) {
+      const tree = {};
+      if (node.componentId) tree.componentId = node.componentId;
+      if (node.tag) tree.tag = node.tag;
+      if (node.text !== void 0) tree.text = node.text;
+      if (node.comment !== void 0) tree.comment = node.comment;
+      if (node.fragment) tree.fragment = node.fragment;
+      if (node.key) tree.key = node.key;
+      if (node.unsafeHtml) tree.unsafeHtml = node.unsafeHtml;
+      if (node.attrs) tree.attrs = node.attrs;
+      if (node.style) tree.style = node.style;
+      if (node.styles) tree.styles = node.styles;
+      if (node.refId) tree.refId = node.refId;
+      if (node.handlers) tree.handlers = node.handlers;
+      if (node.router) tree.router = node.router;
+      if (node.upload) tree.upload = node.upload;
+      if (node.children) {
+        tree.children = node.children.map((child) => this.extractTree(child));
+      }
+      return tree;
+    }
+    render(json) {
+      if (json.text !== void 0) {
+        return document.createTextNode(json.text);
+      }
+      if (json.tag) {
+        const el = document.createElement(json.tag);
+        if (json.attrs) {
+          for (const [k, v] of Object.entries(json.attrs)) {
+            el.setAttribute(k, v.join(" "));
+          }
         }
-        const componentId = descriptor.componentId || "__root__";
-        const list = grouped.get(componentId) ?? [];
-        list.push(descriptor);
-        grouped.set(componentId, list);
-      });
-      grouped.forEach((list, componentId) => {
-        this.replaceBindingsForComponent(componentId, list, overrides);
-      });
-    }
-    replaceBindingsForComponent(componentId, descriptors, overrides) {
-      const id = componentId || "__root__";
-      const existing = this.componentBindings.get(id);
-      if (existing) {
-        existing.forEach((uploadId) => this.detachBinding(uploadId));
-        this.componentBindings.delete(id);
-      }
-      if (!descriptors || descriptors.length === 0) {
-        return;
-      }
-      const next = /* @__PURE__ */ new Set();
-      descriptors.forEach((descriptor) => {
-        if (!descriptor || typeof descriptor.uploadId !== "string" || descriptor.uploadId.length === 0) {
-          return;
+        if (json.style) {
+          for (const [name, value] of Object.entries(json.style)) {
+            el.style.setProperty(name, value);
+          }
         }
-        this.attachDescriptor(descriptor, overrides);
-        next.add(descriptor.uploadId);
-      });
-      if (next.size > 0) {
-        this.componentBindings.set(id, next);
+        if (json.children) {
+          for (const child of json.children) {
+            el.appendChild(this.render(child));
+          }
+        }
+        return el;
       }
-      Logger.debug("[Uploads]", "component bindings replaced", {
-        componentId: id,
-        count: descriptors?.length ?? 0
-      });
+      if (json.children && json.children.length > 0) {
+        const fragment = document.createDocumentFragment();
+        for (const child of json.children) {
+          fragment.appendChild(this.render(child));
+        }
+        return fragment;
+      }
+      return document.createComment(json.comment || "");
     }
-    handleControl(message) {
-      if (!message || !message.id) {
+    rebuildVirtualRoot() {
+      Logger.debug("Patcher", "Rebuilding virtual root", {
+        treeChildrenCount: this.tree.children?.length,
+        rootChildrenCount: this.root.children?.length
+      });
+      this.root.componentId = this.tree.componentId;
+      this.root.handlers = this.tree.handlers;
+      this.root.router = this.tree.router;
+      if (!this.tree.children || !this.root.children) {
+        Logger.warn("Patcher", "No children to rebuild");
         return;
       }
-      Logger.debug("[Uploads]", "control message", { op: message.op, id: message.id });
-      if (message.op === "cancel") {
-        this.abortUpload(message.id, true);
-      } else if (message.op === "error") {
-        this.abortUpload(message.id, true);
+      for (let i = 0; i < this.tree.children.length && i < this.root.children.length; i++) {
+        const childTree = this.tree.children[i];
+        const childNode = this.root.children[i];
+        Logger.debug("Patcher", "Rebuilding child", {
+          index: i,
+          hasEl: !!childNode.el,
+          hasParent: !!childNode.el?.parentNode
+        });
+        this.rebuildNode(childTree, childNode, i);
       }
+      Logger.debug("Patcher", "Virtual root rebuild complete");
     }
-    attachDescriptor(descriptor, overrides) {
-      const node = resolveNodeInComponent(descriptor.componentId, descriptor.path, overrides);
-      const element = this.resolveInput(node);
-      if (!element) {
-        return;
-      }
-      const uploadId = descriptor.uploadId;
-      this.detachBinding(uploadId);
-      const handler = () => this.handleInputChange(uploadId, element, descriptor);
-      element.addEventListener("change", handler);
-      this.syncAttributes(element, descriptor);
-      this.bindings.set(uploadId, { id: uploadId, element, descriptor, changeHandler: handler });
-      this.elementToUpload.set(element, uploadId);
-      const componentId = descriptor.componentId || "__root__";
-      const set = this.componentBindings.get(componentId) ?? /* @__PURE__ */ new Set();
-      set.add(uploadId);
-      this.componentBindings.set(componentId, set);
-      Logger.debug("[Uploads]", "attached upload descriptor", {
-        uploadId,
-        componentId,
-        multiple: Boolean(descriptor.multiple)
-      });
-    }
-    detachBinding(uploadId) {
-      const binding = this.bindings.get(uploadId);
-      if (!binding) {
-        return;
-      }
-      binding.element.removeEventListener("change", binding.changeHandler);
-      this.bindings.delete(uploadId);
-      this.elementToUpload.delete(binding.element);
-      this.abortUpload(uploadId, false);
-      const componentId = binding.descriptor.componentId || "__root__";
-      const set = this.componentBindings.get(componentId);
-      if (set) {
-        set.delete(uploadId);
-        if (set.size === 0) {
-          this.componentBindings.delete(componentId);
+    rebuildNode(tree, node, index) {
+      if (node.el && node.el.parentNode) {
+        this.detachAll(node);
+        const newDom = this.render(tree);
+        node.el.parentNode.replaceChild(newDom, node.el);
+        const newChild = hydrate(tree, newDom, this.refs);
+        const parent = this.findParent(this.root, node);
+        if (parent && parent.children) {
+          parent.children[index] = newChild;
+        }
+        this.attachAll(newChild);
+      } else if (tree.children && node.children) {
+        node.componentId = tree.componentId;
+        node.handlers = tree.handlers;
+        node.router = tree.router;
+        for (let i = 0; i < tree.children.length && i < node.children.length; i++) {
+          this.rebuildNode(tree.children[i], node.children[i], i);
         }
       }
     }
-    resolveInput(node) {
-      if (!node) {
-        return null;
-      }
-      if (node instanceof HTMLInputElement) {
-        return node;
-      }
-      if (node instanceof Element) {
-        if (node.tagName.toLowerCase() === "input" && node.getAttribute("type") === "file") {
-          return node;
-        }
-        const descendant = node.querySelector('input[type="file"]');
-        if (descendant instanceof HTMLInputElement) {
-          return descendant;
+    findParent(root, target) {
+      if (root.children) {
+        for (const child of root.children) {
+          if (child === target) {
+            return root;
+          }
+          const found = this.findParent(child, target);
+          if (found) return found;
         }
       }
       return null;
     }
-    syncAttributes(element, descriptor) {
-      if (Array.isArray(descriptor.accept) && descriptor.accept.length > 0) {
-        element.setAttribute("accept", descriptor.accept.join(","));
-      } else {
-        element.removeAttribute("accept");
+    detachAll(node) {
+      this.events.detach(node);
+      this.router.detach(node);
+      this.uploads.unbind(node);
+      if (node.refId) {
+        this.refs.delete(node.refId);
       }
-      if (descriptor.multiple) {
-        element.multiple = true;
-      } else {
-        element.multiple = false;
-        element.removeAttribute("multiple");
-      }
-    }
-    handleInputChange(uploadId, element, descriptor) {
-      const files = element.files;
-      if (!files || files.length === 0) {
-        this.sendUploadMessage({ op: "cancelled", id: uploadId });
-        this.abortUpload(uploadId, true);
-        return;
-      }
-      const file = typeof files.item === "function" ? files.item(0) : files[0] ?? null;
-      if (!file) {
-        this.sendUploadMessage({ op: "cancelled", id: uploadId });
-        return;
-      }
-      if (typeof descriptor.maxSize === "number" && descriptor.maxSize > 0 && file.size > descriptor.maxSize) {
-        this.sendUploadMessage({
-          op: "error",
-          id: uploadId,
-          error: `File exceeds maximum size (${descriptor.maxSize} bytes)`
-        });
-        element.value = "";
-        return;
-      }
-      const meta = { name: file.name, size: file.size, type: file.type };
-      this.sendUploadMessage({ op: "change", id: uploadId, meta });
-      this.startUpload(uploadId, file, element);
-      Logger.debug("[Uploads]", "input change processed", {
-        uploadId,
-        file: file.name,
-        size: file.size
-      });
-    }
-    startUpload(uploadId, file, element) {
-      const sid = this.runtime.getSessionId();
-      if (!sid) {
-        return;
-      }
-      const base = this.runtime.getUploadEndpoint();
-      const target = this.buildUploadURL(base, sid, uploadId);
-      this.abortUpload(uploadId, false);
-      const xhr = new XMLHttpRequest();
-      xhr.upload.onprogress = (event) => {
-        const loaded = event.loaded ?? 0;
-        const total = event.lengthComputable ? event.total : file.size;
-        this.sendUploadMessage({ op: "progress", id: uploadId, loaded, total });
-      };
-      xhr.onerror = () => {
-        this.active.delete(uploadId);
-        this.sendUploadMessage({ op: "error", id: uploadId, error: "Upload failed" });
-      };
-      xhr.onabort = () => {
-        this.active.delete(uploadId);
-        this.sendUploadMessage({ op: "cancelled", id: uploadId });
-      };
-      xhr.onload = () => {
-        this.active.delete(uploadId);
-        if (xhr.status < 200 || xhr.status >= 300) {
-          this.sendUploadMessage({
-            op: "error",
-            id: uploadId,
-            error: `Upload failed (${xhr.status})`
-          });
-        } else {
-          this.sendUploadMessage({ op: "progress", id: uploadId, loaded: file.size, total: file.size });
-          element.value = "";
+      if (node.children) {
+        for (const child of node.children) {
+          this.detachAll(child);
         }
-      };
-      const form = new FormData();
-      form.append("file", file);
-      xhr.open("POST", target, true);
-      xhr.send(form);
-      this.active.set(uploadId, { xhr, element });
-      Logger.debug("[Uploads]", "upload started", { uploadId, target });
-    }
-    abortUpload(uploadId, clearInput) {
-      const active = this.active.get(uploadId);
-      if (!active) {
-        return;
       }
-      active.xhr.abort();
-      if (clearInput) {
-        active.element.value = "";
-      }
-      this.active.delete(uploadId);
-      Logger.debug("[Uploads]", "upload aborted", { uploadId, cleared: clearInput });
     }
-    sendUploadMessage(payload) {
-      if (!payload.id) {
-        return;
+    attachAll(node) {
+      this.events.attach(node);
+      this.router.attach(node);
+      if (node.upload) {
+        this.uploads.bind(node, node.upload);
       }
-      this.runtime.sendUploadMessage(payload);
-      Logger.debug("[Uploads]", "sent upload message", payload);
-    }
-    buildUploadURL(base, sid, uploadId) {
-      const normalized = (base && base.length > 0 ? base : "/pondlive/upload/").replace(/\/+$/, "");
-      return `${normalized}/${encodeURIComponent(sid)}/${encodeURIComponent(uploadId)}`;
+      if (node.children) {
+        for (const child of node.children) {
+          this.attachAll(child);
+        }
+      }
     }
   };
-
-  // src/metadata.ts
-  var MetadataManager = class {
-    constructor() {
-      this.metaTags = /* @__PURE__ */ new Map();
-      this.linkTags = /* @__PURE__ */ new Map();
-      this.scriptTags = /* @__PURE__ */ new Map();
-      this.descriptionMeta = null;
-      this.indexExistingTags();
-    }
-    indexExistingTags() {
-      if (typeof document === "undefined") {
-        return;
-      }
-      document.querySelectorAll("meta[data-live-key]").forEach((el) => {
-        if (el instanceof HTMLMetaElement) {
-          const key = el.getAttribute("data-live-key");
-          if (key) {
-            this.metaTags.set(key, el);
-            if (el.name === "description") {
-              this.descriptionMeta = el;
-            }
-          }
-        }
-      });
-      document.querySelectorAll("link[data-live-key]").forEach((el) => {
-        if (el instanceof HTMLLinkElement) {
-          const key = el.getAttribute("data-live-key");
-          if (key) {
-            this.linkTags.set(key, el);
-          }
-        }
-      });
-      document.querySelectorAll("script[data-live-key]").forEach((el) => {
-        if (el instanceof HTMLScriptElement) {
-          const key = el.getAttribute("data-live-key");
-          if (key) {
-            this.scriptTags.set(key, el);
-          }
-        }
-      });
-    }
-    applyEffect(effect) {
-      if (typeof document === "undefined") {
-        return;
-      }
-      Logger.debug("[Metadata]", "applying effect", effect);
-      if (effect.title !== void 0) {
-        document.title = effect.title;
-      }
-      if (effect.description !== void 0) {
-        this.updateDescription(effect.description);
-      } else if (effect.clearDescription) {
-        this.clearDescription();
-      }
-      if (effect.metaRemove) {
-        for (const key of effect.metaRemove) {
-          this.removeMeta(key);
-        }
-      }
-      if (effect.metaAdd) {
-        for (const payload of effect.metaAdd) {
-          this.addOrUpdateMeta(payload);
-        }
-      }
-      if (effect.linkRemove) {
-        for (const key of effect.linkRemove) {
-          this.removeLink(key);
-        }
-      }
-      if (effect.linkAdd) {
-        for (const payload of effect.linkAdd) {
-          this.addOrUpdateLink(payload);
-        }
-      }
-      if (effect.scriptRemove) {
-        for (const key of effect.scriptRemove) {
-          this.removeScript(key);
-        }
-      }
-      if (effect.scriptAdd) {
-        for (const payload of effect.scriptAdd) {
-          this.addOrUpdateScript(payload);
-        }
-      }
-    }
-    updateDescription(content) {
-      if (!this.descriptionMeta) {
-        this.descriptionMeta = document.createElement("meta");
-        this.descriptionMeta.name = "description";
-        this.descriptionMeta.setAttribute("data-live-managed", "true");
-        document.head.appendChild(this.descriptionMeta);
-      }
-      this.descriptionMeta.content = content;
-    }
-    clearDescription() {
-      if (this.descriptionMeta && this.descriptionMeta.hasAttribute("data-live-managed")) {
-        this.descriptionMeta.remove();
-        this.descriptionMeta = null;
-      }
-    }
-    addOrUpdateMeta(payload) {
-      let el = this.metaTags.get(payload.key);
-      if (!el) {
-        el = document.createElement("meta");
-        el.setAttribute("data-live-key", payload.key);
-        document.head.appendChild(el);
-        this.metaTags.set(payload.key, el);
-      }
-      if (payload.name) el.name = payload.name;
-      if (payload.content !== void 0) el.content = payload.content;
-      if (payload.property) el.setAttribute("property", payload.property);
-      if (payload.charset) el.setAttribute("charset", payload.charset);
-      if (payload.httpEquiv) el.setAttribute("http-equiv", payload.httpEquiv);
-      if (payload.itemProp) el.setAttribute("itemprop", payload.itemProp);
-      if (payload.attrs) {
-        for (const [key, value] of Object.entries(payload.attrs)) {
-          el.setAttribute(key, value);
-        }
-      }
-      if (payload.name === "description") {
-        this.descriptionMeta = el;
-      }
-    }
-    removeMeta(key) {
-      const el = this.metaTags.get(key);
-      if (el) {
-        if (el === this.descriptionMeta) {
-          this.descriptionMeta = null;
-        }
-        el.remove();
-        this.metaTags.delete(key);
-      }
-    }
-    addOrUpdateLink(payload) {
-      let el = this.linkTags.get(payload.key);
-      if (!el) {
-        el = document.createElement("link");
-        el.setAttribute("data-live-key", payload.key);
-        document.head.appendChild(el);
-        this.linkTags.set(payload.key, el);
-      }
-      if (payload.rel) el.rel = payload.rel;
-      if (payload.href) el.href = payload.href;
-      if (payload.type) el.type = payload.type;
-      if (payload.as) el.setAttribute("as", payload.as);
-      if (payload.media) el.media = payload.media;
-      if (payload.hreflang) el.hreflang = payload.hreflang;
-      if (payload.title) el.title = payload.title;
-      if (payload.crossorigin) el.setAttribute("crossorigin", payload.crossorigin);
-      if (payload.integrity) el.integrity = payload.integrity;
-      if (payload.referrerpolicy) el.setAttribute("referrerpolicy", payload.referrerpolicy);
-      if (payload.sizes) el.setAttribute("sizes", payload.sizes);
-      if (payload.attrs) {
-        for (const [key, value] of Object.entries(payload.attrs)) {
-          el.setAttribute(key, value);
-        }
-      }
-    }
-    removeLink(key) {
-      const el = this.linkTags.get(key);
-      if (el) {
-        el.remove();
-        this.linkTags.delete(key);
-      }
-    }
-    addOrUpdateScript(payload) {
-      const existing = this.scriptTags.get(payload.key);
-      if (existing) {
-        existing.remove();
-        this.scriptTags.delete(payload.key);
-      }
-      const el = document.createElement("script");
-      el.setAttribute("data-live-key", payload.key);
-      if (payload.src) el.src = payload.src;
-      if (payload.type) el.type = payload.type;
-      if (payload.async) el.async = true;
-      if (payload.defer) el.defer = true;
-      if (payload.module) el.type = "module";
-      if (payload.noModule) el.setAttribute("nomodule", "");
-      if (payload.crossorigin) el.setAttribute("crossorigin", payload.crossorigin);
-      if (payload.integrity) el.integrity = payload.integrity;
-      if (payload.referrerpolicy) el.setAttribute("referrerpolicy", payload.referrerpolicy);
-      if (payload.nonce) el.nonce = payload.nonce;
-      if (payload.inner) el.textContent = payload.inner;
-      if (payload.attrs) {
-        for (const [key, value] of Object.entries(payload.attrs)) {
-          el.setAttribute(key, value);
-        }
-      }
-      document.head.appendChild(el);
-      this.scriptTags.set(payload.key, el);
-    }
-    removeScript(key) {
-      const el = this.scriptTags.get(key);
-      if (el) {
-        el.remove();
-        this.scriptTags.delete(key);
-      }
-    }
-    dispose() {
-      this.metaTags.forEach((el) => {
-        if (el.hasAttribute("data-live-key")) {
-          el.remove();
-        }
-      });
-      this.linkTags.forEach((el) => {
-        if (el.hasAttribute("data-live-key")) {
-          el.remove();
-        }
-      });
-      this.scriptTags.forEach((el) => {
-        if (el.hasAttribute("data-live-key")) {
-          el.remove();
-        }
-      });
-      this.metaTags.clear();
-      this.linkTags.clear();
-      this.scriptTags.clear();
-      this.descriptionMeta = null;
-    }
-  };
-
-  // src/hydration.ts
-  var HydrationManager = class {
-    constructor(runtime, options) {
-      this.dom = new DomRegistry();
-      this.runtime = runtime;
-      this.options = options ?? {};
-      this.uploads = new UploadManager(runtime);
-      this.refs = new RefRegistry();
-      this.metadata = new MetadataManager();
-      this.patcher = new Patcher(this.dom, this.refs, this.uploads);
-      this.runtime.on("init", (msg) => this.applyTemplate(msg));
-      this.runtime.on("template", (msg) => this.applyTemplate(msg));
-      this.runtime.on("frame", (msg) => this.applyFrame(msg));
-      this.runtime.on("upload", (msg) => this.uploads.handleControl(msg));
-      this.runtime.on("domreq", (msg) => this.handleDOMRequest(msg));
-      const boot = this.runtime.getBootPayload();
-      if (boot) {
-        this.applyTemplate(boot);
-      }
-    }
-    applyTemplate(payload) {
-      if (typeof document === "undefined") {
-        return;
-      }
-      if (typeof payload.html !== "string") {
-        return;
-      }
-      const root = this.resolveRoot();
-      if (!root) {
-        return;
-      }
-      const componentPaths = payload.componentPaths;
-      Logger.debug("[Hydration]", "applying template", {
-        slotPaths: payload.slotPaths?.length ?? 0,
-        listPaths: payload.listPaths?.length ?? 0,
-        componentPaths: componentPaths?.length ?? 0,
-        htmlLength: payload.html?.length ?? 0
-      });
-      if (root instanceof Document) {
-        const container = root.body ?? root.documentElement ?? root;
-        if (container) {
-          container.innerHTML = payload.html;
-          pruneWhitespace(container);
-        }
-        const overrides2 = this.dom.prime(componentPaths, { root });
-        this.componentRanges = overrides2;
-        this.primeRegistries(payload, container ?? root, overrides2);
-        return;
-      }
-      if (root instanceof ShadowRoot) {
-        root.innerHTML = payload.html;
-        pruneWhitespace(root);
-        const overrides2 = this.dom.prime(componentPaths, { root });
-        this.componentRanges = overrides2;
-        this.primeRegistries(payload, root, overrides2);
-        return;
-      }
-      root.innerHTML = payload.html;
-      pruneWhitespace(root);
-      const overrides = this.dom.prime(componentPaths, { root });
-      this.componentRanges = overrides;
-      this.primeRegistries(payload, root, overrides);
-    }
-    applyFrame(frame) {
-      Logger.debug("[Hydration]", "applying frame", {
-        seq: frame.seq,
-        ver: frame.ver,
-        patchOps: Array.isArray(frame.patch) ? frame.patch.length : 0,
-        effects: frame.effects?.length ?? 0
-      });
-      this.patcher.applyFrame(frame);
-      if (frame.bindings?.slots) {
-        registerSlotTable(frame.bindings.slots);
-      }
-      if (frame.bindings?.router) {
-        applyRouterBindings(frame.bindings.router, this.componentRanges);
-      }
-      if (frame.bindings?.refs) {
-        this.refs.registerBindings(frame.bindings.refs, this.componentRanges);
-      }
-      if (frame.bindings?.uploads) {
-        this.uploads.registerBindings(frame.bindings.uploads, this.componentRanges);
-      }
-      if (frame.bindings?.slots === void 0 && frame.bindings?.router) {
-      }
-      this.refs.apply(frame.refs);
-      if (frame.effects) {
-        this.applyEffects(frame.effects);
-      }
-      if (frame.nav) {
-        this.applyNavigation(frame.nav);
-      }
-      Logger.debug("[Hydration]", "frame applied", {
-        hasSlots: Boolean(frame.bindings?.slots),
-        hasRouter: Boolean(frame.bindings?.router?.length),
-        hasRefs: Boolean(frame.bindings?.refs?.length),
-        hasUploads: Boolean(frame.bindings?.uploads?.length),
-        refDeltaAdd: frame.refs?.add ? Object.keys(frame.refs.add).length : 0,
-        refDeltaDel: frame.refs?.del?.length ?? 0,
-        effectsApplied: frame.effects?.length ?? 0,
-        navApplied: Boolean(frame.nav?.push || frame.nav?.replace)
-      });
-    }
-    applyEffects(effects) {
-      for (const effect of effects) {
-        if (effect.type === "metadata") {
-          this.metadata.applyEffect(effect);
-        } else if (effect.type === "dom") {
-          this.applyDOMAction(effect);
-        } else if (effect.type === "cookies") {
-          this.applyCookieEffect(effect);
-        }
-      }
-    }
-    applyDOMAction(effect) {
-      if (!effect.ref || !effect.kind) {
-        return;
-      }
-      const element = this.refs.get(effect.ref);
-      if (!element) {
-        Logger.debug("[Hydration]", "DOM action skipped (element not found)", { ref: effect.ref, kind: effect.kind });
-        return;
-      }
-      try {
-        const kind = effect.kind;
-        if (kind === "dom.call" && effect.method) {
-          if (typeof element[effect.method] === "function") {
-            const args = Array.isArray(effect.args) ? effect.args : [];
-            element[effect.method](...args);
-            Logger.debug("[Hydration]", "DOM action call", { ref: effect.ref, method: effect.method });
-          }
-        } else if (kind === "dom.set" && effect.prop) {
-          element[effect.prop] = effect.value;
-          Logger.debug("[Hydration]", "DOM action set", { ref: effect.ref, prop: effect.prop });
-        } else if (kind === "dom.toggle" && effect.prop) {
-          element[effect.prop] = effect.value;
-          Logger.debug("[Hydration]", "DOM action toggle", { ref: effect.ref, prop: effect.prop, value: effect.value });
-        } else if (kind === "dom.class" && effect.class && element instanceof Element) {
-          if (effect.on === true) {
-            element.classList.add(effect.class);
-          } else {
-            element.classList.remove(effect.class);
-          }
-          Logger.debug("[Hydration]", "DOM action class", { ref: effect.ref, class: effect.class, on: effect.on });
-        } else if (kind === "dom.scroll" && element instanceof Element) {
-          const options = {};
-          if (effect.behavior) options.behavior = effect.behavior;
-          if (effect.block) options.block = effect.block;
-          if (effect.inline) options.inline = effect.inline;
-          element.scrollIntoView(options);
-          Logger.debug("[Hydration]", "DOM action scroll", { ref: effect.ref, options });
-        }
-      } catch (error) {
-        Logger.warn("[Hydration]", "DOM action failed", { ref: effect.ref, kind: effect.kind, error });
-      }
-    }
-    applyCookieEffect(effect) {
-      if (typeof window === "undefined" || typeof fetch !== "function") {
-        return;
-      }
-      if (!effect.endpoint || !effect.sid || !effect.token) {
-        Logger.debug("[Hydration]", "Cookie effect skipped (missing required fields)", effect);
-        return;
-      }
-      const method = effect.method || "POST";
-      Logger.debug("[Hydration]", "Applying cookie effect", { endpoint: effect.endpoint, method });
-      fetch(effect.endpoint, {
-        method,
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          sid: effect.sid,
-          token: effect.token
-        }),
-        credentials: "include"
-      }).then((response) => {
-        if (response.ok) {
-          Logger.debug("[Hydration]", "Cookie effect succeeded", { endpoint: effect.endpoint });
-        } else {
-          Logger.warn("[Hydration]", "Cookie effect failed", { endpoint: effect.endpoint, status: response.status });
-        }
-      }).catch((error) => {
-        Logger.warn("[Hydration]", "Cookie effect error", { endpoint: effect.endpoint, error });
-      });
-    }
-    applyNavigation(nav) {
-      if (typeof window === "undefined" || typeof history === "undefined") {
-        return;
-      }
-      if (!nav.push && !nav.replace && !nav.back) {
-        return;
-      }
-      if (nav.back) {
-        try {
-          history.back();
-          Logger.debug("[Hydration]", "Navigation back");
-        } catch (error) {
-          Logger.warn("[Hydration]", "Navigation back failed", { error });
-        }
-        return;
-      }
-      const url = nav.replace || nav.push;
-      if (!url || typeof url !== "string") {
-        Logger.debug("[Hydration]", "Navigation skipped (invalid URL)", nav);
-        return;
-      }
-      try {
-        if (nav.replace) {
-          history.replaceState(null, "", nav.replace);
-          Logger.debug("[Hydration]", "Navigation replace", { url: nav.replace });
-        } else {
-          history.pushState(null, "", nav.push);
-          Logger.debug("[Hydration]", "Navigation push", { url: nav.push });
-        }
-      } catch (error) {
-        Logger.warn("[Hydration]", "Navigation failed", { url, error });
-      }
-    }
-    resolveRoot() {
-      const root = this.options.root ?? document.body ?? document;
-      if (!root) {
-        return null;
-      }
-      if (root instanceof Element || root instanceof Document || root instanceof ShadowRoot) {
-        return root;
-      }
-      return document.body ?? document;
-    }
-    primeRegistries(payload, root, overrides) {
-      if (!root) {
-        return;
-      }
-      this.dom.reset();
-      this.refs.clear();
-      this.refs.apply(payload.refs);
-      if (payload.bindings?.slots) {
-        registerSlotTable(payload.bindings.slots);
-      } else {
-        registerSlotTable(void 0);
-      }
-      const listRowIndex = buildListRowIndex(payload);
-      this.dom.registerSlotAnchors(payload.slotPaths, overrides);
-      if (Array.isArray(payload.slots)) {
-        this.dom.registerSlots(payload.slots);
-      }
-      this.dom.registerListContainers(payload.listPaths, overrides, listRowIndex);
-      if (payload.bindings?.router) {
-        applyRouterBindings(payload.bindings.router, overrides);
-      }
-      if (payload.bindings?.refs) {
-        this.refs.registerBindings(payload.bindings.refs, overrides);
-      }
-      this.uploads.prime(payload.bindings?.uploads ?? null, overrides);
-      Logger.debug("[Hydration]", "registries primed", {
-        slots: payload.slotPaths?.length ?? 0,
-        lists: payload.listPaths?.length ?? 0,
-        routers: payload.bindings?.router?.length ?? 0,
-        refs: payload.bindings?.refs?.length ?? 0,
-        uploads: payload.bindings?.uploads?.length ?? 0
-      });
-    }
-    handleDOMRequest(msg) {
-      if (!msg || !msg.id || !msg.ref) {
-        this.runtime.sendDOMResponse({ id: msg?.id ?? "", error: "invalid request" });
-        return;
-      }
-      const element = this.refs.get(msg.ref);
-      if (!element) {
-        this.runtime.sendDOMResponse({ id: msg.id, error: "element not found" });
-        return;
-      }
-      try {
-        let result;
-        const values = {};
-        if (msg.method && typeof element[msg.method] === "function") {
-          const args = Array.isArray(msg.args) ? msg.args : [];
-          result = element[msg.method](...args);
-        }
-        if (Array.isArray(msg.props)) {
-          msg.props.forEach((prop) => {
-            if (prop) {
-              values[prop] = element[prop];
-            }
-          });
-        }
-        this.runtime.sendDOMResponse({
-          id: msg.id,
-          result,
-          values: Object.keys(values).length > 0 ? values : void 0
-        });
-      } catch (error) {
-        this.runtime.sendDOMResponse({
-          id: msg.id,
-          error: error instanceof Error ? error.message : "unknown error"
-        });
-      }
-    }
-    getRegistry() {
-      return this.dom;
-    }
-  };
-  function pruneWhitespace(root) {
-    if (!root || typeof Node === "undefined") {
-      return;
-    }
-    const doc = (root instanceof Document ? root : root.ownerDocument) ?? document;
-    if (!doc || typeof doc.createTreeWalker !== "function") {
-      return;
-    }
-    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-    const removals = [];
-    let current = walker.nextNode();
-    while (current) {
-      if (current.nodeType === Node.TEXT_NODE) {
-        const text = current.textContent ?? "";
-        if (!text.trim()) {
-          removals.push(current);
-        }
-      }
-      current = walker.nextNode();
-    }
-    removals.forEach((node) => {
-      if (node.parentNode) {
-        node.parentNode.removeChild(node);
-      }
-    });
-  }
-  function buildListRowIndex(payload) {
-    const map = /* @__PURE__ */ new Map();
-    if (!payload || !Array.isArray(payload.d)) {
-      return map;
-    }
-    const slots = Array.isArray(payload.slots) ? payload.slots : [];
-    payload.d.forEach((slot, index) => {
-      if (!slot || slot.kind !== "list" || !Array.isArray(slot.list) || slot.list.length === 0) {
-        return;
-      }
-      const entries = slot.list.map((row) => {
-        if (!row || typeof row.key !== "string" || row.key.length === 0) {
-          return void 0;
-        }
-        const count = Math.max(1, Number(row.rootCount) || 1);
-        return { key: row.key, count };
-      }).filter((entry) => Boolean(entry));
-      if (entries.length === 0) {
-        return;
-      }
-      const slotId = slots[index]?.anchorId ?? index;
-      map.set(slotId, entries);
-    });
-    return map;
-  }
 
   // src/event-detail.ts
   function extractEventDetail(event, props, options) {
@@ -3771,279 +1901,538 @@ var LiveUIModule = (() => {
     }
   }
 
-  // src/event-delegation.ts
-  var EventDelegation = class {
-    constructor(dom, runtime) {
-      this.dom = dom;
-      this.runtime = runtime;
-      this.handlers = /* @__PURE__ */ new Map();
+  // src/events.ts
+  var EventManager = class {
+    constructor(channel, sid) {
+      this.channel = channel;
+      this.sid = sid;
+      this.listeners = /* @__PURE__ */ new WeakMap();
     }
-    setup() {
-      if (typeof document === "undefined") {
-        return;
+    attach(node) {
+      if (!node) return;
+      if (node.el && node.handlers && node.handlers.length > 0) {
+        this.bindEvents(node);
       }
-      this.registerEvents(["click"]);
-      this.registerEvents(getRegisteredSlotEvents());
-      this.stopSlotObserver = observeSlotEvents((event) => this.bind(event));
-      Logger.debug("[Delegation]", "event delegation setup complete", {
-        handlers: this.handlers.size
-      });
-    }
-    teardown() {
-      if (typeof document === "undefined") {
-        return;
-      }
-      if (this.stopSlotObserver) {
-        this.stopSlotObserver();
-        this.stopSlotObserver = void 0;
-      }
-      this.handlers.forEach((listener, event) => {
-        document.removeEventListener(event, listener, true);
-      });
-      this.handlers.clear();
-      Logger.debug("[Delegation]", "event delegation torn down");
-    }
-    registerEvents(events) {
-      events.forEach((event) => this.bind(event));
-    }
-    bind(event) {
-      if (this.handlers.has(event) || typeof document === "undefined") {
-        return;
-      }
-      const listener = (e) => this.handleEvent(event, e);
-      document.addEventListener(event, listener, true);
-      this.handlers.set(event, listener);
-      Logger.debug("[Delegation]", "bound event listener", { event });
-    }
-    handleEvent(event, e) {
-      const target = e.target;
-      if (!(target instanceof Element)) {
-        return;
-      }
-      const router = getRouterMeta(target);
-      if (event === "click") {
-        let debugInfo = [];
-        let current = target;
-        while (current && debugInfo.length < 5) {
-          const debug = current.__routerDebug;
-          debugInfo.push({
-            tag: current.tagName,
-            hasDebug: !!debug,
-            debugPath: debug?.path,
-            isConnected: current.isConnected
-          });
-          current = current.parentElement;
+      if (node.children) {
+        for (const child of node.children) {
+          this.attach(child);
         }
-        Logger.debug("[Delegation]", "click event", {
-          tag: target.tagName,
-          hasRouterMeta: !!router,
-          hasPath: !!router?.path,
-          parentChain: debugInfo
-        });
       }
-      if (router && router.path && event === "click") {
-        Logger.debug("[Delegation]", "router navigation triggered", {
-          path: router.path,
-          query: router.query,
-          hash: router.hash,
-          replace: router.replace
-        });
-        this.runtime.sendNavigation(router.path, router.query ?? "", router.hash ?? "");
-        e.preventDefault();
-        return;
+    }
+    detach(node) {
+      if (!node) return;
+      if (node.el) {
+        this.unbindEvents(node.el);
       }
-      const slotIds = getSlotsForEvent(event);
-      for (const slotId of slotIds) {
-        const specs = getSlotBindings(slotId) ?? [];
-        const node = this.dom.getSlot(slotId);
-        if (node instanceof Element && (node === target || node.contains(target))) {
-          const binding = specs.find((spec) => spec.event === event);
-          if (binding) {
-            const detail = extractEventDetail(e, binding.props);
-            this.runtime.sendEvent(binding.handler, detail ? { name: event, detail } : { name: event });
-            Logger.debug("[Delegation]", "slot event dispatched", {
-              slotId,
-              handler: binding.handler,
-              event
-            });
-            break;
+      if (node.children) {
+        for (const child of node.children) {
+          this.detach(child);
+        }
+      }
+    }
+    bindEvents(node) {
+      if (!node.el || !node.handlers) return;
+      const el = node.el;
+      let nodeListeners = this.listeners.get(el);
+      if (!nodeListeners) {
+        nodeListeners = /* @__PURE__ */ new Map();
+        this.listeners.set(el, nodeListeners);
+      }
+      for (const h of node.handlers) {
+        if (nodeListeners.has(h.event)) {
+          continue;
+        }
+        const listener = (e) => {
+          e.preventDefault();
+          this.triggerHandler(h, e, node);
+          if (!h.listen || !h.listen.includes("bubble")) {
+            e.stopPropagation();
           }
+        };
+        el.addEventListener(h.event, listener);
+        nodeListeners.set(h.event, listener);
+        Logger.debug("Events", "Attached listener", { event: h.event, handler: h.handler });
+      }
+    }
+    unbindEvents(el) {
+      const nodeListeners = this.listeners.get(el);
+      if (!nodeListeners) return;
+      for (const [event, listener] of nodeListeners.entries()) {
+        el.removeEventListener(event, listener);
+      }
+      this.listeners.delete(el);
+    }
+    triggerHandler(handler, e, node) {
+      Logger.debug("Events", "Triggering handler", { handlerId: handler.handler, type: e.type });
+      const refElement = node.el instanceof Element ? node.el : void 0;
+      const detail = extractEventDetail(e, handler.props, { refElement });
+      const payload = {
+        name: e.type
+      };
+      if (detail !== void 0) {
+        payload.detail = detail;
+      }
+      this.channel.sendMessage("evt", {
+        t: "evt",
+        sid: this.sid,
+        hid: handler.handler,
+        payload
+      });
+    }
+  };
+
+  // src/router.ts
+  var Router = class {
+    constructor(channel, sessionId) {
+      this.channel = channel;
+      this.sessionId = sessionId;
+      this.listeners = /* @__PURE__ */ new WeakMap();
+      window.addEventListener("popstate", (e) => this.onPopState(e));
+    }
+    attach(node) {
+      if (!node || !node.router || !node.el) return;
+      const el = node.el;
+      if (this.listeners.has(el)) return;
+      const listener = (e) => {
+        e.preventDefault();
+        this.navigate(node.router);
+      };
+      el.addEventListener("click", listener);
+      this.listeners.set(el, listener);
+    }
+    detach(node) {
+      if (!node || !node.el) return;
+      const el = node.el;
+      const listener = this.listeners.get(el);
+      if (listener) {
+        el.removeEventListener("click", listener);
+        this.listeners.delete(el);
+      }
+    }
+    navigate(meta) {
+      const path = meta.path || window.location.pathname;
+      const query = meta.query !== void 0 ? meta.query : window.location.search;
+      const hash = meta.hash !== void 0 ? meta.hash : window.location.hash;
+      const cleanQuery = query.startsWith("?") ? query.substring(1) : query;
+      const url = path + (cleanQuery ? "?" + cleanQuery : "") + (hash ? "#" + hash : "");
+      if (meta.replace) {
+        window.history.replaceState({}, "", url);
+      } else {
+        window.history.pushState({}, "", url);
+      }
+      this.sendNav("nav", path, cleanQuery, hash);
+    }
+    onPopState(_e) {
+      const path = window.location.pathname;
+      const query = window.location.search;
+      const hash = window.location.hash;
+      this.sendNav("pop", path, query, hash);
+    }
+    sendNav(type, path, query, hash) {
+      Logger.debug("Router", `Sending ${type}`, { path, query, hash });
+      const q = query.startsWith("?") ? query.substring(1) : query;
+      this.channel.sendMessage(type, {
+        sid: this.sessionId,
+        path,
+        q,
+        hash
+      });
+    }
+  };
+
+  // src/dom_actions.ts
+  var DOMActionExecutor = class {
+    constructor(refs) {
+      this.refs = refs;
+    }
+    execute(effects) {
+      if (!effects || effects.length === 0) return;
+      for (const effect of effects) {
+        this.executeOne(effect);
+      }
+    }
+    executeOne(effect) {
+      const node = this.refs.get(effect.ref);
+      if (!node || !node.el) {
+        Logger.warn("DOMAction", "Ref not found", { ref: effect.ref });
+        return;
+      }
+      const el = node.el;
+      try {
+        switch (effect.kind) {
+          case "dom.call":
+            if (effect.method && typeof el[effect.method] === "function") {
+              el[effect.method](...effect.args || []);
+            } else {
+              Logger.warn("DOMAction", "Method not found", { method: effect.method });
+            }
+            break;
+          case "dom.set":
+            if (effect.prop) {
+              el[effect.prop] = effect.value;
+            }
+            break;
+          case "dom.toggle":
+            if (effect.prop) {
+              el[effect.prop] = !el[effect.prop];
+            }
+            break;
+          case "dom.class":
+            if (effect.class) {
+              if (effect.on === true) {
+                el.classList.add(effect.class);
+              } else if (effect.on === false) {
+                el.classList.remove(effect.class);
+              } else {
+                el.classList.toggle(effect.class);
+              }
+            }
+            break;
+          case "dom.scroll":
+            if (el.scrollIntoView) {
+              const opts = {};
+              if (effect.behavior) opts.behavior = effect.behavior;
+              if (effect.block) opts.block = effect.block;
+              if (effect.inline) opts.inline = effect.inline;
+              el.scrollIntoView(opts);
+            }
+            break;
+          default:
+            Logger.warn("DOMAction", "Unknown action kind", { kind: effect.kind });
+        }
+      } catch (e) {
+        Logger.error("DOMAction", "Execution failed", e);
+      }
+    }
+  };
+
+  // src/uploads.ts
+  var UploadManager = class {
+    constructor(runtime) {
+      this.runtime = runtime;
+      this.bindings = /* @__PURE__ */ new Map();
+      this.active = /* @__PURE__ */ new Map();
+    }
+    bind(node, meta) {
+      if (!node.el || !(node.el instanceof HTMLInputElement)) {
+        Logger.warn("Uploads", "Upload binding requires an input element", node);
+        return;
+      }
+      const element = node.el;
+      const uploadId = meta.uploadId;
+      this.unbind(node);
+      const handler = () => this.handleInputChange(uploadId, element, meta);
+      element.addEventListener("change", handler);
+      if (meta.accept && meta.accept.length > 0) {
+        element.setAttribute("accept", meta.accept.join(","));
+      } else {
+        element.removeAttribute("accept");
+      }
+      if (meta.multiple) {
+        element.multiple = true;
+      } else {
+        element.removeAttribute("multiple");
+      }
+      this.bindings.set(uploadId, { node, element, meta, changeHandler: handler });
+      Logger.debug("Uploads", "Bound upload", uploadId);
+    }
+    unbind(node) {
+      for (const [id, binding] of this.bindings.entries()) {
+        if (binding.node === node) {
+          this.detachBinding(id);
+          return;
         }
       }
     }
-  };
-
-  // src/index.ts
-  var LiveUI = class {
-    constructor(options) {
-      this.runtime = new LiveRuntime(options);
-      this._hydration = new HydrationManager(this.runtime);
-      this.events = new EventDelegation(this._hydration.getRegistry(), this.runtime);
-      this.events.setup();
+    detachBinding(uploadId) {
+      const binding = this.bindings.get(uploadId);
+      if (!binding) return;
+      binding.element.removeEventListener("change", binding.changeHandler);
+      this.bindings.delete(uploadId);
+      this.abortUpload(uploadId, false);
+      Logger.debug("Uploads", "Unbound upload", uploadId);
     }
-    connect() {
-      return this.runtime.connect();
-    }
-    disconnect() {
-      this.runtime.disconnect();
-      this.events.teardown();
-    }
-    destroy() {
-      this.runtime.destroy();
-      this.events.teardown();
-    }
-    getState() {
-      return this.runtime.getState();
-    }
-    getBootPayload() {
-      return this.runtime.getBootPayload();
-    }
-    on(event, listener) {
-      return this.runtime.on(event, listener);
-    }
-    once(event, listener) {
-      return this.runtime.once(event, listener);
-    }
-    off(event, listener) {
-      this.runtime.off(event, listener);
-    }
-    sendEvent(handlerId, payload, cseq) {
-      this.runtime.sendEvent(handlerId, payload, cseq);
-    }
-    sendNavigation(path, q, hash) {
-      this.runtime.sendNavigation(path, q, hash);
-    }
-    getHydrationManager() {
-      return this._hydration;
-    }
-  };
-  var index_default = LiveUI;
-
-  // src/entry.ts
-  var bootPromise = null;
-  function getWindow() {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    return window;
-  }
-  function detectBootPayload(target) {
-    if (target.__LIVEUI_BOOT__ && typeof target.__LIVEUI_BOOT__ === "object") {
-      Logger.debug("[Entry]", "Boot payload from window", {
-        sid: target.__LIVEUI_BOOT__.sid,
-        hasListPaths: Array.isArray(target.__LIVEUI_BOOT__.listPaths),
-        listPathsLength: Array.isArray(target.__LIVEUI_BOOT__.listPaths) ? target.__LIVEUI_BOOT__.listPaths.length : 0
-      });
-      return target.__LIVEUI_BOOT__;
-    }
-    if (typeof document === "undefined") {
-      return null;
-    }
-    const script = document.getElementById("live-boot");
-    const content = script?.textContent?.trim();
-    if (!content) {
-      Logger.debug("[Entry]", "No boot script content found");
-      return null;
-    }
-    Logger.debug("[Entry]", "Boot script found", { contentLength: content.length });
-    try {
-      const payload = JSON.parse(content);
-      target.__LIVEUI_BOOT__ = payload;
-      Logger.debug("[Entry]", "Boot payload parsed successfully", {
-        sid: payload.sid,
-        hasListPaths: Array.isArray(payload.listPaths),
-        listPathsLength: Array.isArray(payload.listPaths) ? payload.listPaths.length : 0,
-        listPaths: payload.listPaths,
-        hasComponentPaths: Array.isArray(payload.componentPaths),
-        componentPathsLength: Array.isArray(payload.componentPaths) ? payload.componentPaths.length : 0
-      });
-      return payload;
-    } catch (error) {
-      Logger.error("Failed to parse boot payload", error);
-      return null;
-    }
-  }
-  function attachGlobals(target, instance) {
-    const LiveUIExport = index_default;
-    LiveUIExport.boot = bootClient;
-    LiveUIExport.instance = instance;
-    target.LiveUI = LiveUIExport;
-    target.LiveUIInstance = instance;
-    if (target.__LIVEUI_DEVTOOLS__) {
-      target.__LIVEUI_DEVTOOLS__.installed = true;
-      target.__LIVEUI_DEVTOOLS__.instance = instance;
-    }
-  }
-  function createClient(target) {
-    const inlineOptions = { ...target.__LIVEUI_OPTIONS__ ?? {} };
-    const bootPayload = detectBootPayload(target);
-    const resolvedBoot = inlineOptions.boot ?? bootPayload ?? null;
-    if (resolvedBoot) {
-      inlineOptions.boot = resolvedBoot;
-      target.__LIVEUI_BOOT__ = resolvedBoot;
-      if (typeof resolvedBoot.client?.debug === "boolean") {
-        inlineOptions.debug = resolvedBoot.client.debug;
+    handleControl(message) {
+      if (!message || !message.id) return;
+      Logger.debug("Uploads", "Control message", message);
+      if (message.op === "cancel" || message.op === "error") {
+        this.abortUpload(message.id, true);
       }
     }
-    if (typeof inlineOptions.debug === "undefined") {
-      inlineOptions.debug = false;
+    handleInputChange(uploadId, element, meta) {
+      const files = element.files;
+      if (!files || files.length === 0) {
+        this.sendMessage({ op: "cancelled", id: uploadId });
+        this.abortUpload(uploadId, true);
+        return;
+      }
+      const file = files[0];
+      if (!file) {
+        this.sendMessage({ op: "cancelled", id: uploadId });
+        return;
+      }
+      if (meta.maxSize && meta.maxSize > 0 && file.size > meta.maxSize) {
+        this.sendMessage({
+          op: "error",
+          id: uploadId,
+          error: `File exceeds maximum size (${meta.maxSize} bytes)`
+        });
+        element.value = "";
+        return;
+      }
+      const fileMeta = { name: file.name, size: file.size, type: file.type };
+      this.sendMessage({ op: "change", id: uploadId, meta: fileMeta });
+      this.startUpload(uploadId, file, element);
     }
-    target.__LIVEUI_OPTIONS__ = inlineOptions;
-    const autoConnect = inlineOptions.autoConnect !== false;
-    inlineOptions.autoConnect = false;
-    const client = new index_default(inlineOptions);
-    attachGlobals(target, client);
-    Logger.debug("[Entry]", "LiveUI client created", {
-      autoConnect,
-      debug: inlineOptions.debug,
-      hasBoot: Boolean(resolvedBoot)
-    });
-    if (autoConnect && resolvedBoot) {
-      void client.connect().catch((error) => {
-        Logger.error("Failed to connect after boot", error);
-      });
-    }
-    return client;
-  }
-  function scheduleBoot(target) {
-    return new Promise((resolve, reject) => {
-      const start = () => {
-        try {
-          const instance = createClient(target);
-          resolve(instance);
-        } catch (error) {
-          reject(error);
+    startUpload(uploadId, file, element) {
+      const sid = this.runtime.getSessionId();
+      if (!sid) return;
+      const base = this.runtime.getUploadEndpoint();
+      const target = `${base.replace(/\/+$/, "")}/${encodeURIComponent(sid)}/${encodeURIComponent(uploadId)}`;
+      this.abortUpload(uploadId, false);
+      const xhr = new XMLHttpRequest();
+      xhr.upload.onprogress = (event) => {
+        const loaded = event.loaded;
+        const total = event.lengthComputable ? event.total : file.size;
+        this.sendMessage({ op: "progress", id: uploadId, loaded, total });
+      };
+      xhr.onerror = () => {
+        this.active.delete(uploadId);
+        this.sendMessage({ op: "error", id: uploadId, error: "Upload failed" });
+      };
+      xhr.onabort = () => {
+        this.active.delete(uploadId);
+        this.sendMessage({ op: "cancelled", id: uploadId });
+      };
+      xhr.onload = () => {
+        this.active.delete(uploadId);
+        if (xhr.status < 200 || xhr.status >= 300) {
+          this.sendMessage({ op: "error", id: uploadId, error: `Upload failed (${xhr.status})` });
+        } else {
+          this.sendMessage({ op: "progress", id: uploadId, loaded: file.size, total: file.size });
+          element.value = "";
         }
       };
-      if (typeof document !== "undefined" && document.readyState === "loading") {
-        const handler = () => {
-          document.removeEventListener("DOMContentLoaded", handler);
-          start();
-        };
-        document.addEventListener("DOMContentLoaded", handler);
-      } else {
-        start();
+      const form = new FormData();
+      form.append("file", file);
+      xhr.open("POST", target, true);
+      xhr.send(form);
+      this.active.set(uploadId, { xhr, element });
+      Logger.debug("Uploads", "Started upload", { uploadId, target });
+    }
+    abortUpload(uploadId, clearInput) {
+      const active = this.active.get(uploadId);
+      if (!active) return;
+      active.xhr.abort();
+      if (clearInput) {
+        active.element.value = "";
       }
-    });
-  }
-  function bootClient(options = {}) {
-    const target = getWindow();
-    if (!target) {
-      return Promise.reject(new Error("[LiveUI] window is not available in this environment"));
+      this.active.delete(uploadId);
     }
-    if (options.force) {
-      bootPromise = null;
+    sendMessage(payload) {
+      this.runtime.sendUploadMessage(payload);
     }
-    if (!bootPromise) {
-      bootPromise = scheduleBoot(target);
+  };
+
+  // src/runtime.ts
+  var LiveRuntime = class {
+    constructor() {
+      this.config = {};
+      this.root = null;
+      this.refs = /* @__PURE__ */ new Map();
+      this.sessionId = "";
+      const boot = this.getBootPayload();
+      if (!boot) {
+        Logger.error("Runtime", "No boot payload found");
+        return;
+      }
+      this.sessionId = boot.sid;
+      this.config = boot.client || {};
+      Logger.configure({ debug: boot.client?.debug });
+      Logger.debug("Runtime", "Booting...", boot);
+      this.connect(boot);
+      this.hydrate(boot);
     }
-    return bootPromise;
-  }
+    getBootPayload() {
+      if (typeof window === "undefined") return null;
+      const script = document.getElementById("live-boot");
+      if (script && script.textContent) {
+        try {
+          return JSON.parse(script.textContent);
+        } catch (e) {
+          Logger.error("Runtime", "Failed to parse boot payload", e);
+        }
+      }
+      return window.__LIVEUI_BOOT__ || null;
+    }
+    hydrate(boot) {
+      try {
+        let findHtmlElement2 = function(node) {
+          if (node.tag === "html") {
+            return document.documentElement;
+          }
+          if (node.children) {
+            for (const child of node.children) {
+              const result = findHtmlElement2(child);
+              if (result) return result;
+            }
+          }
+          return null;
+        };
+        var findHtmlElement = findHtmlElement2;
+        const jsonTree = JSON.parse(boot.json);
+        const htmlElement = findHtmlElement2(jsonTree);
+        if (!htmlElement) {
+          Logger.error("Runtime", "Could not find <html> element in JSON tree");
+          return;
+        }
+        this.root = this.hydrateWithComponentWrappers(jsonTree, htmlElement);
+        if (this.eventManager && this.root) {
+          this.eventManager.attach(this.root);
+        }
+        if (this.router && this.root) {
+          this.attachRouterRecursively(this.root);
+        }
+        if (this.eventManager && this.router && this.uploadManager) {
+          this.patcher = new Patcher(this.root, this.eventManager, this.router, this.uploadManager, this.refs);
+        }
+        Logger.debug("Runtime", "Hydration complete");
+      } catch (e) {
+        Logger.error("Runtime", "Hydration failed", e);
+      }
+    }
+    hydrateWithComponentWrappers(jsonNode, htmlElement) {
+      if (jsonNode.tag === "html") {
+        return hydrate(jsonNode, htmlElement, this.refs);
+      }
+      const clientNode = {
+        ...jsonNode,
+        el: null,
+        children: void 0
+      };
+      if (jsonNode.componentId) {
+        clientNode.componentId = jsonNode.componentId;
+      }
+      if (jsonNode.children && jsonNode.children.length > 0) {
+        clientNode.children = [];
+        for (const child of jsonNode.children) {
+          const childNode = this.hydrateWithComponentWrappers(child, htmlElement);
+          clientNode.children.push(childNode);
+        }
+      }
+      return clientNode;
+    }
+    connect(boot) {
+      const endpoint = boot.client?.endpoint || "/live";
+      this.client = new import_pondsocket_client.PondClient(endpoint);
+      const joinPayload = {
+        sid: boot.sid,
+        ver: boot.ver,
+        ack: boot.seq,
+        loc: boot.location
+      };
+      this.channel = this.client.createChannel(`live/${boot.sid}`, joinPayload);
+      this.eventManager = new EventManager(this.channel, boot.sid);
+      this.router = new Router(this.channel, boot.sid);
+      this.uploadManager = new UploadManager(this);
+      this.domActions = new DOMActionExecutor(this.refs);
+      this.channel.onChannelStateChange((state) => {
+        Logger.debug("Runtime", "Channel state:", state);
+      });
+      this.channel.onMessage((_event, payload) => {
+        this.handleMessage(payload);
+      });
+      this.client.connect();
+      this.channel.join();
+    }
+    getSessionId() {
+      return this.sessionId;
+    }
+    getUploadEndpoint() {
+      return this.config.upload || "/pondlive/upload";
+    }
+    sendUploadMessage(payload) {
+      this.channel.sendMessage({ t: "upload", ...payload });
+    }
+    handleMessage(msg) {
+      switch (msg.t) {
+        case "frame":
+          this.handleFrame(msg);
+          break;
+        case "init":
+          this.handleInit(msg);
+          break;
+        case "domreq":
+          this.handleDOMRequest(msg);
+          break;
+        case "upload":
+          this.uploadManager.handleControl(msg);
+          break;
+        default:
+          Logger.debug("Runtime", "Unknown message type", msg.t);
+      }
+    }
+    handleFrame(frame) {
+      Logger.debug("Runtime", "Received frame", { seq: frame.seq, ops: frame.patch.length });
+      if (this.patcher && frame.patch && frame.patch.length > 0) {
+        this.patcher.apply(frame.patch);
+      }
+      if (frame.effects) {
+        this.domActions.execute(frame.effects);
+      }
+    }
+    handleInit(init) {
+      Logger.debug("Runtime", "Re-initialized", init);
+    }
+    handleDOMRequest(req) {
+      const { id, ref, props, method, args } = req;
+      const node = this.refs.get(ref);
+      if (!node || !node.el) {
+        this.sendDOMResponse({ t: "domres", id, error: "ref not found" });
+        return;
+      }
+      const el = node.el;
+      try {
+        let result;
+        let values;
+        if (props && Array.isArray(props)) {
+          values = {};
+          for (const prop of props) {
+            values[prop] = el[prop];
+          }
+        }
+        if (method && typeof el[method] === "function") {
+          result = el[method](...args || []);
+        }
+        this.sendDOMResponse({ t: "domres", id, result, values });
+      } catch (e) {
+        this.sendDOMResponse({ t: "domres", id, error: e.message || "unknown error" });
+      }
+    }
+    sendDOMResponse(response) {
+      this.channel.sendMessage("domres", {
+        ...response,
+        sid: this.sessionId
+      });
+    }
+    attachRouterRecursively(node) {
+      if (this.router) {
+        this.router.attach(node);
+      }
+      if (node.children) {
+        for (const child of node.children) {
+          this.attachRouterRecursively(child);
+        }
+      }
+    }
+  };
+
+  // src/entry.ts
   if (typeof window !== "undefined") {
-    void bootClient().catch((error) => {
-      Logger.error("Boot failed", error);
+    window.addEventListener("DOMContentLoaded", () => {
+      const instance = new LiveRuntime();
+      window.__LIVEUI__ = instance;
     });
   }
-  return __toCommonJS(entry_exports);
 })();
 //# sourceMappingURL=pondlive-dev.js.map

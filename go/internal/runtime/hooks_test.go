@@ -3,8 +3,8 @@ package runtime
 import (
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/dom2"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom2/diff"
+	"github.com/eleven-am/pondlive/go/internal/dom"
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
 func TestUseState(t *testing.T) {
@@ -12,10 +12,10 @@ func TestUseState(t *testing.T) {
 	var getCount func() int
 	var setCount func(int)
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		renderCount++
 		getCount, setCount = UseState(ctx, 0)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -57,10 +57,10 @@ func TestUseStateEquality(t *testing.T) {
 	renderCount := 0
 	var setCount func(int)
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		renderCount++
 		_, setCount = UseState(ctx, 10)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -95,10 +95,10 @@ func TestUseRef(t *testing.T) {
 	renderCount := 0
 	var ref *Ref[int]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		renderCount++
 		ref = UseRef(ctx, 0)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -140,7 +140,7 @@ func TestUseMemo(t *testing.T) {
 	computeCount := 0
 	var setDep func(int)
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		renderCount++
 		dep, set := UseState(ctx, 1)
 		setDep = set
@@ -150,7 +150,7 @@ func TestUseMemo(t *testing.T) {
 			return dep() * 2
 		}, dep())
 
-		return &dom2.StructuredNode{
+		return &dom.StructuredNode{
 			Tag:  "div",
 			Text: string(rune(result)),
 		}
@@ -197,13 +197,13 @@ func TestUseMemo(t *testing.T) {
 
 func TestHookMismatch(t *testing.T) {
 	condition := true
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		if condition {
 			UseState(ctx, 0)
 		} else {
 			UseRef(ctx, 0)
 		}
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -243,10 +243,10 @@ func (m mockReporter) ReportDiagnostic(d Diagnostic) {
 func TestHookStability(t *testing.T) {
 	var ref1, ref2 *Ref[int]
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		ref1 = UseRef(ctx, 1)
 		ref2 = UseRef(ctx, 2)
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
@@ -278,10 +278,10 @@ func TestMultipleStatesInComponent(t *testing.T) {
 	var getB func() string
 	var setB func(string)
 
-	comp := func(ctx Ctx, props struct{}) *dom2.StructuredNode {
+	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		getA, setA = UseState(ctx, 0)
 		getB, setB = UseState(ctx, "hello")
-		return &dom2.StructuredNode{Tag: "div"}
+		return &dom.StructuredNode{Tag: "div"}
 	}
 
 	sess := NewSession(comp, struct{}{})
