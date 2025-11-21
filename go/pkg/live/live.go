@@ -30,6 +30,7 @@ type (
 	NavMsg                            = router.NavMsg
 	PopMsg                            = router.PopMsg
 	HeaderState                       = session.HeaderState
+	Styles                            = runtime.Styles
 )
 
 // Component wraps a stateless component function so it can be invoked directly
@@ -426,4 +427,36 @@ func WithEqual[T any](eq func(a, b T) bool) StateOpt[T] {
 // returned context to supply overrides, and Use to read it down the tree.
 func NewContext[T any](def T) *Context[T] {
 	return runtime.CreateContext(def)
+}
+
+// UseStyles parses CSS, scopes selectors to the component, and returns a Styles
+// object for accessing scoped class names and the style tag node.
+//
+// Example:
+//
+//	func Card(ctx live.Ctx) h.Node {
+//	    styles := live.UseStyles(ctx, `
+//	        .card {
+//	            background: #fff;
+//	            border-radius: 8px;
+//	            padding: 16px;
+//	        }
+//	        .card:hover {
+//	            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+//	        }
+//	        @media (max-width: 768px) {
+//	            .card { padding: 8px; }
+//	        }
+//	    `)
+//
+//	    return h.Div(
+//	        styles.StyleTag(),
+//	        h.Div(
+//	            h.Class(styles.Class("card")),
+//	            h.Text("Hello"),
+//	        ),
+//	    )
+//	}
+func UseStyles(ctx Ctx, css string) *Styles {
+	return runtime.UseStyles(ctx, css)
 }

@@ -14,7 +14,6 @@ describe('hydrate', () => {
         document.body.innerHTML = 'Hello';
         const json: StructuredNode = { text: 'Hello' };
 
-        // hydrate expects a node, so we pass the text node
         const textNode = document.body.firstChild!;
         const clientNode = hydrate(json, textNode, refs);
 
@@ -79,16 +78,8 @@ describe('hydrate', () => {
     });
 
     it('handles virtual component wrappers (flattening)', () => {
-        // Server sends: Component(div, span) -> flattened in DOM as <div>...</div><span>...</span>
-        // But wait, hydrate takes a single root DOM node.
-        // If the component is a fragment, it doesn't map to a single DOM node.
-        // However, our hydrate function currently takes (json, dom).
-        // This implies 1:1 mapping at the root.
-        // The component wrapper logic in vdom.ts handles children that are wrappers.
-
         document.body.innerHTML = '<div>A</div><div>B</div>';
 
-        // Parent container
         const container = document.createElement('div');
         container.innerHTML = '<div>A</div><div>B</div>';
 
@@ -96,7 +87,6 @@ describe('hydrate', () => {
             tag: 'div',
             children: [
                 {
-                    // Virtual wrapper
                     componentId: 'comp-1',
                     children: [
                         { tag: 'div', children: [{ text: 'A' }] },
@@ -108,13 +98,11 @@ describe('hydrate', () => {
 
         const clientNode = hydrate(json, container, refs);
 
-        // The wrapper should be in clientNode.children
         expect(clientNode.children).toHaveLength(1);
         const wrapper = clientNode.children![0];
         expect(wrapper.componentId).toBe('comp-1');
         expect(wrapper.el).toBeNull();
 
-        // The wrapper should have 2 children, mapping to the DOM nodes
         expect(wrapper.children).toHaveLength(2);
         expect(wrapper.children![0].tag).toBe('div');
         expect(wrapper.children![0].children![0].text).toBe('A');

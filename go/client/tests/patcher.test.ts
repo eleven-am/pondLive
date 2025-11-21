@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Patcher } from '../src/patcher';
 import { EventManager } from '../src/events';
 import { Router } from '../src/router';
-import { ClientNode, Patch, StructuredNode } from '../src/types';
+import { ClientNode, Patch, StructuredNode, Stylesheet } from '../src/types';
 import { hydrate } from '../src/vdom';
 
 describe('Patcher', () => {
@@ -29,20 +29,19 @@ describe('Patcher', () => {
       ]
     };
 
-    // Mocks
     events = { attach: vi.fn(), detach: vi.fn() } as any;
-    router = { attach: vi.fn(), detach: vi.fn() } as any; // Updated router mock
-    uploads = { bind: vi.fn(), unbind: vi.fn() } as any; // New uploads mock
-    refs = new Map<string, ClientNode>() as any; // Updated refs to be a Map
+    router = { attach: vi.fn(), detach: vi.fn() } as any;
+    uploads = { bind: vi.fn(), unbind: vi.fn() } as any;
+    refs = new Map<string, ClientNode>() as any;
 
     root = hydrate(json, container, refs);
-    patcher = new Patcher(root, events, router, uploads, refs); // Updated Patcher constructor call
+    patcher = new Patcher(root, events, router, uploads, refs);
   });
 
   it('setText', () => {
     const patch: Patch = {
       op: 'setText',
-      path: [0, 0], // div -> text
+      path: [0, 0],
       value: 'Updated'
     };
     patcher.apply(patch);
@@ -53,7 +52,7 @@ describe('Patcher', () => {
   it('setAttr', () => {
     const patch: Patch = {
       op: 'setAttr',
-      path: [0], // div
+      path: [0],
       value: { class: ['new-class', 'another'] }
     };
     patcher.apply(patch);
@@ -77,17 +76,14 @@ describe('Patcher', () => {
   it('addChild', () => {
     const patch: Patch = {
       op: 'addChild',
-      path: [0], // Add to div
+      path: [0],
       index: 1,
       value: { tag: 'span', children: [{ text: 'New' }] }
     };
     patcher.apply(patch);
 
     const div = container.firstElementChild!;
-    expect(div.children).toHaveLength(1); // Original text + new span? No, text is node, span is element.
-    // Original: <div>"Original"</div>
-    // Added: <span>"New"</span> at index 1
-
+    expect(div.children).toHaveLength(1);
     expect(div.childNodes).toHaveLength(2);
     expect(div.childNodes[1].nodeName).toBe('SPAN');
     expect(div.childNodes[1].textContent).toBe('New');
@@ -99,8 +95,8 @@ describe('Patcher', () => {
   it('delChild', () => {
     const patch: Patch = {
       op: 'delChild',
-      path: [0], // div
-      index: 0 // delete text node "Original"
+      path: [0],
+      index: 0
     };
     patcher.apply(patch);
 
@@ -115,7 +111,7 @@ describe('Patcher', () => {
   it('replaceNode', () => {
     const patch: Patch = {
       op: 'replaceNode',
-      path: [0], // Replace the div
+      path: [0],
       value: { tag: 'p', children: [{ text: 'Replaced' }] }
     };
     patcher.apply(patch);
@@ -140,20 +136,13 @@ describe('Patcher', () => {
   });
 
   it('setStyleDecl', () => {
-    // Setup style element
     const styleEl = document.createElement('style');
     styleEl.textContent = '.test { color: blue; }';
     container.appendChild(styleEl);
-    // We need to manually attach it to a ClientNode
     const styleNode: ClientNode = { tag: 'style', el: styleEl };
     root.children!.push(styleNode);
 
-    // In JSDOM, style sheets might need some help or might not parse fully without layout.
-    // But let's try.
-    // Note: JSDOM support for CSSStyleSheet is limited.
-    // We might need to mock the sheet if JSDOM doesn't parse it.
     if (!styleEl.sheet) {
-      // Mock sheet
       const sheet = {
         cssRules: [
           {
@@ -167,7 +156,7 @@ describe('Patcher', () => {
 
     const patch: Patch = {
       op: 'setStyleDecl',
-      path: [1], // The style node we added
+      path: [1],
       selector: '.test',
       name: 'color',
       value: 'green'
@@ -175,7 +164,6 @@ describe('Patcher', () => {
     patcher.apply(patch);
 
     const rule = styleEl.sheet!.cssRules[0] as CSSStyleRule;
-    // If mocked
     if (vi.isMockFunction(rule.style.setProperty)) {
       expect(rule.style.setProperty).toHaveBeenCalledWith('color', 'green');
     } else {
@@ -216,5 +204,110 @@ describe('Patcher', () => {
     const ul = container.firstElementChild as HTMLUListElement;
     expect(ul.children[0].textContent).toBe('B');
     expect(ul.children[1].textContent).toBe('A');
+  });
+
+  it('renders style element with stylesheet rules', () => {
+    const styleJson: StructuredNode = {
+      tag: 'style',
+      stylesheet: {
+        rules: [
+          { selector: '.card', props: { color: 'red', background: '#fff' } },
+          { selector: '.btn', props: { padding: '10px' } }
+        ]
+      }
+    };
+
+    const patch: Patch = {
+      op: 'addChild',
+      path: [],
+      index: 0,
+      value: styleJson
+    };
+
+    patcher.apply(patch);
+
+    const styleEl = root.children![0].el as HTMLStyleElement;
+    expect(styleEl.tagName).toBe('STYLE');
+    expect(styleEl.textContent).toContain('.card');
+    expect(styleEl.textContent).toContain('color: red;');
+    expect(styleEl.textContent).toContain('background: #fff;');
+    expect(styleEl.textContent).toContain('.btn');
+    expect(styleEl.textContent).toContain('padding: 10px;');
+  });
+
+  it('renders style element with media blocks', () => {
+    const styleJson: StructuredNode = {
+      tag: 'style',
+      stylesheet: {
+        rules: [
+          { selector: '.card', props: { color: 'blue' } }
+        ],
+        mediaBlocks: [
+          {
+            query: '(max-width: 768px)',
+            rules: [
+              { selector: '.card', props: { 'font-size': '14px' } }
+            ]
+          }
+        ]
+      }
+    };
+
+    const patch: Patch = {
+      op: 'addChild',
+      path: [],
+      index: 0,
+      value: styleJson
+    };
+
+    patcher.apply(patch);
+
+    const styleEl = root.children![0].el as HTMLStyleElement;
+    expect(styleEl.textContent).toContain('.card { color: blue; }');
+    expect(styleEl.textContent).toContain('@media (max-width: 768px)');
+    expect(styleEl.textContent).toContain('.card { font-size: 14px; }');
+  });
+
+  it('renders style element with multiple media blocks', () => {
+    const styleJson: StructuredNode = {
+      tag: 'style',
+      stylesheet: {
+        rules: [
+          { selector: '.container', props: { width: '100%' } }
+        ],
+        mediaBlocks: [
+          {
+            query: '(min-width: 768px)',
+            rules: [
+              { selector: '.container', props: { width: '750px' } }
+            ]
+          },
+          {
+            query: '(min-width: 1024px)',
+            rules: [
+              { selector: '.container', props: { width: '960px' } },
+              { selector: '.sidebar', props: { display: 'block' } }
+            ]
+          }
+        ]
+      }
+    };
+
+    const patch: Patch = {
+      op: 'addChild',
+      path: [],
+      index: 0,
+      value: styleJson
+    };
+
+    patcher.apply(patch);
+
+    const styleEl = root.children![0].el as HTMLStyleElement;
+    const content = styleEl.textContent!;
+
+    expect(content).toContain('.container { width: 100%; }');
+    expect(content).toContain('@media (min-width: 768px)');
+    expect(content).toContain('@media (min-width: 1024px)');
+    expect(content).toContain('.sidebar { display: block; }');
   });
 });

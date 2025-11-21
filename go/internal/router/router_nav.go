@@ -109,7 +109,6 @@ func currentSessionLocation(ctx runtime.Ctx) Location {
 }
 
 func recordNavigation(ctx runtime.Ctx, loc Location, replace bool) {
-
-	_ = loc
-	_ = replace
+	href := BuildHref(loc.Path, loc.Query, loc.Hash)
+	ctx.EnqueueNavigation(href, replace)
 }

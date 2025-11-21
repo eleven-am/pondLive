@@ -68,22 +68,22 @@ func TestValidation(t *testing.T) {
 			errMsg:  "cannot have both UnsafeHTML and Children",
 		},
 		{
-			name: "styles on non-style element",
+			name: "stylesheet on non-style element",
 			node: &StructuredNode{
 				Tag: "div",
-				Styles: map[string]map[string]string{
-					"card": {"color": "red"},
+				Stylesheet: &Stylesheet{
+					Rules: []StyleRule{{Selector: "card", Props: map[string]string{"color": "red"}}},
 				},
 			},
 			wantErr: true,
-			errMsg:  "styles map only valid on <style> elements",
+			errMsg:  "stylesheet only valid on <style> elements",
 		},
 		{
-			name: "styles on style element",
+			name: "stylesheet on style element",
 			node: &StructuredNode{
 				Tag: "style",
-				Styles: map[string]map[string]string{
-					"card": {"color": "red"},
+				Stylesheet: &Stylesheet{
+					Rules: []StyleRule{{Selector: "card", Props: map[string]string{"color": "red"}}},
 				},
 			},
 			wantErr: false,
@@ -195,17 +195,14 @@ func TestHTMLRendering(t *testing.T) {
 			name: "style element with stylesheet",
 			node: &StructuredNode{
 				Tag: "style",
-				Styles: map[string]map[string]string{
-					"card": {
-						"background": "#fff",
-						"color":      "#111",
-					},
-					"card:hover": {
-						"background": "#eee",
+				Stylesheet: &Stylesheet{
+					Rules: []StyleRule{
+						{Selector: "card", Props: map[string]string{"background": "#fff", "color": "#111"}},
+						{Selector: "card:hover", Props: map[string]string{"background": "#eee"}},
 					},
 				},
 			},
-			want: `<style>card { background: #fff; color: #111; } card:hover { background: #eee; }</style>`,
+			want: "<style>card { background: #fff; color: #111 }\ncard:hover { background: #eee }\n</style>",
 		},
 		{
 			name: "element with unsafe html",
@@ -404,5 +401,94 @@ func TestApplyTo(t *testing.T) {
 
 	if html != expected {
 		t.Errorf("ApplyTo HTML output:\ngot:  %s\nwant: %s", html, expected)
+	}
+}
+
+// TestAdjacentTextNodeMerging tests that adjacent text nodes are merged (like browser normalization)
+func TestAdjacentTextNodeMerging(t *testing.T) {
+	tests := []struct {
+		name         string
+		texts        []string
+		wantChildren int
+		wantText     string
+	}{
+		{
+			name:         "two adjacent text nodes",
+			texts:        []string{"Hello", "World"},
+			wantChildren: 1,
+			wantText:     "HelloWorld",
+		},
+		{
+			name:         "three adjacent text nodes",
+			texts:        []string{"Line1", "Line2", "Line3"},
+			wantChildren: 1,
+			wantText:     "Line1Line2Line3",
+		},
+		{
+			name:         "single text node",
+			texts:        []string{"OnlyText"},
+			wantChildren: 1,
+			wantText:     "OnlyText",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parent := ElementNode("div")
+			for _, text := range tt.texts {
+				TextNode(text).ApplyTo(parent)
+			}
+
+			if len(parent.Children) != tt.wantChildren {
+				t.Errorf("expected %d children, got %d", tt.wantChildren, len(parent.Children))
+			}
+
+			if len(parent.Children) > 0 && parent.Children[0].Text != tt.wantText {
+				t.Errorf("expected text %q, got %q", tt.wantText, parent.Children[0].Text)
+			}
+		})
+	}
+}
+
+// TestTextNodeNotMergedWithElement verifies text nodes aren't merged when element is between
+func TestTextNodeNotMergedWithElement(t *testing.T) {
+	parent := ElementNode("div")
+
+	TextNode("Before").ApplyTo(parent)
+	ElementNode("span").ApplyTo(parent)
+	TextNode("After").ApplyTo(parent)
+
+	if len(parent.Children) != 3 {
+		t.Errorf("expected 3 children, got %d", len(parent.Children))
+	}
+
+	if parent.Children[0].Text != "Before" {
+		t.Errorf("first child text: got %q, want %q", parent.Children[0].Text, "Before")
+	}
+	if parent.Children[1].Tag != "span" {
+		t.Errorf("second child should be span element")
+	}
+	if parent.Children[2].Text != "After" {
+		t.Errorf("third child text: got %q, want %q", parent.Children[2].Text, "After")
+	}
+}
+
+// TestTextMergeAfterElement verifies text merging only happens for adjacent texts
+func TestTextMergeAfterElement(t *testing.T) {
+	parent := ElementNode("div")
+
+	ElementNode("span").ApplyTo(parent)
+	TextNode("First").ApplyTo(parent)
+	TextNode("Second").ApplyTo(parent)
+
+	if len(parent.Children) != 2 {
+		t.Errorf("expected 2 children (span + merged text), got %d", len(parent.Children))
+	}
+
+	if parent.Children[0].Tag != "span" {
+		t.Errorf("first child should be span element")
+	}
+	if parent.Children[1].Text != "FirstSecond" {
+		t.Errorf("second child text: got %q, want %q", parent.Children[1].Text, "FirstSecond")
 	}
 }

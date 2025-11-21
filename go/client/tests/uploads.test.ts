@@ -32,8 +32,6 @@ describe('UploadManager', () => {
         const meta: UploadMeta = { uploadId: 'up1' };
         manager.bind(node, meta);
 
-        // We can't easily check if listener is removed in JSDOM without spying on add/removeEventListener
-        // But we can check if unbind runs without error
         manager.unbind(node);
     });
 
@@ -41,14 +39,12 @@ describe('UploadManager', () => {
         const meta: UploadMeta = { uploadId: 'up1' };
         manager.bind(node, meta);
 
-        // Mock file
         const file = new File(['content'], 'test.txt', { type: 'text/plain' });
         Object.defineProperty(input, 'files', {
             value: [file],
             writable: false
         });
 
-        // Trigger change
         input.dispatchEvent(new Event('change'));
 
         expect(runtime.sendUploadMessage).toHaveBeenCalledWith(expect.objectContaining({
@@ -62,7 +58,7 @@ describe('UploadManager', () => {
         const meta: UploadMeta = { uploadId: 'up1', maxSize: 5 };
         manager.bind(node, meta);
 
-        const file = new File(['content'], 'test.txt', { type: 'text/plain' }); // 7 bytes
+        const file = new File(['content'], 'test.txt', { type: 'text/plain' });
         Object.defineProperty(input, 'files', {
             value: [file],
             writable: false

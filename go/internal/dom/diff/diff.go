@@ -61,7 +61,7 @@ func diffElement(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
 	diffStyle(patches, path, a, b)
 
 	if a.Tag == "style" || b.Tag == "style" {
-		diffStyles(patches, path, a, b)
+		diffStylesheet(patches, path, a, b)
 	}
 
 	if a.RefID != b.RefID {
@@ -172,11 +172,6 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 		}
 	}
 
-	// ============================================================
-	// PHASE 1: DELETIONS (emit in reverse order for stable indexes)
-	// ============================================================
-	// Collect indices to delete, then emit in reverse order so each
-	// deletion index is valid at the time of application.
 	var toDelete []int
 	for oldIdx, oldChild := range a {
 		if retained[oldIdx] {
@@ -336,19 +331,13 @@ func diffStyle(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
 	}
 }
 
-func diffStyles(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
-	if a.Styles == nil && b.Styles == nil {
+func diffStylesheet(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
+	if a.Stylesheet == nil && b.Stylesheet == nil {
 		return
 	}
 
-	aStyles := a.Styles
-	bStyles := b.Styles
-	if aStyles == nil {
-		aStyles = map[string]map[string]string{}
-	}
-	if bStyles == nil {
-		bStyles = map[string]map[string]string{}
-	}
+	aStyles := stylesheetToMap(a.Stylesheet)
+	bStyles := stylesheetToMap(b.Stylesheet)
 
 	allSelectors := make(map[string]struct{})
 	for sel := range aStyles {
@@ -411,6 +400,29 @@ func diffStyles(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
 			}
 		}
 	}
+}
+
+// stylesheetToMap converts a Stylesheet to a selector->props map for diffing.
+// Media block rules are prefixed with their query for unique identification.
+func stylesheetToMap(ss *dom.Stylesheet) map[string]map[string]string {
+	if ss == nil {
+		return map[string]map[string]string{}
+	}
+
+	result := make(map[string]map[string]string)
+
+	for _, rule := range ss.Rules {
+		result[rule.Selector] = rule.Props
+	}
+
+	for _, media := range ss.MediaBlocks {
+		for _, rule := range media.Rules {
+			key := "@media " + media.Query + " " + rule.Selector
+			result[key] = rule.Props
+		}
+	}
+
+	return result
 }
 
 type nodeType int

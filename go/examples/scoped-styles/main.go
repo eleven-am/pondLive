@@ -57,30 +57,17 @@ func HomePage(ctx ui.Ctx) h.Node {
 		Description: "Demonstrating component-scoped CSS with UseStyles",
 	})
 
-	return h.Html(
-		meta.Head(
-			h.Meta(h.Attr("charset", "utf-8")),
-			h.TitleEl(h.Text("Scoped Styles Demo")),
-		),
-		h.Body(
-			h.Div(
-				h.Style("font-family", "system-ui, sans-serif"),
-				h.Style("max-width", "800px"),
-				h.Style("margin", "2rem auto"),
-				h.Style("padding", "2rem"),
-
-				h.H1(h.Text("Component Scoped Styles Demo")),
-				h.P(h.Text("Both components below use the same class names (.card, .title, .content) but have different styles. The styles are automatically scoped to prevent collisions.")),
-
-				h.Div(h.Style("margin-top", "2rem")),
-
-				RedCard(ctx),
-
-				h.Div(h.Style("margin-top", "2rem")),
-
-				BlueCard(ctx),
-			),
-		),
+	return h.Div(
+		h.Style("font-family", "system-ui, sans-serif"),
+		h.Style("max-width", "800px"),
+		h.Style("margin", "2rem auto"),
+		h.Style("padding", "2rem"),
+		h.H1(h.Text("Component Scoped Styles Demo")),
+		h.P(h.Text("Both components below use the same class names (.card, .title, .content) but have different styles. The styles are automatically scoped to prevent collisions.")),
+		h.Div(h.Style("margin-top", "2rem")),
+		RedCard(ctx),
+		h.Div(h.Style("margin-top", "2rem")),
+		BlueCard(ctx),
 	)
 }
 
@@ -111,12 +98,16 @@ var RedCard = ui.Component(func(ctx ui.Ctx) h.Node {
 	return h.Div(
 		style.StyleTag(),
 		h.Div(h.Class(style.Class("card")),
-			h.H2(h.Class(style.Class("title")), h.Text("Red Card Component")),
+			h.H2(
+				h.Class(style.Class("title")),
+				h.Text("Red Card Component"),
+			),
 			h.P(h.Class(style.Class("content")),
 				h.Text("This card uses .card, .title, and .content classes with red styling. "),
 				h.Text("Hover over me to see the hover effect!"),
 			),
-			h.P(h.Class(style.Class("content")),
+			h.P(
+				h.Class(style.Class("content")),
 				h.Text(fmt.Sprintf("Scoped classes: .card → .%s", style.Class("card"))),
 			),
 		),

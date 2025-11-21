@@ -160,6 +160,14 @@ func (c Ctx) DOMAsyncCall(ref string, method string, args ...any) (any, error) {
 	return c.sess.domAsyncCall(ref, method, args...)
 }
 
+// EnqueueNavigation queues a navigation update to be sent to the client.
+func (c Ctx) EnqueueNavigation(href string, replace bool) {
+	if c.sess == nil {
+		return
+	}
+	c.sess.EnqueueNavigation(href, replace)
+}
+
 func panicHookMismatch(comp *component, idx int, expected string, actual any) {
 	name := "<component>"
 	if comp != nil && comp.callable != nil {

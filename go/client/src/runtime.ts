@@ -128,7 +128,6 @@ export class LiveRuntime implements UploadRuntime {
             }
         }
 
-        // attach outermost HTML element to the first element child under this wrapper
         if (clientNode.el === null && clientNode.children && clientNode.children.length === 1 && clientNode.children[0].tag === 'html') {
             clientNode.el = htmlElement;
         }
@@ -202,7 +201,6 @@ export class LiveRuntime implements UploadRuntime {
         Logger.debug('Runtime', 'Received frame', { seq: frame.seq, ops: frame.patch.length });
 
         if (this.patcher && frame.patch) {
-            // Apply patches in server order to preserve index assumptions (moves/adds/dels).
             for (const op of frame.patch) {
                 this.patcher.apply(op);
             }
@@ -210,6 +208,21 @@ export class LiveRuntime implements UploadRuntime {
 
         if (frame.effects) {
             this.domActions.execute(frame.effects);
+        }
+
+        if (frame.nav) {
+            this.handleServerNav(frame.nav);
+        }
+    }
+
+    private handleServerNav(nav: { push?: string; replace?: string; back?: boolean }) {
+        Logger.debug('Runtime', 'Server navigation', nav);
+        if (nav.push) {
+            window.history.pushState({}, '', nav.push);
+        } else if (nav.replace) {
+            window.history.replaceState({}, '', nav.replace);
+        } else if (nav.back) {
+            window.history.back();
         }
     }
 

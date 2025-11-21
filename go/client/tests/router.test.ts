@@ -30,7 +30,6 @@ describe('Router', () => {
 
         router.attach(node);
 
-        // Simulate click
         const event = new MouseEvent('click', { bubbles: true, cancelable: true });
         el.dispatchEvent(event);
 
@@ -52,7 +51,6 @@ describe('Router', () => {
     });
 
     it('handles popstate', () => {
-        // Simulate popstate
         const event = new PopStateEvent('popstate');
         window.dispatchEvent(event);
 

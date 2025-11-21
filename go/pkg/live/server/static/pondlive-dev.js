@@ -1172,7 +1172,7 @@ var LiveUIModule = (() => {
     }
     static error(tag, message, error) {
       if (error) {
-        console.error(`[${tag}] ${message}`, error);
+        console.error(`[${tag}] ${message}`, error, error?.message, error?.stack);
       } else {
         console.error(`[${tag}] ${message}`);
       }
@@ -1206,7 +1206,10 @@ var LiveUIModule = (() => {
     }
     if (json.children && json.children.length > 0) {
       clientNode.children = [];
-      const domChildren = Array.from(dom.childNodes).filter(shouldHydrate);
+      let domChildren = Array.from(dom.childNodes).filter(shouldHydrate);
+      if (json.tag === "style") {
+        domChildren = [];
+      }
       const consumed = hydrateChildren(clientNode.children, json.children, domChildren, dom, refs);
       const expected = countRenderableNodes(json.children);
       if (consumed !== expected) {
@@ -1249,6 +1252,19 @@ var LiveUIModule = (() => {
       }
       const childDom = domChildren[domIdx];
       if (!childDom) {
+        Logger.error("Hydration", "Missing DOM node", {
+          parentTag: parentDom.tagName,
+          expectedIndex: i,
+          domChildrenCount: domChildren.length,
+          jsonChildrenCount: jsonChildren.length,
+          jsonChildSummary: {
+            tag: childJson.tag,
+            text: childJson.text,
+            comment: childJson.comment,
+            key: childJson.key,
+            componentId: childJson.componentId
+          }
+        });
         throw new Error(`Hydration error: missing DOM node for child index ${i}`);
       }
       const childNode = hydrate(childJson, childDom, refs);
@@ -1299,7 +1315,12 @@ var LiveUIModule = (() => {
     }
     return domIdx - startIdx;
   }
-  function shouldHydrate(_node) {
+  function shouldHydrate(node) {
+    if (node.nodeType === Node.COMMENT_NODE) return false;
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.data;
+      if (text.trim() === "") return false;
+    }
     return true;
   }
   function countRenderableNodes(nodes) {
@@ -1508,8 +1529,8 @@ var LiveUIModule = (() => {
             el.style.setProperty(name, value);
           }
         }
-        if (json.styles && el instanceof HTMLStyleElement) {
-          el.textContent = this.buildStyleContent(json.styles);
+        if (json.stylesheet && el instanceof HTMLStyleElement) {
+          el.textContent = this.buildStyleContent(json.stylesheet);
         }
         if (json.children) {
           for (const child of json.children) {
@@ -1719,15 +1740,36 @@ var LiveUIModule = (() => {
         }
       }
     }
-    buildStyleContent(styles) {
+    buildStyleContent(stylesheet) {
       const blocks = [];
-      for (const [selector, props] of Object.entries(styles)) {
-        const entries = [];
-        for (const [name, value] of Object.entries(props)) {
-          entries.push(`${name}: ${value};`);
+      if (stylesheet.rules) {
+        for (const rule of stylesheet.rules) {
+          const entries = [];
+          for (const [name, value] of Object.entries(rule.props)) {
+            entries.push(`${name}: ${value};`);
+          }
+          if (entries.length > 0) {
+            blocks.push(`${rule.selector} { ${entries.join(" ")} }`);
+          }
         }
-        if (entries.length > 0) {
-          blocks.push(`${selector} { ${entries.join(" ")} }`);
+      }
+      if (stylesheet.mediaBlocks) {
+        for (const media of stylesheet.mediaBlocks) {
+          const mediaRules = [];
+          for (const rule of media.rules) {
+            const entries = [];
+            for (const [name, value] of Object.entries(rule.props)) {
+              entries.push(`${name}: ${value};`);
+            }
+            if (entries.length > 0) {
+              mediaRules.push(`  ${rule.selector} { ${entries.join(" ")} }`);
+            }
+          }
+          if (mediaRules.length > 0) {
+            blocks.push(`@media ${media.query} {
+${mediaRules.join("\n")}
+}`);
+          }
         }
       }
       return blocks.join("\n");
@@ -2331,6 +2373,19 @@ var LiveUIModule = (() => {
       }
       if (frame.effects) {
         this.domActions.execute(frame.effects);
+      }
+      if (frame.nav) {
+        this.handleServerNav(frame.nav);
+      }
+    }
+    handleServerNav(nav) {
+      Logger.debug("Runtime", "Server navigation", nav);
+      if (nav.push) {
+        window.history.pushState({}, "", nav.push);
+      } else if (nav.replace) {
+        window.history.replaceState({}, "", nav.replace);
+      } else if (nav.back) {
+        window.history.back();
       }
     }
     handleInit(init) {

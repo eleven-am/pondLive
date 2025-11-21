@@ -474,6 +474,16 @@ func (s *LiveSession) onPatch(patches []diff.Patch) error {
 		Patch: patches,
 	}
 
+	// Check for pending navigation from server-initiated updates
+	if s.component != nil {
+		if navDelta := s.component.TakeNavDelta(); navDelta != nil {
+			frame.Nav = &protocol.NavDelta{
+				Push:    navDelta.Push,
+				Replace: navDelta.Replace,
+			}
+		}
+	}
+
 	return transport.SendFrame(frame)
 }
 

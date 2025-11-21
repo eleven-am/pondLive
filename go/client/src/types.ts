@@ -50,6 +50,22 @@ export interface UploadMeta {
   maxSize?: number;
 }
 
+export interface StyleRule {
+  selector: string;
+  props: Record<string, string>;
+}
+
+export interface MediaBlock {
+  query: string;
+  rules: StyleRule[];
+}
+
+export interface Stylesheet {
+  rules?: StyleRule[];
+  mediaBlocks?: MediaBlock[];
+  hash?: string;
+}
+
 export interface StructuredNode {
   componentId?: string;
   tag?: string;
@@ -59,9 +75,9 @@ export interface StructuredNode {
   key?: string;
   children?: StructuredNode[];
   unsafeHtml?: string;
-  attrs?: Record<string, string[]>; 
+  attrs?: Record<string, string[]>;
   style?: Record<string, string>;
-  styles?: Record<string, Record<string, string>>;
+  stylesheet?: Stylesheet;
   refId?: string;
   handlers?: HandlerMeta[];
   router?: RouterMeta;
@@ -112,6 +128,12 @@ export interface DOMActionEffect {
   inline?: string;
 }
 
+export interface NavDelta {
+  push?: string;
+  replace?: string;
+  back?: boolean;
+}
+
 export interface FramePayload {
   t: 'frame';
   sid: string;
@@ -119,7 +141,7 @@ export interface FramePayload {
   ver: number;
   patch: Patch[];
   effects?: DOMActionEffect[];
-  nav?: any;
+  nav?: NavDelta;
   metrics?: any;
 }
 

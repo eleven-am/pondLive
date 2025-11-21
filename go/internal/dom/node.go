@@ -20,9 +20,9 @@ type StructuredNode struct {
 	UnsafeHTML string            `json:"unsafeHtml,omitempty"` // Raw HTML (innerHTML)
 
 	// Element attributes and styling
-	Attrs  map[string][]string          `json:"attrs,omitempty"` // All attributes as token arrays
-	Style  map[string]string            `json:"style,omitempty"` // Inline CSS properties
-	Styles map[string]map[string]string `json:"styles,omitempty"`
+	Attrs      map[string][]string `json:"attrs,omitempty"`      // All attributes as token arrays
+	Style      map[string]string   `json:"style,omitempty"`      // Inline CSS properties
+	Stylesheet *Stylesheet         `json:"stylesheet,omitempty"` // Scoped stylesheet (for <style> elements)
 
 	// Element metadata
 	RefID    string                  `json:"refId,omitempty"`
@@ -123,11 +123,11 @@ func (n *StructuredNode) Validate() error {
 			return fmt.Errorf("element cannot have both UnsafeHTML and Children")
 		}
 
-		if len(n.Styles) > 0 && n.Tag != "style" {
-			return fmt.Errorf("styles map only valid on <style> elements, not <%s>", n.Tag)
+		if n.Stylesheet != nil && n.Tag != "style" {
+			return fmt.Errorf("stylesheet only valid on <style> elements, not <%s>", n.Tag)
 		}
 	} else {
-		if len(n.Attrs) > 0 || len(n.Style) > 0 || len(n.Styles) > 0 {
+		if len(n.Attrs) > 0 || len(n.Style) > 0 || n.Stylesheet != nil {
 			return fmt.Errorf("only elements can have attributes or styles")
 		}
 		if len(n.Handlers) > 0 {
@@ -153,7 +153,19 @@ func (n *StructuredNode) Validate() error {
 	return nil
 }
 
-// ApplyTo implements the Item interface so nodes can be used as items
+// ApplyTo implements the Item interface so nodes can be used as items.
+// Adjacent text nodes are automatically merged to match browser normalization.
 func (n *StructuredNode) ApplyTo(parent *StructuredNode) {
+	if n.isTextOnly() && len(parent.Children) > 0 {
+		last := parent.Children[len(parent.Children)-1]
+		if last.isTextOnly() {
+			last.Text += n.Text
+			return
+		}
+	}
 	parent.Children = append(parent.Children, n)
+}
+
+func (n *StructuredNode) isTextOnly() bool {
+	return n.Text != "" && n.Tag == "" && n.Comment == "" && n.ComponentID == "" && !n.Fragment
 }

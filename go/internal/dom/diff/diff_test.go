@@ -522,11 +522,13 @@ func TestDiffNilStyleMaps(t *testing.T) {
 	}
 }
 
-func TestDiffStylesNilMaps(t *testing.T) {
+func TestDiffStylesheetNilMaps(t *testing.T) {
 	prev := dom.ElementNode("style")
 	next := dom.ElementNode("style")
-	next.Styles = map[string]map[string]string{
-		"card": {"color": "blue"},
+	next.Stylesheet = &dom.Stylesheet{
+		Rules: []dom.StyleRule{
+			{Selector: "card", Props: map[string]string{"color": "blue"}},
+		},
 	}
 	patches := Diff(prev, next)
 
@@ -540,7 +542,7 @@ func TestDiffStylesNilMaps(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("expected setStyleDecl op when adding styles to nil map")
+		t.Fatalf("expected setStyleDecl op when adding stylesheet to nil")
 	}
 }
 

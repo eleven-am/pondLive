@@ -1,4 +1,5 @@
 import { StructuredNode, ClientNode } from './types';
+import { Logger } from './logger';
 
 export function hydrate(json: StructuredNode, dom: Node, refs?: Map<string, ClientNode>): ClientNode {
     const isWrapper = (!json.tag && !json.text && !json.comment && json.children) || json.fragment;
@@ -31,7 +32,11 @@ export function hydrate(json: StructuredNode, dom: Node, refs?: Map<string, Clie
     if (json.children && json.children.length > 0) {
         clientNode.children = [];
 
-        const domChildren = Array.from(dom.childNodes).filter(shouldHydrate);
+        let domChildren = Array.from(dom.childNodes).filter(shouldHydrate);
+
+        if (json.tag === 'style') {
+            domChildren = [];
+        }
 
         const consumed = hydrateChildren(clientNode.children, json.children, domChildren, dom, refs);
         const expected = countRenderableNodes(json.children);
@@ -83,7 +88,6 @@ function hydrateChildren(
 
         
         if (childJson.text === '') {
-            // Empty text nodes must already exist in SSR DOM; do not create them here.
             const childDom = domChildren[domIdx];
             if (!childDom || childDom.nodeType !== Node.TEXT_NODE) {
                 throw new Error(`Hydration error: expected empty text node at index ${i}`);
@@ -94,10 +98,22 @@ function hydrateChildren(
             continue;
         }
 
-        // Non-empty child: must have a corresponding DOM node
         const childDom = domChildren[domIdx];
 
         if (!childDom) {
+            Logger.error('Hydration', 'Missing DOM node', {
+                parentTag: (parentDom as any).tagName,
+                expectedIndex: i,
+                domChildrenCount: domChildren.length,
+                jsonChildrenCount: jsonChildren.length,
+                jsonChildSummary: {
+                    tag: childJson.tag,
+                    text: childJson.text,
+                    comment: childJson.comment,
+                    key: childJson.key,
+                    componentId: childJson.componentId,
+                },
+            });
             throw new Error(`Hydration error: missing DOM node for child index ${i}`);
         }
 
@@ -159,7 +175,6 @@ function hydrateChildrenWithConsumption(
             continue;
         }
 
-        // Non-empty child: must have a corresponding DOM node
         const childDom = domChildren[domIdx];
 
         if (!childDom) {
@@ -174,14 +189,12 @@ function hydrateChildrenWithConsumption(
     return domIdx - startIdx;
 }
 
-function shouldHydrate(_node: Node): boolean {
-    
-    
-    
-    
-    
-    
-    
+function shouldHydrate(node: Node): boolean {
+    if (node.nodeType === Node.COMMENT_NODE) return false;
+    if (node.nodeType === Node.TEXT_NODE) {
+        const text = (node as Text).data;
+        if (text.trim() === '') return false;
+    }
     return true;
 }
 

@@ -40,6 +40,9 @@ type ComponentSession struct {
 	domGetHandler   func(ref string, selectors ...string) (map[string]any, error)
 	domCallHandler  func(ref string, method string, args ...any) (any, error)
 
+	// Pending navigation for server-initiated URL updates
+	pendingNav *NavDelta
+
 	nextRefID int
 
 	sendPatch func([]dom2diff.Patch) error
@@ -599,4 +602,36 @@ type pubsubSubscription struct {
 	topic    string
 	handler  func([]byte, map[string]string)
 	provider PubsubProvider
+}
+
+// NavDelta represents a server-initiated navigation update to send to the client.
+type NavDelta struct {
+	Push    string // URL to push to history
+	Replace string // URL to replace in history
+}
+
+// EnqueueNavigation queues a navigation update to be sent to the client.
+func (s *ComponentSession) EnqueueNavigation(href string, replace bool) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if replace {
+		s.pendingNav = &NavDelta{Replace: href}
+	} else {
+		s.pendingNav = &NavDelta{Push: href}
+	}
+}
+
+// TakeNavDelta returns and clears the pending navigation delta.
+func (s *ComponentSession) TakeNavDelta() *NavDelta {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	nav := s.pendingNav
+	s.pendingNav = nil
+	return nav
 }

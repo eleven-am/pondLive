@@ -28,7 +28,7 @@ export class Logger {
 
     static error(tag: string, message: string, error?: any) {
         if (error) {
-            console.error(`[${tag}] ${message}`, error);
+            console.error(`[${tag}] ${message}`, error, (error as any)?.message, (error as any)?.stack);
         } else {
             console.error(`[${tag}] ${message}`);
         }

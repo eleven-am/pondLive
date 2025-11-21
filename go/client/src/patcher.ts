@@ -1,4 +1,4 @@
-import { ClientNode, Patch, StructuredNode } from './types';
+import { ClientNode, Patch, StructuredNode, Stylesheet } from './types';
 import { Logger } from './logger';
 import { hydrate } from './vdom';
 import { Router } from './router';
@@ -212,8 +212,8 @@ export class Patcher {
                     el.style.setProperty(name, value);
                 }
             }
-            if (json.styles && el instanceof HTMLStyleElement) {
-                el.textContent = this.buildStyleContent(json.styles);
+            if (json.stylesheet && el instanceof HTMLStyleElement) {
+                el.textContent = this.buildStyleContent(json.stylesheet);
             }
             if (json.children) {
                 for (const child of json.children) {
@@ -315,7 +315,6 @@ export class Patcher {
         let fromIdx = -1;
         const toIdx = Math.max(0, Math.min(value.newIdx, parent.children.length - 1));
 
-        // Prefer resolving by key when available to avoid stale indexes.
         if (value.key) {
             const key = value.key as string;
             const found = parent.children.findIndex((c) => c && c.key === key);
@@ -459,17 +458,39 @@ export class Patcher {
         }
     }
 
-    private buildStyleContent(styles: Record<string, Record<string, string>>): string {
+    private buildStyleContent(stylesheet: Stylesheet): string {
         const blocks: string[] = [];
-        for (const [selector, props] of Object.entries(styles)) {
-            const entries: string[] = [];
-            for (const [name, value] of Object.entries(props)) {
-                entries.push(`${name}: ${value};`);
-            }
-            if (entries.length > 0) {
-                blocks.push(`${selector} { ${entries.join(' ')} }`);
+
+        if (stylesheet.rules) {
+            for (const rule of stylesheet.rules) {
+                const entries: string[] = [];
+                for (const [name, value] of Object.entries(rule.props)) {
+                    entries.push(`${name}: ${value};`);
+                }
+                if (entries.length > 0) {
+                    blocks.push(`${rule.selector} { ${entries.join(' ')} }`);
+                }
             }
         }
+
+        if (stylesheet.mediaBlocks) {
+            for (const media of stylesheet.mediaBlocks) {
+                const mediaRules: string[] = [];
+                for (const rule of media.rules) {
+                    const entries: string[] = [];
+                    for (const [name, value] of Object.entries(rule.props)) {
+                        entries.push(`${name}: ${value};`);
+                    }
+                    if (entries.length > 0) {
+                        mediaRules.push(`  ${rule.selector} { ${entries.join(' ')} }`);
+                    }
+                }
+                if (mediaRules.length > 0) {
+                    blocks.push(`@media ${media.query} {\n${mediaRules.join('\n')}\n}`);
+                }
+            }
+        }
+
         return blocks.join('\n');
     }
 }

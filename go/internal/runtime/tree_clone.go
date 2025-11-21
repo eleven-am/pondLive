@@ -31,8 +31,8 @@ func cloneTree(node *dom.StructuredNode) *dom.StructuredNode {
 	if len(node.Style) > 0 {
 		clone.Style = cloneStyle(node.Style)
 	}
-	if len(node.Styles) > 0 {
-		clone.Styles = cloneStyles(node.Styles)
+	if node.Stylesheet != nil {
+		clone.Stylesheet = cloneStylesheet(node.Stylesheet)
 	}
 	if len(node.Handlers) > 0 {
 		clone.Handlers = append([]dom.HandlerMeta(nil), node.Handlers...)
@@ -81,17 +81,41 @@ func cloneStyle(src map[string]string) map[string]string {
 	return dst
 }
 
-func cloneStyles(src map[string]map[string]string) map[string]map[string]string {
+func cloneStylesheet(src *dom.Stylesheet) *dom.Stylesheet {
 	if src == nil {
 		return nil
 	}
-	dst := make(map[string]map[string]string, len(src))
-	for selector, props := range src {
-		copied := make(map[string]string, len(props))
-		for k, v := range props {
-			copied[k] = v
-		}
-		dst[selector] = copied
+	dst := &dom.Stylesheet{
+		Hash: src.Hash,
 	}
+
+	if len(src.Rules) > 0 {
+		dst.Rules = make([]dom.StyleRule, len(src.Rules))
+		for i, rule := range src.Rules {
+			dst.Rules[i] = dom.StyleRule{
+				Selector: rule.Selector,
+				Props:    cloneStyle(rule.Props),
+			}
+		}
+	}
+
+	if len(src.MediaBlocks) > 0 {
+		dst.MediaBlocks = make([]dom.MediaBlock, len(src.MediaBlocks))
+		for i, media := range src.MediaBlocks {
+			dst.MediaBlocks[i] = dom.MediaBlock{
+				Query: media.Query,
+			}
+			if len(media.Rules) > 0 {
+				dst.MediaBlocks[i].Rules = make([]dom.StyleRule, len(media.Rules))
+				for j, rule := range media.Rules {
+					dst.MediaBlocks[i].Rules[j] = dom.StyleRule{
+						Selector: rule.Selector,
+						Props:    cloneStyle(rule.Props),
+					}
+				}
+			}
+		}
+	}
+
 	return dst
 }

@@ -80,13 +80,10 @@ func (n *StructuredNode) renderElement() string {
 	b.WriteString(">")
 
 	if n.UnsafeHTML != "" {
-
 		b.WriteString(n.UnsafeHTML)
-	} else if n.Tag == "style" && len(n.Styles) > 0 {
-
-		b.WriteString(serializeStylesheet(n.Styles))
+	} else if n.Tag == "style" && n.Stylesheet != nil {
+		b.WriteString(serializeStylesheet(n.Stylesheet))
 	} else {
-
 		for _, child := range n.Children {
 			b.WriteString(child.ToHTML())
 		}
@@ -125,47 +122,59 @@ func serializeInlineStyles(style map[string]string) string {
 	return b.String()
 }
 
-// serializeStylesheet converts a Styles map to CSS stylesheet text
-// Example: {"card": {"background": "#fff", "color": "#111"}} -> "card { background: #fff; color: #111; }"
-func serializeStylesheet(styles map[string]map[string]string) string {
-	if len(styles) == 0 {
+// serializeStylesheet converts a Stylesheet to CSS text
+func serializeStylesheet(ss *Stylesheet) string {
+	if ss == nil {
 		return ""
 	}
 
-	selectors := make([]string, 0, len(styles))
-	for sel := range styles {
-		selectors = append(selectors, sel)
+	var b strings.Builder
+
+	for _, rule := range ss.Rules {
+		b.WriteString(rule.Selector)
+		b.WriteString(" { ")
+		b.WriteString(serializeProps(rule.Props))
+		b.WriteString(" }\n")
 	}
-	sort.Strings(selectors)
+
+	for _, media := range ss.MediaBlocks {
+		b.WriteString("@media ")
+		b.WriteString(media.Query)
+		b.WriteString(" {\n")
+		for _, rule := range media.Rules {
+			b.WriteString("  ")
+			b.WriteString(rule.Selector)
+			b.WriteString(" { ")
+			b.WriteString(serializeProps(rule.Props))
+			b.WriteString(" }\n")
+		}
+		b.WriteString("}\n")
+	}
+
+	return b.String()
+}
+
+// serializeProps converts a property map to CSS declarations
+func serializeProps(props map[string]string) string {
+	if len(props) == 0 {
+		return ""
+	}
+
+	keys := make([]string, 0, len(props))
+	for k := range props {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 
 	var b strings.Builder
-	for i, selector := range selectors {
+	for i, key := range keys {
 		if i > 0 {
-			b.WriteString(" ")
+			b.WriteString("; ")
 		}
-
-		b.WriteString(selector)
-		b.WriteString(" { ")
-
-		props := styles[selector]
-		keys := make([]string, 0, len(props))
-		for k := range props {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		for j, key := range keys {
-			if j > 0 {
-				b.WriteString("; ")
-			}
-			b.WriteString(key)
-			b.WriteString(": ")
-			b.WriteString(props[key])
-		}
-
-		b.WriteString("; }")
+		b.WriteString(key)
+		b.WriteString(": ")
+		b.WriteString(props[key])
 	}
-
 	return b.String()
 }
 
