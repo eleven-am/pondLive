@@ -374,7 +374,6 @@ func (s *LiveSession) Flush() error {
 	if s == nil || s.component == nil {
 		return errors.New("session: not initialized")
 	}
-	fmt.Printf("[SESSION] Flush() called\n")
 	if err := s.component.Flush(); err != nil {
 		return err
 	}
@@ -446,14 +445,9 @@ func (s *LiveSession) handleLocationMessage(msg router.NavMsg, pop bool) error {
 		Hash:  strings.TrimSpace(msg.Hash),
 	}
 
-	fmt.Printf("[NAV] START navigation to %s\n", loc.Path)
 	s.seedRouterState(loc)
-	fmt.Printf("[NAV] Router state seeded\n")
 	s.Touch()
-	fmt.Printf("[NAV] Calling Flush()...\n")
-	err := s.Flush()
-	fmt.Printf("[NAV] Flush() completed\n")
-	return err
+	return s.Flush()
 }
 
 // onPatch is called by ComponentSession when patches are ready to send.

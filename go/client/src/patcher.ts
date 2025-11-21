@@ -16,7 +16,6 @@ export class Patcher {
     ) { }
 
     apply(patch: Patch) {
-        console.log('Applying patch:', patch);
         const target = this.traverse(patch.path);
         if (!target) {
             Logger.warn('Patcher', 'Target not found for path', patch.path);
@@ -141,9 +140,9 @@ export class Patcher {
     }
 
     private replaceNode(oldNode: ClientNode, newJson: StructuredNode, path: number[]) {
-        console.log('replaceNode', { oldNode, newJson, path });
+        Logger.debug('Patcher', 'replaceNode start', { path });
         const oldDoms = this.collectDomNodes(oldNode);
-        console.log('replaceNode: collected DOM nodes', oldDoms);
+        Logger.debug('Patcher', 'replaceNode collected DOM nodes', { count: oldDoms.length });
 
         if (oldDoms.length === 0) {
             Logger.warn('Patcher', 'Cannot replace node with no DOM elements', oldNode);
@@ -159,7 +158,6 @@ export class Patcher {
         const newDom = this.render(newJson);
         firstDom.parentNode.replaceChild(newDom, firstDom);
 
-        // Remove remaining nodes if any (for fragments/wrappers with multiple children)
         for (let i = 1; i < oldDoms.length; i++) {
             const node = oldDoms[i];
             if (node.parentNode) node.parentNode.removeChild(node);

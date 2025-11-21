@@ -133,15 +133,12 @@ func (s *ComponentSession) Flush() error {
 		isFirstRender := s.prevTree == nil
 		s.mu.Unlock()
 
-		fmt.Printf("[FLUSH] isFirstRender=%v, dirtyComponents=%d\n", isFirstRender, len(dirtyComponents))
-
 		s.clearRenderedFlags()
 
 		if isFirstRender {
 			s.resetRefsForComponent(s.root)
 			s.root.render()
 		} else {
-			fmt.Printf("[FLUSH] Rendering %d dirty components...\n", len(dirtyComponents))
 			for _, comp := range dirtyComponents {
 				s.resetRefsForComponent(comp)
 				comp.render()
@@ -156,9 +153,7 @@ func (s *ComponentSession) Flush() error {
 
 		var patches []dom2diff.Patch
 		if s.prevTree != nil {
-			fmt.Printf("[FLUSH] Calling Diff()...\n")
 			patches = dom2diff.Diff(s.prevTree, nextTree)
-			fmt.Printf("[FLUSH] Diff() generated %d patches\n", len(patches))
 		}
 
 		handlers := s.collectHandlersFromTree(nextTree)
@@ -377,7 +372,6 @@ func (s *ComponentSession) markDirty(comp *component) {
 	if s == nil || comp == nil {
 		return
 	}
-	fmt.Printf("[DIRTY] Component marked dirty (id=%s)\n", comp.id)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.dirty == nil {
@@ -468,9 +462,7 @@ func (s *ComponentSession) HandleEvent(id string, ev dom.Event) error {
 			return fmt.Errorf("runtime2: handler not found: %s", id)
 		}
 
-		fmt.Printf("[EVENT] Calling handler id=%s, eventName=%s\n", id, ev.Name)
 		updates := handler(ev)
-		fmt.Printf("[EVENT] Handler returned updates=%v\n", updates != nil)
 		if updates != nil {
 			s.markDirty(s.root)
 		}

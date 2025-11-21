@@ -47,8 +47,6 @@ func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) *dom
 		key = fmt.Sprintf("auto:%x", ptr)
 	}
 
-	fmt.Printf("[DEBUG] Render: key=%s, origPointer=%x, adapterPointer=%x\n", key, cfg.origPointer, adapter.pointer())
-
 	child := ctx.comp.ensureChild(adapter, key, props)
 	child.callable = adapter
 	child.sess = ctx.sess
