@@ -72,6 +72,12 @@ export class Router {
         
         const q = query.startsWith('?') ? query.substring(1) : query;
 
+        Logger.debug('WS Send', type, {
+            sid: this.sessionId,
+            path: path,
+            q: q,
+            hash: hash
+        });
         this.channel.sendMessage(type, {
             sid: this.sessionId,
             path: path,

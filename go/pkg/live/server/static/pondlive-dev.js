@@ -1328,11 +1328,19 @@ var LiveUIModule = (() => {
       this.refs = refs;
     }
     apply(patch) {
+      console.log("Applying patch:", patch);
       const target = this.traverse(patch.path);
       if (!target) {
         Logger.warn("Patcher", "Target not found for path", patch.path);
         return;
       }
+      Logger.debug("Patcher", "Apply", {
+        op: patch.op,
+        path: patch.path,
+        index: patch.index,
+        name: patch.name,
+        selector: patch.selector
+      });
       switch (patch.op) {
         case "setText":
           this.setText(target, patch.value);
@@ -1402,10 +1410,18 @@ var LiveUIModule = (() => {
       let current = this.root;
       for (const idx of path) {
         if (!current.children || !current.children[idx]) {
+          Logger.warn("Patcher", "Traverse missing child", { path, failedIndex: idx, currentTag: current.tag, childrenLength: current.children?.length });
           return null;
         }
         current = current.children[idx];
       }
+      Logger.debug("Patcher", "Traverse resolved", {
+        path,
+        tag: current.tag,
+        componentId: current.componentId,
+        key: current.key,
+        hasChildren: !!current.children?.length
+      });
       return current;
     }
     setText(node, text) {
@@ -1430,12 +1446,24 @@ var LiveUIModule = (() => {
       if (node.attrs) delete node.attrs[name];
     }
     replaceNode(oldNode, newJson, path) {
-      if (!oldNode.el || !oldNode.el.parentNode) {
+      console.log("replaceNode", { oldNode, newJson, path });
+      const oldDoms = this.collectDomNodes(oldNode);
+      console.log("replaceNode: collected DOM nodes", oldDoms);
+      if (oldDoms.length === 0) {
+        Logger.warn("Patcher", "Cannot replace node with no DOM elements", oldNode);
+        return;
+      }
+      const firstDom = oldDoms[0];
+      if (!firstDom.parentNode) {
         Logger.warn("Patcher", "Cannot replace node without parent", oldNode);
         return;
       }
       const newDom = this.render(newJson);
-      oldNode.el.parentNode.replaceChild(newDom, oldNode.el);
+      firstDom.parentNode.replaceChild(newDom, firstDom);
+      for (let i = 1; i < oldDoms.length; i++) {
+        const node = oldDoms[i];
+        if (node.parentNode) node.parentNode.removeChild(node);
+      }
       this.events.detach(oldNode);
       this.router.detach(oldNode);
       this.uploads.unbind(oldNode);
@@ -1449,6 +1477,21 @@ var LiveUIModule = (() => {
         this.events.attach(newNode);
         this.router.attach(newNode);
       }
+    }
+    collectDomNodes(node) {
+      if (node.el) {
+        return [node.el];
+      }
+      const nodes = [];
+      if (node.children) {
+        for (const child of node.children) {
+          const childNodes = this.collectDomNodes(child);
+          for (const n of childNodes) {
+            nodes.push(n);
+          }
+        }
+      }
+      return nodes;
     }
     render(json) {
       if (json.text !== void 0) {
@@ -1846,6 +1889,12 @@ var LiveUIModule = (() => {
       if (detail !== void 0) {
         payload.detail = detail;
       }
+      Logger.debug("WS Send", "evt", {
+        t: "evt",
+        sid: this.sid,
+        hid: handler.handler,
+        payload
+      });
       this.channel.sendMessage("evt", {
         t: "evt",
         sid: this.sid,
@@ -1905,6 +1954,12 @@ var LiveUIModule = (() => {
     sendNav(type, path, query, hash) {
       Logger.debug("Router", `Sending ${type}`, { path, query, hash });
       const q = query.startsWith("?") ? query.substring(1) : query;
+      Logger.debug("WS Send", type, {
+        sid: this.sessionId,
+        path,
+        q,
+        hash
+      });
       this.channel.sendMessage(type, {
         sid: this.sessionId,
         path,
@@ -2114,6 +2169,7 @@ var LiveUIModule = (() => {
       this.active.delete(uploadId);
     }
     sendMessage(payload) {
+      Logger.debug("WS Send", "upload", payload);
       this.runtime.sendUploadMessage(payload);
     }
   };
@@ -2204,6 +2260,9 @@ var LiveUIModule = (() => {
           clientNode.children.push(childNode);
         }
       }
+      if (clientNode.el === null && clientNode.children && clientNode.children.length === 1 && clientNode.children[0].tag === "html") {
+        clientNode.el = htmlElement;
+      }
       return clientNode;
     }
     connect(boot) {
@@ -2223,7 +2282,8 @@ var LiveUIModule = (() => {
       this.channel.onChannelStateChange((state) => {
         Logger.debug("Runtime", "Channel state:", state);
       });
-      this.channel.onMessage((_event, payload) => {
+      this.channel.onMessage((event, payload) => {
+        Logger.debug("WS Recv", event, payload);
         this.handleMessage(payload);
       });
       this.client.connect();
@@ -2236,6 +2296,7 @@ var LiveUIModule = (() => {
       return this.config.upload || "/pondlive/upload";
     }
     sendUploadMessage(payload) {
+      Logger.debug("WS Send", { t: "upload", ...payload });
       this.channel.sendMessage({ t: "upload", ...payload });
     }
     handleMessage(msg) {
@@ -2296,10 +2357,9 @@ var LiveUIModule = (() => {
       }
     }
     sendDOMResponse(response) {
-      this.channel.sendMessage("domres", {
-        ...response,
-        sid: this.sessionId
-      });
+      const payload = { ...response, sid: this.sessionId };
+      Logger.debug("WS Send", "domres", payload);
+      this.channel.sendMessage("domres", payload);
     }
     attachRouterRecursively(node) {
       if (this.router) {

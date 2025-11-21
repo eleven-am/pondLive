@@ -21,7 +21,7 @@ func Link(ctx Ctx, p LinkProps, children ...*dom.StructuredNode) *dom.Structured
 	replaceAttr := strconv.FormatBool(p.Replace)
 	encodedQuery := encodeQuery(target.Query)
 
-	link := dom.ElementNode("div")
+	link := dom.ElementNode("a")
 	link.Attrs = map[string][]string{
 		"href": {href},
 	}

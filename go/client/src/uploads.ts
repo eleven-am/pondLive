@@ -194,6 +194,7 @@ export class UploadManager {
     }
 
     private sendMessage(payload: any) {
+        Logger.debug('WS Send', 'upload', payload);
         this.runtime.sendUploadMessage(payload);
     }
 }

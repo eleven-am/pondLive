@@ -110,26 +110,27 @@ export class LiveRuntime implements UploadRuntime {
             return hydrate(jsonNode, htmlElement, this.refs);
         }
 
-        
-        
         const clientNode: ClientNode = {
             ...jsonNode,
             el: null,
             children: undefined
         };
 
-        
         if (jsonNode.componentId) {
             clientNode.componentId = jsonNode.componentId;
         }
 
-        
         if (jsonNode.children && jsonNode.children.length > 0) {
             clientNode.children = [];
             for (const child of jsonNode.children) {
                 const childNode = this.hydrateWithComponentWrappers(child, htmlElement);
                 clientNode.children.push(childNode);
             }
+        }
+
+        // attach outermost HTML element to the first element child under this wrapper
+        if (clientNode.el === null && clientNode.children && clientNode.children.length === 1 && clientNode.children[0].tag === 'html') {
+            clientNode.el = htmlElement;
         }
 
         return clientNode;
@@ -156,7 +157,8 @@ export class LiveRuntime implements UploadRuntime {
             Logger.debug('Runtime', 'Channel state:', state);
         });
 
-        this.channel.onMessage((_event: string, payload: any) => {
+        this.channel.onMessage((event: string, payload: any) => {
+            Logger.debug('WS Recv', event, payload);
             this.handleMessage(payload);
         });
 
@@ -173,6 +175,7 @@ export class LiveRuntime implements UploadRuntime {
     }
 
     sendUploadMessage(payload: any) {
+        Logger.debug('WS Send', { t: 'upload', ...payload });
         this.channel.sendMessage({ t: 'upload', ...payload });
     }
 
@@ -251,10 +254,9 @@ export class LiveRuntime implements UploadRuntime {
     }
 
     private sendDOMResponse(response: any) {
-        this.channel.sendMessage('domres', {
-            ...response,
-            sid: this.sessionId
-        });
+        const payload = { ...response, sid: this.sessionId };
+        Logger.debug('WS Send', 'domres', payload);
+        this.channel.sendMessage('domres', payload);
     }
 
     private attachRouterRecursively(node: ClientNode) {

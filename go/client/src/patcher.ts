@@ -13,14 +13,23 @@ export class Patcher {
         private router: Router,
         private uploads: UploadManager,
         private refs: Map<string, ClientNode>
-    ) {}
+    ) { }
 
     apply(patch: Patch) {
+        console.log('Applying patch:', patch);
         const target = this.traverse(patch.path);
         if (!target) {
             Logger.warn('Patcher', 'Target not found for path', patch.path);
             return;
         }
+
+        Logger.debug('Patcher', 'Apply', {
+            op: patch.op,
+            path: patch.path,
+            index: patch.index,
+            name: patch.name,
+            selector: patch.selector,
+        });
 
         switch (patch.op) {
             case 'setText':
@@ -92,10 +101,18 @@ export class Patcher {
         let current = this.root;
         for (const idx of path) {
             if (!current.children || !current.children[idx]) {
+                Logger.warn('Patcher', 'Traverse missing child', { path, failedIndex: idx, currentTag: current.tag, childrenLength: current.children?.length });
                 return null;
             }
             current = current.children[idx];
         }
+        Logger.debug('Patcher', 'Traverse resolved', {
+            path,
+            tag: current.tag,
+            componentId: current.componentId,
+            key: current.key,
+            hasChildren: !!current.children?.length,
+        });
         return current;
     }
 
@@ -124,13 +141,29 @@ export class Patcher {
     }
 
     private replaceNode(oldNode: ClientNode, newJson: StructuredNode, path: number[]) {
-        if (!oldNode.el || !oldNode.el.parentNode) {
+        console.log('replaceNode', { oldNode, newJson, path });
+        const oldDoms = this.collectDomNodes(oldNode);
+        console.log('replaceNode: collected DOM nodes', oldDoms);
+
+        if (oldDoms.length === 0) {
+            Logger.warn('Patcher', 'Cannot replace node with no DOM elements', oldNode);
+            return;
+        }
+
+        const firstDom = oldDoms[0];
+        if (!firstDom.parentNode) {
             Logger.warn('Patcher', 'Cannot replace node without parent', oldNode);
             return;
         }
 
         const newDom = this.render(newJson);
-        oldNode.el.parentNode.replaceChild(newDom, oldNode.el);
+        firstDom.parentNode.replaceChild(newDom, firstDom);
+
+        // Remove remaining nodes if any (for fragments/wrappers with multiple children)
+        for (let i = 1; i < oldDoms.length; i++) {
+            const node = oldDoms[i];
+            if (node.parentNode) node.parentNode.removeChild(node);
+        }
 
         this.events.detach(oldNode);
         this.router.detach(oldNode);
@@ -147,6 +180,22 @@ export class Patcher {
             this.events.attach(newNode);
             this.router.attach(newNode);
         }
+    }
+
+    private collectDomNodes(node: ClientNode): Node[] {
+        if (node.el) {
+            return [node.el];
+        }
+        const nodes: Node[] = [];
+        if (node.children) {
+            for (const child of node.children) {
+                const childNodes = this.collectDomNodes(child);
+                for (const n of childNodes) {
+                    nodes.push(n);
+                }
+            }
+        }
+        return nodes;
     }
 
     private render(json: StructuredNode): Node {
@@ -259,7 +308,7 @@ export class Patcher {
         }
 
         let fromIdx = -1;
-        const toIdx = Math.max(0, Math.min(value.newIdx, parent.children.length-1));
+        const toIdx = Math.max(0, Math.min(value.newIdx, parent.children.length - 1));
 
         // Prefer resolving by key when available to avoid stale indexes.
         if (value.key) {
@@ -330,7 +379,7 @@ export class Patcher {
     private setStyleDecl(node: ClientNode, selector: string, name: string, value: string) {
         if (node.el && node.el instanceof HTMLStyleElement && node.el.sheet) {
             const sheet = node.el.sheet;
-            
+
             for (let i = 0; i < sheet.cssRules.length; i++) {
                 const rule = sheet.cssRules[i] as CSSStyleRule;
                 if (rule.selectorText === selector) {
@@ -338,7 +387,7 @@ export class Patcher {
                     return;
                 }
             }
-            
+
             const idx = sheet.cssRules.length;
             try {
                 sheet.insertRule(`${selector} { ${name}: ${value}; }`, idx);

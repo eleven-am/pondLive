@@ -108,6 +108,12 @@ export class EventManager {
             payload.detail = detail;
         }
 
+        Logger.debug('WS Send', 'evt', {
+            t: 'evt',
+            sid: this.sid,
+            hid: handler.handler,
+            payload: payload
+        });
         this.channel.sendMessage('evt', {
             t: 'evt',
             sid: this.sid,
