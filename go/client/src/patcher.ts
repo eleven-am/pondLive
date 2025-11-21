@@ -290,15 +290,22 @@ export class Patcher {
         }
 
         const child = parent.children[index];
-        if (child.el && parent.el && child.el.parentNode === parent.el) {
-            parent.el.removeChild(child.el);
-        }
+        this.removeDomNodes(child);
         parent.children.splice(index, 1);
 
         this.events.detach(child);
         this.router.detach(child);
         this.uploads.unbind(child);
         this.detachRefsRecursively(child);
+    }
+
+    private removeDomNodes(node: ClientNode) {
+        const domNodes = this.collectDomNodes(node);
+        for (const domNode of domNodes) {
+            if (domNode.parentNode) {
+                domNode.parentNode.removeChild(domNode);
+            }
+        }
     }
 
     private moveChild(parent: ClientNode, value: any) {

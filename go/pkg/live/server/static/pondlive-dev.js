@@ -1577,14 +1577,20 @@ var LiveUIModule = (() => {
         }
       }
       const child = parent.children[index];
-      if (child.el && parent.el && child.el.parentNode === parent.el) {
-        parent.el.removeChild(child.el);
-      }
+      this.removeDomNodes(child);
       parent.children.splice(index, 1);
       this.events.detach(child);
       this.router.detach(child);
       this.uploads.unbind(child);
       this.detachRefsRecursively(child);
+    }
+    removeDomNodes(node) {
+      const domNodes = this.collectDomNodes(node);
+      for (const domNode of domNodes) {
+        if (domNode.parentNode) {
+          domNode.parentNode.removeChild(domNode);
+        }
+      }
     }
     moveChild(parent, value) {
       if (!parent.children || parent.children.length === 0) {
