@@ -39,13 +39,11 @@ func TestEnqueueNavigation_Replace(t *testing.T) {
 func TestEnqueueNavigation_OverwritesPrevious(t *testing.T) {
 	sess := &ComponentSession{}
 
-	// First navigation
 	sess.EnqueueNavigation("/first", false)
 	if sess.pendingNav.Push != "/first" {
 		t.Errorf("expected first Push to be '/first', got %q", sess.pendingNav.Push)
 	}
 
-	// Second navigation overwrites
 	sess.EnqueueNavigation("/second", true)
 	if sess.pendingNav.Replace != "/second" {
 		t.Errorf("expected Replace to be '/second', got %q", sess.pendingNav.Replace)
@@ -57,7 +55,7 @@ func TestEnqueueNavigation_OverwritesPrevious(t *testing.T) {
 
 func TestEnqueueNavigation_NilSession(t *testing.T) {
 	var sess *ComponentSession
-	// Should not panic
+
 	sess.EnqueueNavigation("/test", false)
 }
 
@@ -74,7 +72,6 @@ func TestTakeNavDelta_ReturnsAndClears(t *testing.T) {
 		t.Errorf("expected Push to be '/path?query=value#hash', got %q", nav.Push)
 	}
 
-	// Should be cleared after take
 	nav2 := sess.TakeNavDelta()
 	if nav2 != nil {
 		t.Error("expected TakeNavDelta to return nil after being taken")
@@ -156,7 +153,7 @@ func TestNavDelta_QueryParams(t *testing.T) {
 }
 
 func TestNavDeltaStruct(t *testing.T) {
-	// Test that NavDelta struct has expected fields
+
 	nav := NavDelta{
 		Push:    "/push-path",
 		Replace: "",

@@ -45,7 +45,6 @@ type StructuredNode struct {
 // Node interface that StructuredNode implements
 type Node interface {
 	ToHTML() string
-	ToJSON() ([]byte, error)
 	Validate() error
 }
 

@@ -18,7 +18,7 @@ func TestNew(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("test"),
 		1,
 		app,
@@ -64,7 +64,7 @@ func TestNewWithStateChanges(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("test"),
 		1,
 		app,

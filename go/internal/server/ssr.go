@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/session"
@@ -16,7 +17,7 @@ import (
 // SSRHandler handles server-side rendering of components.
 type SSRHandler struct {
 	registry       *SessionRegistry
-	component      runtime.Component[struct{}]
+	component      session.Component
 	version        int
 	idGenerator    func(*http.Request) (session.SessionID, error)
 	sessionConfig  *session.Config
@@ -28,8 +29,7 @@ type SSRHandler struct {
 // SSRConfig configures the SSR handler.
 type SSRConfig struct {
 	Registry       *SessionRegistry
-	Component      runtime.Component[struct{}]
-	Version        int
+	Component      session.Component
 	IDGenerator    func(*http.Request) (session.SessionID, error)
 	SessionConfig  *session.Config
 	ClientAsset    string
@@ -50,9 +50,6 @@ func NewSSRHandler(cfg SSRConfig) *SSRHandler {
 	}
 	if cfg.Component != nil {
 		h.component = cfg.Component
-	}
-	if cfg.Version > 0 {
-		h.version = cfg.Version
 	}
 	if cfg.IDGenerator != nil {
 		h.idGenerator = cfg.IDGenerator
@@ -102,7 +99,7 @@ func (h *SSRHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cfg.Transport = capture
 	cfg.ClientAsset = h.clientAsset
 
-	sess := session.NewLiveSession(sid, version, h.component, struct{}{}, &cfg)
+	sess := session.NewLiveSession(sid, version, h.component, &cfg)
 
 	if h.pubsubProvider != nil {
 		if cs := sess.ComponentSession(); cs != nil {
@@ -151,21 +148,16 @@ func (h *SSRHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	jsonBody, err := root.ToJSON()
-	if err != nil {
-		http.Error(w, "failed to encode initial DOM", http.StatusInternalServerError)
-		return
-	}
-
 	boot := protocol.Boot{
 		T:        "boot",
 		SID:      string(sid),
 		Ver:      version,
 		Seq:      capture.LastSeq(),
-		JSON:     string(jsonBody),
+		Patch:    dom2diff.ExtractMetadata(root),
 		Location: location,
 		Client:   clientCfg,
 	}
+
 	bootJSON, err := json.Marshal(boot)
 	if err != nil {
 		http.Error(w, "failed to encode boot payload", http.StatusInternalServerError)

@@ -26,6 +26,7 @@ const (
 )
 
 type Patch struct {
+	Seq      int         `json:"seq"`
 	Path     []int       `json:"path"`
 	Op       OpKind      `json:"op"`
 	Value    interface{} `json:"value,omitempty"`

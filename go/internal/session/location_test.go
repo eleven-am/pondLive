@@ -13,7 +13,7 @@ func TestInitialLocation(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	loc := sess.InitialLocation()
 	if loc.Path != "" {
@@ -42,7 +42,7 @@ func TestInitialLocationClone(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	req := newRequest("/test?foo=bar")
 	sess.MergeRequest(req)
@@ -90,7 +90,7 @@ func TestInitialLocationDefaultsToEmpty(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	loc := sess.InitialLocation()
 	if loc.Path != "" {
@@ -117,7 +117,7 @@ func TestMergeRequestMultipleQueryValues(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	req := newRequest("/search?tag=go&tag=rust&tag=python&lang=en")
 	sess.MergeRequest(req)
@@ -140,7 +140,7 @@ func TestMergeRequestEncodedQuery(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	req := newRequest("/search?q=hello+world&filter=type%3Apost")
 	sess.MergeRequest(req)
@@ -159,7 +159,7 @@ func TestMergeRequestRootPath(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	req := newRequest("/")
 	sess.MergeRequest(req)
@@ -175,7 +175,7 @@ func TestMergeRequestPreservesHash(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	req := newRequest("/docs/intro")
 	sess.MergeRequest(req)
@@ -193,7 +193,7 @@ func TestMergeRequestOverwrites(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	req1 := newRequest("/first?foo=bar")
 	sess.MergeRequest(req1)
@@ -223,7 +223,7 @@ func TestMergeRequestNilRequest(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	sess.MergeRequest(nil)
 
@@ -286,7 +286,7 @@ func TestMergeRequestWithComplexPath(t *testing.T) {
 		return dom.ElementNode("div")
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	req := newRequest("/api/v2/users/123/posts/456/comments?sort=date&order=desc")
 	sess.MergeRequest(req)

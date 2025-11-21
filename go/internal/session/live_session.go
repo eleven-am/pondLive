@@ -93,19 +93,18 @@ type Config struct {
 	ClientAsset    string
 }
 
-// NewLiveSession constructs a session runtime for the given component tree with generic props.
-// The root component should be wrapped with DocumentRoot to provide context (headers, router, etc).
+// NewLiveSession constructs a session runtime for the given component tree.
+// The root component is wrapped with DocumentRoot to provide context (headers, router, etc).
 //
 // Example:
 //
 //	sess := NewLiveSession(
 //	    SessionID("user-123"),
 //	    1,
-//	    DocumentRoot(MyApp),
-//	    MakeRootProps(sess, myAppProps),
+//	    MyApp,
 //	    cfg,
 //	)
-func NewLiveSession[P any](id SessionID, version int, root runtime.Component[P], props P, cfg *Config) *LiveSession {
+func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *LiveSession {
 	effectiveConfig := defaultConfig()
 	if cfg != nil {
 		if cfg.Transport != nil {
@@ -132,8 +131,8 @@ func NewLiveSession[P any](id SessionID, version int, root runtime.Component[P],
 		nextSeq:     1,
 	}
 
-	wrapped := documentRootGeneric(sess, root)
-	sess.component = runtime.NewSession(wrapped, props)
+	wrapped := documentRoot(sess, root)
+	sess.component = runtime.NewSession(wrapped, struct{}{})
 
 	sess.configureRuntime(effectiveConfig)
 
@@ -422,7 +421,7 @@ func (s *LiveSession) HandleNavigation(path, rawQuery, hash string) error {
 		Path: path,
 		Q:    rawQuery,
 		Hash: hash,
-	}, false)
+	})
 }
 
 // HandlePopState processes a client-side popstate event.
@@ -432,10 +431,10 @@ func (s *LiveSession) HandlePopState(path, rawQuery, hash string) error {
 		Path: path,
 		Q:    rawQuery,
 		Hash: hash,
-	}, true)
+	})
 }
 
-func (s *LiveSession) handleLocationMessage(msg router.NavMsg, pop bool) error {
+func (s *LiveSession) handleLocationMessage(msg router.NavMsg) error {
 	if s == nil {
 		return errors.New("session: nil session")
 	}
@@ -474,7 +473,6 @@ func (s *LiveSession) onPatch(patches []diff.Patch) error {
 		Patch: patches,
 	}
 
-	// Check for pending navigation from server-initiated updates
 	if s.component != nil {
 		if navDelta := s.component.TakeNavDelta(); navDelta != nil {
 			frame.Nav = &protocol.NavDelta{
@@ -555,7 +553,7 @@ func (s *LiveSession) performDOMGet(ref string, selectors ...string) (map[string
 	s.domGetMu.Unlock()
 
 	req := protocol.DOMRequest{
-		T:     "domreq",
+		T:     "dom_req",
 		ID:    id,
 		Ref:   ref,
 		Props: append([]string(nil), props...),
@@ -624,7 +622,7 @@ func (s *LiveSession) performDOMCall(ref string, method string, args ...any) (an
 	s.domCallMu.Unlock()
 
 	req := protocol.DOMRequest{
-		T:      "domreq",
+		T:      "dom_req",
 		ID:     id,
 		Ref:    ref,
 		Method: method,

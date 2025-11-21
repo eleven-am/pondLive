@@ -1,8 +1,6 @@
 package dom
 
 import (
-	"bytes"
-	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -253,108 +251,6 @@ func TestHTMLRendering(t *testing.T) {
 			got := tt.node.ToHTML()
 			if got != tt.want {
 				t.Errorf("ToHTML() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-// TestJSONSerialization tests ToJSON and FromJSON
-func TestJSONSerialization(t *testing.T) {
-	tests := []struct {
-		name    string
-		node    *StructuredNode
-		wantErr bool
-	}{
-		{
-			name: "simple element",
-			node: &StructuredNode{
-				Tag: "div",
-				Attrs: map[string][]string{
-					"class": {"container"},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "text node",
-			node: &StructuredNode{
-				Text: "hello",
-			},
-			wantErr: false,
-		},
-		{
-			name: "component with children",
-			node: &StructuredNode{
-				ComponentID: "comp-1",
-				Children: []*StructuredNode{
-					{Tag: "div"},
-					{Text: "text"},
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "invalid node",
-			node: &StructuredNode{
-				Tag:  "div",
-				Text: "invalid",
-			},
-			wantErr: true,
-		},
-		{
-			name: "element with handlers",
-			node: &StructuredNode{
-				Tag: "button",
-				Handlers: []HandlerMeta{
-					{
-						Event: "click",
-						Props: []string{"target.value"},
-					},
-				},
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			data, err := tt.node.ToJSON()
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("ToJSON() expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Errorf("ToJSON() unexpected error: %v", err)
-				return
-			}
-
-			restored, err := FromJSON(data)
-			if err != nil {
-				t.Errorf("FromJSON() unexpected error: %v", err)
-				return
-			}
-
-			restoredData, err := json.Marshal(restored)
-			if err != nil {
-				t.Errorf("Marshal restored unexpected error: %v", err)
-				return
-			}
-
-			var compact1, compact2 bytes.Buffer
-			if err := json.Compact(&compact1, data); err != nil {
-				t.Errorf("Compact original error: %v", err)
-				return
-			}
-			if err := json.Compact(&compact2, restoredData); err != nil {
-				t.Errorf("Compact restored error: %v", err)
-				return
-			}
-
-			if compact1.String() != compact2.String() {
-				t.Errorf("Roundtrip mismatch:\noriginal: %s\nrestored: %s", compact1.String(), compact2.String())
 			}
 		})
 	}

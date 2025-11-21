@@ -25,20 +25,9 @@ type Component func(ui.Ctx) h.Node
 type Option func(*appOptions)
 
 type appOptions struct {
-	version        int
-	idGenerator    func(*http.Request) (session.SessionID, error)
-	session        *session.Config
-	clientAssetURL string
-	devMode        *bool
-}
-
-// WithVersion overrides the server protocol version advertised in init and frame payloads.
-func WithVersion(v int) Option {
-	return func(cfg *appOptions) {
-		if cfg != nil {
-			cfg.version = v
-		}
-	}
+	idGenerator func(*http.Request) (session.SessionID, error)
+	session     *session.Config
+	devMode     *bool
 }
 
 // WithIDGenerator replaces the default session ID allocator.
@@ -58,15 +47,6 @@ func WithSessionConfig(cfg session.Config) Option {
 		}
 		clone := cfg
 		opts.session = &clone
-	}
-}
-
-// WithClientAssetURL customizes the URL used when serving the embedded client bundle.
-func WithClientAssetURL(url string) Option {
-	return func(cfg *appOptions) {
-		if cfg != nil {
-			cfg.clientAssetURL = url
-		}
 	}
 }
 
@@ -134,9 +114,6 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 	}
 
 	clientAsset := clientScriptPath(devMode)
-	if strings.TrimSpace(applied.clientAssetURL) != "" {
-		clientAsset = applied.clientAssetURL
-	}
 
 	pondManager := pond.NewManager(ctx)
 
@@ -151,7 +128,6 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 	ssrHandler := server.NewSSRHandler(server.SSRConfig{
 		Registry:       registry,
 		Component:      adaptComponent(component),
-		Version:        applied.version,
 		IDGenerator:    applied.idGenerator,
 		SessionConfig:  sessionCfg,
 		ClientAsset:    clientAsset,
@@ -187,11 +163,11 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 	return &App{handler: mux, provider: pubsubProvider}, nil
 }
 
-func adaptComponent(fn Component) runtime.Component[struct{}] {
+func adaptComponent(fn Component) session.Component {
 	if fn == nil {
 		return nil
 	}
-	return func(ctx runtime.Ctx, _ struct{}) h.Node {
+	return func(ctx runtime.Ctx) h.Node {
 		return fn(ctx)
 	}
 }

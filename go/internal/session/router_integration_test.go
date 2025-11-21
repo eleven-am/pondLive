@@ -23,7 +23,7 @@ func TestRouterStateInRoot(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("router-test"),
 		1,
 		app,
@@ -62,7 +62,7 @@ func TestRouterStateWithQuery(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("router-query-test"),
 		1,
 		app,
@@ -103,7 +103,7 @@ func TestRouterStateWithHash(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("router-hash-test"),
 		1,
 		app,
@@ -147,7 +147,7 @@ func TestRouterParams(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("router-params-test"),
 		1,
 		app,
@@ -194,7 +194,7 @@ func TestRouterSearchParams(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("router-search-test"),
 		1,
 		app,
@@ -252,7 +252,7 @@ func TestRouterNestedRoutes(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("router-nested-test"),
 		1,
 		app,
@@ -293,7 +293,7 @@ func TestRouterWithHeaderContext(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("router-header-test"),
 		1,
 		app,
@@ -329,7 +329,7 @@ func TestRouterStateIsolation(t *testing.T) {
 	}
 
 	transport1 := &mockTransport{}
-	sess1 := New(SessionID("session-1"), 1, app, &Config{Transport: transport1})
+	sess1 := NewLiveSession(SessionID("session-1"), 1, app, &Config{Transport: transport1})
 	req1 := newRequest("/users/1")
 	sess1.MergeRequest(req1)
 	if err := sess1.Flush(); err != nil {
@@ -338,7 +338,7 @@ func TestRouterStateIsolation(t *testing.T) {
 	path1 = sess1.InitialLocation().Path
 
 	transport2 := &mockTransport{}
-	sess2 := New(SessionID("session-2"), 1, app, &Config{Transport: transport2})
+	sess2 := NewLiveSession(SessionID("session-2"), 1, app, &Config{Transport: transport2})
 	req2 := newRequest("/users/2")
 	sess2.MergeRequest(req2)
 	if err := sess2.Flush(); err != nil {

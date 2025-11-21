@@ -97,9 +97,9 @@ func (t *transport) SendUploadControl(ctrl protocol.UploadControl) error {
 
 func (t *transport) SendDOMRequest(req protocol.DOMRequest) error {
 	if req.T == "" {
-		req.T = "domreq"
+		req.T = "dom_req"
 	}
-	return t.send("domreq", req)
+	return t.send("dom_req", req)
 }
 
 func (t *transport) send(event string, payload any) error {

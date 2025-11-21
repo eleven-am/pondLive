@@ -12,22 +12,16 @@ import (
 type Component func(runtime.Ctx) *dom.StructuredNode
 
 func documentRoot(sess *LiveSession, app Component) runtime.Component[struct{}] {
-	return documentRootGeneric(sess, func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
-		return app(ctx)
-	})
-}
+	initial := &router.RouterState{
+		Location: toRouterLocation(sess.InitialLocation()),
+		Matched:  false,
+		Pattern:  "",
+		Params:   make(map[string]string),
+		Path:     "",
+	}
 
-func documentRootGeneric[P any](sess *LiveSession, app runtime.Component[P]) runtime.Component[P] {
-	return func(ctx runtime.Ctx, props P) *dom.StructuredNode {
-		initial := &router.RouterState{
-			Location: toRouterLocation(sess.InitialLocation()),
-			Matched:  false,
-			Pattern:  "",
-			Params:   make(map[string]string),
-			Path:     "",
-		}
+	return func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
 		current, setCurrent := runtime.UseState(ctx, initial)
-
 		controller := runtime.UseMemo(ctx, func() *router.Controller {
 			return router.NewController(current, setCurrent)
 		})
@@ -36,9 +30,13 @@ func documentRootGeneric[P any](sess *LiveSession, app runtime.Component[P]) run
 			controller.SetLocation(toRouterLocation(loc))
 		})
 
+		wrapped := func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
+			return app(ctx)
+		}
+
 		return router.ProvideRouterState(ctx, controller, func(rctx runtime.Ctx) *dom.StructuredNode {
 			return HeaderContext.Provide(rctx, sess.Header(), func(hctx runtime.Ctx) *dom.StructuredNode {
-				return meta.Provider(hctx, sess.clientAsset, app, props)
+				return meta.Provider(hctx, sess.clientAsset, wrapped, struct{}{})
 			})
 		})
 	}
@@ -53,12 +51,4 @@ func toRouterLocation(loc Location) router.Location {
 		cp.Query = cloneQuery(loc.Query)
 	}
 	return cp
-}
-
-func cloneRouterLocation(loc router.Location) router.Location {
-	return router.Location{
-		Path:  loc.Path,
-		Query: cloneQuery(loc.Query),
-		Hash:  loc.Hash,
-	}
 }

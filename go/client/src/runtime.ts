@@ -1,222 +1,174 @@
-import { PondClient, ChannelState } from '@eleven-am/pondsocket-client';
-import { BootPayload, FramePayload, InitPayload } from './types';
-import { Logger } from './logger';
-import { hydrate } from './vdom';
-import { Patcher } from './patcher';
-import { ClientNode } from './types';
-import { EventManager } from './events';
-import { Router } from './router';
-import { DOMActionExecutor } from './dom_actions';
-import { UploadManager, UploadRuntime, ClientConfig } from './uploads';
+import {Transport} from './transport';
+import {Patcher} from './patcher';
+import {Router} from './router';
+import {Uploader} from './uploader';
+import {EffectExecutor} from './effects';
+import {Logger} from './logger';
+import {ChannelState} from '@eleven-am/pondsocket-client';
+import {
+    Boot,
+    ClientEvent,
+    DOMRequest,
+    Frame,
+    Init,
+    Location as ProtoLocation,
+    NavMessage,
+    ResumeOK,
+    ServerMessage
+} from './protocol';
+import {Effect, RouterMeta, UploadMeta} from './types';
 
-export class LiveRuntime implements UploadRuntime {
-    private client!: PondClient;
-    private channel: any;
-    private config: ClientConfig = {};
-    private root: ClientNode | null = null;
-    private patcher!: Patcher;
-    private eventManager!: EventManager;
-    private router!: Router;
-    private uploadManager!: UploadManager;
-    private refs = new Map<string, ClientNode>();
-    private domActions!: DOMActionExecutor;
+export interface RuntimeConfig {
+    root: Node;
+    sessionId: string;
+    version: number;
+    seq: number;
+    endpoint: string;
+    uploadEndpoint: string;
+    location: ProtoLocation;
+    debug?: boolean;
+}
 
-    private readonly sessionId: string = '';
+export class Runtime {
+    private connectedState = true;
+    private readonly sessionId: string;
+    private readonly transport: Transport;
+    private readonly patcher: Patcher;
+    private readonly router: Router;
+    private readonly uploader: Uploader;
+    private readonly effects: EffectExecutor;
+    private readonly refs = new Map<string, Element>();
 
-    constructor() {
-        const boot = this.getBootPayload();
-        if (!boot) {
-            Logger.error('Runtime', 'No boot payload found');
-            return;
-        }
+    private cseq = 0;
 
-        this.sessionId = boot.sid;
-        this.config = boot.client || {};
+    constructor(config: RuntimeConfig) {
+        this.sessionId = config.sessionId;
 
-        Logger.configure({ debug: boot.client?.debug });
-        Logger.debug('Runtime', 'Booting...', boot);
+        Logger.configure({enabled: config.debug ?? false, level: 'debug'});
 
-        this.connect(boot);
-        this.hydrate(boot);
-    }
+        const resolveRef = (refId: string) => this.refs.get(refId);
 
-    private getBootPayload(): BootPayload | null {
-        if (typeof window === 'undefined') return null;
-        const script = document.getElementById('live-boot');
-        if (script && script.textContent) {
-            try {
-                return JSON.parse(script.textContent);
-            } catch (e) {
-                Logger.error('Runtime', 'Failed to parse boot payload', e);
-            }
-        }
-        return (window as any).__LIVEUI_BOOT__ || null;
-    }
-
-    private hydrate(boot: BootPayload) {
-        try {
-            const jsonTree = JSON.parse(boot.json);
-
-            
-            
-            
-
-            
-            function findHtmlElement(node: any): Element | null {
-                if (node.tag === 'html') {
-                    return document.documentElement;
-                }
-                if (node.children) {
-                    for (const child of node.children) {
-                        const result = findHtmlElement(child);
-                        if (result) return result;
-                    }
-                }
-                return null;
-            }
-
-            const htmlElement = findHtmlElement(jsonTree);
-            if (!htmlElement) {
-                Logger.error('Runtime', 'Could not find <html> element in JSON tree');
-                return;
-            }
-
-            
-            this.root = this.hydrateWithComponentWrappers(jsonTree, htmlElement);
-
-            
-            if (this.eventManager && this.root) {
-                this.eventManager.attach(this.root);
-            }
-
-            
-            if (this.router && this.root) {
-                this.attachRouterRecursively(this.root);
-            }
-
-            if (this.eventManager && this.router && this.uploadManager) {
-                this.patcher = new Patcher(this.root, this.eventManager, this.router, this.uploadManager, this.refs);
-            }
-
-            Logger.debug('Runtime', 'Hydration complete');
-        } catch (e) {
-            Logger.error('Runtime', 'Hydration failed', e);
-        }
-    }
-
-    private hydrateWithComponentWrappers(jsonNode: any, htmlElement: Element): ClientNode {
-        
-        if (jsonNode.tag === 'html') {
-            return hydrate(jsonNode, htmlElement, this.refs);
-        }
-
-        const clientNode: ClientNode = {
-            ...jsonNode,
-            el: null,
-            children: undefined
-        };
-
-        if (jsonNode.componentId) {
-            clientNode.componentId = jsonNode.componentId;
-        }
-
-        if (jsonNode.children && jsonNode.children.length > 0) {
-            clientNode.children = [];
-            for (const child of jsonNode.children) {
-                const childNode = this.hydrateWithComponentWrappers(child, htmlElement);
-                clientNode.children.push(childNode);
-            }
-        }
-
-        if (clientNode.el === null && clientNode.children && clientNode.children.length === 1 && clientNode.children[0].tag === 'html') {
-            clientNode.el = htmlElement;
-        }
-
-        return clientNode;
-    }
-
-    private connect(boot: BootPayload) {
-        const endpoint = boot.client?.endpoint || '/live';
-        this.client = new PondClient(endpoint);
-
-        const joinPayload = {
-            sid: boot.sid,
-            ver: boot.ver,
-            ack: boot.seq,
-            loc: boot.location
-        };
-
-        this.channel = this.client.createChannel(`live/${boot.sid}`, joinPayload);
-        this.eventManager = new EventManager(this.channel, boot.sid);
-        this.router = new Router(this.channel, boot.sid);
-        this.uploadManager = new UploadManager(this);
-        this.domActions = new DOMActionExecutor(this.refs);
-
-        this.channel.onChannelStateChange((state: ChannelState) => {
-            Logger.debug('Runtime', 'Channel state:', state);
+        this.transport = new Transport({
+            endpoint: config.endpoint,
+            sessionId: config.sessionId,
+            version: config.version,
+            ack: config.seq,
+            location: config.location
         });
 
-        this.channel.onMessage((event: string, payload: any) => {
-            Logger.debug('WS Recv', event, payload);
-            this.handleMessage(payload);
+        this.patcher = new Patcher(config.root, {
+            onEvent: (_event, handler, data) => this.handleEvent(handler, data),
+            onRef: (refId, el) => this.refs.set(refId, el),
+            onRefDelete: (refId) => this.refs.delete(refId),
+            onRouter: (meta) => this.handleRouterClick(meta),
+            onUpload: (meta, files) => this.handleUpload(meta, files)
         });
 
-        this.client.connect();
-        this.channel.join();
+        this.router = new Router((type, path, query, hash) => {
+            this.sendNav(type, path, query, hash);
+        });
+
+        this.uploader = new Uploader({
+            endpoint: config.uploadEndpoint,
+            sessionId: config.sessionId,
+            onMessage: (msg) => this.transport.send(msg)
+        });
+
+        this.effects = new EffectExecutor({
+            sessionId: config.sessionId,
+            resolveRef,
+            onDOMResponse: (res) => this.transport.send(res)
+        });
+
+        this.transport.onMessage((msg) => this.handleMessage(msg));
+        this.transport.onStateChange((state) => this.handleStateChange(state));
     }
 
-    getSessionId(): string | undefined {
-        return this.sessionId;
+    connect(): void {
+        this.transport.connect();
+        Logger.info('Runtime', 'Connected');
     }
 
-    getUploadEndpoint(): string {
-        return this.config.upload || '/pondlive/upload';
+    disconnect(): void {
+        this.transport.disconnect();
+        Logger.info('Runtime', 'Disconnected');
     }
 
-    sendUploadMessage(payload: any) {
-        Logger.debug('WS Send', { t: 'upload', ...payload });
-        this.channel.sendMessage({ t: 'upload', ...payload });
+    connected(): boolean {
+        return this.connectedState;
     }
 
-    private handleMessage(msg: any) {
+    private handleMessage(msg: ServerMessage): void {
+        Logger.debug('Runtime', 'Received', msg.t);
+
         switch (msg.t) {
-            case 'frame':
-                this.handleFrame(msg as FramePayload);
+            case 'boot':
+                this.handleBoot(msg);
                 break;
             case 'init':
-                this.handleInit(msg as InitPayload);
+                this.handleInit(msg);
                 break;
-            case 'domreq':
+            case 'frame':
+                this.handleFrame(msg);
+                break;
+            case 'resume_ok':
+                this.handleResumeOK(msg);
+                break;
+            case 'dom_req':
                 this.handleDOMRequest(msg);
                 break;
-            case 'upload':
-                this.uploadManager.handleControl(msg);
+            case 'evt_ack':
                 break;
-            default:
-                Logger.debug('Runtime', 'Unknown message type', msg.t);
+            case 'error':
+                Logger.error('Runtime', 'Server error', msg.code, msg.message);
+                break;
+            case 'diagnostic':
+                Logger.warn('Runtime', 'Diagnostic', msg.code, msg.message);
+                break;
         }
     }
 
-    private handleFrame(frame: FramePayload) {
-        Logger.debug('Runtime', 'Received frame', { seq: frame.seq, ops: frame.patch.length });
-
-        if (this.patcher && frame.patch) {
-            for (const op of frame.patch) {
-                this.patcher.apply(op);
-            }
+    handleBoot(boot: Boot): void {
+        Logger.info('Runtime', 'Boot received', {ver: boot.ver, seq: boot.seq, patches: boot.patch?.length ?? 0});
+        if (boot.patch && boot.patch.length > 0) {
+            this.patcher.apply(boot.patch);
         }
 
-        if (frame.effects) {
-            this.domActions.execute(frame.effects);
+        this.sendAck(boot.seq);
+    }
+
+    private handleInit(init: Init): void {
+        Logger.info('Runtime', 'Init received', {ver: init.ver, seq: init.seq});
+        this.sendAck(init.seq);
+    }
+
+    private handleFrame(frame: Frame): void {
+        Logger.debug('Runtime', 'Frame', {seq: frame.seq, ops: frame.patch?.length ?? 0});
+
+        if (frame.patch && frame.patch.length > 0) {
+            this.patcher.apply(frame.patch);
+        }
+
+        if (frame.effects && frame.effects.length > 0) {
+            this.effects.execute(frame.effects as Effect[]);
         }
 
         if (frame.nav) {
             this.handleServerNav(frame.nav);
         }
+
+        this.sendAck(frame.seq);
     }
 
-    private handleServerNav(nav: { push?: string; replace?: string; back?: boolean }) {
-        Logger.debug('Runtime', 'Server navigation', nav);
+    private handleResumeOK(resume: ResumeOK): void {
+        Logger.info('Runtime', 'Resume OK', {from: resume.from, to: resume.to});
+    }
+
+    private handleDOMRequest(req: DOMRequest): void {
+        this.effects.handleDOMRequest(req);
+    }
+
+    private handleServerNav(nav: { push?: string; replace?: string; back?: boolean }): void {
         if (nav.push) {
             window.history.pushState({}, '', nav.push);
         } else if (nav.replace) {
@@ -226,60 +178,80 @@ export class LiveRuntime implements UploadRuntime {
         }
     }
 
-    private handleInit(init: InitPayload) {
-        Logger.debug('Runtime', 'Re-initialized', init);
-        
+    private handleEvent(handler: string, data: unknown): void {
+        const event: ClientEvent = {
+            t: 'evt',
+            sid: this.sessionId,
+            hid: handler,
+            cseq: ++this.cseq,
+            payload: (data as Record<string, unknown>) ?? {}
+        };
+        this.transport.send(event);
+        Logger.debug('Runtime', 'Event sent', handler);
     }
 
-    private handleDOMRequest(req: any) {
-        const { id, ref, props, method, args } = req;
+    private handleRouterClick(meta: RouterMeta): void {
+        this.router.navigate(meta);
+    }
 
-        
-        const node = this.refs.get(ref);
-        if (!node || !node.el) {
-            this.sendDOMResponse({ t: 'domres', id, error: 'ref not found' });
-            return;
+    private handleUpload(meta: UploadMeta, files: FileList): void {
+        this.uploader.upload(meta, files);
+    }
+
+    private sendNav(type: 'nav' | 'pop', path: string, query: string, hash: string): void {
+        const msg: NavMessage = {t: type, sid: this.sessionId, path, q: query, hash};
+        this.transport.send(msg);
+        Logger.debug('Runtime', 'Nav sent', type, path);
+    }
+
+    private sendAck(seq: number): void {
+        this.transport.send({t: 'ack', sid: this.sessionId, seq});
+    }
+
+    private handleStateChange(state: ChannelState): void {
+        Logger.debug('Runtime', 'Channel state', state);
+        if (state === ChannelState.STALLED || state === ChannelState.CLOSED) {
+            this.connectedState = false;
         }
+    }
+}
 
-        const el = node.el as any;
+export function boot(): Runtime | null {
+    if (typeof window === 'undefined') return null;
 
+    const script = document.getElementById('live-boot');
+    let bootData: Boot | null = null;
+
+    if (script?.textContent) {
         try {
-            let result: any;
-            let values: any;
-
-            
-            if (props && Array.isArray(props)) {
-                values = {};
-                for (const prop of props) {
-                    values[prop] = el[prop];
-                }
-            }
-
-            
-            if (method && typeof el[method] === 'function') {
-                result = el[method](...(args || []));
-            }
-
-            this.sendDOMResponse({ t: 'domres', id, result, values });
-        } catch (e: any) {
-            this.sendDOMResponse({ t: 'domres', id, error: e.message || 'unknown error' });
+            bootData = JSON.parse(script.textContent);
+        } catch (e) {
+            Logger.error('Runtime', 'Failed to parse boot payload', e);
         }
     }
 
-    private sendDOMResponse(response: any) {
-        const payload = { ...response, sid: this.sessionId };
-        Logger.debug('WS Send', 'domres', payload);
-        this.channel.sendMessage('domres', payload);
+    if (!bootData) {
+        bootData = (window as unknown as { __LIVEUI_BOOT__?: Boot }).__LIVEUI_BOOT__ ?? null;
     }
 
-    private attachRouterRecursively(node: ClientNode) {
-        if (this.router) {
-            this.router.attach(node);
-        }
-        if (node.children) {
-            for (const child of node.children) {
-                this.attachRouterRecursively(child);
-            }
-        }
+    if (!bootData) {
+        Logger.error('Runtime', 'No boot payload found');
+        return null;
     }
+
+    const config: RuntimeConfig = {
+        root: document.documentElement,
+        sessionId: bootData.sid,
+        version: bootData.ver,
+        seq: bootData.seq,
+        endpoint: bootData.client?.endpoint ?? '/live',
+        uploadEndpoint: bootData.client?.upload ?? '/pondlive/upload',
+        location: bootData.location,
+        debug: bootData.client?.debug
+    };
+
+    const runtime = new Runtime(config);
+    runtime.handleBoot(bootData);
+    runtime.connect();
+    return runtime;
 }

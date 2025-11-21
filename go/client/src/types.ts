@@ -1,169 +1,172 @@
+import {DOMResponse, ServerMessage, UploadMessage, Location as ProtoLocation} from './protocol';
+
+// ============================================================================
+// Patch Types
+// ============================================================================
+
 export type OpKind =
-  | 'setText'
-  | 'setComment'
-  | 'setAttr'
-  | 'delAttr'
-  | 'setStyle'
-  | 'delStyle'
-  | 'setStyleDecl'
-  | 'delStyleDecl'
-  | 'setHandlers'
-  | 'setRouter'
-  | 'delRouter'
-  | 'setUpload'
-  | 'delUpload'
-  | 'setRef'
-  | 'delRef'
-  | 'setComponent'
-  | 'replaceNode'
-  | 'addChild'
-  | 'delChild'
-  | 'moveChild';
+    | 'setText'
+    | 'setComment'
+    | 'setAttr'
+    | 'delAttr'
+    | 'setStyle'
+    | 'delStyle'
+    | 'setStyleDecl'
+    | 'delStyleDecl'
+    | 'setHandlers'
+    | 'setRouter'
+    | 'delRouter'
+    | 'setUpload'
+    | 'delUpload'
+    | 'setRef'
+    | 'delRef'
+    | 'replaceNode'
+    | 'addChild'
+    | 'delChild'
+    | 'moveChild';
 
 export interface Patch {
-  path: number[];
-  op: OpKind;
-  value?: any;
-  name?: string;
-  selector?: string;
-  index?: number;
+    seq: number;
+    path: number[];
+    op: OpKind;
+    value?: unknown;
+    name?: string;
+    selector?: string;
+    index?: number;
 }
 
 export interface HandlerMeta {
-  event: string;
-  handler: string;
-  listen?: string[];
-  props?: string[];
+    event: string;
+    handler: string;
+    listen?: string[];
+    props?: string[];
 }
 
 export interface RouterMeta {
-  path?: string;
-  query?: string;
-  hash?: string;
-  replace?: string;
+    pathValue: string;
+    query?: string;
+    hash?: string;
+    replace?: boolean;
 }
 
 export interface UploadMeta {
-  uploadId: string;
-  accept?: string[];
-  multiple?: boolean;
-  maxSize?: number;
-}
-
-export interface StyleRule {
-  selector: string;
-  props: Record<string, string>;
-}
-
-export interface MediaBlock {
-  query: string;
-  rules: StyleRule[];
-}
-
-export interface Stylesheet {
-  rules?: StyleRule[];
-  mediaBlocks?: MediaBlock[];
-  hash?: string;
+    uploadId: string;
+    multiple?: boolean;
+    maxSize?: number;
+    accept?: string[];
 }
 
 export interface StructuredNode {
-  componentId?: string;
-  tag?: string;
-  text?: string;
-  comment?: string;
-  fragment?: boolean;
-  key?: string;
-  children?: StructuredNode[];
-  unsafeHtml?: string;
-  attrs?: Record<string, string[]>;
-  style?: Record<string, string>;
-  stylesheet?: Stylesheet;
-  refId?: string;
-  handlers?: HandlerMeta[];
-  router?: RouterMeta;
-  upload?: UploadMeta;
+    tag?: string;
+    text?: string;
+    comment?: string;
+    attrs?: Record<string, string[]>;
+    style?: Record<string, string>;
+    children?: StructuredNode[];
+    handlers?: HandlerMeta[];
+    router?: RouterMeta;
+    upload?: UploadMeta;
+    refId?: string;
+    unsafeHTML?: string;
 }
 
+// ============================================================================
+// Patcher Types
+// ============================================================================
 
-export interface ClientNode extends StructuredNode {
-  el: Node | null; 
-  children?: ClientNode[]; 
+export type EventCallback = (event: string, handler: string, data: unknown) => void;
+export type RefCallback = (refId: string, el: Element) => void;
+export type RefDeleteCallback = (refId: string) => void;
+export type RouterCallback = (meta: RouterMeta) => void;
+export type UploadCallback = (meta: UploadMeta, files: FileList) => void;
+
+export interface PatcherCallbacks {
+    onEvent: EventCallback;
+    onRef: RefCallback;
+    onRefDelete: RefDeleteCallback;
+    onRouter: RouterCallback;
+    onUpload: UploadCallback;
 }
 
-export interface Location {
-  path: string;
-  q: string;
-  hash: string;
+// ============================================================================
+// Router Types
+// ============================================================================
+
+export type NavCallback = (type: 'nav' | 'pop', path: string, query: string, hash: string) => void;
+
+// ============================================================================
+// Transport Types
+// ============================================================================
+
+import type {ChannelState} from '@eleven-am/pondsocket-client';
+
+export type MessageHandler = (msg: ServerMessage) => void;
+export type StateChangeHandler = (state: ChannelState) => void;
+
+export interface TransportConfig {
+    endpoint: string;
+    sessionId: string;
+    version: number;
+    ack: number;
+    location: ProtoLocation;
 }
 
-export interface ClientConfig {
-  endpoint?: string;
-  upload?: string;
-  debug?: boolean;
+// ============================================================================
+// Uploader Types
+// ============================================================================
+
+export type UploadMessageCallback = (msg: UploadMessage) => void;
+
+export interface UploaderConfig {
+    endpoint: string;
+    sessionId: string;
+    onMessage: UploadMessageCallback;
 }
 
-export interface BootPayload {
-  t: 'boot';
-  sid: string;
-  ver: number;
-  seq: number;
-  json: string; 
-  location: Location;
-  client?: ClientConfig;
-  errors?: any[];
-}
+// ============================================================================
+// Effect Types
+// ============================================================================
 
 export interface DOMActionEffect {
-  type: string; 
-  kind: string; 
-  ref: string;
-  method?: string;
-  args?: any[];
-  prop?: string;
-  value?: any;
-  class?: string;
-  on?: boolean;
-  behavior?: string;
-  block?: string;
-  inline?: string;
+    type: 'dom';
+    kind: string;
+    ref: string;
+    method?: string;
+    args?: unknown[];
+    prop?: string;
+    value?: unknown;
+    class?: string;
+    on?: boolean;
+    behavior?: ScrollBehavior;
+    block?: ScrollLogicalPosition;
+    inline?: ScrollLogicalPosition;
 }
 
-export interface NavDelta {
-  push?: string;
-  replace?: string;
-  back?: boolean;
+export interface CookieEffect {
+    type: 'cookies';
+    endpoint: string;
+    sid: string;
+    token: string;
+    method?: string;
 }
 
-export interface FramePayload {
-  t: 'frame';
-  sid: string;
-  seq: number;
-  ver: number;
-  patch: Patch[];
-  effects?: DOMActionEffect[];
-  nav?: NavDelta;
-  metrics?: any;
+export type Effect = DOMActionEffect | CookieEffect;
+export type RefResolver = (refId: string) => Element | undefined;
+export type DOMResponseCallback = (response: DOMResponse) => void;
+
+export interface EffectExecutorConfig {
+    sessionId: string;
+    resolveRef: RefResolver;
+    onDOMResponse: DOMResponseCallback;
 }
 
-export interface InitPayload {
-  t: 'init';
-  sid: string;
-  ver: number;
-  location: Location;
-  seq: number;
-  errors?: any[];
-}
+// ============================================================================
+// Logger Types
+// ============================================================================
 
-export interface UploadControlMessage {
-  t?: 'upload';
-  op: 'cancel' | 'error' | 'change' | 'progress' | 'cancelled';
-  id: string;
-  error?: string;
-  meta?: {
-    name: string;
-    size: number;
-    type: string;
-  };
-  loaded?: number;
-  total?: number;
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+export interface LoggerConfig {
+    enabled: boolean;
+    level: LogLevel;
 }

@@ -11,11 +11,11 @@ import (
 )
 
 func TestLiveSessionBasic(t *testing.T) {
-	root := func(ctx runtime.Ctx, props struct{}) *dom.StructuredNode {
+	root := func(ctx runtime.Ctx) *dom.StructuredNode {
 		return dom.ElementNode("div").WithChildren(dom.TextNode("Hello"))
 	}
 
-	sess := NewLiveSession(SessionID("test"), 1, root, struct{}{}, nil)
+	sess := NewLiveSession(SessionID("test"), 1, root, nil)
 
 	if sess.ID() != "test" {
 		t.Errorf("expected ID 'test', got %q", sess.ID())
@@ -32,7 +32,7 @@ func TestLiveSessionHeaders(t *testing.T) {
 		return dom.ElementNode("div").WithChildren(dom.TextNode(ua))
 	}
 
-	sess := New(SessionID("test"), 1, app, nil)
+	sess := NewLiveSession(SessionID("test"), 1, app, nil)
 
 	req := newRequest("/")
 	req.Header.Set("User-Agent", "TestBot/1.0")
@@ -56,7 +56,7 @@ func TestLiveSessionDocumentRoot(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(SessionID("test"), 1, app, &Config{
+	sess := NewLiveSession(SessionID("test"), 1, app, &Config{
 		Transport: transport,
 	})
 
@@ -87,7 +87,7 @@ func TestLiveSessionEventHandling(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(SessionID("test"), 1, root, &Config{
+	sess := NewLiveSession(SessionID("test"), 1, root, &Config{
 		Transport: transport,
 	})
 
@@ -167,7 +167,7 @@ func TestLiveSessionTransport(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(SessionID("test"), 1, root, &Config{
+	sess := NewLiveSession(SessionID("test"), 1, root, &Config{
 		Transport: transport,
 	})
 
@@ -200,7 +200,7 @@ func TestDocumentRootProvidesRouterLocation(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(SessionID("router-loc"), 1, app, &Config{Transport: transport})
+	sess := NewLiveSession(SessionID("router-loc"), 1, app, &Config{Transport: transport})
 	req := newRequest("/products/details?page=2&filter=active#info")
 	sess.MergeRequest(req)
 	if req.URL.Path != "/products/details" {
@@ -246,7 +246,7 @@ func TestDocumentRootRouterLocationClone(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(SessionID("router-clone"), 1, app, &Config{Transport: transport})
+	sess := NewLiveSession(SessionID("router-clone"), 1, app, &Config{Transport: transport})
 	req := newRequest("/orders?status=pending")
 	sess.MergeRequest(req)
 
@@ -282,7 +282,7 @@ func TestLiveSessionCookies(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(SessionID("cookie"), 1, root, &Config{Transport: transport})
+	sess := NewLiveSession(SessionID("cookie"), 1, root, &Config{Transport: transport})
 
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush failed: %v", err)
@@ -330,7 +330,7 @@ func TestLiveSessionCookieDeletes(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(SessionID("cookie-del"), 1, root, &Config{Transport: transport})
+	sess := NewLiveSession(SessionID("cookie-del"), 1, root, &Config{Transport: transport})
 
 	header := sess.Header()
 	header.SetCookie(&http.Cookie{Name: "session", Value: "init"})

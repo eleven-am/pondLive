@@ -98,14 +98,14 @@ func newSession(t *testing.T) *session.LiveSession {
 func newSessionWithID(t *testing.T, id string) *session.LiveSession {
 	t.Helper()
 
-	component := func(ctx runtime.Ctx, _ struct{}) h.Node {
+	component := func(ctx runtime.Ctx) h.Node {
 		return h.Div()
 	}
 
 	current := time.Unix(0, 0)
 	clock := func() time.Time { return current }
 
-	sess := session.NewLiveSession(session.SessionID(id), 1, component, struct{}{}, &session.Config{
+	sess := session.NewLiveSession(session.SessionID(id), 1, component, &session.Config{
 		Clock: clock,
 		TTL:   time.Second,
 	})

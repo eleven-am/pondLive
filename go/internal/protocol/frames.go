@@ -4,14 +4,14 @@ import dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 
 // Boot initializes a new session with the initial DOM tree
 type Boot struct {
-	T        string        `json:"t"`
-	SID      string        `json:"sid"`
-	Ver      int           `json:"ver"`
-	Seq      int           `json:"seq"`
-	JSON     string        `json:"json"`
-	Location Location      `json:"location"`
-	Client   *ClientConfig `json:"client,omitempty"`
-	Errors   []ServerError `json:"errors,omitempty"`
+	T        string           `json:"t"`
+	SID      string           `json:"sid"`
+	Ver      int              `json:"ver"`
+	Seq      int              `json:"seq"`
+	Patch    []dom2diff.Patch `json:"patch,omitempty"`
+	Location Location         `json:"location"`
+	Client   *ClientConfig    `json:"client,omitempty"`
+	Errors   []ServerError    `json:"errors,omitempty"`
 }
 
 type ClientConfig struct {

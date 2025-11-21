@@ -8,109 +8,129 @@ func intPtr(i int) *int {
 	return &i
 }
 
+// Diff compares two StructuredNode trees and returns a list of patches.
+// Both trees are flattened first, removing fragment/component boundaries,
+// so patches operate directly on DOM-equivalent nodes.
+// Each patch has a Seq number indicating execution order.
 func Diff(prev, next *dom.StructuredNode) []Patch {
+	var flatPrev, flatNext *dom.StructuredNode
+	if prev != nil {
+		flatPrev = prev.Flatten()
+	}
+	if next != nil {
+		flatNext = next.Flatten()
+	}
+
+	seq := 0
 	patches := make([]Patch, 0)
-	diffNode(&patches, nil, prev, next)
+	diffNode(&patches, &seq, nil, flatPrev, flatNext)
 	return patches
 }
 
-func diffNode(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
+// DiffRaw diffs without flattening - for testing or when trees are already flat
+func DiffRaw(prev, next *dom.StructuredNode) []Patch {
+	seq := 0
+	patches := make([]Patch, 0)
+	diffNode(&patches, &seq, nil, prev, next)
+	return patches
+}
+
+func emit(patches *[]Patch, seq *int, p Patch) {
+	p.Seq = *seq
+	*seq++
+	*patches = append(*patches, p)
+}
+
+func diffNode(patches *[]Patch, seq *int, path []int, a, b *dom.StructuredNode) {
 	if a == nil && b == nil {
 		return
 	}
 	if a == nil || b == nil {
-		*patches = append(*patches, Patch{Path: copyPath(path), Op: OpReplaceNode, Value: b})
+		emit(patches, seq, Patch{Path: copyPath(path), Op: OpReplaceNode, Value: b})
 		return
 	}
 
 	aType := nodeTypeOf(a)
 	bType := nodeTypeOf(b)
 	if aType != bType {
-		*patches = append(*patches, Patch{Path: copyPath(path), Op: OpReplaceNode, Value: b})
+		emit(patches, seq, Patch{Path: copyPath(path), Op: OpReplaceNode, Value: b})
 		return
 	}
 
 	if aType == nodeElement && a.Tag != b.Tag {
-		*patches = append(*patches, Patch{Path: copyPath(path), Op: OpReplaceNode, Value: b})
+		emit(patches, seq, Patch{Path: copyPath(path), Op: OpReplaceNode, Value: b})
 		return
 	}
 
 	switch aType {
 	case nodeText:
 		if a.Text != b.Text {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpSetText, Value: b.Text})
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpSetText, Value: b.Text})
 		}
 	case nodeComment:
 		if a.Comment != b.Comment {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpSetComment, Value: b.Comment})
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpSetComment, Value: b.Comment})
 		}
 	case nodeElement:
-		diffElement(patches, path, a, b)
-	case nodeComponent:
-		if a.ComponentID != b.ComponentID {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpSetComponent, Value: b.ComponentID})
-		}
-		diffChildren(patches, path, a.Children, b.Children)
-	case nodeFragment:
-		diffChildren(patches, path, a.Children, b.Children)
+		diffElement(patches, seq, path, a, b)
 	}
 }
 
-func diffElement(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
-	diffAttrs(patches, path, a, b)
-	diffStyle(patches, path, a, b)
+func diffElement(patches *[]Patch, seq *int, path []int, a, b *dom.StructuredNode) {
+	diffAttrs(patches, seq, path, a, b)
+	diffStyle(patches, seq, path, a, b)
 
 	if a.Tag == "style" || b.Tag == "style" {
-		diffStylesheet(patches, path, a, b)
+		diffStylesheet(patches, seq, path, a, b)
 	}
 
 	if a.RefID != b.RefID {
 		if b.RefID == "" {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpDelRef})
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpDelRef})
 		} else {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpSetRef, Value: b.RefID})
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpSetRef, Value: b.RefID})
 		}
 	}
 
 	if !handlersEqual(a.Handlers, b.Handlers) {
-		*patches = append(*patches, Patch{Path: copyPath(path), Op: OpSetHandlers, Value: b.Handlers})
+		emit(patches, seq, Patch{Path: copyPath(path), Op: OpSetHandlers, Value: b.Handlers})
 	}
 
 	if !routerEqual(a.Router, b.Router) {
 		if b.Router == nil {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpDelRouter})
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpDelRouter})
 		} else {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpSetRouter, Value: b.Router})
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpSetRouter, Value: b.Router})
 		}
 	}
 
 	if !uploadEqual(a.Upload, b.Upload) {
 		if b.Upload == nil {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpDelUpload})
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpDelUpload})
 		} else {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpSetUpload, Value: b.Upload})
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpSetUpload, Value: b.Upload})
 		}
 	}
 
 	if a.UnsafeHTML != b.UnsafeHTML {
-		*patches = append(*patches, Patch{Path: copyPath(path), Op: OpReplaceNode, Value: b})
+		emit(patches, seq, Patch{Path: copyPath(path), Op: OpReplaceNode, Value: b})
 		return
 	}
 
 	if b.UnsafeHTML == "" {
-		diffChildren(patches, path, a.Children, b.Children)
+		diffChildren(patches, seq, path, a.Children, b.Children)
 	}
 }
 
-func diffChildren(patches *[]Patch, parentPath []int, a, b []*dom.StructuredNode) {
+func diffChildren(patches *[]Patch, seq *int, parentPath []int, a, b []*dom.StructuredNode) {
 	if hasKeys(a) || hasKeys(b) {
-		diffChildrenKeyed(patches, parentPath, a, b)
+		diffChildrenKeyed(patches, seq, parentPath, a, b)
 	} else {
-		diffChildrenIndexed(patches, parentPath, a, b)
+		diffChildrenIndexed(patches, seq, parentPath, a, b)
 	}
 }
 
-func diffChildrenIndexed(patches *[]Patch, parentPath []int, a, b []*dom.StructuredNode) {
+func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []*dom.StructuredNode) {
 	max := len(a)
 	if len(b) > max {
 		max = len(b)
@@ -126,7 +146,7 @@ func diffChildrenIndexed(patches *[]Patch, parentPath []int, a, b []*dom.Structu
 			childB = b[i]
 		}
 		if childA == nil && childB != nil {
-			*patches = append(*patches, Patch{
+			emit(patches, seq, Patch{
 				Path:  copyPath(parentPath),
 				Op:    OpAddChild,
 				Index: intPtr(i),
@@ -135,7 +155,7 @@ func diffChildrenIndexed(patches *[]Patch, parentPath []int, a, b []*dom.Structu
 			continue
 		}
 		if childA != nil && childB == nil {
-			*patches = append(*patches, Patch{
+			emit(patches, seq, Patch{
 				Path:  copyPath(parentPath),
 				Op:    OpDelChild,
 				Index: intPtr(i - deletionOffset),
@@ -143,12 +163,11 @@ func diffChildrenIndexed(patches *[]Patch, parentPath []int, a, b []*dom.Structu
 			deletionOffset++
 			continue
 		}
-		diffNode(patches, childPath, childA, childB)
+		diffNode(patches, seq, childPath, childA, childB)
 	}
 }
 
-func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.StructuredNode) {
-
+func diffChildrenKeyed(patches *[]Patch, seq *int, parentPath []int, a, b []*dom.StructuredNode) {
 	oldKeys := make(map[string]int)
 	newKeys := make(map[string]int)
 
@@ -196,7 +215,7 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 		if a[idx] != nil && a[idx].Key != "" {
 			value = map[string]interface{}{"key": a[idx].Key}
 		}
-		*patches = append(*patches, Patch{
+		emit(patches, seq, Patch{
 			Path:  copyPath(parentPath),
 			Op:    OpDelChild,
 			Index: intPtr(idx),
@@ -228,13 +247,11 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 		}
 
 		if newChild.Key == "" {
-
 			if newIdx < len(intermediate) && (intermediate[newIdx] == nil || intermediate[newIdx].Key == "") {
 				childPath := append(copyPath(parentPath), newIdx)
-				diffNode(patches, childPath, intermediate[newIdx], newChild)
+				diffNode(patches, seq, childPath, intermediate[newIdx], newChild)
 			} else {
-
-				*patches = append(*patches, Patch{
+				emit(patches, seq, Patch{
 					Path:  copyPath(parentPath),
 					Op:    OpAddChild,
 					Index: intPtr(newIdx),
@@ -246,8 +263,7 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 
 		oldIdx, existedBefore := oldKeys[newChild.Key]
 		if !existedBefore {
-
-			*patches = append(*patches, Patch{
+			emit(patches, seq, Patch{
 				Path:  copyPath(parentPath),
 				Op:    OpAddChild,
 				Index: intPtr(newIdx),
@@ -258,8 +274,7 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 
 		intermediateIdx := intermediateKeys[newChild.Key]
 		if intermediateIdx != newIdx {
-
-			*patches = append(*patches, Patch{
+			emit(patches, seq, Patch{
 				Path:  copyPath(parentPath),
 				Op:    OpMoveChild,
 				Index: intPtr(newIdx),
@@ -271,7 +286,7 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 		}
 
 		childPath := append(copyPath(parentPath), newIdx)
-		diffNode(patches, childPath, a[oldIdx], newChild)
+		diffNode(patches, seq, childPath, a[oldIdx], newChild)
 	}
 }
 
@@ -284,24 +299,26 @@ func hasKeys(children []*dom.StructuredNode) bool {
 	return false
 }
 
-func diffAttrs(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
+func diffAttrs(patches *[]Patch, seq *int, path []int, a, b *dom.StructuredNode) {
+
+	for k := range a.Attrs {
+		if _, ok := b.Attrs[k]; !ok {
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpDelAttr, Name: k})
+		}
+	}
+
 	set := make(map[string][]string)
 	for k, v := range b.Attrs {
 		if !sliceEqual(a.Attrs[k], v) {
 			set[k] = v
 		}
 	}
-	for k := range a.Attrs {
-		if _, ok := b.Attrs[k]; !ok {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpDelAttr, Name: k})
-		}
-	}
 	if len(set) > 0 {
-		*patches = append(*patches, Patch{Path: copyPath(path), Op: OpSetAttr, Value: set})
+		emit(patches, seq, Patch{Path: copyPath(path), Op: OpSetAttr, Value: set})
 	}
 }
 
-func diffStyle(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
+func diffStyle(patches *[]Patch, seq *int, path []int, a, b *dom.StructuredNode) {
 	if a.Style == nil && b.Style == nil {
 		return
 	}
@@ -315,23 +332,24 @@ func diffStyle(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
 		bStyle = map[string]string{}
 	}
 
+	for k := range aStyle {
+		if _, ok := bStyle[k]; !ok {
+			emit(patches, seq, Patch{Path: copyPath(path), Op: OpDelStyle, Name: k})
+		}
+	}
+
 	set := make(map[string]string)
 	for k, v := range bStyle {
 		if aStyle[k] != v {
 			set[k] = v
 		}
 	}
-	for k := range aStyle {
-		if _, ok := bStyle[k]; !ok {
-			*patches = append(*patches, Patch{Path: copyPath(path), Op: OpDelStyle, Name: k})
-		}
-	}
 	if len(set) > 0 {
-		*patches = append(*patches, Patch{Path: copyPath(path), Op: OpSetStyle, Value: set})
+		emit(patches, seq, Patch{Path: copyPath(path), Op: OpSetStyle, Value: set})
 	}
 }
 
-func diffStylesheet(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
+func diffStylesheet(patches *[]Patch, seq *int, path []int, a, b *dom.StructuredNode) {
 	if a.Stylesheet == nil && b.Stylesheet == nil {
 		return
 	}
@@ -356,7 +374,7 @@ func diffStylesheet(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
 		}
 		if len(oldProps) == 0 {
 			for prop, val := range newProps {
-				*patches = append(*patches, Patch{
+				emit(patches, seq, Patch{
 					Path:     copyPath(path),
 					Op:       OpSetStyleDecl,
 					Selector: sel,
@@ -368,7 +386,7 @@ func diffStylesheet(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
 		}
 		if len(newProps) == 0 {
 			for prop := range oldProps {
-				*patches = append(*patches, Patch{
+				emit(patches, seq, Patch{
 					Path:     copyPath(path),
 					Op:       OpDelStyleDecl,
 					Selector: sel,
@@ -378,24 +396,25 @@ func diffStylesheet(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
 			continue
 		}
 
+		for prop := range oldProps {
+			if _, ok := newProps[prop]; !ok {
+				emit(patches, seq, Patch{
+					Path:     copyPath(path),
+					Op:       OpDelStyleDecl,
+					Selector: sel,
+					Name:     prop,
+				})
+			}
+		}
+
 		for prop, val := range newProps {
 			if oldProps[prop] != val {
-				*patches = append(*patches, Patch{
+				emit(patches, seq, Patch{
 					Path:     copyPath(path),
 					Op:       OpSetStyleDecl,
 					Selector: sel,
 					Name:     prop,
 					Value:    val,
-				})
-			}
-		}
-		for prop := range oldProps {
-			if _, ok := newProps[prop]; !ok {
-				*patches = append(*patches, Patch{
-					Path:     copyPath(path),
-					Op:       OpDelStyleDecl,
-					Selector: sel,
-					Name:     prop,
 				})
 			}
 		}
@@ -432,24 +451,18 @@ const (
 	nodeText
 	nodeComment
 	nodeElement
-	nodeComponent
-	nodeFragment
 )
 
 func nodeTypeOf(n *dom.StructuredNode) nodeType {
 	switch {
 	case n == nil:
 		return nodeUnknown
-	case n.ComponentID != "":
-		return nodeComponent
 	case n.Tag != "":
 		return nodeElement
 	case n.Text != "":
 		return nodeText
 	case n.Comment != "":
 		return nodeComment
-	case n.Fragment:
-		return nodeFragment
 	default:
 		return nodeUnknown
 	}
@@ -515,4 +528,100 @@ func uploadEqual(a, b *dom.UploadMeta) bool {
 		a.Multiple == b.Multiple &&
 		a.MaxSize == b.MaxSize &&
 		sliceEqual(a.Accept, b.Accept)
+}
+
+// ExtractMetadata recursively walks the tree and extracts metadata patches
+// (setHandlers, setRef, setRouter, setUpload) for initial client setup.
+// Returns patches in sequence order for applying to existing SSR'd DOM.
+func ExtractMetadata(n *dom.StructuredNode) []Patch {
+	if n == nil {
+		return nil
+	}
+
+	flattened := n.Flatten()
+	if flattened == nil {
+		return nil
+	}
+
+	var patches []Patch
+	seq := 0
+	extractMetadataRecursive(flattened, &patches, &seq, nil)
+	return patches
+}
+
+func extractMetadataRecursive(n *dom.StructuredNode, patches *[]Patch, seq *int, path []int) {
+	if n == nil {
+		return
+	}
+
+	if n.Fragment {
+		for i, child := range n.Children {
+			childPath := append(copyPath(path), i)
+			extractMetadataRecursive(child, patches, seq, childPath)
+		}
+		return
+	}
+
+	if n.Tag != "" {
+		handlers := n.Handlers
+		if len(handlers) == 0 && len(n.Events) > 0 {
+			handlers = make([]dom.HandlerMeta, 0, len(n.Events))
+			for event, binding := range n.Events {
+				meta := dom.HandlerMeta{
+					Event:   event,
+					Handler: binding.Key,
+					Listen:  binding.Listen,
+					Props:   binding.Props,
+				}
+				handlers = append(handlers, meta)
+			}
+		}
+
+		if len(handlers) > 0 {
+			*patches = append(*patches, Patch{
+				Seq:   *seq,
+				Path:  copyPath(path),
+				Op:    OpSetHandlers,
+				Value: handlers,
+			})
+			*seq++
+		}
+
+		if n.RefID != "" {
+			*patches = append(*patches, Patch{
+				Seq:   *seq,
+				Path:  copyPath(path),
+				Op:    OpSetRef,
+				Value: n.RefID,
+			})
+			*seq++
+		}
+
+		if n.Router != nil {
+			*patches = append(*patches, Patch{
+				Seq:   *seq,
+				Path:  copyPath(path),
+				Op:    OpSetRouter,
+				Value: n.Router,
+			})
+			*seq++
+		}
+
+		if n.Upload != nil {
+			*patches = append(*patches, Patch{
+				Seq:   *seq,
+				Path:  copyPath(path),
+				Op:    OpSetUpload,
+				Value: n.Upload,
+			})
+			*seq++
+		}
+
+		if n.UnsafeHTML == "" {
+			for i, child := range n.Children {
+				childPath := append(copyPath(path), i)
+				extractMetadataRecursive(child, patches, seq, childPath)
+			}
+		}
+	}
 }

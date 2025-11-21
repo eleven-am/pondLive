@@ -5,13 +5,12 @@ import {basename, dirname, resolve} from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const isProduction = process.env.NODE_ENV === 'production';
 const isWatch = process.argv.includes('--watch');
 
 const outDir = resolve(__dirname, '../pkg/live/server/static');
 
 const baseConfig = {
-    entryPoints: [resolve(__dirname, 'src/entry.ts')],
+    entryPoints: [resolve(__dirname, 'src/index.ts')],
     bundle: true,
     format: 'iife',
     platform: 'browser',

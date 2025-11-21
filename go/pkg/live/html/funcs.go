@@ -35,6 +35,20 @@ var (
 	Key    = dom.Key
 	Upload = dom.Upload
 
+	// Boolean attributes
+	Autofocus   = dom.Autofocus
+	Autoplay    = dom.Autoplay
+	Checked     = dom.Checked
+	Controls    = dom.Controls
+	Disabled    = dom.Disabled
+	Loop        = dom.Loop
+	Multiple    = dom.Multiple
+	Muted       = dom.Muted
+	Placeholder = dom.Placeholder
+	Readonly    = dom.Readonly
+	Required    = dom.Required
+	Selected    = dom.Selected
+
 	// Events
 	On     = dom.On
 	OnWith = dom.OnWith

@@ -74,7 +74,6 @@ type noopNode struct{}
 
 func (noopNode) ApplyTo(*dom.StructuredNode) {}
 func (noopNode) ToHTML() string              { return "" }
-func (noopNode) ToJSON() ([]byte, error)     { return []byte("null"), nil }
 func (noopNode) Validate() error             { return nil }
 
 // Map renders a slice into a fragment using render.

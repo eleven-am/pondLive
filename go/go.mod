@@ -8,6 +8,7 @@ require (
 	github.com/eleven-am/pondsocket/go/pondsocket v0.1.3
 	github.com/google/uuid v1.6.0
 	github.com/redis/go-redis/v9 v9.16.0
+	github.com/sanity-io/litter v1.5.8
 )
 
 require (

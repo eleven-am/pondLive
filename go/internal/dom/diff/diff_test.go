@@ -487,25 +487,6 @@ func TestDiffComment(t *testing.T) {
 	}
 }
 
-func TestDiffComponentIDChange(t *testing.T) {
-	prev := dom.ComponentNode("comp1")
-	next := dom.ComponentNode("comp2")
-	patches := Diff(prev, next)
-
-	found := false
-	for _, p := range patches {
-		if p.Op == OpSetComponent {
-			found = true
-			if p.Value.(string) != "comp2" {
-				t.Fatalf("expected componentID=comp2, got %v", p.Value)
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("expected setComponent op for component ID change")
-	}
-}
-
 func TestDiffNilStyleMaps(t *testing.T) {
 	prev := dom.ElementNode("div")
 	next := dom.ElementNode("div").WithStyle("color", "red")

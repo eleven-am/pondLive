@@ -1,496 +1,423 @@
-import { ClientNode, Patch, StructuredNode, Stylesheet } from './types';
-import { Logger } from './logger';
-import { hydrate } from './vdom';
-import { Router } from './router';
-import { UploadManager } from './uploads';
-
-import { EventManager } from './events';
+import {HandlerMeta, Patch, PatcherCallbacks, RouterMeta, StructuredNode, UploadMeta} from './types';
+import {Logger} from './logger';
 
 export class Patcher {
-    constructor(
-        private root: ClientNode,
-        private events: EventManager,
-        private router: Router,
-        private uploads: UploadManager,
-        private refs: Map<string, ClientNode>
-    ) { }
+    private readonly root: Node;
+    private callbacks: PatcherCallbacks;
+    private handlerStore = new WeakMap<Element, Map<string, (e: Event) => void>>();
+    private routerStore = new WeakMap<Element, (e: Event) => void>();
+    private uploadStore = new WeakMap<HTMLInputElement, (e: Event) => void>();
 
-    apply(patch: Patch) {
-        const target = this.traverse(patch.path);
-        if (!target) {
-            Logger.warn('Patcher', 'Target not found for path', patch.path);
+    constructor(root: Node, callbacks: PatcherCallbacks) {
+        this.root = root;
+        this.callbacks = callbacks;
+    }
+
+    apply(patches: Patch[]): void {
+        const sorted = [...patches].sort((a, b) => a.seq - b.seq);
+        for (const patch of sorted) {
+            this.applyPatch(patch);
+        }
+    }
+
+    private applyPatch(patch: Patch): void {
+        const node = this.resolvePath(patch.path);
+        if (!node) {
+            Logger.warn('Patcher', 'Could not resolve path', patch.path);
             return;
         }
-
-        Logger.debug('Patcher', 'Apply', {
-            op: patch.op,
-            path: patch.path,
-            index: patch.index,
-            name: patch.name,
-            selector: patch.selector,
-        });
 
         switch (patch.op) {
             case 'setText':
-                this.setText(target, patch.value);
-                break;
-            case 'setAttr':
-                this.setAttr(target, patch.value);
-                break;
-            case 'delAttr':
-                this.delAttr(target, patch.name!);
-                break;
-            case 'setStyleDecl':
-                this.setStyleDecl(target, patch.selector!, patch.name!, patch.value);
-                break;
-            case 'delStyleDecl':
-                this.delStyleDecl(target, patch.selector!, patch.name!);
-                break;
-            case 'replaceNode':
-                this.replaceNode(target, patch.value, patch.path);
-                break;
-            case 'addChild':
-                this.addChild(target, patch.value, patch.index!);
-                break;
-            case 'delChild':
-                this.delChild(target, patch.index!, (patch.value as any)?.key);
-                break;
-            case 'moveChild':
-                this.moveChild(target, patch.value);
-                break;
-            case 'setRef':
-                this.setRef(target, patch.value);
-                break;
-            case 'delRef':
-                this.delRef(target);
+                this.setText(node, patch.value as string);
                 break;
             case 'setComment':
-                this.setComment(target, patch.value);
+                this.setComment(node, patch.value as string);
+                break;
+            case 'setAttr':
+                this.setAttr(node as Element, patch.value as Record<string, string[]>);
+                break;
+            case 'delAttr':
+                this.delAttr(node as Element, patch.name!);
                 break;
             case 'setStyle':
-                this.setStyle(target, patch.value);
+                this.setStyle(node as HTMLElement, patch.value as Record<string, string>);
                 break;
             case 'delStyle':
-                this.delStyle(target, patch.name!);
+                this.delStyle(node as HTMLElement, patch.name!);
+                break;
+            case 'setStyleDecl':
+                this.setStyleDecl(node as HTMLStyleElement, patch.selector!, patch.name!, patch.value as string);
+                break;
+            case 'delStyleDecl':
+                this.delStyleDecl(node as HTMLStyleElement, patch.selector!, patch.name!);
                 break;
             case 'setHandlers':
-                this.setHandlers(target, patch.value);
+                this.setHandlers(node as Element, patch.value as HandlerMeta[]);
                 break;
             case 'setRouter':
-                this.setRouter(target, patch.value);
+                this.setRouter(node as Element, patch.value as RouterMeta);
                 break;
             case 'delRouter':
-                this.delRouter(target);
+                this.delRouter(node as Element);
                 break;
             case 'setUpload':
-                this.setUpload(target, patch.value);
+                this.setUpload(node as HTMLInputElement, patch.value as UploadMeta);
                 break;
             case 'delUpload':
-                this.delUpload(target);
+                this.delUpload(node as HTMLInputElement);
                 break;
-            case 'setComponent':
-                target.componentId = patch.value;
+            case 'setRef':
+                this.callbacks.onRef(patch.value as string, node as Element);
+                break;
+            case 'delRef':
+                this.callbacks.onRefDelete(patch.value as string);
+                break;
+            case 'replaceNode':
+                this.replaceNode(node, patch.value as StructuredNode);
+                break;
+            case 'addChild':
+                this.addChild(node, patch.index!, patch.value as StructuredNode);
+                break;
+            case 'delChild':
+                this.delChild(node, patch.index!);
+                break;
+            case 'moveChild':
+                this.moveChild(node, patch.value as { fromIndex: number; newIdx: number });
+                break;
+        }
+    }
+
+    private resolvePath(path: number[]): Node | null {
+        let node: Node | null = this.root;
+        for (const index of path) {
+            if (!node) return null;
+            node = node.childNodes[index] ?? null;
+        }
+        return node;
+    }
+
+    private setText(node: Node, text: string): void {
+        node.textContent = text;
+    }
+
+    private setComment(node: Node, text: string): void {
+        node.textContent = text;
+    }
+
+    private setAttr(el: Element, attrs: Record<string, string[]>): void {
+        Logger.info('Patcher', 'setAttr', el, attrs);
+        for (const [name, values] of Object.entries(attrs)) {
+            if (name === 'class') {
+                el.className = values.join(' ');
+            } else if (name === 'value' && el instanceof HTMLInputElement) {
+                el.value = values[0] ?? '';
+            } else if (name === 'checked' && el instanceof HTMLInputElement) {
+                el.checked = values.length > 0 && values[0] !== 'false';
+            } else if (name === 'selected' && el instanceof HTMLOptionElement) {
+                el.selected = values.length > 0 && values[0] !== 'false';
+            } else if (values.length === 0) {
+                el.setAttribute(name, '');
+            } else {
+                el.setAttribute(name, values.join(' '));
+            }
+        }
+    }
+
+    private delAttr(el: Element, name: string): void {
+        Logger.info('Patcher', 'delAttr', el, name);
+        if (name === 'value' && el instanceof HTMLInputElement) {
+            el.value = '';
+        } else if (name === 'checked' && el instanceof HTMLInputElement) {
+            el.checked = false;
+        } else if (name === 'selected' && el instanceof HTMLOptionElement) {
+            el.selected = false;
+        } else {
+            el.removeAttribute(name);
+        }
+    }
+
+    private setStyle(el: HTMLElement, styles: Record<string, string>): void {
+        Logger.info('Patcher', 'setStyle', el, styles);
+        for (const [prop, value] of Object.entries(styles)) {
+            el.style.setProperty(prop, value);
+        }
+    }
+
+    private delStyle(el: HTMLElement, prop: string): void {
+        Logger.info('Patcher', 'delStyle', el, prop);
+        el.style.removeProperty(prop);
+    }
+
+    private setStyleDecl(styleEl: HTMLStyleElement, selector: string, prop: string, value: string): void {
+        Logger.info('Patcher', 'setStyleDecl', styleEl, selector, prop, value);
+        const sheet = styleEl.sheet;
+        if (!sheet) return;
+
+        const rule = this.findOrCreateRule(sheet, selector);
+        if (rule) {
+            rule.style.setProperty(prop, value);
+        }
+    }
+
+    private delStyleDecl(styleEl: HTMLStyleElement, selector: string, prop: string): void {
+        Logger.info('Patcher', 'delStyleDecl', styleEl, selector, prop);
+        const sheet = styleEl.sheet;
+        if (!sheet) return;
+
+        const rule = this.findRule(sheet, selector);
+        if (rule) {
+            rule.style.removeProperty(prop);
+        }
+    }
+
+    private findRule(sheet: CSSStyleSheet, selector: string): CSSStyleRule | null {
+        for (let i = 0; i < sheet.cssRules.length; i++) {
+            const rule = sheet.cssRules[i];
+            if (rule instanceof CSSStyleRule && rule.selectorText === selector) {
+                return rule;
+            }
+        }
+        return null;
+    }
+
+    private findOrCreateRule(sheet: CSSStyleSheet, selector: string): CSSStyleRule | null {
+        let rule = this.findRule(sheet, selector);
+        if (!rule) {
+            const index = sheet.insertRule(`${selector} {}`, sheet.cssRules.length);
+            rule = sheet.cssRules[index] as CSSStyleRule;
+        }
+        return rule;
+    }
+
+    private setHandlers(el: Element, handlers: HandlerMeta[]): void {
+        Logger.info('Patcher', 'setHandlers', el, handlers);
+        const oldHandlers = this.handlerStore.get(el);
+        if (oldHandlers) {
+            for (const [event, listener] of oldHandlers) {
+                el.removeEventListener(event, listener);
+            }
+        }
+
+        const newHandlers = new Map<string, (e: Event) => void>();
+        for (const meta of handlers) {
+            const listen = meta.listen ?? [];
+            const listener = (e: Event) => {
+                if (!listen.includes('allowDefault') && e.cancelable) {
+                    e.preventDefault();
+                }
+
+                const data = this.extractEventData(e, meta.props ?? []);
+                this.callbacks.onEvent(meta.event, meta.handler, data);
+
+                if (!listen.includes('bubble')) {
+                    e.stopPropagation();
+                }
+            };
+            el.addEventListener(meta.event, listener);
+            newHandlers.set(meta.event, listener);
+        }
+        this.handlerStore.set(el, newHandlers);
+    }
+
+    private extractEventData(e: Event, props: string[], el?: Element): Record<string, unknown> {
+        Logger.info('Patcher', 'extractEventData', e, props, el);
+        return Object.fromEntries(props.map(prop => [prop, this.resolveProp(e, prop, el)]).filter(([_, value]) => value !== undefined));
+    }
+
+    private resolveProp(e: Event, path: string, el?: Element): unknown {
+        const segments = path.split('.').map(s => s.trim()).filter(Boolean);
+        if (segments.length === 0) return undefined;
+        const root = segments.shift()!;
+        let current: unknown;
+        switch (root) {
+            case 'event':
+                current = e;
+                break;
+            case 'target':
+                current = e.target;
+                break;
+            case 'currentTarget':
+                current = e.currentTarget;
+                break;
+            case 'element':
+            case 'ref':
+                current = el ?? (e.currentTarget instanceof Element ? e.currentTarget : null);
                 break;
             default:
-                Logger.warn('Patcher', 'Unsupported op', patch.op);
-        }
-    }
-
-    private traverse(path: number[]): ClientNode | null {
-        let current = this.root;
-        for (const idx of path) {
-            if (!current.children || !current.children[idx]) {
-                Logger.warn('Patcher', 'Traverse missing child', { path, failedIndex: idx, currentTag: current.tag, childrenLength: current.children?.length });
-                return null;
-            }
-            current = current.children[idx];
-        }
-        Logger.debug('Patcher', 'Traverse resolved', {
-            path,
-            tag: current.tag,
-            componentId: current.componentId,
-            key: current.key,
-            hasChildren: !!current.children?.length,
-        });
-        return current;
-    }
-
-    private setText(node: ClientNode, text: string) {
-        if (node.el) {
-            node.el.textContent = text;
-        }
-        node.text = text;
-    }
-
-    private setAttr(node: ClientNode, attrs: Record<string, string[]>) {
-        if (node.el && node.el instanceof Element) {
-            for (const [name, tokens] of Object.entries(attrs)) {
-                node.el.setAttribute(name, tokens.join(' '));
-            }
-        }
-        if (!node.attrs) node.attrs = {};
-        Object.assign(node.attrs, attrs);
-    }
-
-    private delAttr(node: ClientNode, name: string) {
-        if (node.el && node.el instanceof Element) {
-            node.el.removeAttribute(name);
-        }
-        if (node.attrs) delete node.attrs[name];
-    }
-
-    private replaceNode(oldNode: ClientNode, newJson: StructuredNode, path: number[]) {
-        Logger.debug('Patcher', 'replaceNode start', { path });
-        const oldDoms = this.collectDomNodes(oldNode);
-        Logger.debug('Patcher', 'replaceNode collected DOM nodes', { count: oldDoms.length });
-
-        if (oldDoms.length === 0) {
-            Logger.warn('Patcher', 'Cannot replace node with no DOM elements', oldNode);
-            return;
+                current = (e as unknown as Record<string, unknown>)[root];
         }
 
-        const firstDom = oldDoms[0];
-        if (!firstDom.parentNode) {
-            Logger.warn('Patcher', 'Cannot replace node without parent', oldNode);
-            return;
-        }
-
-        const newDom = this.render(newJson);
-        firstDom.parentNode.replaceChild(newDom, firstDom);
-
-        for (let i = 1; i < oldDoms.length; i++) {
-            const node = oldDoms[i];
-            if (node.parentNode) node.parentNode.removeChild(node);
-        }
-
-        this.events.detach(oldNode);
-        this.router.detach(oldNode);
-        this.uploads.unbind(oldNode);
-        this.detachRefsRecursively(oldNode);
-
-        const parentPath = path.slice(0, -1);
-        const childIdx = path[path.length - 1];
-        const parent = this.traverse(parentPath);
-
-        if (parent && parent.children) {
-            const newNode = hydrate(newJson, newDom, this.refs);
-            parent.children[childIdx] = newNode;
-            this.events.attach(newNode);
-            this.router.attach(newNode);
-        }
-    }
-
-    private collectDomNodes(node: ClientNode): Node[] {
-        if (node.el) {
-            return [node.el];
-        }
-        const nodes: Node[] = [];
-        if (node.children) {
-            for (const child of node.children) {
-                const childNodes = this.collectDomNodes(child);
-                for (const n of childNodes) {
-                    nodes.push(n);
-                }
-            }
-        }
-        return nodes;
-    }
-
-    private render(json: StructuredNode): Node {
-        if (json.text !== undefined) {
-            return document.createTextNode(json.text);
-        }
-        if (json.tag) {
-            const el = document.createElement(json.tag);
-            if (json.attrs) {
-                for (const [k, v] of Object.entries(json.attrs)) {
-                    el.setAttribute(k, v.join(' '));
-                }
-            }
-            if (json.style && el instanceof HTMLElement) {
-                for (const [name, value] of Object.entries(json.style)) {
-                    el.style.setProperty(name, value);
-                }
-            }
-            if (json.stylesheet && el instanceof HTMLStyleElement) {
-                el.textContent = this.buildStyleContent(json.stylesheet);
-            }
-            if (json.children) {
-                for (const child of json.children) {
-                    el.appendChild(this.render(child));
-                }
-            }
-            return el;
-        }
-        if (json.children && json.children.length > 0) {
-            const fragment = document.createDocumentFragment();
-            for (const child of json.children) {
-                fragment.appendChild(this.render(child));
-            }
-            return fragment;
-        }
-        return document.createComment(json.comment || '');
-    }
-
-    private addChild(parent: ClientNode, childJson: StructuredNode, index: number) {
-        if (!parent.el || !parent.el.childNodes) {
-            Logger.warn('Patcher', 'Cannot add child to non-element', parent);
-            return;
-        }
-
-        const newDom = this.render(childJson);
-        const newClientNode = hydrate(childJson, newDom, this.refs);
-
-        if (!parent.children) parent.children = [];
-        const safeIndex = Math.max(0, Math.min(index, parent.children.length));
-
-        if (safeIndex >= parent.children.length) {
-            parent.el.appendChild(newDom);
-            parent.children.push(newClientNode);
-        } else {
-            let referenceNode: Node | null = null;
-            for (let i = safeIndex; i < parent.children.length; i++) {
-                if (parent.children[i].el) {
-                    referenceNode = parent.children[i].el;
-                    break;
-                }
-            }
-
-            if (referenceNode) {
-                parent.el.insertBefore(newDom, referenceNode);
-            } else {
-                parent.el.appendChild(newDom);
-            }
-            parent.children.splice(safeIndex, 0, newClientNode);
-        }
-
-        this.events.attach(newClientNode);
-        this.router.attach(newClientNode);
-    }
-
-    private delChild(parent: ClientNode, index: number, key?: string) {
-        if (!parent.children || !parent.children[index]) {
-            if (key && parent.children) {
-                const idxByKey = parent.children.findIndex((c) => c && c.key === key);
-                if (idxByKey >= 0) {
-                    index = idxByKey;
-                }
-            }
-            if (!parent.children || !parent.children[index]) {
-                Logger.warn('Patcher', 'Cannot delete missing child', {
-                    index,
-                    childrenLength: parent.children?.length,
-                    parentTag: parent.tag,
-                    parentComponentId: parent.componentId
-                });
-                return;
-            }
-        }
-
-        const child = parent.children[index];
-        this.removeDomNodes(child);
-        parent.children.splice(index, 1);
-
-        this.events.detach(child);
-        this.router.detach(child);
-        this.uploads.unbind(child);
-        this.detachRefsRecursively(child);
-    }
-
-    private removeDomNodes(node: ClientNode) {
-        const domNodes = this.collectDomNodes(node);
-        for (const domNode of domNodes) {
-            if (domNode.parentNode) {
-                domNode.parentNode.removeChild(domNode);
-            }
-        }
-    }
-
-    private moveChild(parent: ClientNode, value: any) {
-        if (!parent.children || parent.children.length === 0) {
-            Logger.warn('Patcher', 'Cannot move child in empty parent', { value });
-            return;
-        }
-
-        let fromIdx = -1;
-        const toIdx = Math.max(0, Math.min(value.newIdx, parent.children.length - 1));
-
-        if (value.key) {
-            const key = value.key as string;
-            const found = parent.children.findIndex((c) => c && c.key === key);
-            if (found >= 0) {
-                fromIdx = found;
-            }
-        }
-
-        if (fromIdx < 0 || fromIdx >= parent.children.length) {
-            Logger.warn('Patcher', 'Cannot move missing child', { fromIdx, value });
-            return;
-        }
-
-        const child = parent.children[fromIdx];
-
-        parent.children.splice(fromIdx, 1);
-        const insertIdx = Math.max(0, Math.min(toIdx, parent.children.length));
-        parent.children.splice(insertIdx, 0, child);
-
-        if (!parent.el || !child.el) return;
-
-        let referenceNode: Node | null = null;
-        for (let i = insertIdx + 1; i < parent.children.length; i++) {
-            if (parent.children[i].el) {
-                referenceNode = parent.children[i].el;
-                break;
-            }
-        }
-
-        if (referenceNode) {
-            parent.el.insertBefore(child.el, referenceNode);
-        } else {
-            parent.el.appendChild(child.el);
-        }
-    }
-
-    private setRef(node: ClientNode, refId: string) {
-        node.refId = refId;
-        this.refs.set(refId, node);
-    }
-
-    private delRef(node: ClientNode) {
-        if (node.refId) {
-            this.refs.delete(node.refId);
-            delete node.refId;
-        }
-    }
-
-    private setComment(node: ClientNode, comment: string) {
-        if (node.el) {
-            node.el.textContent = comment;
-        }
-        node.comment = comment;
-    }
-
-    private setStyle(node: ClientNode, styles: Record<string, string>) {
-        if (node.el && node.el instanceof HTMLElement) {
-            for (const [name, value] of Object.entries(styles)) {
-                node.el.style.setProperty(name, value);
-            }
-        }
-        if (!node.style) node.style = {};
-        Object.assign(node.style, styles);
-    }
-
-    private setStyleDecl(node: ClientNode, selector: string, name: string, value: string) {
-        if (node.el && node.el instanceof HTMLStyleElement && node.el.sheet) {
-            const sheet = node.el.sheet;
-
-            for (let i = 0; i < sheet.cssRules.length; i++) {
-                const rule = sheet.cssRules[i] as CSSStyleRule;
-                if (rule.selectorText === selector) {
-                    rule.style.setProperty(name, value);
-                    return;
-                }
-            }
-
-            const idx = sheet.cssRules.length;
+        for (const segment of segments) {
+            if (current == null) return undefined;
             try {
-                sheet.insertRule(`${selector} { ${name}: ${value}; }`, idx);
-            } catch (e) {
-                Logger.warn('Patcher', 'Failed to insert rule', { selector, error: e });
-            }
-        }
-    }
-
-    private delStyleDecl(node: ClientNode, selector: string, name: string) {
-        if (node.el && node.el instanceof HTMLStyleElement && node.el.sheet) {
-            const sheet = node.el.sheet;
-            for (let i = 0; i < sheet.cssRules.length; i++) {
-                const rule = sheet.cssRules[i] as CSSStyleRule;
-                if (rule.selectorText === selector) {
-                    rule.style.removeProperty(name);
-                    return;
-                }
-            }
-        }
-    }
-
-    private delStyle(node: ClientNode, name: string) {
-        if (node.el && node.el instanceof HTMLElement) {
-            node.el.style.removeProperty(name);
-        }
-        if (node.style) delete node.style[name];
-    }
-
-    private setHandlers(node: ClientNode, handlers: any) {
-        this.events.detach(node);
-        node.handlers = handlers;
-        this.events.attach(node);
-    }
-
-    private setRouter(node: ClientNode, router: any) {
-        this.router.detach(node);
-        node.router = router;
-        this.router.attach(node);
-    }
-
-    private delRouter(node: ClientNode) {
-        this.router.detach(node);
-        delete node.router;
-    }
-
-    private setUpload(node: ClientNode, meta: any) {
-        this.uploads.bind(node, meta);
-    }
-
-    private delUpload(node: ClientNode) {
-        this.uploads.unbind(node);
-    }
-
-    private detachRefsRecursively(node: ClientNode) {
-        this.uploads.unbind(node);
-        if (node.refId) {
-            this.refs.delete(node.refId);
-        }
-        if (node.children) {
-            for (const child of node.children) {
-                this.detachRefsRecursively(child);
-            }
-        }
-    }
-
-    private buildStyleContent(stylesheet: Stylesheet): string {
-        const blocks: string[] = [];
-
-        if (stylesheet.rules) {
-            for (const rule of stylesheet.rules) {
-                const entries: string[] = [];
-                for (const [name, value] of Object.entries(rule.props)) {
-                    entries.push(`${name}: ${value};`);
-                }
-                if (entries.length > 0) {
-                    blocks.push(`${rule.selector} { ${entries.join(' ')} }`);
-                }
+                current = (current as Record<string, unknown>)[segment];
+            } catch {
+                return undefined;
             }
         }
 
-        if (stylesheet.mediaBlocks) {
-            for (const media of stylesheet.mediaBlocks) {
-                const mediaRules: string[] = [];
-                for (const rule of media.rules) {
-                    const entries: string[] = [];
-                    for (const [name, value] of Object.entries(rule.props)) {
-                        entries.push(`${name}: ${value};`);
-                    }
-                    if (entries.length > 0) {
-                        mediaRules.push(`  ${rule.selector} { ${entries.join(' ')} }`);
-                    }
-                }
-                if (mediaRules.length > 0) {
-                    blocks.push(`@media ${media.query} {\n${mediaRules.join('\n')}\n}`);
+        return this.serializeValue(current);
+    }
+
+    private serializeValue(value: unknown): unknown {
+        if (value === null || value === undefined) return null;
+
+        const type = typeof value;
+        if (type === 'string' || type === 'number' || type === 'boolean') return value;
+
+        if (Array.isArray(value)) {
+            const mapped = value.map(v => this.serializeValue(v)).filter(v => v !== undefined);
+            return mapped.length > 0 ? mapped : null;
+        }
+
+        if (value instanceof Date) return value.toISOString();
+        if (value instanceof DOMTokenList) return Array.from(value);
+        if (value instanceof Node) return undefined;
+
+        try {
+            return JSON.parse(JSON.stringify(value));
+        } catch {
+            return undefined;
+        }
+    }
+
+    private setRouter(el: Element, meta: RouterMeta): void {
+        Logger.info('Patcher', 'setRouter', el, meta);
+        this.delRouter(el);
+
+        const listener = (e: Event) => {
+            e.preventDefault();
+            this.callbacks.onRouter(meta);
+        };
+        el.addEventListener('click', listener);
+        this.routerStore.set(el, listener);
+    }
+
+    private delRouter(el: Element): void {
+        Logger.info('Patcher', 'delRouter', el);
+        const listener = this.routerStore.get(el);
+        if (listener) {
+            el.removeEventListener('click', listener);
+            this.routerStore.delete(el);
+        }
+    }
+
+    private setUpload(el: HTMLInputElement, meta: UploadMeta): void {
+        Logger.info('Patcher', 'setUpload', el, meta);
+        this.delUpload(el);
+
+        if (meta.multiple) {
+            el.multiple = true;
+        }
+        if (meta.accept && meta.accept.length > 0) {
+            el.accept = meta.accept.join(',');
+        }
+
+        const listener = () => {
+            if (el.files && el.files.length > 0) {
+                this.callbacks.onUpload(meta, el.files);
+            }
+        };
+        el.addEventListener('change', listener);
+        this.uploadStore.set(el, listener);
+    }
+
+    private delUpload(el: HTMLInputElement): void {
+        Logger.info('Patcher', 'delUpload', el);
+        const listener = this.uploadStore.get(el);
+        if (listener) {
+            el.removeEventListener('change', listener);
+            this.uploadStore.delete(el);
+        }
+        el.multiple = false;
+        el.accept = '';
+    }
+
+    private replaceNode(oldNode: Node, newNodeData: StructuredNode): void {
+        Logger.info('Patcher', 'replaceNode', oldNode, newNodeData);
+        const newNode = this.createNode(newNodeData);
+        if (newNode && oldNode.parentNode) {
+            oldNode.parentNode.replaceChild(newNode, oldNode);
+        }
+    }
+
+    private addChild(parent: Node, index: number, nodeData: StructuredNode): void {
+        Logger.info('Patcher', 'addChild', parent, index, nodeData);
+        const newNode = this.createNode(nodeData);
+        if (!newNode) return;
+
+        const refChild = parent.childNodes[index] ?? null;
+        parent.insertBefore(newNode, refChild);
+    }
+
+    private delChild(parent: Node, index: number): void {
+        Logger.info('Patcher', 'delChild', parent, index);
+        const child = parent.childNodes[index];
+        if (child) {
+            parent.removeChild(child);
+        }
+    }
+
+    private moveChild(parent: Node, move: { fromIndex: number; newIdx: number }): void {
+        Logger.info('Patcher', 'moveChild', parent, move);
+        const child = parent.childNodes[move.fromIndex];
+        if (!child) return;
+
+        parent.removeChild(child);
+        const refChild = parent.childNodes[move.newIdx] ?? null;
+        parent.insertBefore(child, refChild);
+    }
+
+    private createNode(data: StructuredNode): Node | null {
+        Logger.info('Patcher', 'createNode', data);
+        if (data.text !== undefined) {
+            return document.createTextNode(data.text);
+        }
+
+        if (data.comment !== undefined) {
+            return document.createComment(data.comment);
+        }
+
+        if (!data.tag) return null;
+
+        const el = document.createElement(data.tag);
+
+        if (data.attrs) {
+            this.setAttr(el, data.attrs);
+        }
+
+        if (data.style) {
+            this.setStyle(el as HTMLElement, data.style);
+        }
+
+        if (data.handlers && data.handlers.length > 0) {
+            this.setHandlers(el, data.handlers);
+        }
+
+        if (data.router) {
+            this.setRouter(el, data.router);
+        }
+
+        if (data.upload && el instanceof HTMLInputElement) {
+            this.setUpload(el, data.upload);
+        }
+
+        if (data.refId) {
+            this.callbacks.onRef(data.refId, el);
+        }
+
+        if (data.unsafeHTML) {
+            el.innerHTML = data.unsafeHTML;
+        } else if (data.children) {
+            for (const child of data.children) {
+                const childNode = this.createNode(child);
+                if (childNode) {
+                    el.appendChild(childNode);
                 }
             }
         }
 
-        return blocks.join('\n');
+        return el;
     }
 }

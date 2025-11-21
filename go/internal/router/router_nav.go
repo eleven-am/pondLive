@@ -101,13 +101,6 @@ func locationFromURL(u *url.URL) Location {
 	return canonicalizeLocation(loc)
 }
 
-func currentSessionLocation(ctx runtime.Ctx) Location {
-
-	controller := UseRouterState(ctx)
-	state := controller.Get()
-	return cloneLocation(state.Location)
-}
-
 func recordNavigation(ctx runtime.Ctx, loc Location, replace bool) {
 	href := BuildHref(loc.Path, loc.Query, loc.Hash)
 	ctx.EnqueueNavigation(href, replace)

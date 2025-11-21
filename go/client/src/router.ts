@@ -1,49 +1,21 @@
-import { ClientNode, RouterMeta } from './types';
-import { Logger } from './logger';
+import {RouterMeta, NavCallback} from './types';
 
 export class Router {
-    private listeners = new WeakMap<Node, EventListener>();
+    private readonly onNav: NavCallback;
 
-    constructor(private channel: any, private sessionId: string) {
-        window.addEventListener('popstate', (e) => this.onPopState(e));
+    constructor(onNav: NavCallback) {
+        this.onNav = onNav;
+        window.addEventListener('popstate', () => this.handlePopState());
     }
 
-    attach(node: ClientNode) {
-        if (!node || !node.router || !node.el) return;
-
-        const el = node.el;
-        if (this.listeners.has(el)) return;
-
-        const listener = (e: Event) => {
-            e.preventDefault();
-            this.navigate(node.router!);
-        };
-
-        el.addEventListener('click', listener);
-        this.listeners.set(el, listener);
-    }
-
-    detach(node: ClientNode) {
-        if (!node || !node.el) return;
-
-        const el = node.el;
-        const listener = this.listeners.get(el);
-        if (listener) {
-            el.removeEventListener('click', listener);
-            this.listeners.delete(el);
-        }
-    }
-
-    navigate(meta: RouterMeta) {
-        const path = meta.path ?? window.location.pathname;
-        
-        
+    navigate(meta: RouterMeta): void {
+        const path = meta.pathValue ?? window.location.pathname;
         const query = meta.query !== undefined ? meta.query : window.location.search;
         const hash = meta.hash !== undefined ? meta.hash : window.location.hash;
 
-        
         const cleanQuery = query.startsWith('?') ? query.substring(1) : query;
-        const url = path + (cleanQuery ? '?' + cleanQuery : '') + (hash ? '#' + hash : '');
+        const cleanHash = hash.startsWith('#') ? hash.substring(1) : hash;
+        const url = path + (cleanQuery ? '?' + cleanQuery : '') + (cleanHash ? '#' + cleanHash : '');
 
         if (meta.replace) {
             window.history.replaceState({}, '', url);
@@ -51,38 +23,20 @@ export class Router {
             window.history.pushState({}, '', url);
         }
 
-        this.sendNav('nav', path, cleanQuery, hash);
+        this.onNav('nav', path, cleanQuery, cleanHash);
     }
 
-    private onPopState(_e: PopStateEvent) {
+    private handlePopState(): void {
         const path = window.location.pathname;
         const query = window.location.search;
         const hash = window.location.hash;
 
-        this.sendNav('pop', path, query, hash);
+        const cleanQuery = query.startsWith('?') ? query.substring(1) : query;
+        const cleanHash = hash.startsWith('#') ? hash.substring(1) : hash;
+        this.onNav('pop', path, cleanQuery, cleanHash);
     }
 
-    private sendNav(type: 'nav' | 'pop', path: string, query: string, hash: string) {
-        Logger.debug('Router', `Sending ${type}`, { path, query, hash });
-
-        
-        
-        
-        
-        
-        const q = query.startsWith('?') ? query.substring(1) : query;
-
-        Logger.debug('WS Send', type, {
-            sid: this.sessionId,
-            path: path,
-            q: q,
-            hash: hash
-        });
-        this.channel.sendMessage(type, {
-            sid: this.sessionId,
-            path: path,
-            q: q,
-            hash: hash
-        });
+    destroy(): void {
+        window.removeEventListener('popstate', () => this.handlePopState());
     }
 }

@@ -14,7 +14,6 @@ type ElementRef[T ElementDescriptor] struct {
 	descriptor  T
 	bindings    map[string]EventBinding
 	bindingsMu  sync.Mutex
-	handlerIDs  map[string]string
 	attached    bool
 	stateGetter func() any
 	stateSetter func(any)
@@ -77,29 +76,6 @@ func (r *ElementRef[T]) Bind(event string, binding EventBinding) {
 		r.bindings = make(map[string]EventBinding)
 	}
 	r.bindings[event] = binding
-}
-
-// SetHandlerID stores the handler ID for a specific event after finalization.
-func (r *ElementRef[T]) SetHandlerID(event string, handlerID string) {
-	if r == nil || event == "" || handlerID == "" {
-		return
-	}
-	r.bindingsMu.Lock()
-	defer r.bindingsMu.Unlock()
-	if r.handlerIDs == nil {
-		r.handlerIDs = make(map[string]string)
-	}
-	r.handlerIDs[event] = handlerID
-}
-
-// GetHandlerID returns the handler ID for a specific event.
-func (r *ElementRef[T]) GetHandlerID(event string) string {
-	if r == nil {
-		return ""
-	}
-	r.bindingsMu.Lock()
-	defer r.bindingsMu.Unlock()
-	return r.handlerIDs[event]
 }
 
 // BindingSnapshot returns a copy of the event bindings registered on the ref.

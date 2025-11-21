@@ -102,7 +102,7 @@ func TestNavigateWithSearchEnqueuesNavDelta(t *testing.T) {
 	if capturedNav.Push == "" {
 		t.Fatal("expected Push to be set")
 	}
-	// Should contain both existing and new params
+
 	if capturedNav.Replace != "" {
 		t.Error("expected Replace to be empty for NavigateWithSearch()")
 	}

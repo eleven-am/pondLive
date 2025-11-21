@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
@@ -62,7 +63,7 @@ func (e *Endpoint) configure() {
 	lobby.OnMessage("routerReset", e.onRouterReset)
 	lobby.OnMessage("recover", e.onRecover)
 	lobby.OnMessage("upload", e.onUpload)
-	lobby.OnMessage("domres", e.onDOMResponse)
+	lobby.OnMessage("dom_res", e.onDOMResponse)
 	lobby.OnLeave(e.onLeave)
 
 	if e.pubsub != nil {
@@ -158,7 +159,7 @@ func (e *Endpoint) onClientEvent(ctx *pond.EventContext) error {
 	domEvent := payloadToDOMEvent(evt.Payload)
 
 	ack := protocol.EventAck{
-		T:    "evt-ack",
+		T:    "evt_ack",
 		SID:  evt.SID,
 		CSeq: evt.CSeq,
 	}
@@ -219,6 +220,7 @@ func (e *Endpoint) onNavigate(ctx *pond.EventContext) error {
 	}
 
 	if err := sess.Flush(); err != nil {
+		fmt.Println("Flush error:", err)
 		if transport != nil {
 			_ = transport.SendServerError(serverError(session.SessionID(nav.SID), "flush_failed", err))
 		}

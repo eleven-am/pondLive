@@ -5,15 +5,6 @@ import (
 	"fmt"
 )
 
-// ToJSON serializes the StructuredNode to JSON.
-// Validates the node structure before serialization.
-func (n *StructuredNode) ToJSON() ([]byte, error) {
-	if err := n.Validate(); err != nil {
-		return nil, err
-	}
-	return json.MarshalIndent(n, "", "  ")
-}
-
 // AssignHandlerKeys walks the tree and assigns handler Keys to all EventBindings
 // using a component-local counter. Format: "{componentId}:h{counter}"
 func AssignHandlerKeys(node *StructuredNode, componentID string) {

@@ -19,7 +19,7 @@ func TestDocumentRootProviders(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("test"),
 		1,
 		app,
@@ -63,7 +63,7 @@ func TestDocumentRootStateChanges(t *testing.T) {
 	}
 
 	transport := &mockTransport{}
-	sess := New(
+	sess := NewLiveSession(
 		SessionID("test"),
 		1,
 		app,
