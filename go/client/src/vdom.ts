@@ -1,4 +1,3 @@
-import { Logger } from './logger';
 import { StructuredNode, ClientNode } from './types';
 
 export function hydrate(json: StructuredNode, dom: Node, refs?: Map<string, ClientNode>): ClientNode {
@@ -35,8 +34,9 @@ export function hydrate(json: StructuredNode, dom: Node, refs?: Map<string, Clie
         const domChildren = Array.from(dom.childNodes).filter(shouldHydrate);
 
         const consumed = hydrateChildren(clientNode.children, json.children, domChildren, dom, refs);
-        if (consumed !== json.children.length) {
-            throw new Error(`Hydration error: expected ${json.children.length} children, hydrated ${consumed}`);
+        const expected = countRenderableNodes(json.children);
+        if (consumed !== expected) {
+            throw new Error(`Hydration error: expected ${expected} renderable children, hydrated ${consumed}`);
         }
     }
 
@@ -183,4 +183,20 @@ function shouldHydrate(_node: Node): boolean {
     
     
     return true;
+}
+
+function countRenderableNodes(nodes: StructuredNode[] | undefined): number {
+    if (!nodes || nodes.length === 0) return 0;
+    let count = 0;
+    for (const n of nodes) {
+        const isWrapper = (!n.tag && !n.text && !n.comment && n.children) || n.fragment;
+        if (isWrapper) {
+            count += countRenderableNodes(n.children);
+            continue;
+        }
+        if (n.tag || n.text !== undefined || n.comment) {
+            count++;
+        }
+    }
+    return count;
 }

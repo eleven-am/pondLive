@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Patcher } from '../src/patcher';
 import { EventManager } from '../src/events';
 import { Router } from '../src/router';
-import { RefRegistry } from '../src/refs';
-import { ClientNode, Patch } from '../src/types';
+import { ClientNode, Patch, StructuredNode } from '../src/types';
 import { hydrate } from '../src/vdom';
 
 describe('Patcher', () => {
@@ -192,5 +191,30 @@ describe('Patcher', () => {
     };
     patcher.apply(patch);
     expect(refs.get('my-ref')).toBe(root.children![0]);
+  });
+
+  it('reorders keyed children using moveChild with key', () => {
+    container.innerHTML = '<ul><li>A</li><li>B</li></ul>';
+    const json: StructuredNode = {
+      tag: 'ul',
+      children: [
+        { tag: 'li', key: 'a', children: [{ text: 'A' }] },
+        { tag: 'li', key: 'b', children: [{ text: 'B' }] }
+      ]
+    };
+    root = hydrate(json, container.firstChild as Node, refs);
+    patcher = new Patcher(root, events, router, uploads, refs);
+
+    const movePatch: Patch = {
+      op: 'moveChild',
+      path: [],
+      value: { key: 'b', oldIdx: 1, newIdx: 0 }
+    };
+
+    patcher.apply(movePatch);
+
+    const ul = container.firstElementChild as HTMLUListElement;
+    expect(ul.children[0].textContent).toBe('B');
+    expect(ul.children[1].textContent).toBe('A');
   });
 });

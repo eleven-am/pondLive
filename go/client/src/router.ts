@@ -35,7 +35,7 @@ export class Router {
     }
 
     navigate(meta: RouterMeta) {
-        const path = meta.path || window.location.pathname;
+        const path = meta.path ?? window.location.pathname;
         
         
         const query = meta.query !== undefined ? meta.query : window.location.search;

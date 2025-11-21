@@ -1192,22 +1192,26 @@ var LiveUIModule = (() => {
     }
     if (json.tag) {
       if (dom.nodeType !== Node.ELEMENT_NODE) {
-        Logger.warn("Hydration", "Type mismatch: expected element", { jsonTag: json.tag, domType: dom.nodeType });
+        throw new Error(`Hydration error: expected element <${json.tag}> but found nodeType ${dom.nodeType}`);
       } else {
         const el = dom;
         if (el.tagName.toLowerCase() !== json.tag.toLowerCase()) {
-          Logger.warn("Hydration", "Tag mismatch", { jsonTag: json.tag, domTag: el.tagName });
+          throw new Error(`Hydration error: expected tag <${json.tag}> but found <${el.tagName}>`);
         }
       }
     } else if (json.text !== void 0 && json.text !== "") {
       if (dom.nodeType !== Node.TEXT_NODE) {
-        Logger.warn("Hydration", "Type mismatch: expected text", { domType: dom.nodeType });
+        throw new Error(`Hydration error: expected text node but found nodeType ${dom.nodeType}`);
       }
     }
     if (json.children && json.children.length > 0) {
       clientNode.children = [];
       const domChildren = Array.from(dom.childNodes).filter(shouldHydrate);
-      hydrateChildren(clientNode.children, json.children, domChildren, dom, refs);
+      const consumed = hydrateChildren(clientNode.children, json.children, domChildren, dom, refs);
+      const expected = countRenderableNodes(json.children);
+      if (consumed !== expected) {
+        throw new Error(`Hydration error: expected ${expected} renderable children, hydrated ${consumed}`);
+      }
     }
     return clientNode;
   }
@@ -1234,26 +1238,24 @@ var LiveUIModule = (() => {
         continue;
       }
       if (childJson.text === "") {
-        const emptyDomText = document.createTextNode("");
-        const parentEl = parentDom;
-        if (domIdx < domChildren.length) {
-          parentEl.insertBefore(emptyDomText, domChildren[domIdx]);
-        } else {
-          parentEl.appendChild(emptyDomText);
+        const childDom2 = domChildren[domIdx];
+        if (!childDom2 || childDom2.nodeType !== Node.TEXT_NODE) {
+          throw new Error(`Hydration error: expected empty text node at index ${i}`);
         }
-        const emptyTextNode = { ...childJson, el: emptyDomText, children: void 0 };
-        target.push(emptyTextNode);
+        const childNode2 = hydrate(childJson, childDom2, refs);
+        target.push(childNode2);
+        domIdx++;
         continue;
       }
       const childDom = domChildren[domIdx];
       if (!childDom) {
-        Logger.warn("Hydration", "Missing DOM node for child", { index: i, childJson });
-        continue;
+        throw new Error(`Hydration error: missing DOM node for child index ${i}`);
       }
       const childNode = hydrate(childJson, childDom, refs);
       target.push(childNode);
       domIdx++;
     }
+    return domIdx;
   }
   function hydrateChildrenWithConsumption(target, jsonChildren, domChildren, startIdx, parentDom, refs) {
     let domIdx = startIdx;
@@ -1278,21 +1280,18 @@ var LiveUIModule = (() => {
         continue;
       }
       if (childJson.text === "") {
-        const emptyDomText = document.createTextNode("");
-        const parentEl = parentDom;
-        if (domIdx < domChildren.length) {
-          parentEl.insertBefore(emptyDomText, domChildren[domIdx]);
-        } else {
-          parentEl.appendChild(emptyDomText);
+        const childDom2 = domChildren[domIdx];
+        if (!childDom2 || childDom2.nodeType !== Node.TEXT_NODE) {
+          throw new Error(`Hydration error: expected empty text node at index ${i}`);
         }
-        const emptyTextNode = { ...childJson, el: emptyDomText, children: void 0 };
-        target.push(emptyTextNode);
+        const childNode2 = hydrate(childJson, childDom2, refs);
+        target.push(childNode2);
+        domIdx++;
         continue;
       }
       const childDom = domChildren[domIdx];
       if (!childDom) {
-        Logger.warn("Hydration", "Missing DOM node for child", { index: i, childJson });
-        continue;
+        throw new Error(`Hydration error: missing DOM node for child index ${i}`);
       }
       const childNode = hydrate(childJson, childDom, refs);
       target.push(childNode);
@@ -1303,235 +1302,23 @@ var LiveUIModule = (() => {
   function shouldHydrate(_node) {
     return true;
   }
-
-  // node_modules/jsondiffpatch/lib/clone.js
-  function cloneRegExp(re) {
-    var _a;
-    const regexMatch = /^\/(.*)\/([gimyu]*)$/.exec(re.toString());
-    if (!regexMatch) {
-      throw new Error("Invalid RegExp");
-    }
-    return new RegExp((_a = regexMatch[1]) !== null && _a !== void 0 ? _a : "", regexMatch[2]);
-  }
-  function clone(arg) {
-    if (typeof arg !== "object") {
-      return arg;
-    }
-    if (arg === null) {
-      return null;
-    }
-    if (Array.isArray(arg)) {
-      return arg.map(clone);
-    }
-    if (arg instanceof Date) {
-      return new Date(arg.getTime());
-    }
-    if (arg instanceof RegExp) {
-      return cloneRegExp(arg);
-    }
-    const cloned = {};
-    for (const name in arg) {
-      if (Object.prototype.hasOwnProperty.call(arg, name)) {
-        cloned[name] = clone(arg[name]);
+  function countRenderableNodes(nodes) {
+    if (!nodes || nodes.length === 0) return 0;
+    let count = 0;
+    for (const n of nodes) {
+      const isWrapper = !n.tag && !n.text && !n.comment && n.children || n.fragment;
+      if (isWrapper) {
+        count += countRenderableNodes(n.children);
+        continue;
+      }
+      if (n.tag || n.text !== void 0 || n.comment) {
+        count++;
       }
     }
-    return cloned;
+    return count;
   }
 
-  // node_modules/jsondiffpatch/lib/formatters/jsonpatch-apply.js
-  var applyJsonPatchRFC6902 = (target, patch) => {
-    const log = [];
-    for (const op of patch) {
-      try {
-        switch (op.op) {
-          case "add":
-            log.push({ result: add(target, op.path, op.value), op });
-            break;
-          case "remove":
-            log.push({ result: remove(target, op.path), op });
-            break;
-          case "replace":
-            log.push({ result: replace(target, op.path, op.value), op });
-            break;
-          case "move":
-            log.push({ result: move(target, op.path, op.from), op });
-            break;
-          case "copy":
-            log.push({ result: copy(target, op.path, op.from), op });
-            break;
-          case "test":
-            log.push({ result: test(target, op.path, op.value), op });
-            break;
-          default:
-            op;
-            throw new Error(`operation not recognized: ${JSON.stringify(op)}`);
-        }
-      } catch (error) {
-        rollback(target, log, error instanceof Error ? error : new Error(String(error)));
-        throw error;
-      }
-    }
-  };
-  var rollback = (target, log, patchError) => {
-    try {
-      for (const { op, result } of log.reverse()) {
-        switch (op.op) {
-          case "add":
-            unadd(target, op.path, result);
-            break;
-          case "remove":
-            add(target, op.path, result);
-            break;
-          case "replace":
-            replace(target, op.path, result);
-            break;
-          case "move":
-            remove(target, op.path);
-            try {
-              add(target, op.from, result);
-            } catch (error) {
-              add(target, op.path, result);
-              throw error;
-            }
-            break;
-          case "copy":
-            remove(target, op.path);
-            break;
-          case "test":
-            break;
-          default:
-            op;
-            throw new Error(`operation not recognized: ${JSON.stringify(op)}`);
-        }
-      }
-    } catch (error) {
-      const message = (error instanceof Error ? error : new Error(String(error))).message;
-      throw new Error(`patch failed (${patchError.message}), and rollback failed too (${message}), target might be in an inconsistent state`);
-    }
-  };
-  var parsePathFromRFC6902 = (path) => {
-    if (typeof path !== "string")
-      return path;
-    if (path.substring(0, 1) !== "/") {
-      throw new Error("JSONPatch paths must start with '/'");
-    }
-    return path.slice(1).split("/").map((part) => part.indexOf("~") === -1 ? part : part.replace(/~1/g, "/").replace(/~0/g, "~"));
-  };
-  var get = (obj, path) => {
-    const parts = Array.isArray(path) ? path : parsePathFromRFC6902(path);
-    return parts.reduce((acc, key) => {
-      if (Array.isArray(acc)) {
-        const index = Number.parseInt(key, 10);
-        if (index < 0 || index > acc.length - 1) {
-          throw new Error(`cannot find /${parts.join("/")} in ${JSON.stringify(obj)} (index out of bounds)`);
-        }
-        return acc[index];
-      }
-      if (typeof acc !== "object" || acc === null || !(key in acc)) {
-        throw new Error(`cannot find /${parts.join("/")} in ${JSON.stringify(obj)}`);
-      }
-      if (key in acc) {
-        return acc[key];
-      }
-    }, obj);
-  };
-  var add = (obj, path, value) => {
-    const parts = parsePathFromRFC6902(path);
-    const last = parts.pop();
-    const parent = get(obj, parts);
-    if (Array.isArray(parent)) {
-      const index = Number.parseInt(last, 10);
-      if (index < 0 || index > parent.length) {
-        throw new Error(`cannot set /${parts.concat([last]).join("/")} in ${JSON.stringify(obj)} (index out of bounds)`);
-      }
-      parent.splice(index, 0, clone(value));
-      return;
-    }
-    if (typeof parent !== "object" || parent === null) {
-      throw new Error(`cannot set /${parts.concat([last]).join("/")} in ${JSON.stringify(obj)}`);
-    }
-    const existing = parent[last];
-    parent[last] = clone(value);
-    return existing;
-  };
-  var remove = (obj, path) => {
-    const parts = parsePathFromRFC6902(path);
-    const last = parts.pop();
-    const parent = get(obj, parts);
-    if (Array.isArray(parent)) {
-      const index = Number.parseInt(last, 10);
-      if (index < 0 || index > parent.length - 1) {
-        throw new Error(`cannot delete /${parts.concat([last]).join("/")} from ${JSON.stringify(obj)} (index out of bounds)`);
-      }
-      return parent.splice(index, 1)[0];
-    }
-    if (typeof parent !== "object" || parent === null) {
-      throw new Error(`cannot delete /${parts.concat([last]).join("/")} from ${JSON.stringify(obj)}`);
-    }
-    const existing = parent[last];
-    delete parent[last];
-    return existing;
-  };
-  var unadd = (obj, path, previousValue) => {
-    const parts = parsePathFromRFC6902(path);
-    const last = parts.pop();
-    const parent = get(obj, parts);
-    if (Array.isArray(parent)) {
-      const index = Number.parseInt(last, 10);
-      if (index < 0 || index > parent.length - 1) {
-        throw new Error(`cannot un-add (rollback) /${parts.concat([last]).join("/")} from ${JSON.stringify(obj)} (index out of bounds)`);
-      }
-      parent.splice(index, 1);
-    }
-    if (typeof parent !== "object" || parent === null) {
-      throw new Error(`cannot un-add (rollback) /${parts.concat([last]).join("/")} from ${JSON.stringify(obj)}`);
-    }
-    delete parent[last];
-    if (previousValue !== void 0) {
-      parent[last] = previousValue;
-    }
-  };
-  var replace = (obj, path, value) => {
-    const parts = parsePathFromRFC6902(path);
-    const last = parts.pop();
-    const parent = get(obj, parts);
-    if (Array.isArray(parent)) {
-      const index = Number.parseInt(last, 10);
-      if (index < 0 || index > parent.length - 1) {
-        throw new Error(`cannot replace /${parts.concat([last]).join("/")} in ${JSON.stringify(obj)} (index out of bounds)`);
-      }
-      const existing2 = parent[index];
-      parent[index] = clone(value);
-      return existing2;
-    }
-    if (typeof parent !== "object" || parent === null) {
-      throw new Error(`cannot replace /${parts.concat([last]).join("/")} in ${JSON.stringify(obj)}`);
-    }
-    const existing = parent[last];
-    parent[last] = clone(value);
-    return existing;
-  };
-  var move = (obj, path, from) => {
-    const value = remove(obj, from);
-    try {
-      add(obj, path, value);
-    } catch (error) {
-      add(obj, from, value);
-      throw error;
-    }
-  };
-  var copy = (obj, path, from) => {
-    const value = get(obj, from);
-    return add(obj, path, clone(value));
-  };
-  var test = (obj, path, value) => {
-    const actualValue = get(obj, path);
-    if (JSON.stringify(value) !== JSON.stringify(actualValue)) {
-      throw new Error(`test failed for /${path} in ${JSON.stringify(obj)} (expected: ${JSON.stringify(value)}, found: ${JSON.stringify(actualValue)})`);
-    }
-  };
-
-  // src/patcher-new.ts
+  // src/patcher.ts
   var Patcher = class {
     constructor(root, events, router, uploads, refs) {
       this.root = root;
@@ -1539,171 +1326,129 @@ var LiveUIModule = (() => {
       this.router = router;
       this.uploads = uploads;
       this.refs = refs;
-      this.tree = this.extractTree(root);
     }
-    apply(patches) {
-      Logger.debug("Patcher", "Applying RFC 6902 patches", { count: patches.length, patches });
-      try {
-        applyJsonPatchRFC6902(this.tree, patches);
-        Logger.debug("Patcher", "Patches applied to tree");
-        this.rebuild();
-        Logger.debug("Patcher", "DOM rebuilt from patched tree");
-      } catch (err) {
-        Logger.error("Patcher", "Failed to apply patches", {
-          error: err,
-          message: err instanceof Error ? err.message : String(err),
-          stack: err instanceof Error ? err.stack : void 0,
-          patches
-        });
-      }
-    }
-    syncTreeToRoot(tree, node) {
-      node.componentId = tree.componentId;
-      node.tag = tree.tag;
-      node.text = tree.text;
-      node.comment = tree.comment;
-      node.fragment = tree.fragment;
-      node.key = tree.key;
-      node.unsafeHtml = tree.unsafeHtml;
-      node.attrs = tree.attrs;
-      node.style = tree.style;
-      node.styles = tree.styles;
-      node.refId = tree.refId;
-      node.handlers = tree.handlers;
-      node.router = tree.router;
-      node.upload = tree.upload;
-      if (node.el) {
-        if (node.text !== void 0 && node.el.nodeType === Node.TEXT_NODE) {
-          node.el.textContent = node.text;
-        } else if (node.el instanceof Element) {
-          if (tree.attrs) {
-            while (node.el.attributes.length > 0) {
-              node.el.removeAttribute(node.el.attributes[0].name);
-            }
-            for (const [k, v] of Object.entries(tree.attrs)) {
-              node.el.setAttribute(k, v.join(" "));
-            }
-          }
-          if (node.el instanceof HTMLElement && tree.style) {
-            node.el.removeAttribute("style");
-            for (const [name, value] of Object.entries(tree.style)) {
-              node.el.style.setProperty(name, value);
-            }
-          }
-        }
-      }
-      if (tree.children && node.children) {
-        if (tree.children.length !== node.children.length) {
-          Logger.debug("Patcher", "Children length mismatch detected", {
-            treeLength: tree.children.length,
-            nodeLength: node.children.length
-          });
-          return false;
-        }
-        for (let i = 0; i < tree.children.length; i++) {
-          const childSynced = this.syncTreeToRoot(tree.children[i], node.children[i]);
-          if (!childSynced) {
-            return false;
-          }
-        }
-      }
-      if (tree.handlers !== node.handlers) {
-        this.events.detach(node);
-        this.events.attach(node);
-      }
-      if (tree.router !== node.router) {
-        this.router.detach(node);
-        this.router.attach(node);
-      }
-      return true;
-    }
-    syncMetadata(tree, node) {
-      node.componentId = tree.componentId;
-      node.tag = tree.tag;
-      node.text = tree.text;
-      node.comment = tree.comment;
-      node.fragment = tree.fragment;
-      node.key = tree.key;
-      node.unsafeHtml = tree.unsafeHtml;
-      node.attrs = tree.attrs;
-      node.style = tree.style;
-      node.styles = tree.styles;
-      node.refId = tree.refId;
-      node.handlers = tree.handlers;
-      node.router = tree.router;
-      node.upload = tree.upload;
-      if (tree.children && node.children && tree.children.length === node.children.length) {
-        for (let i = 0; i < tree.children.length; i++) {
-          this.syncMetadata(tree.children[i], node.children[i]);
-        }
-      }
-    }
-    rebuild() {
-      this.detachAll(this.root);
-      this.refs.clear();
-      if (!this.root.el) {
-        this.rebuildVirtualRoot();
+    apply(patch) {
+      const target = this.traverse(patch.path);
+      if (!target) {
+        Logger.warn("Patcher", "Target not found for path", patch.path);
         return;
       }
-      while (this.root.el.firstChild) {
-        this.root.el.removeChild(this.root.el.firstChild);
+      switch (patch.op) {
+        case "setText":
+          this.setText(target, patch.value);
+          break;
+        case "setAttr":
+          this.setAttr(target, patch.value);
+          break;
+        case "delAttr":
+          this.delAttr(target, patch.name);
+          break;
+        case "setStyleDecl":
+          this.setStyleDecl(target, patch.selector, patch.name, patch.value);
+          break;
+        case "delStyleDecl":
+          this.delStyleDecl(target, patch.selector, patch.name);
+          break;
+        case "replaceNode":
+          this.replaceNode(target, patch.value, patch.path);
+          break;
+        case "addChild":
+          this.addChild(target, patch.value, patch.index);
+          break;
+        case "delChild":
+          this.delChild(target, patch.index, patch.value?.key);
+          break;
+        case "moveChild":
+          this.moveChild(target, patch.value);
+          break;
+        case "setRef":
+          this.setRef(target, patch.value);
+          break;
+        case "delRef":
+          this.delRef(target);
+          break;
+        case "setComment":
+          this.setComment(target, patch.value);
+          break;
+        case "setStyle":
+          this.setStyle(target, patch.value);
+          break;
+        case "delStyle":
+          this.delStyle(target, patch.name);
+          break;
+        case "setHandlers":
+          this.setHandlers(target, patch.value);
+          break;
+        case "setRouter":
+          this.setRouter(target, patch.value);
+          break;
+        case "delRouter":
+          this.delRouter(target);
+          break;
+        case "setUpload":
+          this.setUpload(target, patch.value);
+          break;
+        case "delUpload":
+          this.delUpload(target);
+          break;
+        case "setComponent":
+          target.componentId = patch.value;
+          break;
+        default:
+          Logger.warn("Patcher", "Unsupported op", patch.op);
       }
-      if (this.tree.attrs && this.root.el instanceof Element) {
-        const attrs = this.root.el.attributes;
-        for (let i = attrs.length - 1; i >= 0; i--) {
-          this.root.el.removeAttribute(attrs[i].name);
-        }
-        for (const [k, v] of Object.entries(this.tree.attrs)) {
-          this.root.el.setAttribute(k, v.join(" "));
-        }
-      }
-      if (this.tree.style && this.root.el instanceof HTMLElement) {
-        this.root.el.removeAttribute("style");
-        for (const [name, value] of Object.entries(this.tree.style)) {
-          this.root.el.style.setProperty(name, value);
-        }
-      }
-      if (this.tree.children) {
-        for (const childJson of this.tree.children) {
-          const childDom = this.render(childJson);
-          this.root.el.appendChild(childDom);
-        }
-      }
-      this.root.componentId = this.tree.componentId;
-      this.root.refId = this.tree.refId;
-      this.root.handlers = this.tree.handlers;
-      this.root.router = this.tree.router;
-      this.root.upload = this.tree.upload;
-      if (this.tree.children && this.root.el.childNodes) {
-        this.root.children = [];
-        this.tree.children.forEach((childJson, i) => {
-          const childDom = this.root.el.childNodes[i];
-          const childNode = hydrate(childJson, childDom, this.refs);
-          this.root.children.push(childNode);
-        });
-      }
-      this.attachAll(this.root);
     }
-    extractTree(node) {
-      const tree = {};
-      if (node.componentId) tree.componentId = node.componentId;
-      if (node.tag) tree.tag = node.tag;
-      if (node.text !== void 0) tree.text = node.text;
-      if (node.comment !== void 0) tree.comment = node.comment;
-      if (node.fragment) tree.fragment = node.fragment;
-      if (node.key) tree.key = node.key;
-      if (node.unsafeHtml) tree.unsafeHtml = node.unsafeHtml;
-      if (node.attrs) tree.attrs = node.attrs;
-      if (node.style) tree.style = node.style;
-      if (node.styles) tree.styles = node.styles;
-      if (node.refId) tree.refId = node.refId;
-      if (node.handlers) tree.handlers = node.handlers;
-      if (node.router) tree.router = node.router;
-      if (node.upload) tree.upload = node.upload;
-      if (node.children) {
-        tree.children = node.children.map((child) => this.extractTree(child));
+    traverse(path) {
+      let current = this.root;
+      for (const idx of path) {
+        if (!current.children || !current.children[idx]) {
+          return null;
+        }
+        current = current.children[idx];
       }
-      return tree;
+      return current;
+    }
+    setText(node, text) {
+      if (node.el) {
+        node.el.textContent = text;
+      }
+      node.text = text;
+    }
+    setAttr(node, attrs) {
+      if (node.el && node.el instanceof Element) {
+        for (const [name, tokens] of Object.entries(attrs)) {
+          node.el.setAttribute(name, tokens.join(" "));
+        }
+      }
+      if (!node.attrs) node.attrs = {};
+      Object.assign(node.attrs, attrs);
+    }
+    delAttr(node, name) {
+      if (node.el && node.el instanceof Element) {
+        node.el.removeAttribute(name);
+      }
+      if (node.attrs) delete node.attrs[name];
+    }
+    replaceNode(oldNode, newJson, path) {
+      if (!oldNode.el || !oldNode.el.parentNode) {
+        Logger.warn("Patcher", "Cannot replace node without parent", oldNode);
+        return;
+      }
+      const newDom = this.render(newJson);
+      oldNode.el.parentNode.replaceChild(newDom, oldNode.el);
+      this.events.detach(oldNode);
+      this.router.detach(oldNode);
+      this.uploads.unbind(oldNode);
+      this.detachRefsRecursively(oldNode);
+      const parentPath = path.slice(0, -1);
+      const childIdx = path[path.length - 1];
+      const parent = this.traverse(parentPath);
+      if (parent && parent.children) {
+        const newNode = hydrate(newJson, newDom, this.refs);
+        parent.children[childIdx] = newNode;
+        this.events.attach(newNode);
+        this.router.attach(newNode);
+      }
     }
     render(json) {
       if (json.text !== void 0) {
@@ -1716,10 +1461,13 @@ var LiveUIModule = (() => {
             el.setAttribute(k, v.join(" "));
           }
         }
-        if (json.style) {
+        if (json.style && el instanceof HTMLElement) {
           for (const [name, value] of Object.entries(json.style)) {
             el.style.setProperty(name, value);
           }
+        }
+        if (json.styles && el instanceof HTMLStyleElement) {
+          el.textContent = this.buildStyleContent(json.styles);
         }
         if (json.children) {
           for (const child of json.children) {
@@ -1737,86 +1485,204 @@ var LiveUIModule = (() => {
       }
       return document.createComment(json.comment || "");
     }
-    rebuildVirtualRoot() {
-      Logger.debug("Patcher", "Rebuilding virtual root", {
-        treeChildrenCount: this.tree.children?.length,
-        rootChildrenCount: this.root.children?.length
-      });
-      this.root.componentId = this.tree.componentId;
-      this.root.handlers = this.tree.handlers;
-      this.root.router = this.tree.router;
-      if (!this.tree.children || !this.root.children) {
-        Logger.warn("Patcher", "No children to rebuild");
+    addChild(parent, childJson, index) {
+      if (!parent.el || !parent.el.childNodes) {
+        Logger.warn("Patcher", "Cannot add child to non-element", parent);
         return;
       }
-      for (let i = 0; i < this.tree.children.length && i < this.root.children.length; i++) {
-        const childTree = this.tree.children[i];
-        const childNode = this.root.children[i];
-        Logger.debug("Patcher", "Rebuilding child", {
-          index: i,
-          hasEl: !!childNode.el,
-          hasParent: !!childNode.el?.parentNode
-        });
-        this.rebuildNode(childTree, childNode, i);
-      }
-      Logger.debug("Patcher", "Virtual root rebuild complete");
-    }
-    rebuildNode(tree, node, index) {
-      if (node.el && node.el.parentNode) {
-        this.detachAll(node);
-        const newDom = this.render(tree);
-        node.el.parentNode.replaceChild(newDom, node.el);
-        const newChild = hydrate(tree, newDom, this.refs);
-        const parent = this.findParent(this.root, node);
-        if (parent && parent.children) {
-          parent.children[index] = newChild;
-        }
-        this.attachAll(newChild);
-      } else if (tree.children && node.children) {
-        node.componentId = tree.componentId;
-        node.handlers = tree.handlers;
-        node.router = tree.router;
-        for (let i = 0; i < tree.children.length && i < node.children.length; i++) {
-          this.rebuildNode(tree.children[i], node.children[i], i);
-        }
-      }
-    }
-    findParent(root, target) {
-      if (root.children) {
-        for (const child of root.children) {
-          if (child === target) {
-            return root;
+      const newDom = this.render(childJson);
+      const newClientNode = hydrate(childJson, newDom, this.refs);
+      if (!parent.children) parent.children = [];
+      const safeIndex = Math.max(0, Math.min(index, parent.children.length));
+      if (safeIndex >= parent.children.length) {
+        parent.el.appendChild(newDom);
+        parent.children.push(newClientNode);
+      } else {
+        let referenceNode = null;
+        for (let i = safeIndex; i < parent.children.length; i++) {
+          if (parent.children[i].el) {
+            referenceNode = parent.children[i].el;
+            break;
           }
-          const found = this.findParent(child, target);
-          if (found) return found;
+        }
+        if (referenceNode) {
+          parent.el.insertBefore(newDom, referenceNode);
+        } else {
+          parent.el.appendChild(newDom);
+        }
+        parent.children.splice(safeIndex, 0, newClientNode);
+      }
+      this.events.attach(newClientNode);
+      this.router.attach(newClientNode);
+    }
+    delChild(parent, index, key) {
+      if (!parent.children || !parent.children[index]) {
+        if (key && parent.children) {
+          const idxByKey = parent.children.findIndex((c) => c && c.key === key);
+          if (idxByKey >= 0) {
+            index = idxByKey;
+          }
+        }
+        if (!parent.children || !parent.children[index]) {
+          Logger.warn("Patcher", "Cannot delete missing child", {
+            index,
+            childrenLength: parent.children?.length,
+            parentTag: parent.tag,
+            parentComponentId: parent.componentId
+          });
+          return;
         }
       }
-      return null;
+      const child = parent.children[index];
+      if (child.el && parent.el && child.el.parentNode === parent.el) {
+        parent.el.removeChild(child.el);
+      }
+      parent.children.splice(index, 1);
+      this.events.detach(child);
+      this.router.detach(child);
+      this.uploads.unbind(child);
+      this.detachRefsRecursively(child);
     }
-    detachAll(node) {
+    moveChild(parent, value) {
+      if (!parent.children || parent.children.length === 0) {
+        Logger.warn("Patcher", "Cannot move child in empty parent", { value });
+        return;
+      }
+      let fromIdx = -1;
+      const toIdx = Math.max(0, Math.min(value.newIdx, parent.children.length - 1));
+      if (value.key) {
+        const key = value.key;
+        const found = parent.children.findIndex((c) => c && c.key === key);
+        if (found >= 0) {
+          fromIdx = found;
+        }
+      }
+      if (fromIdx < 0 || fromIdx >= parent.children.length) {
+        Logger.warn("Patcher", "Cannot move missing child", { fromIdx, value });
+        return;
+      }
+      const child = parent.children[fromIdx];
+      parent.children.splice(fromIdx, 1);
+      const insertIdx = Math.max(0, Math.min(toIdx, parent.children.length));
+      parent.children.splice(insertIdx, 0, child);
+      if (!parent.el || !child.el) return;
+      let referenceNode = null;
+      for (let i = insertIdx + 1; i < parent.children.length; i++) {
+        if (parent.children[i].el) {
+          referenceNode = parent.children[i].el;
+          break;
+        }
+      }
+      if (referenceNode) {
+        parent.el.insertBefore(child.el, referenceNode);
+      } else {
+        parent.el.appendChild(child.el);
+      }
+    }
+    setRef(node, refId) {
+      node.refId = refId;
+      this.refs.set(refId, node);
+    }
+    delRef(node) {
+      if (node.refId) {
+        this.refs.delete(node.refId);
+        delete node.refId;
+      }
+    }
+    setComment(node, comment) {
+      if (node.el) {
+        node.el.textContent = comment;
+      }
+      node.comment = comment;
+    }
+    setStyle(node, styles) {
+      if (node.el && node.el instanceof HTMLElement) {
+        for (const [name, value] of Object.entries(styles)) {
+          node.el.style.setProperty(name, value);
+        }
+      }
+      if (!node.style) node.style = {};
+      Object.assign(node.style, styles);
+    }
+    setStyleDecl(node, selector, name, value) {
+      if (node.el && node.el instanceof HTMLStyleElement && node.el.sheet) {
+        const sheet = node.el.sheet;
+        for (let i = 0; i < sheet.cssRules.length; i++) {
+          const rule = sheet.cssRules[i];
+          if (rule.selectorText === selector) {
+            rule.style.setProperty(name, value);
+            return;
+          }
+        }
+        const idx = sheet.cssRules.length;
+        try {
+          sheet.insertRule(`${selector} { ${name}: ${value}; }`, idx);
+        } catch (e) {
+          Logger.warn("Patcher", "Failed to insert rule", { selector, error: e });
+        }
+      }
+    }
+    delStyleDecl(node, selector, name) {
+      if (node.el && node.el instanceof HTMLStyleElement && node.el.sheet) {
+        const sheet = node.el.sheet;
+        for (let i = 0; i < sheet.cssRules.length; i++) {
+          const rule = sheet.cssRules[i];
+          if (rule.selectorText === selector) {
+            rule.style.removeProperty(name);
+            return;
+          }
+        }
+      }
+    }
+    delStyle(node, name) {
+      if (node.el && node.el instanceof HTMLElement) {
+        node.el.style.removeProperty(name);
+      }
+      if (node.style) delete node.style[name];
+    }
+    setHandlers(node, handlers) {
       this.events.detach(node);
+      node.handlers = handlers;
+      this.events.attach(node);
+    }
+    setRouter(node, router) {
       this.router.detach(node);
+      node.router = router;
+      this.router.attach(node);
+    }
+    delRouter(node) {
+      this.router.detach(node);
+      delete node.router;
+    }
+    setUpload(node, meta) {
+      this.uploads.bind(node, meta);
+    }
+    delUpload(node) {
+      this.uploads.unbind(node);
+    }
+    detachRefsRecursively(node) {
       this.uploads.unbind(node);
       if (node.refId) {
         this.refs.delete(node.refId);
       }
       if (node.children) {
         for (const child of node.children) {
-          this.detachAll(child);
+          this.detachRefsRecursively(child);
         }
       }
     }
-    attachAll(node) {
-      this.events.attach(node);
-      this.router.attach(node);
-      if (node.upload) {
-        this.uploads.bind(node, node.upload);
-      }
-      if (node.children) {
-        for (const child of node.children) {
-          this.attachAll(child);
+    buildStyleContent(styles) {
+      const blocks = [];
+      for (const [selector, props] of Object.entries(styles)) {
+        const entries = [];
+        for (const [name, value] of Object.entries(props)) {
+          entries.push(`${name}: ${value};`);
+        }
+        if (entries.length > 0) {
+          blocks.push(`${selector} { ${entries.join(" ")} }`);
         }
       }
+      return blocks.join("\n");
     }
   };
 
@@ -1939,26 +1805,34 @@ var LiveUIModule = (() => {
         this.listeners.set(el, nodeListeners);
       }
       for (const h of node.handlers) {
-        if (nodeListeners.has(h.event)) {
+        if (!h || !h.event || !h.handler) continue;
+        const existing = nodeListeners.get(h.event) || [];
+        const duplicate = existing.some((rec) => rec.handlerId === h.handler);
+        if (duplicate) {
           continue;
         }
         const listener = (e) => {
-          e.preventDefault();
+          const preventDefault = !(h.listen && h.listen.includes("allowDefault"));
+          if (preventDefault && e.cancelable) {
+            e.preventDefault();
+          }
           this.triggerHandler(h, e, node);
           if (!h.listen || !h.listen.includes("bubble")) {
             e.stopPropagation();
           }
         };
         el.addEventListener(h.event, listener);
-        nodeListeners.set(h.event, listener);
+        nodeListeners.set(h.event, [...existing, { handlerId: h.handler, listener }]);
         Logger.debug("Events", "Attached listener", { event: h.event, handler: h.handler });
       }
     }
     unbindEvents(el) {
       const nodeListeners = this.listeners.get(el);
       if (!nodeListeners) return;
-      for (const [event, listener] of nodeListeners.entries()) {
-        el.removeEventListener(event, listener);
+      for (const [event, records] of nodeListeners.entries()) {
+        for (const rec of records) {
+          el.removeEventListener(event, rec.listener);
+        }
       }
       this.listeners.delete(el);
     }
@@ -2010,7 +1884,7 @@ var LiveUIModule = (() => {
       }
     }
     navigate(meta) {
-      const path = meta.path || window.location.pathname;
+      const path = meta.path ?? window.location.pathname;
       const query = meta.query !== void 0 ? meta.query : window.location.search;
       const hash = meta.hash !== void 0 ? meta.hash : window.location.hash;
       const cleanQuery = query.startsWith("?") ? query.substring(1) : query;
@@ -2129,7 +2003,8 @@ var LiveUIModule = (() => {
         element.removeAttribute("accept");
       }
       if (meta.multiple) {
-        element.multiple = true;
+        Logger.warn("Uploads", "Multiple file selection not supported; forcing single file");
+        element.removeAttribute("multiple");
       } else {
         element.removeAttribute("multiple");
       }
@@ -2167,6 +2042,15 @@ var LiveUIModule = (() => {
         return;
       }
       const file = files[0];
+      if (meta.multiple && files.length > 1) {
+        this.sendMessage({
+          op: "error",
+          id: uploadId,
+          error: "Multiple file uploads are not supported yet"
+        });
+        element.value = "";
+        return;
+      }
       if (!file) {
         this.sendMessage({ op: "cancelled", id: uploadId });
         return;
@@ -2374,8 +2258,10 @@ var LiveUIModule = (() => {
     }
     handleFrame(frame) {
       Logger.debug("Runtime", "Received frame", { seq: frame.seq, ops: frame.patch.length });
-      if (this.patcher && frame.patch && frame.patch.length > 0) {
-        this.patcher.apply(frame.patch);
+      if (this.patcher && frame.patch) {
+        for (const op of frame.patch) {
+          this.patcher.apply(op);
+        }
       }
       if (frame.effects) {
         this.domActions.execute(frame.effects);

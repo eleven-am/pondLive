@@ -45,7 +45,7 @@ export class Patcher {
                 this.addChild(target, patch.value, patch.index!);
                 break;
             case 'delChild':
-                this.delChild(target, patch.index!);
+                this.delChild(target, patch.index!, (patch.value as any)?.key);
                 break;
             case 'moveChild':
                 this.moveChild(target, patch.value);
@@ -150,7 +150,7 @@ export class Patcher {
     }
 
     private render(json: StructuredNode): Node {
-        if (json.text) {
+        if (json.text !== undefined) {
             return document.createTextNode(json.text);
         }
         if (json.tag) {
@@ -159,6 +159,14 @@ export class Patcher {
                 for (const [k, v] of Object.entries(json.attrs)) {
                     el.setAttribute(k, v.join(' '));
                 }
+            }
+            if (json.style && el instanceof HTMLElement) {
+                for (const [name, value] of Object.entries(json.style)) {
+                    el.style.setProperty(name, value);
+                }
+            }
+            if (json.styles && el instanceof HTMLStyleElement) {
+                el.textContent = this.buildStyleContent(json.styles);
             }
             if (json.children) {
                 for (const child of json.children) {
@@ -213,15 +221,23 @@ export class Patcher {
         this.router.attach(newClientNode);
     }
 
-    private delChild(parent: ClientNode, index: number) {
+    private delChild(parent: ClientNode, index: number, key?: string) {
         if (!parent.children || !parent.children[index]) {
-            Logger.warn('Patcher', 'Cannot delete missing child', {
-                index,
-                childrenLength: parent.children?.length,
-                parentTag: parent.tag,
-                parentComponentId: parent.componentId
-            });
-            return;
+            if (key && parent.children) {
+                const idxByKey = parent.children.findIndex((c) => c && c.key === key);
+                if (idxByKey >= 0) {
+                    index = idxByKey;
+                }
+            }
+            if (!parent.children || !parent.children[index]) {
+                Logger.warn('Patcher', 'Cannot delete missing child', {
+                    index,
+                    childrenLength: parent.children?.length,
+                    parentTag: parent.tag,
+                    parentComponentId: parent.componentId
+                });
+                return;
+            }
         }
 
         const child = parent.children[index];
@@ -242,8 +258,8 @@ export class Patcher {
             return;
         }
 
-        let fromIdx = value.oldIdx;
-        const toIdx = Math.max(0, Math.min(value.newIdx, parent.children.length));
+        let fromIdx = -1;
+        const toIdx = Math.max(0, Math.min(value.newIdx, parent.children.length-1));
 
         // Prefer resolving by key when available to avoid stale indexes.
         if (value.key) {
@@ -387,5 +403,19 @@ export class Patcher {
                 this.detachRefsRecursively(child);
             }
         }
+    }
+
+    private buildStyleContent(styles: Record<string, Record<string, string>>): string {
+        const blocks: string[] = [];
+        for (const [selector, props] of Object.entries(styles)) {
+            const entries: string[] = [];
+            for (const [name, value] of Object.entries(props)) {
+                entries.push(`${name}: ${value};`);
+            }
+            if (entries.length > 0) {
+                blocks.push(`${selector} { ${entries.join(' ')} }`);
+            }
+        }
+        return blocks.join('\n');
     }
 }

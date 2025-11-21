@@ -20,12 +20,12 @@ describe('UploadManager', () => {
         node = { tag: 'input', el: input };
     });
 
-    it('binds to input element', () => {
+    it('binds to input element and forces single file when multiple not supported', () => {
         const meta: UploadMeta = { uploadId: 'up1', accept: ['.jpg'], multiple: true };
         manager.bind(node, meta);
 
         expect(input.getAttribute('accept')).toBe('.jpg');
-        expect(input.multiple).toBe(true);
+        expect(input.multiple).toBe(false);
     });
 
     it('unbinds from input element', () => {

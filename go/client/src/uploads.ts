@@ -53,7 +53,8 @@ export class UploadManager {
         }
 
         if (meta.multiple) {
-            element.multiple = true;
+            Logger.warn('Uploads', 'Multiple file selection not supported; forcing single file');
+            element.removeAttribute('multiple');
         } else {
             element.removeAttribute('multiple');
         }

@@ -121,4 +121,18 @@ describe('hydrate', () => {
         expect(wrapper.children![1].tag).toBe('div');
         expect(wrapper.children![1].children![0].text).toBe('B');
     });
+
+    it('throws when DOM structure is missing expected child', () => {
+        document.body.innerHTML = '<div><span>Child</span></div>';
+        const json: StructuredNode = {
+            tag: 'div',
+            children: [
+                { tag: 'span', children: [{ text: 'Child' }] },
+                { tag: 'span', children: [{ text: 'Missing' }] },
+            ]
+        };
+
+        const div = document.body.firstChild!;
+        expect(() => hydrate(json, div, refs)).toThrow();
+    });
 });
