@@ -11,10 +11,10 @@ import (
 // TestNavigateEnqueuesNavDelta verifies that Navigate() queues a push navigation
 func TestNavigateEnqueuesNavDelta(t *testing.T) {
 	initialLoc := Location{Path: "/start", Query: url.Values{}}
-	state := &RouterState{Location: initialLoc}
+	state := &State{Location: initialLoc}
 	controller := NewController(
-		func() *RouterState { return state },
-		func(s *RouterState) { state = s },
+		func() *State { return state },
+		func(s *State) { state = s },
 	)
 
 	var capturedNav *runtime.NavDelta
@@ -43,10 +43,10 @@ func TestNavigateEnqueuesNavDelta(t *testing.T) {
 // TestReplaceEnqueuesNavDelta verifies that Replace() queues a replace navigation
 func TestReplaceEnqueuesNavDelta(t *testing.T) {
 	initialLoc := Location{Path: "/start", Query: url.Values{}}
-	state := &RouterState{Location: initialLoc}
+	state := &State{Location: initialLoc}
 	controller := NewController(
-		func() *RouterState { return state },
-		func(s *RouterState) { state = s },
+		func() *State { return state },
+		func(s *State) { state = s },
 	)
 
 	var capturedNav *runtime.NavDelta
@@ -75,10 +75,10 @@ func TestReplaceEnqueuesNavDelta(t *testing.T) {
 // TestNavigateWithSearchEnqueuesNavDelta verifies NavigateWithSearch queues push navigation
 func TestNavigateWithSearchEnqueuesNavDelta(t *testing.T) {
 	initialLoc := Location{Path: "/current", Query: url.Values{"existing": {"value"}}}
-	state := &RouterState{Location: initialLoc}
+	state := &State{Location: initialLoc}
 	controller := NewController(
-		func() *RouterState { return state },
-		func(s *RouterState) { state = s },
+		func() *State { return state },
+		func(s *State) { state = s },
 	)
 
 	var capturedNav *runtime.NavDelta
@@ -111,10 +111,10 @@ func TestNavigateWithSearchEnqueuesNavDelta(t *testing.T) {
 // TestReplaceWithSearchEnqueuesNavDelta verifies ReplaceWithSearch queues replace navigation
 func TestReplaceWithSearchEnqueuesNavDelta(t *testing.T) {
 	initialLoc := Location{Path: "/current", Query: url.Values{}}
-	state := &RouterState{Location: initialLoc}
+	state := &State{Location: initialLoc}
 	controller := NewController(
-		func() *RouterState { return state },
-		func(s *RouterState) { state = s },
+		func() *State { return state },
+		func(s *State) { state = s },
 	)
 
 	var capturedNav *runtime.NavDelta
@@ -146,10 +146,10 @@ func TestReplaceWithSearchEnqueuesNavDelta(t *testing.T) {
 // TestNavigateToSameLocationNoNavDelta verifies no nav delta when navigating to same location
 func TestNavigateToSameLocationNoNavDelta(t *testing.T) {
 	initialLoc := Location{Path: "/same", Query: url.Values{}}
-	state := &RouterState{Location: initialLoc}
+	state := &State{Location: initialLoc}
 	controller := NewController(
-		func() *RouterState { return state },
-		func(s *RouterState) { state = s },
+		func() *State { return state },
+		func(s *State) { state = s },
 	)
 
 	appFunc := func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
@@ -171,10 +171,10 @@ func TestNavigateToSameLocationNoNavDelta(t *testing.T) {
 // TestNavigateWithHashEnqueuesNavDelta verifies hash-only navigation works
 func TestNavigateWithHashEnqueuesNavDelta(t *testing.T) {
 	initialLoc := Location{Path: "/page", Query: url.Values{}}
-	state := &RouterState{Location: initialLoc}
+	state := &State{Location: initialLoc}
 	controller := NewController(
-		func() *RouterState { return state },
-		func(s *RouterState) { state = s },
+		func() *State { return state },
+		func(s *State) { state = s },
 	)
 
 	var capturedNav *runtime.NavDelta

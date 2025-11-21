@@ -8,7 +8,7 @@ import (
 )
 
 // RouterState holds all router state in a single consolidated structure.
-type RouterState struct {
+type State struct {
 	Location Location          // Current location (path, query, hash)
 	Matched  bool              // Has a route matched?
 	Pattern  string            // Matched route pattern
@@ -18,12 +18,12 @@ type RouterState struct {
 
 // Controller provides get/set access to router state.
 type Controller struct {
-	get func() *RouterState
-	set func(*RouterState)
+	get func() *State
+	set func(*State)
 }
 
 // NewController creates a new router state controller with the given get/set functions.
-func NewController(get func() *RouterState, set func(*RouterState)) *Controller {
+func NewController(get func() *State, set func(*State)) *Controller {
 	return &Controller{
 		get: get,
 		set: set,
@@ -31,7 +31,7 @@ func NewController(get func() *RouterState, set func(*RouterState)) *Controller 
 }
 
 // Get returns the current router state.
-func (c *Controller) Get() *RouterState {
+func (c *Controller) Get() *State {
 	if c == nil || c.get == nil {
 		return defaultRouterState
 	}
@@ -39,7 +39,7 @@ func (c *Controller) Get() *RouterState {
 }
 
 // Set updates the router state.
-func (c *Controller) Set(state *RouterState) {
+func (c *Controller) Set(state *State) {
 	if c != nil && c.set != nil {
 		c.set(state)
 	}
@@ -50,7 +50,7 @@ func (c *Controller) SetLocation(loc Location) {
 	if c == nil {
 		return
 	}
-	c.Set(&RouterState{
+	c.Set(&State{
 		Location: loc,
 		Matched:  false,
 		Pattern:  "",
@@ -65,7 +65,7 @@ func (c *Controller) SetMatch(pattern string, params map[string]string, path str
 		return
 	}
 	state := c.Get()
-	c.Set(&RouterState{
+	c.Set(&State{
 		Location: state.Location,
 		Matched:  true,
 		Pattern:  pattern,
@@ -74,7 +74,7 @@ func (c *Controller) SetMatch(pattern string, params map[string]string, path str
 	})
 }
 
-var defaultRouterState = &RouterState{
+var defaultRouterState = &State{
 	Location: Location{
 		Path:  "/",
 		Query: url.Values{},
@@ -88,8 +88,8 @@ var defaultRouterState = &RouterState{
 
 // routerCtx is the context for providing router state controller to child components.
 var routerCtx = runtime.CreateContext[*Controller](&Controller{
-	get: func() *RouterState { return defaultRouterState },
-	set: func(*RouterState) {},
+	get: func() *State { return defaultRouterState },
+	set: func(*State) {},
 })
 
 // UseRouterState returns the router state controller from context.

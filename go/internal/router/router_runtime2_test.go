@@ -10,10 +10,10 @@ import (
 
 // Helper to create a test controller with given location
 func testController(loc Location) *Controller {
-	state := &RouterState{Location: loc}
+	state := &State{Location: loc}
 	return NewController(
-		func() *RouterState { return state },
-		func(s *RouterState) { state = s },
+		func() *State { return state },
+		func(s *State) { state = s },
 	)
 }
 

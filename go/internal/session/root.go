@@ -12,7 +12,7 @@ import (
 type Component func(runtime.Ctx) *dom.StructuredNode
 
 func documentRoot(sess *LiveSession, app Component) runtime.Component[struct{}] {
-	initial := &router.RouterState{
+	initial := &router.State{
 		Location: toRouterLocation(sess.InitialLocation()),
 		Matched:  false,
 		Pattern:  "",
