@@ -79,12 +79,10 @@ func TestComponentForwardsRenderOptions(t *testing.T) {
 		t.Fatalf("expected node, got nil")
 	}
 
-	// Verify both components rendered
 	if renderCount != 2 {
 		t.Errorf("expected 2 renders (with different keys), got %d", renderCount)
 	}
 
-	// Verify we have two children in the fragment
 	if len(node.Children) != 2 {
 		t.Fatalf("expected 2 children in fragment, got %d", len(node.Children))
 	}

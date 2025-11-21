@@ -148,7 +148,7 @@ func diffChildrenIndexed(patches *[]Patch, parentPath []int, a, b []*dom.Structu
 }
 
 func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.StructuredNode) {
-	// Build key→index maps for old and new children
+
 	oldKeys := make(map[string]int)
 	newKeys := make(map[string]int)
 
@@ -163,7 +163,6 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 		}
 	}
 
-	// Track which old indices are retained (exist in new list)
 	retained := make(map[int]bool)
 	for _, child := range b {
 		if child != nil && child.Key != "" {
@@ -183,20 +182,19 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 		if retained[oldIdx] {
 			continue
 		}
-		// Unkeyed node at this position that's being replaced
+
 		if oldChild == nil || oldChild.Key == "" {
 			if oldIdx >= len(b) || (b[oldIdx] != nil && b[oldIdx].Key != "") {
 				toDelete = append(toDelete, oldIdx)
 			}
 			continue
 		}
-		// Keyed node that no longer exists
+
 		if _, stillExists := newKeys[oldChild.Key]; !stillExists {
 			toDelete = append(toDelete, oldIdx)
 		}
 	}
 
-	// Emit deletions in reverse index order (highest first)
 	for i := len(toDelete) - 1; i >= 0; i-- {
 		idx := toDelete[i]
 		var value interface{}
@@ -211,11 +209,6 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 		})
 	}
 
-	// ============================================================
-	// PHASE 2: Build intermediate state after deletions
-	// ============================================================
-	// This represents the child array state after deletions are applied.
-	// We need this to calculate correct move source indices.
 	intermediate := make([]*dom.StructuredNode, 0, len(a)-len(toDelete))
 	deleteSet := make(map[int]bool)
 	for _, idx := range toDelete {
@@ -227,7 +220,6 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 		}
 	}
 
-	// Build key→index map for intermediate state
 	intermediateKeys := make(map[string]int)
 	for i, child := range intermediate {
 		if child != nil && child.Key != "" {
@@ -235,23 +227,18 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 		}
 	}
 
-	// ============================================================
-	// PHASE 3: MOVES AND ADDITIONS
-	// ============================================================
-	// Process new children in order. Use key-based addressing for moves
-	// so the client can resolve current position at application time.
 	for newIdx, newChild := range b {
 		if newChild == nil {
 			continue
 		}
 
 		if newChild.Key == "" {
-			// Unkeyed node: if same position exists in intermediate with no key, diff it
+
 			if newIdx < len(intermediate) && (intermediate[newIdx] == nil || intermediate[newIdx].Key == "") {
 				childPath := append(copyPath(parentPath), newIdx)
 				diffNode(patches, childPath, intermediate[newIdx], newChild)
 			} else {
-				// Otherwise add new unkeyed node
+
 				*patches = append(*patches, Patch{
 					Path:  copyPath(parentPath),
 					Op:    OpAddChild,
@@ -262,10 +249,9 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 			continue
 		}
 
-		// Keyed node
 		oldIdx, existedBefore := oldKeys[newChild.Key]
 		if !existedBefore {
-			// New keyed node - add it
+
 			*patches = append(*patches, Patch{
 				Path:  copyPath(parentPath),
 				Op:    OpAddChild,
@@ -275,10 +261,9 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 			continue
 		}
 
-		// Existing keyed node - check if it needs to move
 		intermediateIdx := intermediateKeys[newChild.Key]
 		if intermediateIdx != newIdx {
-			// Emit move with key for client-side resolution
+
 			*patches = append(*patches, Patch{
 				Path:  copyPath(parentPath),
 				Op:    OpMoveChild,
@@ -290,7 +275,6 @@ func diffChildrenKeyed(patches *[]Patch, parentPath []int, a, b []*dom.Structure
 			})
 		}
 
-		// Diff the content
 		childPath := append(copyPath(parentPath), newIdx)
 		diffNode(patches, childPath, a[oldIdx], newChild)
 	}
@@ -327,7 +311,6 @@ func diffStyle(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
 		return
 	}
 
-	// Use local references to avoid mutating the original nodes
 	aStyle := a.Style
 	bStyle := b.Style
 	if aStyle == nil {
@@ -358,7 +341,6 @@ func diffStyles(patches *[]Patch, path []int, a, b *dom.StructuredNode) {
 		return
 	}
 
-	// Use local references to avoid mutating the original nodes
 	aStyles := a.Styles
 	bStyles := b.Styles
 	if aStyles == nil {

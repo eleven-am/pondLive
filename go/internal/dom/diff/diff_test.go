@@ -550,8 +550,7 @@ func TestDiffStylesNilMaps(t *testing.T) {
 // ============================================================
 
 func TestDiffKeyedSwap(t *testing.T) {
-	// Swapping two keyed siblings should produce moves, not replacements
-	// Old: [A, B] -> New: [B, A]
+
 	prev := dom.ElementNode("ul").WithChildren(
 		dom.ElementNode("li").WithKey("a").WithChildren(dom.TextNode("Item A")),
 		dom.ElementNode("li").WithKey("b").WithChildren(dom.TextNode("Item B")),
@@ -562,7 +561,6 @@ func TestDiffKeyedSwap(t *testing.T) {
 	)
 	patches := Diff(prev, next)
 
-	// Should have move operations, not replacements or add/deletes
 	moveCount := 0
 	for _, p := range patches {
 		if p.Op == OpMoveChild {
@@ -570,7 +568,7 @@ func TestDiffKeyedSwap(t *testing.T) {
 			val := p.Value.(map[string]interface{})
 			key := val["key"].(string)
 			newIdx := val["newIdx"].(int)
-			// Verify the move is key-based with correct target index
+
 			if (key == "b" && newIdx != 0) || (key == "a" && newIdx != 1) {
 				t.Fatalf("unexpected move: key=%s newIdx=%d", key, newIdx)
 			}
@@ -588,8 +586,7 @@ func TestDiffKeyedSwap(t *testing.T) {
 }
 
 func TestDiffKeyedPrepend(t *testing.T) {
-	// Prepending a new keyed item before existing ones
-	// Old: [A] -> New: [B, A]
+
 	prev := dom.ElementNode("ul").WithChildren(
 		dom.ElementNode("li").WithKey("a").WithChildren(dom.TextNode("Item A")),
 	)
@@ -630,8 +627,7 @@ func TestDiffKeyedPrepend(t *testing.T) {
 }
 
 func TestDiffKeyedInsertMiddle(t *testing.T) {
-	// Inserting in the middle of a keyed list
-	// Old: [A, C] -> New: [A, B, C]
+
 	prev := dom.ElementNode("ul").WithChildren(
 		dom.ElementNode("li").WithKey("a").WithChildren(dom.TextNode("Item A")),
 		dom.ElementNode("li").WithKey("c").WithChildren(dom.TextNode("Item C")),
@@ -661,10 +657,7 @@ func TestDiffKeyedInsertMiddle(t *testing.T) {
 }
 
 func TestDiffKeyedDeleteFirst(t *testing.T) {
-	// Deleting the first item from a keyed list
-	// Old: [A, B, C] -> New: [B, C]
-	// After deleting A at index 0, B and C naturally shift to indices 0 and 1
-	// which matches their target positions - no moves needed!
+
 	prev := dom.ElementNode("ul").WithChildren(
 		dom.ElementNode("li").WithKey("a").WithChildren(dom.TextNode("Item A")),
 		dom.ElementNode("li").WithKey("b").WithChildren(dom.TextNode("Item B")),
@@ -680,7 +673,7 @@ func TestDiffKeyedDeleteFirst(t *testing.T) {
 	for _, p := range patches {
 		if p.Op == OpDelChild {
 			foundDel = true
-			// Deletion should be at index 0 (the first item)
+
 			if p.Index == nil || *p.Index != 0 {
 				t.Fatalf("expected delChild at index 0, got %v", p.Index)
 			}
@@ -689,7 +682,7 @@ func TestDiffKeyedDeleteFirst(t *testing.T) {
 				t.Fatalf("expected deletion of key 'a', got %v", val["key"])
 			}
 		}
-		// No moves needed - after deletion, items naturally fall into correct positions
+
 		if p.Op == OpReplaceNode || p.Op == OpAddChild {
 			t.Fatalf("delete-first should not produce replace/add: %#v", p)
 		}
@@ -700,7 +693,7 @@ func TestDiffKeyedDeleteFirst(t *testing.T) {
 }
 
 func TestDiffKeyedReverseOrder(t *testing.T) {
-	// Reversing a list: [A, B, C] -> [C, B, A]
+
 	prev := dom.ElementNode("ul").WithChildren(
 		dom.ElementNode("li").WithKey("a").WithChildren(dom.TextNode("Item A")),
 		dom.ElementNode("li").WithKey("b").WithChildren(dom.TextNode("Item B")),
@@ -728,9 +721,7 @@ func TestDiffKeyedReverseOrder(t *testing.T) {
 }
 
 func TestDiffKeyedComplexReorder(t *testing.T) {
-	// Complex reorder with additions and deletions
-	// Old: [A, B, C, D] -> New: [D, E, B]
-	// Delete: A, C; Add: E; Move: D to 0, B to 2
+
 	prev := dom.ElementNode("ul").WithChildren(
 		dom.ElementNode("li").WithKey("a").WithChildren(dom.TextNode("Item A")),
 		dom.ElementNode("li").WithKey("b").WithChildren(dom.TextNode("Item B")),

@@ -75,7 +75,7 @@ func TestAppServesClientScript(t *testing.T) {
 		t.Fatalf("expected status 200, got %d", res.StatusCode)
 	}
 	body := rec.Body.String()
-	// Check for any JavaScript content (function, class, var, const, let, etc.)
+
 	if len(body) == 0 || (!strings.Contains(body, "function") && !strings.Contains(body, "class") && !strings.Contains(body, "const") && !strings.Contains(body, "var")) {
 		snippet := body
 		if len(snippet) > 64 {
@@ -102,7 +102,7 @@ func TestAppServesDevClientScriptAndSourceMap(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	body := rec.Body.String()
-	// HTML attribute order may vary, check for the key parts
+
 	if !strings.Contains(body, "pondlive-dev.js") {
 		t.Fatalf("expected dev HTML to reference pondlive-dev.js, body=%s", body)
 	}
@@ -148,7 +148,6 @@ func TestAppRegistersCookieHandler(t *testing.T) {
 		t.Fatalf("NewApp returned error: %v", err)
 	}
 
-	// Test that the cookie path is accessible (either returns 200 or 405 depending on method)
 	req := httptest.NewRequest(http.MethodGet, "http://example.com"+internalserver.CookiePath, nil)
 	rec := httptest.NewRecorder()
 
@@ -158,8 +157,6 @@ func TestAppRegistersCookieHandler(t *testing.T) {
 	res := rec.Result()
 	t.Cleanup(func() { _ = res.Body.Close() })
 
-	// The handler may return 200 (catch-all) or 405 (method not allowed for GET on cookie endpoint)
-	// Either is acceptable behavior - we just want to ensure the handler exists and responds
 	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusMethodNotAllowed {
 		t.Fatalf("expected status 200 or 405, got %d", res.StatusCode)
 	}
