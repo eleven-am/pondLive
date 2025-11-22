@@ -58,7 +58,7 @@ func TestUseScriptBasic(t *testing.T) {
 	if scriptHandle.slot == nil {
 		t.Error("expected script slot to be created")
 	}
-	if scriptHandle.slot.script != "(element, transport) => { element.textContent = 'Hello'; }" {
+	if scriptHandle.slot.script != "(element,transport)=>{element.textContent='Hello';}" {
 		t.Errorf("unexpected script content: %s", scriptHandle.slot.script)
 	}
 }
@@ -88,7 +88,7 @@ func TestUseScriptAttachment(t *testing.T) {
 	if createdNode.Script.ScriptID == "" {
 		t.Error("expected script ID to be set")
 	}
-	if createdNode.Script.Script != "(element, transport) => {}" {
+	if createdNode.Script.Script != "(element,transport)=>{}" {
 		t.Errorf("unexpected script: %s", createdNode.Script.Script)
 	}
 }

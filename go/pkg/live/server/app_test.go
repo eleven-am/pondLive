@@ -148,7 +148,7 @@ func TestAppRegistersCookieHandler(t *testing.T) {
 		t.Fatalf("NewApp returned error: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "http://example.com"+internalserver.CookiePath, nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com"+CookiePath, nil)
 	rec := httptest.NewRecorder()
 
 	handler := app.Handler()
