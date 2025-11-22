@@ -71,7 +71,7 @@ func HomePage(ctx ui.Ctx) h.Node {
 	)
 }
 
-var RedCard = ui.Component(func(ctx ui.Ctx) h.Node {
+var RedCard = ui.Component(func(ctx ui.Ctx, _ []h.Item) h.Node {
 	style := ui.UseStyles(ctx, `
 		.card {
 			padding: 2rem;
@@ -114,7 +114,7 @@ var RedCard = ui.Component(func(ctx ui.Ctx) h.Node {
 	)
 })
 
-var BlueCard = ui.Component(func(ctx ui.Ctx) h.Node {
+var BlueCard = ui.Component(func(ctx ui.Ctx, _ []h.Item) h.Node {
 	style := ui.UseStyles(ctx, `
 		.card {
 			padding: 2rem;

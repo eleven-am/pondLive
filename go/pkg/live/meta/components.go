@@ -6,7 +6,7 @@ import (
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
-var script = live.PropsComponent[ScriptTag](func(ctx live.Ctx, prop ScriptTag) h.Node {
+var script = live.PropsComponent[ScriptTag](func(ctx live.Ctx, prop ScriptTag, _ []h.Item) h.Node {
 	return h.Script(
 		h.If(prop.Src != "", h.Attr("src", prop.Src)),
 		h.If(prop.Type != "", h.Attr("type", prop.Type)),
@@ -22,7 +22,7 @@ var script = live.PropsComponent[ScriptTag](func(ctx live.Ctx, prop ScriptTag) h
 	)
 })
 
-var link = live.PropsComponent[LinkTag](func(ctx live.Ctx, prop LinkTag) h.Node {
+var link = live.PropsComponent[LinkTag](func(ctx live.Ctx, prop LinkTag, _ []h.Item) h.Node {
 	return h.Link(
 		h.If(prop.Rel != "", h.Attr("rel", prop.Rel)),
 		h.If(prop.Href != "", h.Attr("href", prop.Href)),
@@ -38,7 +38,7 @@ var link = live.PropsComponent[LinkTag](func(ctx live.Ctx, prop LinkTag) h.Node 
 	)
 })
 
-var meta = live.PropsComponent[MetaTag](func(ctx live.Ctx, prop MetaTag) h.Node {
+var meta = live.PropsComponent[MetaTag](func(ctx live.Ctx, prop MetaTag, _ []h.Item) h.Node {
 	return h.Meta(
 		h.If(prop.Name != "", h.Attr("name", prop.Name)),
 		h.If(prop.Content != "", h.Attr("content", prop.Content)),
@@ -49,7 +49,7 @@ var meta = live.PropsComponent[MetaTag](func(ctx live.Ctx, prop MetaTag) h.Node 
 	)
 })
 
-var Head = live.Component(func(ctx live.Ctx) h.Node {
+var Head = live.Component(func(ctx live.Ctx, _ []h.Item) h.Node {
 	controller := metaTagsCtx.Use(ctx)
 	if controller == nil {
 		return h.Head()

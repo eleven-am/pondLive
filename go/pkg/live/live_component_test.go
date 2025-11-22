@@ -10,7 +10,7 @@ import (
 
 func TestComponentInvokesRuntimeRender(t *testing.T) {
 	var renders int
-	counter := Component(func(ctx Ctx) h.Node {
+	counter := Component(func(ctx Ctx, _ []h.Item) h.Node {
 		renders++
 		return h.Div()
 	})
@@ -37,7 +37,7 @@ func TestPropsComponentForwardsProps(t *testing.T) {
 		Label string
 	}
 	var seen props
-	card := PropsComponent(func(ctx Ctx, p props) h.Node {
+	card := PropsComponent(func(ctx Ctx, p props, _ []h.Item) h.Node {
 		seen = p
 		return h.Div(h.Text(p.Label))
 	})
@@ -57,15 +57,15 @@ func TestPropsComponentForwardsProps(t *testing.T) {
 
 func TestComponentForwardsRenderOptions(t *testing.T) {
 	var renderCount int
-	child := Component(func(ctx Ctx) h.Node {
+	child := Component(func(ctx Ctx, _ []h.Item) h.Node {
 		renderCount++
 		return h.Div()
 	})
 
 	root := runtime.Component[struct{}](func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
 		return h.Fragment(
-			child(ctx, WithKey("key1")),
-			child(ctx, WithKey("key2")),
+			child(ctx, h.Key("key1")),
+			child(ctx, h.Key("key2")),
 		)
 	})
 

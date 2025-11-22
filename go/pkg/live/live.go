@@ -36,49 +36,56 @@ type (
 	UploadEvent                       = runtime.UploadEvent
 )
 
-// Component wraps a stateless component function so it can be invoked directly
-// from HTML builders without manually calling Render.
+// Component wraps a component function that accepts children as a slice.
+// Children can include h.Key() at the top level to set the component's render key.
 //
 // Example:
 //
-//	counter := live.Component(func(ctx live.Ctx) h.Node {
-//	       return h.Div()
+//	card := live.Component(func(ctx live.Ctx, children []h.Item) h.Node {
+//	       return h.Div(
+//	           h.H1(h.Text("Card")),
+//	           h.Fragment(children...),
+//	       )
 //	})
 //
-// Within another component you can render it with:
+// Render it with:
 //
-//	counter(ctx, live.WithKey("counter"))
+//	card(ctx, h.Key("my-card"), h.Text("Child 1"), h.Text("Child 2"))
 //
-// Prefer invoking the returned function instead of calling Render for
-// stateless children.
-func Component(fn func(Ctx) h.Node) func(Ctx, ...RenderOption) h.Node {
+// The h.Key() is extracted and used as the component's identity, not rendered as a DOM element.
+func Component(fn func(Ctx, []h.Item) h.Node) func(Ctx, ...h.Item) h.Node {
 	if fn == nil {
 		return nil
 	}
-	wrapped := func(ctx Ctx) *dom.StructuredNode {
-		return fn(ctx)
+	wrapped := func(ctx Ctx, children []dom.Item) *dom.StructuredNode {
+		return fn(ctx, children)
 	}
 	return runtime.NoPropsComponent(wrapped, fn)
 }
 
-// PropsComponent wraps a component function that expects props so it can be
-// called directly with a context, props, and optional render options.
+// PropsComponent wraps a component function that accepts props and children as a slice.
+// Children can include h.Key() at the top level to set the component's render key.
 //
 // Example:
 //
-//	card := live.PropsComponent(func(ctx live.Ctx, props CardProps) h.Node {
-//	       return h.Div(h.Text(props.Title))
+//	card := live.PropsComponent(func(ctx live.Ctx, props CardProps, children []h.Item) h.Node {
+//	       return h.Div(
+//	           h.H1(h.Text(props.Title)),
+//	           h.Fragment(children...),
+//	       )
 //	})
 //
-// Render it via:
+// Render it with:
 //
-//	card(ctx, CardProps{Title: "Inbox"}, live.WithKey("card"))
-func PropsComponent[P any](fn func(Ctx, P) h.Node) func(Ctx, P, ...RenderOption) h.Node {
+//	card(ctx, CardProps{Title: "Inbox"}, h.Key("my-card"), h.Text("Message 1"), h.Text("Message 2"))
+//
+// The h.Key() is extracted and used as the component's identity, not rendered as a DOM element.
+func PropsComponent[P any](fn func(Ctx, P, []h.Item) h.Node) func(Ctx, P, ...h.Item) h.Node {
 	if fn == nil {
 		return nil
 	}
-	wrapped := func(ctx Ctx, props P) *dom.StructuredNode {
-		return fn(ctx, props)
+	wrapped := func(ctx Ctx, props P, children []dom.Item) *dom.StructuredNode {
+		return fn(ctx, props, children)
 	}
 	return runtime.PropsComponent(wrapped, fn)
 }

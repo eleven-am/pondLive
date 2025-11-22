@@ -110,38 +110,61 @@ func withOriginalPointer(ptr uintptr) RenderOption {
 	return renderOptionFunc(func(o *renderOptions) { o.origPointer = ptr })
 }
 
-// NoPropsComponent is like NoPropsComponent but takes an additional
-// original function parameter to use for stable key generation
-func NoPropsComponent[F any](fn func(Ctx) *dom.StructuredNode, original F) func(Ctx, ...RenderOption) *dom.StructuredNode {
+// NoPropsComponent wraps a component function that accepts children as a slice.
+// The first top-level dom.Key() in children is extracted and used as the component's render key.
+// Takes an additional original function parameter for stable key generation.
+func NoPropsComponent[F any](fn func(Ctx, []dom.Item) *dom.StructuredNode, original F) func(Ctx, ...dom.Item) *dom.StructuredNode {
 	if fn == nil {
 		return nil
 	}
 
 	origPtr := reflect.ValueOf(original).Pointer()
 
-	wrapped := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
-		return fn(ctx)
-	}
-	return func(ctx Ctx, opts ...RenderOption) *dom.StructuredNode {
+	return func(ctx Ctx, children ...dom.Item) *dom.StructuredNode {
+		// Extract key from top-level children if present
+		key, remainingChildren := dom.ExtractKey(children)
 
-		opts = append(opts, withOriginalPointer(origPtr))
-		return Render(ctx, wrapped, struct{}{}, opts...)
+		// Build render options
+		opts := []RenderOption{withOriginalPointer(origPtr)}
+		if key != "" {
+			opts = append(opts, WithKey(key))
+		}
+
+		// Create wrapper that passes remaining children to the component
+		wrapper := func(c Ctx, _ struct{}) *dom.StructuredNode {
+			return fn(c, remainingChildren)
+		}
+
+		return Render(ctx, wrapper, struct{}{}, opts...)
 	}
 }
 
-// PropsComponent is like PropsComponent but takes an additional
-// original function parameter to use for stable key generation
-func PropsComponent[P any, F any](fn func(Ctx, P) *dom.StructuredNode, original F) func(Ctx, P, ...RenderOption) *dom.StructuredNode {
+// PropsComponent wraps a component function that accepts props and children as a slice.
+// The first top-level dom.Key() in children is extracted and used as the component's render key.
+// Takes an additional original function parameter for stable key generation.
+func PropsComponent[P any, F any](fn func(Ctx, P, []dom.Item) *dom.StructuredNode, original F) func(Ctx, P, ...dom.Item) *dom.StructuredNode {
 	if fn == nil {
 		return nil
 	}
 
 	origPtr := reflect.ValueOf(original).Pointer()
 
-	return func(ctx Ctx, props P, opts ...RenderOption) *dom.StructuredNode {
+	return func(ctx Ctx, props P, children ...dom.Item) *dom.StructuredNode {
+		// Extract key from top-level children if present
+		key, remainingChildren := dom.ExtractKey(children)
 
-		opts = append(opts, withOriginalPointer(origPtr))
-		return Render(ctx, fn, props, opts...)
+		// Build render options
+		opts := []RenderOption{withOriginalPointer(origPtr)}
+		if key != "" {
+			opts = append(opts, WithKey(key))
+		}
+
+		// Create wrapper that passes remaining children to the component
+		wrapper := func(c Ctx, p P) *dom.StructuredNode {
+			return fn(c, p, remainingChildren)
+		}
+
+		return Render(ctx, wrapper, props, opts...)
 	}
 }
 

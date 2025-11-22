@@ -90,6 +90,11 @@ func (p keyProp) ApplyTo(e *StructuredNode) {
 	e.Key = p.key
 }
 
+// GetKey returns the key value, allowing it to be extracted
+func (p keyProp) GetKey() string {
+	return p.key
+}
+
 // Key sets the key for stable diffing in lists
 func Key(key string) Prop { return keyProp{key: key} }
 
@@ -217,4 +222,20 @@ func OnWith(event string, opts EventOptions, handler EventHandler) Prop {
 	combined := MergeEventOptions(DefaultEventOptions(event), opts)
 	binding := EventBinding{Handler: handler}.WithOptions(combined, event)
 	return onProp{event: event, binding: binding}
+}
+
+// ExtractKey extracts the first top-level Key from items, returning the key value and remaining items.
+// Only scans the top level - nested keys within child elements are not extracted.
+func ExtractKey(items []Item) (key string, remaining []Item) {
+	for i, item := range items {
+		if kp, ok := item.(keyProp); ok {
+			// Found a key at top level - extract it
+			remaining = make([]Item, 0, len(items)-1)
+			remaining = append(remaining, items[:i]...)
+			remaining = append(remaining, items[i+1:]...)
+			return kp.GetKey(), remaining
+		}
+	}
+	// No key found at top level
+	return "", items
 }
