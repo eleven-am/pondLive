@@ -1,13 +1,10 @@
 package session
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,6 +12,7 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/dom/diff"
+	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
@@ -38,12 +36,9 @@ type LiveSession struct {
 	version int
 
 	component *runtime.ComponentSession
-	header    *headerState
 
-	// Router support - initial location from HTTP request
-	initialPath  string
-	initialQuery url.Values
-	initialHash  string
+	// Request controller - manages HTTP request state (headers, location) and response headers
+	requestController *headers.RequestController
 
 	mu        sync.Mutex
 	lifecycle *Lifecycle
@@ -54,10 +49,6 @@ type LiveSession struct {
 	nextSeq   int
 	lastAck   int
 	clientSeq int
-
-	cookieBatches map[string]cookieBatch
-	cookieCounter atomic.Uint64
-	cookieQueue   []string
 
 	routerState struct {
 		mu  sync.RWMutex
@@ -122,14 +113,14 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 	}
 
 	sess := &LiveSession{
-		id:          id,
-		version:     version,
-		header:      newHeaderState(),
-		lifecycle:   NewLifecycle(effectiveConfig.Clock, effectiveConfig.TTL),
-		transport:   effectiveConfig.Transport,
-		devMode:     effectiveConfig.DevMode,
-		clientAsset: effectiveConfig.ClientAsset,
-		nextSeq:     1,
+		id:                id,
+		version:           version,
+		lifecycle:         NewLifecycle(effectiveConfig.Clock, effectiveConfig.TTL),
+		transport:         effectiveConfig.Transport,
+		devMode:           effectiveConfig.DevMode,
+		clientAsset:       effectiveConfig.ClientAsset,
+		nextSeq:           1,
+		requestController: headers.NewRequestController(),
 	}
 
 	wrapped := documentRoot(sess, root)
@@ -139,15 +130,17 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 	sess.configureRuntime(effectiveConfig)
 
 	sess.component.SetInitialLocationProvider(func() (string, map[string]string, string) {
-		sess.mu.Lock()
-		defer sess.mu.Unlock()
-		query := make(map[string]string)
-		for k, v := range sess.initialQuery {
-			if len(v) > 0 {
-				query[k] = v[0]
+		if sess.requestController != nil {
+			path, urlQuery, hash := sess.requestController.GetInitialLocation()
+			query := make(map[string]string)
+			for k, v := range urlQuery {
+				if len(v) > 0 {
+					query[k] = v[0]
+				}
 			}
+			return path, query, hash
 		}
-		return sess.initialPath, query, sess.initialHash
+		return "/", make(map[string]string), ""
 	})
 
 	sess.component.SetAutoFlush(func() {
@@ -219,16 +212,6 @@ func (s *LiveSession) Version() int {
 	return s.version
 }
 
-// Header returns the header state for this session.
-func (s *LiveSession) Header() HeaderState {
-	if s == nil {
-		return noopHeaderState{}
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.header
-}
-
 // SetTransport updates the transport for this session.
 func (s *LiveSession) SetTransport(t Transport) {
 	if s == nil {
@@ -237,6 +220,14 @@ func (s *LiveSession) SetTransport(t Transport) {
 	s.mu.Lock()
 	s.transport = t
 	s.mu.Unlock()
+
+	if s.component != nil && t != nil {
+		s.component.SetLive(t.IsLive())
+	}
+
+	if s.requestController != nil && t != nil {
+		s.requestController.SetIsLive(t.IsLive())
+	}
 }
 
 // Touch updates the last activity timestamp.
@@ -327,20 +318,16 @@ func (s *LiveSession) MergeRequest(r *http.Request) {
 		return
 	}
 
-	if s.header != nil {
-		s.header.mergeRequest(r)
-	}
-
 	loc := Location{
 		Path:  r.URL.Path,
 		Query: cloneQuery(r.URL.Query()),
 		Hash:  strings.TrimSpace(r.URL.Fragment),
 	}
-	s.mu.Lock()
-	s.initialPath = loc.Path
-	s.initialQuery = cloneQuery(r.URL.Query())
-	s.initialHash = loc.Hash
-	s.mu.Unlock()
+
+	if s.requestController != nil {
+		s.requestController.SetInitialHeaders(r.Header)
+		s.requestController.SetInitialLocation(loc.Path, loc.Query, loc.Hash)
+	}
 
 	s.seedRouterState(loc)
 }
@@ -351,16 +338,39 @@ func (s *LiveSession) InitialLocation() Location {
 	if s == nil {
 		return Location{Path: "/"}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
-	return Location{
-		Path:  s.initialPath,
-		Query: cloneQuery(s.initialQuery),
-		Hash:  s.initialHash,
+	if s.requestController != nil {
+		path, query, hash := s.requestController.GetInitialLocation()
+		return Location{
+			Path:  path,
+			Query: query,
+			Hash:  hash,
+		}
 	}
+
+	return Location{Path: "/"}
 }
 
+// GetRedirect returns the redirect URL and status code if a redirect was set during SSR.
+// Returns (url, code, true) if redirect is set, ("", 0, false) otherwise.
+// Used by SSR handler to check for redirects after render.
+func (s *LiveSession) GetRedirect() (url string, code int, hasRedirect bool) {
+	if s == nil || s.requestController == nil {
+		return "", 0, false
+	}
+	return s.requestController.GetRedirect()
+}
+
+// GetResponseHeaders returns all response headers that were set during render.
+// Used by SSR handler to apply headers to the HTTP response.
+func (s *LiveSession) GetResponseHeaders() http.Header {
+	if s == nil || s.requestController == nil {
+		return nil
+	}
+	return s.requestController.GetResponseHeaders()
+}
+
+// RouterLocationChan exposes navigation updates for the router component.
 func (s *LiveSession) registerRouterState(set func(Location)) {
 	if s == nil {
 		return
@@ -409,7 +419,7 @@ func (s *LiveSession) Flush() error {
 		if err := s.component.Flush(); err != nil {
 			return err
 		}
-		return s.dispatchPendingCookies()
+		return nil
 	}
 
 	const maxFlushes = 3
@@ -423,7 +433,7 @@ func (s *LiveSession) Flush() error {
 		}
 	}
 
-	return s.dispatchPendingCookies()
+	return nil
 }
 
 // Tree returns the last rendered StructuredNode tree. Must be called after Flush().
@@ -784,6 +794,26 @@ func (s *LiveSession) HandleDOMResponse(resp protocol.DOMResponse) {
 	}
 }
 
+// Close releases session resources and cleans up component-managed handlers.
+func (s *LiveSession) Close() error {
+	if s == nil {
+		return nil
+	}
+
+	if s.component != nil {
+		s.component.CleanupAllHandlers()
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.transport != nil {
+		_ = s.transport.Close()
+	}
+
+	return nil
+}
+
 // HandleRouterReset processes a client-side router reset request.
 // This is called when a router component needs to be reset to a clean state.
 func (s *LiveSession) HandleRouterReset(componentID string) error {
@@ -844,140 +874,6 @@ func (s *LiveSession) HandleScriptMessage(msg protocol.ScriptMessage) error {
 	fmt.Printf("session: handling script message %s for script %s", msg.Event, msg.ScriptID)
 	s.component.HandleScriptMessage(msg.ScriptID, msg.Event, msg.Data)
 	return nil
-}
-
-func (s *LiveSession) dispatchPendingCookies() error {
-	if s == nil {
-		return nil
-	}
-	if s.header != nil {
-		if batch := s.header.drainCookieMutations(); !batch.Empty() {
-			if token := s.registerCookieBatch(batch); token != "" {
-				s.enqueueCookieToken(token)
-			}
-		}
-	}
-	return s.flushCookieQueue()
-}
-
-func (s *LiveSession) enqueueCookieToken(token string) {
-	if token == "" {
-		return
-	}
-	s.mu.Lock()
-	s.cookieQueue = append(s.cookieQueue, token)
-	s.mu.Unlock()
-}
-
-func (s *LiveSession) flushCookieQueue() error {
-	s.mu.Lock()
-	if len(s.cookieQueue) == 0 {
-		s.mu.Unlock()
-		return nil
-	}
-	tokens := append([]string(nil), s.cookieQueue...)
-	s.cookieQueue = nil
-	transport := s.transport
-	seq := s.nextSeq
-	s.nextSeq++
-	s.mu.Unlock()
-
-	if transport == nil {
-		s.mu.Lock()
-		s.cookieQueue = append(tokens, s.cookieQueue...)
-		s.mu.Unlock()
-		return errors.New("session: no transport for cookie effects")
-	}
-
-	effects := make([]any, 0, len(tokens))
-	for _, token := range tokens {
-		effects = append(effects, protocol.CookieEffect{
-			Type:     "cookies",
-			Endpoint: CookieEndpointPath,
-			SID:      string(s.id),
-			Token:    token,
-		})
-	}
-
-	frame := protocol.Frame{
-		T:       "frame",
-		SID:     string(s.id),
-		Seq:     seq,
-		Ver:     s.version,
-		Effects: effects,
-	}
-
-	if err := transport.SendFrame(frame); err != nil {
-		s.mu.Lock()
-		s.cookieQueue = append(tokens, s.cookieQueue...)
-		s.mu.Unlock()
-		return err
-	}
-	return nil
-}
-
-// ConsumeCookieBatch retrieves and clears a pending cookie batch identified by token.
-func (s *LiveSession) ConsumeCookieBatch(token string) (CookieBatch, bool) {
-	if s == nil {
-		return CookieBatch{}, false
-	}
-	trimmed := strings.TrimSpace(token)
-	if trimmed == "" {
-		return CookieBatch{}, false
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.cookieBatches) == 0 {
-		return CookieBatch{}, false
-	}
-	entry, ok := s.cookieBatches[trimmed]
-	if !ok {
-		return CookieBatch{}, false
-	}
-	delete(s.cookieBatches, trimmed)
-	return cloneCookieBatch(entry.Mutations), true
-}
-
-func (s *LiveSession) registerCookieBatch(batch CookieBatch) string {
-	if s == nil || batch.Empty() {
-		return ""
-	}
-	token := s.nextCookieToken()
-	if token == "" {
-		return ""
-	}
-	clone := cloneCookieBatch(batch)
-	s.mu.Lock()
-	if s.cookieBatches == nil {
-		s.cookieBatches = make(map[string]cookieBatch)
-	}
-	s.cookieBatches[token] = cookieBatch{Mutations: clone}
-	s.mu.Unlock()
-	return token
-}
-
-func (s *LiveSession) nextCookieToken() string {
-	buf := make([]byte, 18)
-	if _, err := rand.Read(buf); err == nil {
-		return base64.RawURLEncoding.EncodeToString(buf)
-	}
-	fallback := s.cookieCounter.Add(1)
-	ts := time.Now().UnixNano()
-	return strconv.FormatInt(ts, 36) + strconv.FormatUint(fallback, 36)
-}
-
-func cloneCookieBatch(in CookieBatch) CookieBatch {
-	out := CookieBatch{}
-	if len(in.Set) > 0 {
-		out.Set = make([]*http.Cookie, 0, len(in.Set))
-		for _, ck := range in.Set {
-			out.Set = append(out.Set, cloneCookie(ck))
-		}
-	}
-	if len(in.Delete) > 0 {
-		out.Delete = append(out.Delete, in.Delete...)
-	}
-	return out
 }
 
 func convertDOMActionEffect(effect dom.DOMActionEffect) protocol.DOMActionEffect {
@@ -1065,8 +961,4 @@ type domGetResult struct {
 type domCallResult struct {
 	result any
 	err    error
-}
-
-type cookieBatch struct {
-	Mutations CookieBatch
 }

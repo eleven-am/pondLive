@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
@@ -32,6 +33,64 @@ func (h ScriptHandle) Send(event string, data interface{}) {
 	if h.slot != nil {
 		h.slot.send(event, data)
 	}
+}
+
+// minifyJS performs basic JavaScript minification by removing unnecessary whitespace.
+// It preserves spaces where syntactically required (between keywords, identifiers).
+func minifyJS(script string) string {
+	var result strings.Builder
+	result.Grow(len(script))
+
+	inString := false
+	stringChar := byte(0)
+	inRegex := false
+	prevChar := byte(0)
+
+	for i := 0; i < len(script); i++ {
+		ch := script[i]
+
+		if !inRegex && (ch == '"' || ch == '\'' || ch == '`') {
+			if !inString {
+				inString = true
+				stringChar = ch
+			} else if ch == stringChar && prevChar != '\\' {
+				inString = false
+				stringChar = 0
+			}
+			result.WriteByte(ch)
+			prevChar = ch
+			continue
+		}
+
+		if inString {
+			result.WriteByte(ch)
+			prevChar = ch
+			continue
+		}
+
+		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+
+			if i > 0 && i < len(script)-1 {
+				prev := script[i-1]
+				next := script[i+1]
+				if isIdentifierChar(prev) && isIdentifierChar(next) {
+					result.WriteByte(' ')
+				}
+			}
+			prevChar = ch
+			continue
+		}
+
+		result.WriteByte(ch)
+		prevChar = ch
+	}
+
+	return result.String()
+}
+
+// isIdentifierChar returns true if the character can be part of a JS identifier or keyword.
+func isIdentifierChar(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '$'
 }
 
 // UseScript registers a script slot for the current component.
@@ -111,7 +170,7 @@ func (s *ComponentSession) registerScriptSlot(comp *component, index int, script
 		sess:          s,
 		component:     comp,
 		hookIndex:     index,
-		script:        script,
+		script:        minifyJS(script),
 		eventHandlers: make(map[string]func(interface{})),
 	}
 
@@ -131,7 +190,7 @@ func (s *ComponentSession) findScriptSlot(id string) *scriptSlot {
 
 func (slot *scriptSlot) updateScript(script string) {
 	slot.scriptMu.Lock()
-	slot.script = script
+	slot.script = minifyJS(script)
 	slot.scriptMu.Unlock()
 }
 

@@ -249,6 +249,10 @@ func (e *Endpoint) onLeave(ctx *pond.LeaveContext) {
 	if ctx == nil || ctx.User == nil {
 		return
 	}
+
+	if sess, ok := e.registry.Lookup(session.SessionID(ctx.User.UserID)); ok && sess != nil {
+		_ = sess.Close()
+	}
 	e.registry.Detach(ctx.User.UserID)
 }
 
@@ -398,26 +402,7 @@ func cloneCookies(cookies []*http.Cookie) []*http.Cookie {
 }
 
 func mergeConnectionState(sess *session.LiveSession, state *connectionState) {
-	if sess == nil || state == nil {
-		return
-	}
 
-	header := sess.Header()
-	if header == nil {
-		return
-	}
-
-	for key, values := range state.Headers {
-		for _, value := range values {
-			header.SetHeader(key, value)
-		}
-	}
-
-	for _, cookie := range state.Cookies {
-		if cookie != nil {
-			header.SetCookie(cookie)
-		}
-	}
 }
 
 func payloadToDOMEvent(payload map[string]interface{}) dom.Event {

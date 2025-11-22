@@ -2,6 +2,7 @@ package session
 
 import (
 	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/meta"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
@@ -13,31 +14,19 @@ type Component func(runtime.Ctx) *dom.StructuredNode
 
 func documentRoot(sess *LiveSession, app Component) runtime.Component[struct{}] {
 	return func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
+		return headers.ProvideRequestController(ctx, sess.requestController, func(hctx runtime.Ctx) *dom.StructuredNode {
+			wrapped := func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
+				return app(ctx)
+			}
 
-		initial := &router.State{
-			Location: toRouterLocation(sess.InitialLocation()),
-			Matched:  false,
-			Pattern:  "",
-			Params:   make(map[string]string),
-			Path:     "",
-		}
-
-		current, setCurrent := runtime.UseState(ctx, initial)
-		controller := runtime.UseMemo(ctx, func() *router.Controller {
-			return router.NewController(current, setCurrent)
-		})
-
-		sess.registerRouterState(func(loc Location) {
-			controller.SetLocation(toRouterLocation(loc))
-		})
-
-		wrapped := func(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
-			return app(ctx)
-		}
-
-		return router.ProvideRouterState(ctx, controller, func(rctx runtime.Ctx) *dom.StructuredNode {
-			return HeaderContext.Provide(rctx, sess.Header(), func(hctx runtime.Ctx) *dom.StructuredNode {
-				return meta.Provider(hctx, sess.clientAsset, wrapped, struct{}{})
+			return headers.ProvideHeadersManager(hctx, func(mctx runtime.Ctx) *dom.StructuredNode {
+				return router.ProvideRouter(mctx, func(handle *router.Handle) {
+					sess.registerRouterState(func(loc Location) {
+						handle.Controller().SetLocation(toRouterLocation(loc))
+					})
+				}, func(rctx runtime.Ctx) *dom.StructuredNode {
+					return meta.Provider(rctx, sess.clientAsset, wrapped, struct{}{})
+				})
 			})
 		})
 	}

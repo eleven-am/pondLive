@@ -2,8 +2,10 @@ package runtime
 
 import (
 	_ "embed"
+	"io"
 	"mime/multipart"
 	"net/http"
+	"os"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
 )
@@ -22,6 +24,7 @@ type UploadHandle struct {
 	config         *UploadConfig
 	progressGetter func() UploadProgress
 	onComplete     func(file multipart.File, header *multipart.FileHeader) error
+	token          string
 }
 
 type UploadConfig struct {
@@ -146,27 +149,115 @@ func UseUpload(ctx Ctx) UploadHandle {
 	handle := &UploadHandle{
 		script:         &script,
 		progressGetter: state,
+		token:          "",
 	}
 
 	handler := UseHandler(ctx, "POST", func(w http.ResponseWriter, r *http.Request) error {
-		err := r.ParseMultipartForm(32 << 20)
+		token := r.Header.Get("X-Upload-Token")
+		if token == "" || token != handle.token {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return nil
+		}
+
+		if handle.config != nil && handle.config.MaxSize > 0 {
+			r.Body = http.MaxBytesReader(w, r.Body, handle.config.MaxSize)
+		}
+
+		reader, err := r.MultipartReader()
 		if err != nil {
 			http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
 			return err
 		}
 
-		file, header, err := r.FormFile("file")
-		if err != nil {
-			http.Error(w, "No file provided", http.StatusBadRequest)
-			return err
-		}
-		defer file.Close()
-
-		if handle.onComplete != nil {
-			if err := handle.onComplete(file, header); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return err
+		var processed bool
+		for {
+			part, errPart := reader.NextPart()
+			if errPart != nil {
+				if errPart == io.EOF {
+					break
+				}
+				http.Error(w, "Failed to read multipart", http.StatusBadRequest)
+				return errPart
 			}
+			if part.FormName() != "file" {
+				_ = part.Close()
+				continue
+			}
+			header := &multipart.FileHeader{
+				Filename: part.FileName(),
+				Header:   part.Header,
+				Size:     0,
+			}
+
+			tmp, tmpErr := os.CreateTemp("", "pond-upload-*")
+			if tmpErr != nil {
+				_ = part.Close()
+				http.Error(w, "Failed to stage file", http.StatusInternalServerError)
+				return tmpErr
+			}
+
+			var written int64
+			if handle.config != nil && handle.config.MaxSize > 0 {
+				written, err = io.Copy(tmp, io.LimitReader(part, handle.config.MaxSize+1))
+				if err != nil && err != io.EOF {
+					_ = tmp.Close()
+					_ = os.Remove(tmp.Name())
+					_ = part.Close()
+					http.Error(w, "Failed to read file", http.StatusBadRequest)
+					return err
+				}
+				if written > handle.config.MaxSize {
+					_ = tmp.Close()
+					_ = os.Remove(tmp.Name())
+					_ = part.Close()
+					http.Error(w, "File exceeds maximum size", http.StatusRequestEntityTooLarge)
+					return nil
+				}
+			} else {
+				written, err = io.Copy(tmp, part)
+				if err != nil && err != io.EOF {
+					_ = tmp.Close()
+					_ = os.Remove(tmp.Name())
+					_ = part.Close()
+					http.Error(w, "Failed to read file", http.StatusBadRequest)
+					return err
+				}
+			}
+
+			header.Size = written
+
+			if _, seekErr := tmp.Seek(0, io.SeekStart); seekErr != nil {
+				_ = tmp.Close()
+				_ = os.Remove(tmp.Name())
+				_ = part.Close()
+				http.Error(w, "Failed to rewind file", http.StatusInternalServerError)
+				return seekErr
+			}
+
+			var fileReader multipart.File = tmp
+
+			if handle.onComplete != nil {
+				if err := handle.onComplete(fileReader, header); err != nil {
+					if tmpCloser, ok := fileReader.(io.Closer); ok {
+						_ = tmpCloser.Close()
+					}
+					_ = os.Remove(tmp.Name())
+					_ = part.Close()
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return err
+				}
+			}
+			processed = true
+			if tmpCloser, ok := fileReader.(io.Closer); ok {
+				_ = tmpCloser.Close()
+			}
+			_ = os.Remove(tmp.Name())
+			_ = part.Close()
+		}
+
+		if !processed {
+			http.Error(w, "No file provided", http.StatusBadRequest)
+			return nil
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -189,5 +280,42 @@ func UseUpload(ctx Ctx) UploadHandle {
 		})
 	})
 
+	script.On("ready", func(data interface{}) {
+		handle.sendStart()
+	})
+
 	return *handle
+}
+
+func (h *UploadHandle) sendStart() {
+	if h.script == nil || h.handler == nil {
+		return
+	}
+
+	h.token = h.handler.GenerateToken()
+	url := h.handler.URL()
+
+	if url == "" {
+		return
+	}
+
+	payload := map[string]interface{}{
+		"url": url,
+	}
+	if h.config != nil {
+		if h.config.MaxSize > 0 {
+			payload["maxSize"] = h.config.MaxSize
+		}
+		if len(h.config.Accept) > 0 {
+			payload["accept"] = h.config.Accept
+		}
+		if h.config.Multiple {
+			payload["multiple"] = true
+		}
+	}
+	if h.token != "" {
+		payload["token"] = h.token
+	}
+
+	h.script.Send("start", payload)
 }

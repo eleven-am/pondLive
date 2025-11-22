@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
@@ -59,6 +60,9 @@ type ComponentSession struct {
 
 	// Auto-flush callback for live sessions - triggers flush when components mark dirty
 	autoFlush func()
+
+	// Mode tracking - true when websocket transport is connected
+	isLive atomic.Bool
 
 	mu sync.Mutex
 }
@@ -153,6 +157,23 @@ func (s *ComponentSession) Tree() *dom.StructuredNode {
 	return s.prevTree
 }
 
+// cleanupHTTPHandlers removes all registered HTTP handlers.
+func (s *ComponentSession) cleanupHTTPHandlers() {
+	if s == nil {
+		return
+	}
+	s.httpHandlerMu.Lock()
+	for id := range s.httpHandlers {
+		delete(s.httpHandlers, id)
+	}
+	s.httpHandlerMu.Unlock()
+}
+
+// CleanupAllHandlers is the exported cleanup for use by session teardown.
+func (s *ComponentSession) CleanupAllHandlers() {
+	s.cleanupHTTPHandlers()
+}
+
 // Flush renders dirty components, diffs the tree, and sends patches.
 func (s *ComponentSession) Flush() error {
 	if s == nil || s.root == nil {
@@ -231,6 +252,10 @@ func (s *ComponentSession) Flush() error {
 			}
 		}
 
+		if s.root == nil {
+			s.cleanupHTTPHandlers()
+		}
+
 		return nil
 	})
 }
@@ -304,6 +329,20 @@ func runEffects(tasks []effectTask) {
 	for _, task := range tasks {
 		task.run()
 	}
+}
+
+// removeHandlersForComponent removes all HTTP handlers registered by the given component.
+func (s *ComponentSession) removeHandlersForComponent(comp *component) {
+	if s == nil || comp == nil {
+		return
+	}
+	s.httpHandlerMu.Lock()
+	for id, entry := range s.httpHandlers {
+		if entry != nil && entry.comp == comp {
+			delete(s.httpHandlers, id)
+		}
+	}
+	s.httpHandlerMu.Unlock()
 }
 
 func (s *ComponentSession) clearRenderedFlags() {
@@ -381,6 +420,18 @@ func (s *ComponentSession) runComponentCleanups(comp *component) {
 
 func (s *ComponentSession) runPubsubTasks(tasks []pubsubTask) {
 
+}
+
+// cleanupAllHandlers clears all registered HTTP handlers. Call on session close.
+func (s *ComponentSession) cleanupAllHandlers() {
+	if s == nil {
+		return
+	}
+	s.httpHandlerMu.Lock()
+	for id := range s.httpHandlers {
+		delete(s.httpHandlers, id)
+	}
+	s.httpHandlerMu.Unlock()
 }
 
 func (s *ComponentSession) takeEffectsBatchLocked() []effectTask {
@@ -685,4 +736,20 @@ func (s *ComponentSession) TakeNavDelta() *NavDelta {
 	nav := s.pendingNav
 	s.pendingNav = nil
 	return nav
+}
+
+// IsLive returns true if the session is in websocket mode (transport connected).
+func (s *ComponentSession) IsLive() bool {
+	if s == nil {
+		return false
+	}
+	return s.isLive.Load()
+}
+
+// SetLive updates the session mode. Called by LiveSession.Attach() when transport connects.
+func (s *ComponentSession) SetLive(live bool) {
+	if s == nil {
+		return
+	}
+	s.isLive.Store(live)
 }

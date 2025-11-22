@@ -114,6 +114,17 @@ func (h *SSRHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if redirectURL, statusCode, hasRedirect := sess.GetRedirect(); hasRedirect {
+		http.Redirect(w, r, redirectURL, statusCode)
+		return
+	}
+
+	for name, values := range sess.GetResponseHeaders() {
+		for _, value := range values {
+			w.Header().Add(name, value)
+		}
+	}
+
 	root := sess.Tree()
 	if root == nil {
 		http.Error(w, "render produced nil node", http.StatusInternalServerError)

@@ -1,7 +1,7 @@
 function upload(element, transport) {
     let activeXhr = null;
     let uploadConfig = null;
-    let pendingFile = null;
+    let pending = null;
 
     const handleChange = (event) => {
         const input = event.target;
@@ -11,40 +11,61 @@ function upload(element, transport) {
             return;
         }
 
-        const file = files[0];
-        pendingFile = { file, input };
+        const fileArray = Array.from(files);
+        pending = { files: fileArray, input };
 
+        const first = fileArray[0];
         transport.send('ready', {
-            name: file.name,
-            size: file.size,
-            type: file.type
+            name: first.name,
+            size: first.size,
+            type: first.type
         });
+
+        if (uploadConfig) {
+            processPending(uploadConfig);
+        }
     };
 
-    const startUpload = (file, input) => {
+    const startUpload = (files, input) => {
         if (activeXhr) {
             activeXhr.abort();
             activeXhr = null;
         }
 
-        const { endpoint, sessionId, uploadId } = uploadConfig;
-        const target = `${endpoint}/${encodeURIComponent(sessionId)}/${encodeURIComponent(uploadId)}`;
+        const target = uploadConfig?.url;
+        if (!target) {
+            transport.send('error', { error: 'Upload target not configured' });
+            return;
+        }
         const xhr = new XMLHttpRequest();
+
+        if (uploadConfig.token) {
+            xhr.setRequestHeader('X-Upload-Token', uploadConfig.token);
+        }
 
         xhr.upload.onprogress = (event) => {
             const loaded = event.loaded;
-            const total = event.lengthComputable ? event.total : file.size;
-            transport.send('progress', { loaded, total });
+            const total = event.lengthComputable ? event.total : files[0].size;
+            transport.send('progress', {
+                loaded,
+                total,
+                name: files[0].name,
+                size: files[0].size,
+                index: uploadState.index,
+                count: uploadState.count
+            });
         };
 
         xhr.onerror = () => {
             activeXhr = null;
             transport.send('error', { error: 'Upload failed' });
+            advanceQueue();
         };
 
         xhr.onabort = () => {
             activeXhr = null;
             transport.send('cancelled', {});
+            uploadState = resetState();
         };
 
         xhr.onload = () => {
@@ -52,15 +73,25 @@ function upload(element, transport) {
             if (xhr.status < 200 || xhr.status >= 300) {
                 transport.send('error', { error: `Upload failed (${xhr.status})` });
             } else {
-                transport.send('progress', { loaded: file.size, total: file.size });
+                const totalSize = files[0].size;
+                transport.send('progress', {
+                    loaded: totalSize,
+                    total: totalSize,
+                    name: files[0].name,
+                    size: files[0].size,
+                    index: uploadState.index,
+                    count: uploadState.count
+                });
                 if (input) {
                     input.value = '';
                 }
             }
+            advanceQueue();
         };
 
         const form = new FormData();
-        form.append('file', file);
+
+        form.append('file', files[0]);
         xhr.open('POST', target, true);
         xhr.send(form);
 
@@ -74,25 +105,28 @@ function upload(element, transport) {
         }
     };
 
-    transport.on('start', (config) => {
-        uploadConfig = config;
+    const processPending = (config) => {
+        if (!pending) {
+            return;
+        }
 
-        if (pendingFile) {
-            const { file, input } = pendingFile;
+        const { files, input } = pending;
+        const totalSize = files.reduce((acc, f) => acc + f.size, 0);
 
-            if (config.maxSize && config.maxSize > 0 && file.size > config.maxSize) {
-                transport.send('error', {
-                    error: `File exceeds maximum size (${config.maxSize} bytes)`
-                });
-                input.value = '';
-                pendingFile = null;
-                return;
-            }
+        if (config.maxSize && config.maxSize > 0 && totalSize > config.maxSize) {
+            transport.send('error', {
+                error: `File exceeds maximum size (${config.maxSize} bytes)`
+            });
+            input.value = '';
+            pending = null;
+            return;
+        }
 
-            if (config.accept && config.accept.length > 0) {
+        if (config.accept && config.accept.length > 0) {
+            const accepts = (file) => {
                 const fileType = file.type;
                 const fileName = file.name;
-                const accepted = config.accept.some(pattern => {
+                return config.accept.some(pattern => {
                     if (pattern.startsWith('.')) {
                         return fileName.endsWith(pattern);
                     }
@@ -102,25 +136,78 @@ function upload(element, transport) {
                     }
                     return fileType === pattern;
                 });
+            };
 
-                if (!accepted) {
-                    transport.send('error', {
-                        error: `File type not accepted. Allowed: ${config.accept.join(', ')}`
-                    });
-                    input.value = '';
-                    pendingFile = null;
-                    return;
-                }
+            if (!files.every(accepts)) {
+                transport.send('error', {
+                    error: `File type not accepted. Allowed: ${config.accept.join(', ')}`
+                });
+                input.value = '';
+                pending = null;
+                return;
             }
+        }
 
-            transport.send('change', {
-                name: file.name,
-                size: file.size,
-                type: file.type
-            });
+        files.forEach((f) => uploadState.queue.push({ file: f, input }));
+        uploadState.count = uploadState.queue.length;
+        pending = null;
+        queueNext();
+    };
 
-            startUpload(file, input);
-            pendingFile = null;
+    const resetState = () => ({
+        queue: [],
+        index: 0,
+        count: 0,
+        inProgress: false,
+        activeInput: null,
+        activeFile: null,
+    });
+
+    let uploadState = resetState();
+
+    const queueNext = () => {
+        if (uploadState.inProgress) {
+            return;
+        }
+        if (uploadState.queue.length === 0) {
+            uploadState = resetState();
+            return;
+        }
+        const next = uploadState.queue[0];
+        uploadState.inProgress = true;
+        uploadState.activeInput = next.input;
+        uploadState.activeFile = next.file;
+
+        transport.send('change', {
+            name: next.file.name,
+            size: next.file.size,
+            type: next.file.type,
+            index: uploadState.index,
+            count: uploadState.count
+        });
+
+        startUpload([next.file], next.input);
+    };
+
+    const advanceQueue = () => {
+        uploadState.index++;
+        uploadState.queue.shift();
+        uploadState.inProgress = false;
+        uploadState.activeInput = null;
+        uploadState.activeFile = null;
+        if (uploadState.queue.length > 0) {
+            queueNext();
+        } else {
+            uploadState = resetState();
+        }
+    };
+
+    transport.on('start', (config) => {
+        uploadConfig = config || {};
+        if (pending) {
+            processPending(uploadConfig);
+        } else {
+            queueNext();
         }
     });
 

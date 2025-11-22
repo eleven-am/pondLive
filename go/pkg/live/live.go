@@ -29,7 +29,6 @@ type (
 	RuntimeComponent[P any]           = runtime.Component[P]
 	NavMsg                            = router.NavMsg
 	PopMsg                            = router.PopMsg
-	HeaderState                       = session.HeaderState
 	Styles                            = runtime.Styles
 	ScriptHandle                      = runtime.ScriptHandle
 	UploadHandle                      = runtime.UploadHandle
@@ -314,10 +313,6 @@ type hookable[R any] interface {
 func UseElement[R hookable[R]](ctx Ctx) R {
 	var zero R
 	return zero.HookBuild(ctx)
-}
-
-func UseHeader(ctx Ctx) HeaderState {
-	return session.UseHeader(ctx)
 }
 
 // UseStream renders and manages a keyed list. It returns a fragment node and a

@@ -25,6 +25,15 @@ func (c Ctx) ComponentID() string {
 	return c.comp.id
 }
 
+// IsLive returns true if the session is in websocket mode (transport connected).
+// Returns false during SSR or if no session is available.
+func (c Ctx) IsLive() bool {
+	if c.sess == nil {
+		return false
+	}
+	return c.sess.IsLive()
+}
+
 // Render renders a child component with optional key.
 func Render[P any](ctx Ctx, fn Component[P], props P, opts ...RenderOption) *dom.StructuredNode {
 	if ctx.sess == nil || ctx.comp == nil {

@@ -151,8 +151,6 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 
 	mux.Handle(PondSocketPath, pondManager.HTTPHandler())
 
-	mux.Handle(CookiePath, server.NewCookieHandler(registry))
-
 	mux.Handle(HandlerPath, handler.NewDispatcher(registry))
 
 	mux.Handle("/", ssrHandler)

@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 )
@@ -21,6 +23,14 @@ func (h HandlerHandle) URL() string {
 		return ""
 	}
 	return fmt.Sprintf("/_handlers/%s/%s", h.entry.sessionID, h.entry.id)
+}
+
+func (h HandlerHandle) GenerateToken() string {
+	var buf [16]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(buf[:])
 }
 
 // UseHandler registers an HTTP handler for the current component.
