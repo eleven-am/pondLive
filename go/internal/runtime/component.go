@@ -41,6 +41,20 @@ type component struct {
 	mu sync.Mutex
 }
 
+// depth calculates the depth of this component in the tree (root = 0).
+func (c *component) depth() int {
+	if c == nil {
+		return 0
+	}
+	depth := 0
+	current := c
+	for current.parent != nil {
+		depth++
+		current = current.parent
+	}
+	return depth
+}
+
 type componentCallable interface {
 	call(Ctx, any) *dom.StructuredNode
 	name() string

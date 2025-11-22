@@ -25,6 +25,14 @@ func (c Ctx) ComponentID() string {
 	return c.comp.id
 }
 
+// ComponentDepth returns the depth of the current component in the tree (root = 0).
+func (c Ctx) ComponentDepth() int {
+	if c.comp == nil {
+		return 0
+	}
+	return c.comp.depth()
+}
+
 // IsLive returns true if the session is in websocket mode (transport connected).
 // Returns false during SSR or if no session is available.
 func (c Ctx) IsLive() bool {

@@ -8,20 +8,30 @@ import (
 )
 
 var metaCtx = runtime.CreateContext[*Controller](&Controller{
-	get: func() *Meta { return defaultMeta },
-	set: func(*Meta) {},
+	get:    func() map[string]metaEntry { return make(map[string]metaEntry) },
+	set:    func(string, metaEntry) {},
+	remove: func(string) {},
 })
 
 // Provider creates a meta context with state management.
-// It uses UseState to create reactive meta that triggers re-renders when updated.
+// It uses UseRef to store meta entries that can be mutated during render.
 func Provider[P any](ctx runtime.Ctx, asserUrl string, component runtime.Component[P], props P) *dom.StructuredNode {
-	current, setCurrent := runtime.UseState(ctx, defaultMeta)
+	entriesRef := runtime.UseRef(ctx, make(map[string]metaEntry))
 	manager := headers.UseHeadersManager(ctx)
 
-	controller := &Controller{
-		get: current,
-		set: setCurrent,
-	}
+	controllerRef := runtime.UseRef(ctx, &Controller{
+		get: func() map[string]metaEntry {
+			return entriesRef.Cur
+		},
+		set: func(componentID string, entry metaEntry) {
+			entriesRef.Cur[componentID] = entry
+		},
+		remove: func(componentID string) {
+			delete(entriesRef.Cur, componentID)
+		},
+	})
+
+	controller := controllerRef.Cur
 
 	return metaCtx.Provide(ctx, controller, func(ctx runtime.Ctx) *dom.StructuredNode {
 		scriptNodes := html.ScriptTags(html.ScriptTag{
