@@ -1,7 +1,6 @@
 import {Transport} from './transport';
 import {Patcher} from './patcher';
 import {Router} from './router';
-import {Uploader} from './uploader';
 import {EffectExecutor} from './effects';
 import {ScriptExecutor} from './scripts';
 import {Logger} from './logger';
@@ -18,7 +17,7 @@ import {
     ScriptEvent,
     ServerMessage
 } from './protocol';
-import {Effect, RouterMeta, ScriptMeta, UploadMeta} from './types';
+import {Effect, RouterMeta, ScriptMeta} from './types';
 
 export interface RuntimeConfig {
     root: Node;
@@ -26,7 +25,6 @@ export interface RuntimeConfig {
     version: number;
     seq: number;
     endpoint: string;
-    uploadEndpoint: string;
     location: ProtoLocation;
     debug?: boolean;
 }
@@ -37,7 +35,6 @@ export class Runtime {
     private readonly transport: Transport;
     private readonly patcher: Patcher;
     private readonly router: Router;
-    private readonly uploader: Uploader;
     private readonly effects: EffectExecutor;
     private readonly scripts: ScriptExecutor;
     private readonly refs = new Map<string, Element>();
@@ -69,19 +66,12 @@ export class Runtime {
             onRef: (refId, el) => this.refs.set(refId, el),
             onRefDelete: (refId) => this.refs.delete(refId),
             onRouter: (meta) => this.handleRouterClick(meta),
-            onUpload: (meta, files) => this.handleUpload(meta, files),
             onScript: (meta, el) => this.handleScript(meta, el),
             onScriptCleanup: (scriptId) => this.scripts.cleanup(scriptId)
         });
 
         this.router = new Router((type, path, query, hash) => {
             this.sendNav(type, path, query, hash);
-        });
-
-        this.uploader = new Uploader({
-            endpoint: config.uploadEndpoint,
-            sessionId: config.sessionId,
-            onMessage: (msg) => this.transport.send(msg)
         });
 
         this.effects = new EffectExecutor({
@@ -207,10 +197,6 @@ export class Runtime {
         this.router.navigate(meta);
     }
 
-    private handleUpload(meta: UploadMeta, files: FileList): void {
-        this.uploader.upload(meta, files);
-    }
-
     private handleScript(meta: ScriptMeta, el: Element): void {
         this.scripts.execute(meta, el);
     }
@@ -266,7 +252,6 @@ export function boot(): Runtime | null {
         version: bootData.ver,
         seq: bootData.seq,
         endpoint: bootData.client?.endpoint ?? '/live',
-        uploadEndpoint: bootData.client?.upload ?? '/pondlive/upload',
         location: bootData.location,
         debug: bootData.client?.debug
     };

@@ -62,7 +62,6 @@ func (e *Endpoint) configure() {
 	lobby.OnMessage("pop", e.onPopState)
 	lobby.OnMessage("routerReset", e.onRouterReset)
 	lobby.OnMessage("recover", e.onRecover)
-	lobby.OnMessage("upload", e.onUpload)
 	lobby.OnMessage("dom_res", e.onDOMResponse)
 	lobby.OnMessage("script:message", e.onScriptMessage)
 	lobby.OnLeave(e.onLeave)
@@ -330,27 +329,6 @@ func (e *Endpoint) onRecover(ctx *pond.EventContext) error {
 	if err := sess.Flush(); err != nil {
 		if transport != nil {
 			return transport.SendServerError(serverError(session.SessionID(payload.SID), "flush_failed", err))
-		}
-		return err
-	}
-
-	return nil
-}
-
-func (e *Endpoint) onUpload(ctx *pond.EventContext) error {
-	var payload protocol.UploadClient
-	if err := ctx.ParsePayload(&payload); err != nil {
-		return nil
-	}
-
-	sess, transport, ok := e.getSession(ctx, payload.SID)
-	if !ok || sess == nil {
-		return nil
-	}
-
-	if err := sess.HandleUploadMessage(payload); err != nil {
-		if transport != nil {
-			_ = transport.SendServerError(serverError(session.SessionID(payload.SID), "upload_failed", err))
 		}
 		return err
 	}

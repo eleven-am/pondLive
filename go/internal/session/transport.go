@@ -29,9 +29,8 @@ type Transport interface {
 	// Client DOM API requests
 	SendDOMRequest(req protocol.DOMRequest) error
 
-	// Optional features (pubsub, uploads, scripts)
+	// Optional features (pubsub, scripts)
 	SendPubsubControl(ctrl protocol.PubsubControl) error
-	SendUploadControl(ctrl protocol.UploadControl) error
 	SendScriptEvent(event protocol.ScriptEvent) error
 
 	// Connection lifecycle

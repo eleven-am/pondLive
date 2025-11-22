@@ -46,7 +46,6 @@ describe('Runtime', () => {
             version: 1,
             seq: 0,
             endpoint: '/live',
-            uploadEndpoint: '/upload',
             location: {path: '/', q: '', hash: ''},
             debug: false
         };
@@ -87,7 +86,7 @@ describe('Runtime', () => {
                     sid: 'test-session',
                     ver: 1,
                     seq: 5,
-                    json: '{}',
+                    patch: [],
                     location: {path: '/', q: '', hash: ''}
                 };
 
@@ -199,7 +198,7 @@ describe('Runtime', () => {
         describe('event_ack', () => {
             it('should handle event_ack', () => {
                 const eventAck = {
-                    t: 'event_ack' as const,
+                    t: 'evt_ack' as const,
                     sid: 'test-session',
                     cseq: 1
                 };
@@ -290,7 +289,6 @@ describe('Runtime with patcher integration', () => {
             version: 1,
             seq: 0,
             endpoint: '/live',
-            uploadEndpoint: '/upload',
             location: {path: '/', q: '', hash: ''},
             debug: false
         };
@@ -428,7 +426,6 @@ describe('Runtime event handling', () => {
             version: 1,
             seq: 0,
             endpoint: '/live',
-            uploadEndpoint: '/upload',
             location: {path: '/', q: '', hash: ''},
             debug: false
         };

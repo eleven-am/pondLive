@@ -9,7 +9,7 @@ export class Router {
     }
 
     navigate(meta: RouterMeta): void {
-        const path = meta.path ?? window.location.pathname;
+        const path = meta.path;
         const query = meta.query !== undefined ? meta.query : window.location.search;
         const hash = meta.hash !== undefined ? meta.hash : window.location.hash;
 

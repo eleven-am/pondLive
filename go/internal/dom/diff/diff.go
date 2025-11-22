@@ -106,14 +106,6 @@ func diffElement(patches *[]Patch, seq *int, path []int, a, b *dom.StructuredNod
 		}
 	}
 
-	if !uploadEqual(a.Upload, b.Upload) {
-		if b.Upload == nil {
-			emit(patches, seq, Patch{Path: copyPath(path), Op: OpDelUpload})
-		} else {
-			emit(patches, seq, Patch{Path: copyPath(path), Op: OpSetUpload, Value: b.Upload})
-		}
-	}
-
 	if !scriptEqual(a.Script, b.Script) {
 		if b.Script == nil {
 			emit(patches, seq, Patch{Path: copyPath(path), Op: OpDelScript})
@@ -527,19 +519,6 @@ func routerEqual(a, b *dom.RouterMeta) bool {
 		a.Replace == b.Replace
 }
 
-func uploadEqual(a, b *dom.UploadMeta) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return a.UploadID == b.UploadID &&
-		a.Multiple == b.Multiple &&
-		a.MaxSize == b.MaxSize &&
-		sliceEqual(a.Accept, b.Accept)
-}
-
 func scriptEqual(a, b *dom.ScriptMeta) bool {
 	if a == nil && b == nil {
 		return true
@@ -552,7 +531,7 @@ func scriptEqual(a, b *dom.ScriptMeta) bool {
 }
 
 // ExtractMetadata recursively walks the tree and extracts metadata patches
-// (setHandlers, setRef, setRouter, setUpload, setScript) for initial client setup.
+// (setHandlers, setRef, setRouter, setScript) for initial client setup.
 // Returns patches in sequence order for applying to existing SSR'd DOM.
 func ExtractMetadata(n *dom.StructuredNode) []Patch {
 	if n == nil {
@@ -624,16 +603,6 @@ func extractMetadataRecursive(n *dom.StructuredNode, patches *[]Patch, seq *int,
 				Path:  copyPath(path),
 				Op:    OpSetRouter,
 				Value: n.Router,
-			})
-			*seq++
-		}
-
-		if n.Upload != nil {
-			*patches = append(*patches, Patch{
-				Seq:   *seq,
-				Path:  copyPath(path),
-				Op:    OpSetUpload,
-				Value: n.Upload,
 			})
 			*seq++
 		}

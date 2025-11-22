@@ -1,4 +1,4 @@
-import {HandlerMeta, Patch, PatcherCallbacks, RouterMeta, ScriptMeta, StructuredNode, UploadMeta} from './types';
+import {HandlerMeta, Patch, PatcherCallbacks, RouterMeta, ScriptMeta, StructuredNode} from './types';
 import {Logger} from './logger';
 
 export class Patcher {
@@ -6,7 +6,6 @@ export class Patcher {
     private callbacks: PatcherCallbacks;
     private handlerStore = new WeakMap<Element, Map<string, (e: Event) => void>>();
     private routerStore = new WeakMap<Element, (e: Event) => void>();
-    private uploadStore = new WeakMap<HTMLInputElement, (e: Event) => void>();
     private scriptStore = new WeakMap<Element, string>();
 
     constructor(root: Node, callbacks: PatcherCallbacks) {
@@ -61,12 +60,6 @@ export class Patcher {
                 break;
             case 'delRouter':
                 this.delRouter(node as Element);
-                break;
-            case 'setUpload':
-                this.setUpload(node as HTMLInputElement, patch.value as UploadMeta);
-                break;
-            case 'delUpload':
-                this.delUpload(node as HTMLInputElement);
                 break;
             case 'setScript':
                 this.setScript(node as Element, patch.value as ScriptMeta);
@@ -310,37 +303,6 @@ export class Patcher {
         }
     }
 
-    private setUpload(el: HTMLInputElement, meta: UploadMeta): void {
-        Logger.info('Patcher', 'setUpload', el, meta);
-        this.delUpload(el);
-
-        if (meta.multiple) {
-            el.multiple = true;
-        }
-        if (meta.accept && meta.accept.length > 0) {
-            el.accept = meta.accept.join(',');
-        }
-
-        const listener = () => {
-            if (el.files && el.files.length > 0) {
-                this.callbacks.onUpload(meta, el.files);
-            }
-        };
-        el.addEventListener('change', listener);
-        this.uploadStore.set(el, listener);
-    }
-
-    private delUpload(el: HTMLInputElement): void {
-        Logger.info('Patcher', 'delUpload', el);
-        const listener = this.uploadStore.get(el);
-        if (listener) {
-            el.removeEventListener('change', listener);
-            this.uploadStore.delete(el);
-        }
-        el.multiple = false;
-        el.accept = '';
-    }
-
     private setScript(el: Element, meta: ScriptMeta): void {
         Logger.info('Patcher', 'setScript', el, meta);
         this.delScript(el);
@@ -438,10 +400,6 @@ export class Patcher {
 
         if (data.router) {
             this.setRouter(el, data.router);
-        }
-
-        if (data.upload && el instanceof HTMLInputElement) {
-            this.setUpload(el, data.upload);
         }
 
         if (data.script) {

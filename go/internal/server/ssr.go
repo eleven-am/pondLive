@@ -278,7 +278,6 @@ func (b *bootCaptureTransport) SendServerError(protocol.ServerError) error     {
 func (b *bootCaptureTransport) SendDiagnostic(protocol.Diagnostic) error       { return nil }
 func (b *bootCaptureTransport) SendDOMRequest(protocol.DOMRequest) error       { return nil }
 func (b *bootCaptureTransport) SendPubsubControl(protocol.PubsubControl) error { return nil }
-func (b *bootCaptureTransport) SendUploadControl(protocol.UploadControl) error { return nil }
 func (b *bootCaptureTransport) SendScriptEvent(protocol.ScriptEvent) error     { return nil }
 func (b *bootCaptureTransport) Close() error                                   { return nil }
 

@@ -16,7 +16,6 @@ describe('Patcher', () => {
             onRef: vi.fn(),
             onRefDelete: vi.fn(),
             onRouter: vi.fn(),
-            onUpload: vi.fn(),
             onScript: vi.fn(),
             onScriptCleanup: vi.fn(),
         };
@@ -1245,6 +1244,32 @@ describe('Patcher', () => {
 
                 expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-1');
                 expect(callbacks.onScript).toHaveBeenCalledTimes(2);
+            });
+
+            it('should cleanup script when delScript patch is applied', () => {
+                root.innerHTML = '<div></div>';
+
+                const setScript: Patch[] = [
+                    {
+                        seq: 0,
+                        path: [0],
+                        op: 'setScript',
+                        value: { scriptId: 'script-1', script: '(el, t) => { /* v1 */ }' }
+                    }
+                ];
+                patcher.apply(setScript);
+                expect(callbacks.onScript).toHaveBeenCalledTimes(1);
+
+                const delScript: Patch[] = [
+                    {
+                        seq: 1,
+                        path: [0],
+                        op: 'delScript'
+                    }
+                ];
+                patcher.apply(delScript);
+
+                expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('script-1');
             });
 
             it('should create element with script via addChild', () => {

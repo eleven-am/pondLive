@@ -134,6 +134,7 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 
 	wrapped := documentRoot(sess, root)
 	sess.component = runtime.NewSession(wrapped, struct{}{})
+	sess.component.SetSessionID(string(id))
 
 	sess.configureRuntime(effectiveConfig)
 
@@ -434,7 +435,7 @@ func (s *LiveSession) Tree() *dom.StructuredNode {
 	return s.component.Tree()
 }
 
-// ComponentSession returns the underlying component session for upload and other operations.
+// ComponentSession returns the underlying component session.
 func (s *LiveSession) ComponentSession() *runtime.ComponentSession {
 	if s == nil {
 		return nil
@@ -826,51 +827,6 @@ func (s *LiveSession) Recover() error {
 	}
 
 	return s.Flush()
-}
-
-// HandleUploadMessage processes upload control messages from the client.
-func (s *LiveSession) HandleUploadMessage(msg protocol.UploadClient) error {
-	if s == nil {
-		return errors.New("session: nil session")
-	}
-	if s.component == nil {
-		return errors.New("session: session has no component")
-	}
-
-	s.Touch()
-
-	switch msg.Op {
-	case "change":
-		if msg.Meta != nil {
-			meta := runtime.FileMeta{
-				Name: msg.Meta.Name,
-				Size: msg.Meta.Size,
-				Type: msg.Meta.Type,
-			}
-			s.component.HandleUploadChange(msg.ID, meta)
-		}
-	case "progress":
-		s.component.HandleUploadProgress(msg.ID, msg.Loaded, msg.Total)
-	case "error":
-		errMsg := msg.Error
-		if strings.TrimSpace(errMsg) == "" {
-			errMsg = "upload failed"
-		}
-		s.component.HandleUploadError(msg.ID, errors.New(errMsg))
-	case "complete":
-		if msg.Meta != nil {
-			meta := runtime.FileMeta{
-				Name: msg.Meta.Name,
-				Size: msg.Meta.Size,
-				Type: msg.Meta.Type,
-			}
-			s.component.HandleUploadComplete(msg.ID, meta)
-		}
-	default:
-		return fmt.Errorf("session: unknown upload op: %s", msg.Op)
-	}
-
-	return nil
 }
 
 // HandleScriptMessage processes script messages from the client.

@@ -33,7 +33,6 @@ var (
 	Class  = dom.Class
 	Style  = dom.Style
 	Key    = dom.Key
-	Upload = dom.Upload
 
 	// Boolean attributes
 	Autofocus   = dom.Autofocus

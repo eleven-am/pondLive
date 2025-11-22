@@ -32,6 +32,9 @@ type (
 	HeaderState                       = session.HeaderState
 	Styles                            = runtime.Styles
 	ScriptHandle                      = runtime.ScriptHandle
+	UploadHandle                      = runtime.UploadHandle
+	UploadConfig                      = runtime.UploadConfig
+	UploadEvent                       = runtime.UploadEvent
 )
 
 // Component wraps a stateless component function so it can be invoked directly
@@ -490,4 +493,54 @@ func UseStyles(ctx Ctx, css string) *Styles {
 //	}
 func UseScript(ctx Ctx, script string) ScriptHandle {
 	return runtime.UseScript(ctx, script)
+}
+
+// UseUpload creates a file upload handler that manages client-side file selection
+// and server-side file processing. It combines UseScript for the client upload UI
+// and UseHandler for receiving the uploaded file via HTTP POST.
+//
+// The returned UploadHandle provides methods to configure upload constraints and
+// handle upload lifecycle events:
+//
+//   - Accept(cfg): Configure max file size, accepted file types, and multiple file support
+//   - OnReady(fn): Called when user selects a file, before upload starts
+//   - OnChange(fn): Called when upload begins with file metadata
+//   - OnProgress(fn): Called during upload with loaded/total bytes
+//   - Progress(): Returns current upload progress
+//   - OnComplete(fn): Called on server when file is received - process the file here
+//   - OnError(fn): Called if upload fails
+//   - OnCancelled(fn): Called if upload is cancelled
+//   - Cancel(): Programmatically cancel an ongoing upload
+//
+// Example - Basic file upload with processing:
+//
+//	func FileUploader(ctx live.Ctx) h.Node {
+//	    upload := live.UseUpload(ctx)
+//
+//	    upload.Accept(live.UploadConfig{
+//	        MaxSize: 10 * 1024 * 1024, // 10MB
+//	        Accept:  []string{"image/*", ".pdf"},
+//	    })
+//
+//	    upload.OnComplete(func(file multipart.File, header *multipart.FileHeader) error {
+//	        // Process the uploaded file
+//	        data, err := io.ReadAll(file)
+//	        if err != nil {
+//	            return err
+//	        }
+//	        // Save file, process image, etc.
+//	        return saveFile(header.Filename, data)
+//	    })
+//
+
+//	    input := h.Input(h.Type("file"))
+//	    upload.AttachTo(input)
+//
+//	    return h.Div(
+//	        input,
+//	        h.Div(h.Textf("Upload progress: %d%%", progress.Progress().Loaded*100/progress.Progress().Total)),
+//	    )
+//	}
+func UseUpload(ctx Ctx) UploadHandle {
+	return runtime.UseUpload(ctx)
 }

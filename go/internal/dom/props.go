@@ -123,25 +123,6 @@ func Handler(event, handlerID string, props ...string) Prop {
 	}}
 }
 
-// uploadProp sets upload metadata
-type uploadProp struct{ meta UploadMeta }
-
-func (p uploadProp) isProp() {}
-
-func (p uploadProp) ApplyTo(e *StructuredNode) {
-	e.Upload = &p.meta
-}
-
-// Upload configures file upload for this element
-func Upload(uploadID string, accept []string, multiple bool, maxSize int64) Prop {
-	return uploadProp{meta: UploadMeta{
-		UploadID: uploadID,
-		Accept:   accept,
-		Multiple: multiple,
-		MaxSize:  maxSize,
-	}}
-}
-
 // routerProp sets router navigation metadata
 type routerProp struct{ meta RouterMeta }
 

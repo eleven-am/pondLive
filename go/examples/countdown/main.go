@@ -24,8 +24,8 @@ func main() {
 	app, err := liveserver.NewApp(
 		ctx,
 		countdown,
-		liveserver.WithDevMode(true),
 	)
+
 	if err != nil {
 		log.Fatalf("build live app: %v", err)
 	}
@@ -77,6 +77,7 @@ func countdown(ctx ui.Ctx) ui.Node {
 					if (count > 0) {
 						element.innerText = count;
 					} else {
+						element.innerText = 0;
 						transport.send('done', 'Timer finished');
 						clearInterval(intervalId);
 						intervalId = null;

@@ -92,13 +92,6 @@ func (t *transport) SendPubsubControl(ctrl protocol.PubsubControl) error {
 	return t.send("pubsub", ctrl)
 }
 
-func (t *transport) SendUploadControl(ctrl protocol.UploadControl) error {
-	if ctrl.T == "" {
-		ctrl.T = "upload"
-	}
-	return t.send("upload", ctrl)
-}
-
 func (t *transport) SendDOMRequest(req protocol.DOMRequest) error {
 	if req.T == "" {
 		req.T = "dom_req"

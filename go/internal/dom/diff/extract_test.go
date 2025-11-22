@@ -88,27 +88,6 @@ func TestExtractMetadata_Router(t *testing.T) {
 	}
 }
 
-func TestExtractMetadata_Upload(t *testing.T) {
-	node := &dom.StructuredNode{
-		Tag: "input",
-		Upload: &dom.UploadMeta{
-			UploadID: "upload1",
-			Multiple: true,
-			MaxSize:  1024,
-		},
-	}
-	patches := ExtractMetadata(node)
-
-	if len(patches) != 1 {
-		t.Fatalf("Expected 1 patch, got %d", len(patches))
-	}
-
-	p := patches[0]
-	if p.Op != OpSetUpload {
-		t.Errorf("Expected OpSetUpload, got %v", p.Op)
-	}
-}
-
 func TestExtractMetadata_MultipleMetadata(t *testing.T) {
 	node := &dom.StructuredNode{
 		Tag:   "button",
@@ -271,17 +250,14 @@ func TestExtractMetadata_AllMetadataTypes(t *testing.T) {
 		Router: &dom.RouterMeta{
 			PathValue: "/page",
 		},
-		Upload: &dom.UploadMeta{
-			UploadID: "u1",
-		},
 	}
 	patches := ExtractMetadata(node)
 
-	if len(patches) != 4 {
-		t.Fatalf("Expected 4 patches, got %d", len(patches))
+	if len(patches) != 3 {
+		t.Fatalf("Expected 3 patches, got %d", len(patches))
 	}
 
-	expectedOps := []OpKind{OpSetHandlers, OpSetRef, OpSetRouter, OpSetUpload}
+	expectedOps := []OpKind{OpSetHandlers, OpSetRef, OpSetRouter}
 	for i, expectedOp := range expectedOps {
 		if patches[i].Op != expectedOp {
 			t.Errorf("Expected patch %d to be %v, got %v", i, expectedOp, patches[i].Op)

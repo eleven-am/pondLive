@@ -8,7 +8,6 @@ export interface Location {
 
 export interface ClientConfig {
     endpoint?: string;
-    upload?: string;
     debug?: boolean;
 }
 
@@ -180,16 +179,6 @@ export interface DOMResponse {
     error?: string;
 }
 
-export interface UploadMessage {
-    t: 'upload';
-    op: 'change' | 'progress' | 'error' | 'cancelled';
-    id: string;
-    meta?: { name: string; size: number; type: string };
-    loaded?: number;
-    total?: number;
-    error?: string;
-}
-
 export interface ScriptMessage {
     t: 'script:message';
     sid: string;
@@ -203,4 +192,4 @@ export interface Recover {
     sid: string;
 }
 
-export type ClientMessage = Join | ClientAck | ClientEvent | NavMessage | DOMResponse | UploadMessage | ScriptMessage | Recover;
+export type ClientMessage = Join | ClientAck | ClientEvent | NavMessage | DOMResponse | ScriptMessage | Recover;

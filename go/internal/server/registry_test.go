@@ -91,10 +91,6 @@ func (s *stubTransport) SendPubsubControl(ctrl protocol.PubsubControl) error {
 	return nil
 }
 
-func (s *stubTransport) SendUploadControl(ctrl protocol.UploadControl) error {
-	return nil
-}
-
 func (s *stubTransport) SendScriptEvent(event protocol.ScriptEvent) error {
 	return nil
 }

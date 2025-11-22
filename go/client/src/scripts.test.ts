@@ -39,6 +39,7 @@ describe('ScriptExecutor', () => {
             t: 'script:message',
             sid: 'test-session',
             scriptId: 'script-1',
+            event: '',
             data: {foo: 'bar'}
         });
     });
@@ -63,7 +64,6 @@ describe('ScriptExecutor', () => {
 
     it('calls cleanup function when script is re-executed', async () => {
         const element = document.createElement('div');
-        let cleanupCalled = false;
 
         const meta: ScriptMeta = {
             scriptId: 'script-1',
@@ -204,18 +204,21 @@ describe('ScriptExecutor', () => {
             t: 'script:message',
             sid: 'test-session',
             scriptId: 'script-1',
+            event: '',
             data: {msg: 'first'}
         });
         expect(mockOnMessage).toHaveBeenNthCalledWith(2, {
             t: 'script:message',
             sid: 'test-session',
             scriptId: 'script-1',
+            event: '',
             data: {msg: 'second'}
         });
         expect(mockOnMessage).toHaveBeenNthCalledWith(3, {
             t: 'script:message',
             sid: 'test-session',
             scriptId: 'script-1',
+            event: '',
             data: {msg: 'third'}
         });
     });
@@ -319,7 +322,6 @@ describe('ScriptExecutor', () => {
 
     it('can add and remove event listeners', async () => {
         const element = document.createElement('button');
-        let clicked = false;
 
         const meta: ScriptMeta = {
             scriptId: 'script-1',
@@ -374,6 +376,7 @@ describe('ScriptExecutor', () => {
             t: 'script:message',
             sid: 'test-session',
             scriptId: 'script-1',
+            event: '',
             data: complexData
         });
     });

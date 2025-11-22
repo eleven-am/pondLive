@@ -46,8 +46,7 @@ type (
 	VisibilityEvent  = internalhtml.VisibilityEvent
 	WheelEvent       = internalhtml.WheelEvent
 
-	// Ref and upload types from dom
+	// Ref types from dom
 	ElementRef[T dom.ElementDescriptor] = dom.ElementRef[T]
 	RefListener                         = dom.RefListener
-	UploadBinding                       = dom.UploadBinding
 )

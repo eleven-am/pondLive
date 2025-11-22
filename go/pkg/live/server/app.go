@@ -8,6 +8,7 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
+	"github.com/eleven-am/pondlive/go/internal/handler"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
@@ -71,15 +72,14 @@ type App struct {
 
 const (
 	PondSocketPath = "/live"
-	UploadPath     = "/__upload"
 	CookiePath     = "/__cookie"
+	HandlerPath    = "/_handlers/"
 )
 
 // NewApp constructs a LiveUI application stack using the supplied component.
 // The returned handler automatically serves the embedded client script, PondSocket
-// endpoint, upload handler, and cookie negotiation endpoint used by SetCookie
-// and DeleteCookie, so applications do not need to register those routes
-// manually.
+// endpoint, and cookie negotiation endpoint used by SetCookie and DeleteCookie,
+// so applications do not need to register those routes manually.
 func NewApp(ctx context.Context, component Component, opts ...Option) (*App, error) {
 	if component == nil {
 		return nil, errors.New("live: component is required")
@@ -130,7 +130,7 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 		IDGenerator:    applied.idGenerator,
 		SessionConfig:  sessionCfg,
 		ClientAsset:    clientAsset,
-		ClientConfig:   &protocol.ClientConfig{Endpoint: PondSocketPath, UploadEndpoint: UploadPath},
+		ClientConfig:   &protocol.ClientConfig{Endpoint: PondSocketPath},
 		PubsubProvider: pubsubProvider,
 	})
 
@@ -151,9 +151,9 @@ func NewApp(ctx context.Context, component Component, opts ...Option) (*App, err
 
 	mux.Handle(PondSocketPath, pondManager.HTTPHandler())
 
-	mux.Handle(UploadPath, server.NewUploadHandler(registry))
-
 	mux.Handle(CookiePath, server.NewCookieHandler(registry))
+
+	mux.Handle(HandlerPath, handler.NewDispatcher(registry))
 
 	mux.Handle("/", ssrHandler)
 

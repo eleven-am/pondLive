@@ -15,9 +15,8 @@ type Boot struct {
 }
 
 type ClientConfig struct {
-	Endpoint       string `json:"endpoint,omitempty"`
-	UploadEndpoint string `json:"upload,omitempty"`
-	Debug          *bool  `json:"debug,omitempty"`
+	Endpoint string `json:"endpoint,omitempty"`
+	Debug    *bool  `json:"debug,omitempty"`
 }
 
 // Init reconnects to an existing session
@@ -68,13 +67,6 @@ type RefMeta struct {
 type RefDelta struct {
 	Add map[string]RefMeta `json:"add,omitempty"`
 	Del []string           `json:"del,omitempty"`
-}
-
-type UploadBinding struct {
-	UploadID string   `json:"uploadId"`
-	Accept   []string `json:"accept,omitempty"`
-	Multiple bool     `json:"multiple,omitempty"`
-	MaxSize  int64    `json:"maxSize,omitempty"`
 }
 
 type RefBinding struct {

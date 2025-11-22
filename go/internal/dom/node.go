@@ -28,7 +28,6 @@ type StructuredNode struct {
 	RefID    string                  `json:"refId,omitempty"`
 	Handlers []HandlerMeta           `json:"handlers,omitempty"`
 	Router   *RouterMeta             `json:"router,omitempty"`
-	Upload   *UploadMeta             `json:"upload,omitempty"`
 	Script   *ScriptMeta             `json:"script,omitempty"`
 	Events   map[string]EventBinding `json:"-"` // Builder-time event bindings
 
@@ -40,7 +39,6 @@ type StructuredNode struct {
 
 	// Runtime metadata (non-serialized)
 	HandlerAssignments map[string]EventAssignment `json:"-"`
-	UploadBindings     []UploadBinding            `json:"-"`
 }
 
 // Node interface that StructuredNode implements
@@ -73,22 +71,6 @@ type RouterMeta struct {
 	Query     string `json:"query"` // No omitempty - empty string means "clear query params"
 	Hash      string `json:"hash,omitempty"`
 	Replace   string `json:"replace,omitempty"`
-}
-
-// UploadMeta describes file upload configuration
-type UploadMeta struct {
-	UploadID string   `json:"uploadId"`
-	Accept   []string `json:"accept,omitempty"`
-	Multiple bool     `json:"multiple,omitempty"`
-	MaxSize  int64    `json:"maxSize,omitempty"`
-}
-
-// UploadBinding mirrors the legacy dom.UploadBinding for parity with runtime.
-type UploadBinding struct {
-	UploadID string
-	Accept   []string
-	Multiple bool
-	MaxSize  int64
 }
 
 // ScriptMeta describes script execution configuration
@@ -150,12 +132,6 @@ func (n *StructuredNode) Validate() error {
 		}
 		if n.Router != nil {
 			return fmt.Errorf("only elements can have router metadata")
-		}
-		if n.Upload != nil {
-			return fmt.Errorf("only elements can have upload metadata")
-		}
-		if len(n.UploadBindings) > 0 {
-			return fmt.Errorf("only elements can have upload bindings")
 		}
 		if n.Script != nil {
 			return fmt.Errorf("only elements can have script metadata")

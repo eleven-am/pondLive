@@ -155,10 +155,6 @@ func (m *mockTransport) SendPubsubControl(ctrl protocol.PubsubControl) error {
 	return nil
 }
 
-func (m *mockTransport) SendUploadControl(ctrl protocol.UploadControl) error {
-	return nil
-}
-
 func (m *mockTransport) SendScriptEvent(event protocol.ScriptEvent) error {
 	m.scriptEvents = append(m.scriptEvents, event)
 	return nil
@@ -469,7 +465,7 @@ func TestLiveSessionScriptMessageHandling(t *testing.T) {
 		})
 		node := dom.ElementNode("div")
 		scriptHandle.AttachTo(node)
-		// Capture script ID directly from the node
+
 		if node.Script != nil {
 			capturedScriptID = node.Script.ScriptID
 		}
@@ -487,7 +483,6 @@ func TestLiveSessionScriptMessageHandling(t *testing.T) {
 		t.Fatal("script ID was not captured")
 	}
 
-	// Simulate message from client
 	testData := map[string]interface{}{"message": "from-client", "value": 42}
 	sess.component.HandleScriptMessage(capturedScriptID, "client-message", testData)
 
@@ -521,13 +516,10 @@ func TestLiveSessionScriptTransportNotLive(t *testing.T) {
 		t.Fatalf("flush failed: %v", err)
 	}
 
-	// Close transport to make IsLive() return false
 	transport.Close()
 
-	// Should not panic when sending to closed transport
 	scriptHandle.Send("test", map[string]interface{}{"value": "test"})
 
-	// Event should not be added since transport is not live
 	if len(transport.scriptEvents) != 0 {
 		t.Errorf("expected no events to closed transport, got %d", len(transport.scriptEvents))
 	}

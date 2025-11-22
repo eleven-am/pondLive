@@ -237,24 +237,6 @@ func TestFlattenPreservesRouter(t *testing.T) {
 	}
 }
 
-func TestFlattenPreservesUpload(t *testing.T) {
-	node := &StructuredNode{
-		Tag: "input",
-		Upload: &UploadMeta{
-			UploadID: "up-1",
-			Multiple: true,
-		},
-	}
-	result := node.Flatten()
-
-	if result == nil {
-		t.Fatal("expected non-nil result")
-	}
-	if result.Upload == nil || result.Upload.UploadID != "up-1" {
-		t.Error("upload not preserved")
-	}
-}
-
 func TestFlattenMixedComponentsAndElements(t *testing.T) {
 	node := &StructuredNode{
 		ComponentID: "App",

@@ -446,31 +446,6 @@ func TestDiffRouterRemoval(t *testing.T) {
 	}
 }
 
-func TestDiffUpload(t *testing.T) {
-	prev := dom.ElementNode("input")
-	next := dom.ElementNode("input")
-	next.Upload = &dom.UploadMeta{
-		UploadID: "upload1",
-		Accept:   []string{".jpg", ".png"},
-		Multiple: true,
-	}
-	patches := Diff(prev, next)
-
-	found := false
-	for _, p := range patches {
-		if p.Op == OpSetUpload {
-			found = true
-			upload := p.Value.(*dom.UploadMeta)
-			if upload.UploadID != "upload1" {
-				t.Fatalf("expected uploadID=upload1, got %s", upload.UploadID)
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("expected setUpload op")
-	}
-}
-
 func TestDiffComment(t *testing.T) {
 	prev := dom.CommentNode("old comment")
 	next := dom.CommentNode("new comment")

@@ -22,11 +22,12 @@ type ComponentSession struct {
 	handlers   map[string]dom.EventHandler
 	handlersMu sync.RWMutex
 
-	uploads  map[string]*uploadSlot
-	uploadMu sync.Mutex
-
 	scripts  map[string]*scriptSlot
 	scriptMu sync.Mutex
+
+	httpHandlers  map[string]*handlerEntry
+	httpHandlerMu sync.Mutex
+	sessionID     string
 
 	pendingEffects  []effectTask
 	pendingCleanups []cleanupTask
@@ -78,12 +79,12 @@ type Diagnostic struct {
 // NewSession constructs a session rooted at the provided component function.
 func NewSession[P any](root Component[P], props P) *ComponentSession {
 	sess := &ComponentSession{
-		dirty:      make(map[*component]struct{}),
-		components: make(map[string]*component),
-		handlers:   make(map[string]dom.EventHandler),
-		uploads:    make(map[string]*uploadSlot),
-		scripts:    make(map[string]*scriptSlot),
-		pubsubSubs: make(map[string]pubsubSubscription),
+		dirty:        make(map[*component]struct{}),
+		components:   make(map[string]*component),
+		handlers:     make(map[string]dom.EventHandler),
+		scripts:      make(map[string]*scriptSlot),
+		httpHandlers: make(map[string]*handlerEntry),
+		pubsubSubs:   make(map[string]pubsubSubscription),
 	}
 	sess.root = newComponent(sess, nil, "root", root, props)
 	return sess
@@ -110,6 +111,15 @@ func (s *ComponentSession) SetPubsubProvider(p PubsubProvider) {
 // SetInitialLocationProvider installs a callback to get the initial location for router support.
 func (s *ComponentSession) SetInitialLocationProvider(fn func() (path string, query map[string]string, hash string)) {
 	s.getInitialLocation = fn
+}
+
+// SetSessionID sets the session ID for this ComponentSession.
+// This is used by handlers to generate URLs.
+func (s *ComponentSession) SetSessionID(id string) {
+	if s == nil {
+		return
+	}
+	s.sessionID = id
 }
 
 // SetAutoFlush configures the auto-flush callback for live sessions.

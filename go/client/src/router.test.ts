@@ -14,19 +14,19 @@ describe('Router', () => {
 
     describe('navigate', () => {
         it('should update URL with pushState', () => {
-            router.navigate({ pathValue: '/about' });
+            router.navigate({ path: '/about' });
 
             expect(window.location.pathname).toBe('/about');
         });
 
         it('should call onNav with nav type', () => {
-            router.navigate({ pathValue: '/contact' });
+            router.navigate({ path: '/contact' });
 
             expect(onNav).toHaveBeenCalledWith('nav', '/contact', '', '');
         });
 
         it('should handle query string', () => {
-            router.navigate({ pathValue: '/search', query: 'q=test' });
+            router.navigate({ path: '/search', query: 'q=test' });
 
             expect(window.location.pathname).toBe('/search');
             expect(window.location.search).toBe('?q=test');
@@ -34,14 +34,14 @@ describe('Router', () => {
         });
 
         it('should handle query with leading ?', () => {
-            router.navigate({ pathValue: '/search', query: '?q=test' });
+            router.navigate({ path: '/search', query: '?q=test' });
 
             expect(window.location.search).toBe('?q=test');
             expect(onNav).toHaveBeenCalledWith('nav', '/search', 'q=test', '');
         });
 
         it('should handle hash', () => {
-            router.navigate({ pathValue: '/docs', hash: '#section' });
+            router.navigate({ path: '/docs', hash: '#section' });
 
             expect(window.location.pathname).toBe('/docs');
             expect(window.location.hash).toBe('#section');
@@ -49,7 +49,7 @@ describe('Router', () => {
         });
 
         it('should handle query and hash together', () => {
-            router.navigate({ pathValue: '/page', query: 'foo=bar', hash: '#top' });
+            router.navigate({ path: '/page', query: 'foo=bar', hash: '#top' });
 
             expect(window.location.href).toContain('/page?foo=bar#top');
             expect(onNav).toHaveBeenCalledWith('nav', '/page', 'foo=bar', 'top');
@@ -58,7 +58,7 @@ describe('Router', () => {
         it('should use replaceState when replace is true', () => {
             const replaceStateSpy = vi.spyOn(window.history, 'replaceState');
 
-            router.navigate({ pathValue: '/replaced', replace: true });
+            router.navigate({ path: '/replaced', replace: true });
 
             expect(replaceStateSpy).toHaveBeenCalled();
             expect(window.location.pathname).toBe('/replaced');
@@ -67,15 +67,15 @@ describe('Router', () => {
         it('should use pushState when replace is false', () => {
             const pushStateSpy = vi.spyOn(window.history, 'pushState');
 
-            router.navigate({ pathValue: '/pushed', replace: false });
+            router.navigate({ path: '/pushed', replace: false });
 
             expect(pushStateSpy).toHaveBeenCalled();
         });
 
-        it('should preserve current pathname when pathValue not provided', () => {
+        it('should preserve current pathname when path not provided', () => {
             window.history.replaceState({}, '', '/current');
 
-            router.navigate({ pathValue: '/current', query: 'new=param' });
+            router.navigate({ path: '/current', query: 'new=param' });
 
             expect(window.location.pathname).toBe('/current');
             expect(window.location.search).toBe('?new=param');
@@ -84,7 +84,7 @@ describe('Router', () => {
         it('should preserve current query when query not provided', () => {
             window.history.replaceState({}, '', '/page?existing=value');
 
-            router.navigate({ pathValue: '/page' });
+            router.navigate({ path: '/page' });
 
             expect(window.location.search).toBe('?existing=value');
         });
@@ -92,7 +92,7 @@ describe('Router', () => {
         it('should preserve current hash when hash not provided', () => {
             window.history.replaceState({}, '', '/page#existing');
 
-            router.navigate({ pathValue: '/page' });
+            router.navigate({ path: '/page' });
 
             expect(window.location.hash).toBe('#existing');
         });
