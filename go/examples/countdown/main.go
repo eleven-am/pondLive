@@ -74,7 +74,7 @@ func countdown(ctx ui.Ctx) ui.Node {
 				intervalId = setInterval(() => {
 					count -= 1;
 
-					if (count >= 0) {
+					if (count > 0) {
 						element.innerText = count;
 					} else {
 						transport.send('done', 'Timer finished');
