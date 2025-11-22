@@ -188,7 +188,7 @@ export interface LoggerConfig {
 // ============================================================================
 
 export interface ScriptTransport {
-    send(data: Record<string, unknown>): void;
+    send(event: string, data: Record<string, unknown>): void;
     on(event: string, handler: (data: Record<string, unknown>) => void): void;
 }
 

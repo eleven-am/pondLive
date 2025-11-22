@@ -141,12 +141,12 @@ func diffChildren(patches *[]Patch, seq *int, parentPath []int, a, b []*dom.Stru
 }
 
 func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []*dom.StructuredNode) {
-	max := len(a)
-	if len(b) > max {
-		max = len(b)
+	m := len(a)
+	if len(b) > m {
+		m = len(b)
 	}
 	deletionOffset := 0
-	for i := 0; i < max; i++ {
+	for i := 0; i < m; i++ {
 		childPath := append(copyPath(parentPath), i)
 		var childA, childB *dom.StructuredNode
 		if i < len(a) {

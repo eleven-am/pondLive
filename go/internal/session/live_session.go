@@ -195,6 +195,7 @@ func (s *LiveSession) configureRuntime(cfg Config) {
 	if s.component != nil {
 		s.component.SetPatchSender(s.onPatch)
 		s.component.SetDOMActionSender(s.sendDOMActions)
+		s.component.SetScriptEventSender(s.sendScriptEvent)
 		s.component.SetDOMRequestHandlers(s.performDOMGet, s.performDOMCall)
 	}
 
@@ -562,6 +563,30 @@ func (s *LiveSession) sendDOMActions(effects []dom.DOMActionEffect) error {
 	return transport.SendFrame(frame)
 }
 
+func (s *LiveSession) sendScriptEvent(scriptID, event string, data interface{}) error {
+	if s == nil {
+		return nil
+	}
+
+	s.mu.Lock()
+	transport := s.transport
+	sid := s.id
+	s.mu.Unlock()
+
+	if transport == nil || !transport.IsLive() {
+		fmt.Printf("session: dropping script event %s for script %s - no live transport", event, scriptID)
+		return nil
+	}
+
+	return transport.SendScriptEvent(protocol.ScriptEvent{
+		T:        "script:event",
+		SID:      string(sid),
+		ScriptID: scriptID,
+		Event:    event,
+		Data:     data,
+	})
+}
+
 func (s *LiveSession) performDOMGet(ref string, selectors ...string) (map[string]any, error) {
 	if s == nil {
 		return nil, errors.New("session: nil session")
@@ -845,6 +870,23 @@ func (s *LiveSession) HandleUploadMessage(msg protocol.UploadClient) error {
 		return fmt.Errorf("session: unknown upload op: %s", msg.Op)
 	}
 
+	return nil
+}
+
+// HandleScriptMessage processes script messages from the client.
+func (s *LiveSession) HandleScriptMessage(msg protocol.ScriptMessage) error {
+	if s == nil {
+		fmt.Printf("session: dropping script message %s for script %s - nil session", msg.Event, msg.ScriptID)
+		return errors.New("session: nil session")
+	}
+	if s.component == nil {
+		fmt.Printf("session: dropping script message %s for script %s - no component", msg.Event, msg.ScriptID)
+		return errors.New("session: session has no component")
+	}
+
+	s.Touch()
+	fmt.Printf("session: handling script message %s for script %s", msg.Event, msg.ScriptID)
+	s.component.HandleScriptMessage(msg.ScriptID, msg.Event, msg.Data)
 	return nil
 }
 

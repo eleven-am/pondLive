@@ -193,8 +193,14 @@ export interface UploadMessage {
 export interface ScriptMessage {
     t: 'script:message';
     sid: string;
+    event: string;
     scriptId: string;
     data: Record<string, unknown>;
 }
 
-export type ClientMessage = Join | ClientAck | ClientEvent | NavMessage | DOMResponse | UploadMessage | ScriptMessage;
+export interface Recover {
+    t: 'recover';
+    sid: string;
+}
+
+export type ClientMessage = Join | ClientAck | ClientEvent | NavMessage | DOMResponse | UploadMessage | ScriptMessage | Recover;

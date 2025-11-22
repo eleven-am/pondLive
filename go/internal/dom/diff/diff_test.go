@@ -768,11 +768,6 @@ func TestDiffScript(t *testing.T) {
 	}
 	patches := Diff(prev, next)
 
-	t.Logf("Got %d patches", len(patches))
-	for i, p := range patches {
-		t.Logf("Patch %d: Op=%s, Value=%v", i, p.Op, p.Value)
-	}
-
 	found := false
 	for _, p := range patches {
 		if p.Op == OpSetScript {
@@ -1041,8 +1036,9 @@ func TestExtractMetadata_ScriptInFragment(t *testing.T) {
 			if script.ScriptID != "frag1" {
 				t.Fatalf("expected scriptID=frag1, got %s", script.ScriptID)
 			}
-			if !reflect.DeepEqual(p.Path, []int{0}) {
-				t.Fatalf("expected path [0] for fragment child, got %v", p.Path)
+
+			if len(p.Path) != 0 {
+				t.Fatalf("expected empty path for flattened fragment, got %v", p.Path)
 			}
 		}
 	}

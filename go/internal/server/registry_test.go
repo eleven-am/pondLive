@@ -95,6 +95,10 @@ func (s *stubTransport) SendUploadControl(ctrl protocol.UploadControl) error {
 	return nil
 }
 
+func (s *stubTransport) SendScriptEvent(event protocol.ScriptEvent) error {
+	return nil
+}
+
 func newSession(t *testing.T) *session.LiveSession {
 	return newSessionWithID(t, "sid")
 }

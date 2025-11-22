@@ -106,6 +106,13 @@ func (t *transport) SendDOMRequest(req protocol.DOMRequest) error {
 	return t.send("dom_req", req)
 }
 
+func (t *transport) SendScriptEvent(event protocol.ScriptEvent) error {
+	if event.T == "" {
+		event.T = "script:event"
+	}
+	return t.send("script:event", event)
+}
+
 func (t *transport) send(event string, payload any) error {
 	if t.closed.Load() {
 		return errTransportClosed

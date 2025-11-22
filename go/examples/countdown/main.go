@@ -46,8 +46,8 @@ func main() {
 }
 
 func countdown(ctx ui.Ctx) ui.Node {
-	seconds, setSeconds := ui.UseState(ctx, 10)
 	isRunning, setIsRunning := ui.UseState(ctx, false)
+	isDone, setIsDone := ui.UseState(ctx, false)
 
 	ui.UseMetaTags(ctx, &ui.Meta{
 		Title:       "LiveUI Countdown Timer",
@@ -60,14 +60,28 @@ func countdown(ctx ui.Ctx) ui.Node {
 		},
 	})
 
+	startRef := ui.UseElement[*h.ButtonRef](ctx)
+	stopRef := ui.UseElement[*h.ButtonRef](ctx)
+	resetRef := ui.UseElement[*h.ButtonRef](ctx)
+
 	timerScript := ui.UseScript(ctx, `
-		(element, transport) => {
+		function(element, transport) {
 			let intervalId = null;
+			let count = 2;
 
 			transport.on('start', () => {
 				if (intervalId) clearInterval(intervalId);
 				intervalId = setInterval(() => {
-					transport.send({ action: 'tick' });
+					count -= 1;
+
+					if (count >= 0) {
+						element.innerText = count;
+					} else {
+						transport.send('done', 'Timer finished');
+						clearInterval(intervalId);
+						intervalId = null;
+					}
+
 				}, 1000);
 			});
 
@@ -78,49 +92,53 @@ func countdown(ctx ui.Ctx) ui.Node {
 				}
 			});
 
+			transport.on('reset', () => {
+				if (intervalId) {
+					clearInterval(intervalId);
+					intervalId = null;
+				}
+				count = 10;
+				element.innerText = count;
+			});
+
 			return () => {
 				if (intervalId) clearInterval(intervalId);
 			};
 		}
 	`)
 
-	timerScript.OnMessage(func(data map[string]any) {
-		if data["action"] == "tick" && seconds() > 0 {
-			setSeconds(seconds() - 1)
-			if seconds()-1 == 0 {
-				setIsRunning(false)
-				timerScript.Send("stop", map[string]any{})
-			}
-		}
+	timerScript.On("done", func(data interface{}) {
+		setIsDone(true)
+		setIsRunning(false)
 	})
 
-	start := func(h.Event) h.Updates {
-		if seconds() > 0 && !isRunning() {
+	startRef.OnClick(func(evt h.ClickEvent) h.Updates {
+		if !isRunning() {
 			setIsRunning(true)
-			timerScript.Send("start", map[string]any{})
+			timerScript.Send("start", struct{}{})
 		}
 		return nil
-	}
+	})
 
-	stop := func(h.Event) h.Updates {
+	stopRef.OnClick(func(evt h.ClickEvent) h.Updates {
 		setIsRunning(false)
-		timerScript.Send("stop", map[string]any{})
+		timerScript.Send("stop", struct{}{})
 		return nil
-	}
+	})
 
-	reset := func(h.Event) h.Updates {
+	resetRef.OnClick(func(evt h.ClickEvent) h.Updates {
+		setIsDone(false)
 		setIsRunning(false)
-		setSeconds(10)
-		timerScript.Send("stop", map[string]any{})
+		timerScript.Send("reset", struct{}{})
 		return nil
-	}
+	})
 
 	statusText := "Ready"
 	statusColor := "text-slate-300"
 	if isRunning() {
 		statusText = "Running..."
 		statusColor = "text-green-400"
-	} else if seconds() == 0 {
+	} else if !isRunning() && isDone() {
 		statusText = "Time's up!"
 		statusColor = "text-red-400"
 	}
@@ -135,10 +153,10 @@ func countdown(ctx ui.Ctx) ui.Node {
 			),
 			h.Div(
 				h.Class("bg-slate-800", "rounded-3xl", "p-12", "shadow-2xl"),
-				h.Attach(timerScript),
 				h.Div(
 					h.Class("text-9xl", "font-bold", "tabular-nums", "mb-4", "text-white"),
-					h.Textf("%d", seconds()),
+					h.Textf("%d", 10),
+					h.Attach(timerScript),
 				),
 				h.P(
 					h.Class("text-lg", "font-medium", statusColor),
@@ -150,21 +168,21 @@ func countdown(ctx ui.Ctx) ui.Node {
 				h.Button(
 					h.Class("bg-green-600", "hover:bg-green-500", "disabled:opacity-30", "disabled:cursor-not-allowed", "text-white", "font-semibold", "px-8", "py-3", "rounded-xl", "transition", "min-w-24"),
 					h.Attr("type", "button"),
-					h.If(isRunning() || seconds() == 0, h.Attr("disabled", "")),
-					h.On("click", start),
+					h.If(isRunning() || isDone(), h.Attr("disabled", "")),
+					h.Attach(startRef),
 					h.Text("Start"),
 				),
 				h.Button(
 					h.Class("bg-red-600", "hover:bg-red-500", "disabled:opacity-30", "disabled:cursor-not-allowed", "text-white", "font-semibold", "px-8", "py-3", "rounded-xl", "transition", "min-w-24"),
 					h.Attr("type", "button"),
 					h.If(!isRunning(), h.Attr("disabled", "")),
-					h.On("click", stop),
+					h.Attach(stopRef),
 					h.Text("Stop"),
 				),
 				h.Button(
 					h.Class("bg-slate-600", "hover:bg-slate-500", "text-white", "font-semibold", "px-8", "py-3", "rounded-xl", "transition", "min-w-24"),
 					h.Attr("type", "button"),
-					h.On("click", reset),
+					h.Attach(resetRef),
 					h.Text("Reset"),
 				),
 			),

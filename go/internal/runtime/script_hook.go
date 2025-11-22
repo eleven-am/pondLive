@@ -20,15 +20,15 @@ func (h ScriptHandle) AttachTo(node *dom.StructuredNode) {
 	h.slot.registerBinding(node)
 }
 
-// OnMessage registers a callback invoked when the client sends a message via transport.send.
-func (h ScriptHandle) OnMessage(fn func(map[string]any)) {
+// On registers a callback invoked when the client sends a named event via transport.send.
+func (h ScriptHandle) On(event string, fn func(interface{})) {
 	if h.slot != nil {
-		h.slot.setOnMessage(fn)
+		h.slot.setEventHandler(event, fn)
 	}
 }
 
 // Send sends an event to the client script via transport.on.
-func (h ScriptHandle) Send(event string, data map[string]any) {
+func (h ScriptHandle) Send(event string, data interface{}) {
 	if h.slot != nil {
 		h.slot.send(event, data)
 	}
@@ -76,18 +76,9 @@ type scriptSlot struct {
 	component *component
 	hookIndex int
 
-	script    string
-	scriptMu  sync.RWMutex
-	onMessage func(map[string]any)
-
-	eventQueue []scriptEvent
-	eventMu    sync.Mutex
-}
-
-type scriptEvent struct {
-	scriptID string
-	event    string
-	data     map[string]any
+	script        string
+	scriptMu      sync.RWMutex
+	eventHandlers map[string]func(interface{})
 }
 
 func (slot *scriptSlot) registerBinding(node *dom.StructuredNode) {
@@ -116,11 +107,12 @@ func (s *ComponentSession) registerScriptSlot(comp *component, index int, script
 	id := fmt.Sprintf("%s:s%d", comp.id, index)
 
 	slot := &scriptSlot{
-		id:        id,
-		sess:      s,
-		component: comp,
-		hookIndex: index,
-		script:    script,
+		id:            id,
+		sess:          s,
+		component:     comp,
+		hookIndex:     index,
+		script:        script,
+		eventHandlers: make(map[string]func(interface{})),
 	}
 
 	s.scripts[id] = slot
@@ -143,37 +135,33 @@ func (slot *scriptSlot) updateScript(script string) {
 	slot.scriptMu.Unlock()
 }
 
-func (slot *scriptSlot) setOnMessage(fn func(map[string]any)) {
+func (slot *scriptSlot) setEventHandler(event string, fn func(interface{})) {
 	slot.scriptMu.Lock()
-	slot.onMessage = fn
+	slot.eventHandlers[event] = fn
 	slot.scriptMu.Unlock()
 }
 
-func (slot *scriptSlot) send(event string, data map[string]any) {
-	if slot == nil {
+func (slot *scriptSlot) send(event string, data interface{}) {
+	if slot == nil || slot.sess == nil {
 		return
 	}
 
-	slot.eventMu.Lock()
-	slot.eventQueue = append(slot.eventQueue, scriptEvent{
-		scriptID: slot.id,
-		event:    event,
-		data:     data,
-	})
-	slot.eventMu.Unlock()
+	slot.sess.mu.Lock()
+	sender := slot.sess.scriptEventSender
+	slot.sess.mu.Unlock()
 
-	if slot.sess != nil && slot.component != nil {
-		slot.sess.markDirty(slot.component)
+	if sender != nil {
+		_ = sender(slot.id, event, data)
 	}
 }
 
-func (slot *scriptSlot) handleMessage(data map[string]any) {
+func (slot *scriptSlot) handleMessage(event string, data interface{}) {
 	if slot == nil {
 		return
 	}
 
 	slot.scriptMu.RLock()
-	handler := slot.onMessage
+	handler := slot.eventHandlers[event]
 	slot.scriptMu.RUnlock()
 
 	if handler != nil {
@@ -181,37 +169,14 @@ func (slot *scriptSlot) handleMessage(data map[string]any) {
 	}
 }
 
-// ComponentSession script event handlers
-
-func (s *ComponentSession) HandleScriptMessage(id string, data map[string]any) {
+func (s *ComponentSession) HandleScriptMessage(id string, event string, data interface{}) {
 	slot := s.findScriptSlot(id)
 	if slot == nil {
 		return
 	}
 
 	s.withRecovery("script:message", func() error {
-		slot.handleMessage(data)
+		slot.handleMessage(event, data)
 		return nil
 	})
-}
-
-func (s *ComponentSession) CollectScriptEvents() []scriptEvent {
-	if s == nil {
-		return nil
-	}
-
-	s.scriptMu.Lock()
-	defer s.scriptMu.Unlock()
-
-	var events []scriptEvent
-	for _, slot := range s.scripts {
-		slot.eventMu.Lock()
-		if len(slot.eventQueue) > 0 {
-			events = append(events, slot.eventQueue...)
-			slot.eventQueue = nil
-		}
-		slot.eventMu.Unlock()
-	}
-
-	return events
 }

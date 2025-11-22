@@ -1,11 +1,42 @@
 package runtime
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
 	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
+
+type scriptEvent struct {
+	scriptID string
+	event    string
+	data     interface{}
+}
+
+type testScriptEventCollector struct {
+	mu     sync.Mutex
+	events []scriptEvent
+}
+
+func (c *testScriptEventCollector) send(scriptID, event string, data interface{}) error {
+	c.mu.Lock()
+	c.events = append(c.events, scriptEvent{
+		scriptID: scriptID,
+		event:    event,
+		data:     data,
+	})
+	c.mu.Unlock()
+	return nil
+}
+
+func (c *testScriptEventCollector) collect() []scriptEvent {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	collected := append([]scriptEvent(nil), c.events...)
+	c.events = nil
+	return collected
+}
 
 func TestUseScriptBasic(t *testing.T) {
 	var scriptHandle ScriptHandle
@@ -64,12 +95,12 @@ func TestUseScriptAttachment(t *testing.T) {
 
 func TestUseScriptOnMessage(t *testing.T) {
 	messageReceived := false
-	var receivedData map[string]any
+	var receivedData interface{}
 	var scriptHandle ScriptHandle
 
 	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		scriptHandle = UseScript(ctx, "(element, transport) => {}")
-		scriptHandle.OnMessage(func(data map[string]any) {
+		scriptHandle.On("test-event", func(data interface{}) {
 			messageReceived = true
 			receivedData = data
 		})
@@ -86,21 +117,23 @@ func TestUseScriptOnMessage(t *testing.T) {
 	}
 
 	testData := map[string]any{"foo": "bar", "count": 42}
-	sess.HandleScriptMessage(scriptHandle.slot.id, testData)
+	sess.HandleScriptMessage(scriptHandle.slot.id, "test-event", testData)
 
 	if !messageReceived {
 		t.Error("expected message handler to be called")
 	}
-	if receivedData["foo"] != "bar" {
-		t.Errorf("expected foo=bar, got %v", receivedData["foo"])
+	dataMap := receivedData.(map[string]any)
+	if dataMap["foo"] != "bar" {
+		t.Errorf("expected foo=bar, got %v", dataMap["foo"])
 	}
-	if receivedData["count"] != 42 {
-		t.Errorf("expected count=42, got %v", receivedData["count"])
+	if dataMap["count"] != 42 {
+		t.Errorf("expected count=42, got %v", dataMap["count"])
 	}
 }
 
 func TestUseScriptSend(t *testing.T) {
 	var scriptHandle ScriptHandle
+	collector := &testScriptEventCollector{}
 
 	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		scriptHandle = UseScript(ctx, "(element, transport) => {}")
@@ -111,6 +144,7 @@ func TestUseScriptSend(t *testing.T) {
 
 	sess := NewSession(comp, struct{}{})
 	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
+	sess.SetScriptEventSender(collector.send)
 
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush failed: %v", err)
@@ -118,20 +152,22 @@ func TestUseScriptSend(t *testing.T) {
 
 	scriptHandle.Send("update", map[string]any{"text": "Updated"})
 
-	events := sess.CollectScriptEvents()
+	events := collector.collect()
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
 	if events[0].event != "update" {
 		t.Errorf("expected event 'update', got '%s'", events[0].event)
 	}
-	if events[0].data["text"] != "Updated" {
-		t.Errorf("expected data text='Updated', got %v", events[0].data["text"])
+	dataMap := events[0].data.(map[string]any)
+	if dataMap["text"] != "Updated" {
+		t.Errorf("expected data text='Updated', got %v", dataMap["text"])
 	}
 }
 
 func TestUseScriptMultipleSends(t *testing.T) {
 	var scriptHandle ScriptHandle
+	collector := &testScriptEventCollector{}
 
 	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		scriptHandle = UseScript(ctx, "(element, transport) => {}")
@@ -142,6 +178,7 @@ func TestUseScriptMultipleSends(t *testing.T) {
 
 	sess := NewSession(comp, struct{}{})
 	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
+	sess.SetScriptEventSender(collector.send)
 
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush failed: %v", err)
@@ -151,7 +188,7 @@ func TestUseScriptMultipleSends(t *testing.T) {
 	scriptHandle.Send("event2", map[string]any{"value": "second"})
 	scriptHandle.Send("event3", map[string]any{"value": "third"})
 
-	events := sess.CollectScriptEvents()
+	events := collector.collect()
 	if len(events) != 3 {
 		t.Fatalf("expected 3 events, got %d", len(events))
 	}
@@ -169,13 +206,15 @@ func TestUseScriptMultipleSends(t *testing.T) {
 		if events[i].event != exp.event {
 			t.Errorf("event %d: expected '%s', got '%s'", i, exp.event, events[i].event)
 		}
-		if events[i].data["value"] != exp.value {
-			t.Errorf("event %d: expected value '%s', got %v", i, exp.value, events[i].data["value"])
+		dataMap := events[i].data.(map[string]any)
+		if dataMap["value"] != exp.value {
+			t.Errorf("event %d: expected value '%s', got %v", i, exp.value, dataMap["value"])
 		}
 	}
 }
 
 func TestUseScriptEventsClearedAfterCollect(t *testing.T) {
+	collector := &testScriptEventCollector{}
 	var scriptHandle ScriptHandle
 
 	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
@@ -187,6 +226,7 @@ func TestUseScriptEventsClearedAfterCollect(t *testing.T) {
 
 	sess := NewSession(comp, struct{}{})
 	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
+	sess.SetScriptEventSender(collector.send)
 
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush failed: %v", err)
@@ -194,12 +234,12 @@ func TestUseScriptEventsClearedAfterCollect(t *testing.T) {
 
 	scriptHandle.Send("test", map[string]any{"count": 1})
 
-	events1 := sess.CollectScriptEvents()
+	events1 := collector.collect()
 	if len(events1) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events1))
 	}
 
-	events2 := sess.CollectScriptEvents()
+	events2 := collector.collect()
 	if len(events2) != 0 {
 		t.Fatalf("expected 0 events after collect, got %d", len(events2))
 	}
@@ -244,8 +284,8 @@ func TestUseScriptHandleNilCases(t *testing.T) {
 	var nilHandle ScriptHandle
 
 	nilHandle.AttachTo(&dom.StructuredNode{Tag: "div"})
-	nilHandle.OnMessage(func(data map[string]any) {})
-	nilHandle.Send("test", map[string]any{})
+	nilHandle.On("test", func(data interface{}) {})
+	nilHandle.Send("test", nil)
 }
 
 func TestUseScriptMultipleScriptsInComponent(t *testing.T) {
@@ -300,31 +340,30 @@ func TestUseScriptMessageHandlerUpdate(t *testing.T) {
 		t.Fatalf("flush failed: %v", err)
 	}
 
-	scriptHandle.OnMessage(func(data map[string]any) {
+	scriptHandle.On("test", func(data interface{}) {
 		message1Received = true
 	})
 
-	sess.HandleScriptMessage(scriptHandle.slot.id, map[string]any{"test": 1})
+	sess.HandleScriptMessage(scriptHandle.slot.id, "test", map[string]any{"test": 1})
 	if !message1Received {
 		t.Error("expected first handler to be called")
 	}
 
-	scriptHandle.OnMessage(func(data map[string]any) {
+	scriptHandle.On("test2", func(data interface{}) {
 		message2Received = true
 	})
 
-	sess.HandleScriptMessage(scriptHandle.slot.id, map[string]any{"test": 2})
+	sess.HandleScriptMessage(scriptHandle.slot.id, "test2", map[string]any{"test": 2})
 	if !message2Received {
 		t.Error("expected second handler to be called")
 	}
 }
 
-func TestUseScriptSendMarksComponentDirty(t *testing.T) {
+func TestUseScriptSendImmediately(t *testing.T) {
+	collector := &testScriptEventCollector{}
 	var scriptHandle ScriptHandle
-	renderCount := 0
 
 	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		renderCount++
 		scriptHandle = UseScript(ctx, "(element, transport) => {}")
 		node := &dom.StructuredNode{Tag: "div"}
 		scriptHandle.AttachTo(node)
@@ -333,26 +372,20 @@ func TestUseScriptSendMarksComponentDirty(t *testing.T) {
 
 	sess := NewSession(comp, struct{}{})
 	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
+	sess.SetScriptEventSender(collector.send)
 
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush failed: %v", err)
 	}
-
-	initialRenderCount := renderCount
 
 	scriptHandle.Send("update", map[string]any{"value": "test"})
 
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("flush failed: %v", err)
+	events := collector.collect()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event to be sent immediately, got %d", len(events))
 	}
-
-	if renderCount <= initialRenderCount {
-		t.Error("expected component to re-render after Send")
-	}
-
-	events := sess.CollectScriptEvents()
-	if len(events) == 0 {
-		t.Error("expected script events to be collected after flush")
+	if events[0].event != "update" {
+		t.Errorf("expected event 'update', got '%s'", events[0].event)
 	}
 }
 
@@ -368,16 +401,16 @@ func TestUseScriptHandleNonExistentScript(t *testing.T) {
 		t.Fatalf("flush failed: %v", err)
 	}
 
-	sess.HandleScriptMessage("non-existent-id", map[string]any{"test": "data"})
+	sess.HandleScriptMessage("non-existent-id", "test", map[string]any{"test": "data"})
 }
 
 func TestUseScriptComplexData(t *testing.T) {
-	var receivedData map[string]any
+	var receivedData interface{}
 	var scriptHandle ScriptHandle
 
 	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
 		scriptHandle = UseScript(ctx, "(element, transport) => {}")
-		scriptHandle.OnMessage(func(data map[string]any) {
+		scriptHandle.On("complex", func(data interface{}) {
 			receivedData = data
 		})
 		node := &dom.StructuredNode{Tag: "div"}
@@ -404,19 +437,20 @@ func TestUseScriptComplexData(t *testing.T) {
 		},
 	}
 
-	sess.HandleScriptMessage(scriptHandle.slot.id, complexData)
+	sess.HandleScriptMessage(scriptHandle.slot.id, "complex", complexData)
 
-	if receivedData["string"] != "test" {
-		t.Errorf("expected string='test', got %v", receivedData["string"])
+	dataMap := receivedData.(map[string]any)
+	if dataMap["string"] != "test" {
+		t.Errorf("expected string='test', got %v", dataMap["string"])
 	}
-	if receivedData["number"] != 42 {
-		t.Errorf("expected number=42, got %v", receivedData["number"])
+	if dataMap["number"] != 42 {
+		t.Errorf("expected number=42, got %v", dataMap["number"])
 	}
-	if receivedData["boolean"] != true {
-		t.Errorf("expected boolean=true, got %v", receivedData["boolean"])
+	if dataMap["boolean"] != true {
+		t.Errorf("expected boolean=true, got %v", dataMap["boolean"])
 	}
-	if receivedData["null"] != nil {
-		t.Errorf("expected null=nil, got %v", receivedData["null"])
+	if dataMap["null"] != nil {
+		t.Errorf("expected null=nil, got %v", dataMap["null"])
 	}
 }
 
@@ -430,7 +464,7 @@ func TestUseScriptPersistenceAcrossRenders(t *testing.T) {
 		triggerRender = func() { setCount(count() + 1) }
 
 		scriptHandle = UseScript(ctx, "(element, transport) => {}")
-		scriptHandle.OnMessage(func(data map[string]any) {
+		scriptHandle.On("persist", func(data interface{}) {
 			messageCount++
 		})
 		node := &dom.StructuredNode{Tag: "div"}
@@ -457,7 +491,7 @@ func TestUseScriptPersistenceAcrossRenders(t *testing.T) {
 		t.Error("expected script slot to persist across renders")
 	}
 
-	sess.HandleScriptMessage(scriptHandle.slot.id, map[string]any{"test": 1})
+	sess.HandleScriptMessage(scriptHandle.slot.id, "persist", map[string]any{"test": 1})
 	if messageCount != 1 {
 		t.Errorf("expected 1 message, got %d", messageCount)
 	}

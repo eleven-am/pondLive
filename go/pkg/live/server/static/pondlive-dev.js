@@ -1949,11 +1949,12 @@ var LiveUIModule = (() => {
         eventHandlers: /* @__PURE__ */ new Map()
       };
       const transport = {
-        send: (data) => {
+        send: (event, data) => {
           this.onMessage({
             t: "script:message",
             sid: this.sessionId,
             scriptId,
+            event,
             data
           });
         },

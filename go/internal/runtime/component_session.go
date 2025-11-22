@@ -43,6 +43,8 @@ type ComponentSession struct {
 	domGetHandler   func(ref string, selectors ...string) (map[string]any, error)
 	domCallHandler  func(ref string, method string, args ...any) (any, error)
 
+	scriptEventSender func(scriptID, event string, data interface{}) error
+
 	// Pending navigation for server-initiated URL updates
 	pendingNav *NavDelta
 
@@ -430,6 +432,13 @@ func (s *ComponentSession) enqueueDOMAction(effect dom.DOMActionEffect) {
 func (s *ComponentSession) SetDOMActionSender(fn func([]dom.DOMActionEffect) error) {
 	s.mu.Lock()
 	s.domActionSender = fn
+	s.mu.Unlock()
+}
+
+// SetScriptEventSender sets the callback for sending script events.
+func (s *ComponentSession) SetScriptEventSender(fn func(scriptID, event string, data interface{}) error) {
+	s.mu.Lock()
+	s.scriptEventSender = fn
 	s.mu.Unlock()
 }
 

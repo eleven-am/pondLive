@@ -64,6 +64,7 @@ func (e *Endpoint) configure() {
 	lobby.OnMessage("recover", e.onRecover)
 	lobby.OnMessage("upload", e.onUpload)
 	lobby.OnMessage("dom_res", e.onDOMResponse)
+	lobby.OnMessage("script:message", e.onScriptMessage)
 	lobby.OnLeave(e.onLeave)
 
 	if e.pubsub != nil {
@@ -141,17 +142,12 @@ func (e *Endpoint) onJoin(ctx *pond.JoinContext) error {
 }
 
 func (e *Endpoint) onClientEvent(ctx *pond.EventContext) error {
-	user := ctx.GetUser()
-	if user == nil {
-		return nil
-	}
-
 	var evt protocol.ClientEvent
 	if err := ctx.ParsePayload(&evt); err != nil {
 		return err
 	}
 
-	sess, transport, ok := e.registry.LookupWithConnection(session.SessionID(evt.SID), user.UserID)
+	sess, transport, ok := e.getSession(ctx, evt.SID)
 	if !ok || sess == nil || transport == nil {
 		return nil
 	}
@@ -197,17 +193,12 @@ func (e *Endpoint) onAck(ctx *pond.EventContext) error {
 }
 
 func (e *Endpoint) onNavigate(ctx *pond.EventContext) error {
-	user := ctx.GetUser()
-	if user == nil {
-		return nil
-	}
-
 	var nav navPayload
 	if err := ctx.ParsePayload(&nav); err != nil {
 		return nil
 	}
 
-	sess, transport, ok := e.registry.LookupWithConnection(session.SessionID(nav.SID), user.UserID)
+	sess, transport, ok := e.getSession(ctx, nav.SID)
 	if !ok || sess == nil {
 		return nil
 	}
@@ -263,36 +254,27 @@ func (e *Endpoint) onLeave(ctx *pond.LeaveContext) {
 }
 
 func (e *Endpoint) onPopState(ctx *pond.EventContext) error {
-	user := ctx.GetUser()
-	if user == nil {
-		return nil
-	}
-
-	sessionID := getSessionID(ctx)
-	if sessionID == "" {
-		return nil
-	}
-
-	sess, transport, ok := e.registry.LookupWithConnection(session.SessionID(sessionID), user.UserID)
-	if !ok || sess == nil {
-		return nil
-	}
 
 	var nav navPayload
 	if err := ctx.ParsePayload(&nav); err != nil {
 		return nil
 	}
 
+	sess, transport, ok := e.getSession(ctx, nav.SID)
+	if !ok || sess == nil {
+		return nil
+	}
+
 	if err := sess.HandlePopState(nav.Path, nav.Query, nav.Hash); err != nil {
 		if transport != nil {
-			_ = transport.SendServerError(serverError(session.SessionID(sessionID), "pop_failed", err))
+			_ = transport.SendServerError(serverError(session.SessionID(nav.SID), "pop_failed", err))
 		}
 		return err
 	}
 
 	if err := sess.Flush(); err != nil {
 		if transport != nil {
-			_ = transport.SendServerError(serverError(session.SessionID(sessionID), "flush_failed", err))
+			_ = transport.SendServerError(serverError(session.SessionID(nav.SID), "flush_failed", err))
 		}
 		return err
 	}
@@ -300,39 +282,26 @@ func (e *Endpoint) onPopState(ctx *pond.EventContext) error {
 }
 
 func (e *Endpoint) onRouterReset(ctx *pond.EventContext) error {
-	user := ctx.GetUser()
-	if user == nil {
-		return nil
-	}
-
-	sessionID := getSessionID(ctx)
-	if sessionID == "" {
-		return nil
-	}
-
-	sess, transport, ok := e.registry.LookupWithConnection(session.SessionID(sessionID), user.UserID)
-	if !ok || sess == nil {
-		return nil
-	}
-
 	var payload protocol.RouterReset
 	if err := ctx.ParsePayload(&payload); err != nil {
-		if transport != nil {
-			_ = transport.SendServerError(serverError(session.SessionID(sessionID), "bad_payload", err))
-		}
+		return nil
+	}
+
+	sess, transport, ok := e.getSession(ctx, payload.SID)
+	if !ok || sess == nil {
 		return nil
 	}
 
 	if err := sess.HandleRouterReset(payload.ComponentID); err != nil {
 		if transport != nil {
-			_ = transport.SendServerError(serverError(session.SessionID(sessionID), "router_reset_failed", err))
+			_ = transport.SendServerError(serverError(session.SessionID(payload.SID), "router_reset_failed", err))
 		}
 		return err
 	}
 
 	if err := sess.Flush(); err != nil {
 		if transport != nil {
-			_ = transport.SendServerError(serverError(session.SessionID(sessionID), "flush_failed", err))
+			_ = transport.SendServerError(serverError(session.SessionID(payload.SID), "flush_failed", err))
 		}
 		return err
 	}
@@ -341,31 +310,26 @@ func (e *Endpoint) onRouterReset(ctx *pond.EventContext) error {
 }
 
 func (e *Endpoint) onRecover(ctx *pond.EventContext) error {
-	user := ctx.GetUser()
-	if user == nil {
+	var payload protocol.Recover
+	if err := ctx.ParsePayload(&payload); err != nil {
 		return nil
 	}
 
-	sessionID := getSessionID(ctx)
-	if sessionID == "" {
-		return nil
-	}
-
-	sess, transport, ok := e.registry.LookupWithConnection(session.SessionID(sessionID), user.UserID)
+	sess, transport, ok := e.getSession(ctx, payload.SID)
 	if !ok || sess == nil {
 		return nil
 	}
 
 	if err := sess.Recover(); err != nil {
 		if transport != nil {
-			return transport.SendServerError(serverError(session.SessionID(sessionID), "recover_failed", err))
+			return transport.SendServerError(serverError(session.SessionID(payload.SID), "recover_failed", err))
 		}
 		return err
 	}
 
 	if err := sess.Flush(); err != nil {
 		if transport != nil {
-			return transport.SendServerError(serverError(session.SessionID(sessionID), "flush_failed", err))
+			return transport.SendServerError(serverError(session.SessionID(payload.SID), "flush_failed", err))
 		}
 		return err
 	}
@@ -374,32 +338,40 @@ func (e *Endpoint) onRecover(ctx *pond.EventContext) error {
 }
 
 func (e *Endpoint) onUpload(ctx *pond.EventContext) error {
-	user := ctx.GetUser()
-	if user == nil {
-		return nil
-	}
-
-	sessionID := getSessionID(ctx)
-	if sessionID == "" {
-		return nil
-	}
-
-	sess, transport, ok := e.registry.LookupWithConnection(session.SessionID(sessionID), user.UserID)
-	if !ok || sess == nil {
-		return nil
-	}
-
 	var payload protocol.UploadClient
 	if err := ctx.ParsePayload(&payload); err != nil {
-		if transport != nil {
-			_ = transport.SendServerError(serverError(session.SessionID(sessionID), "bad_payload", err))
-		}
+		return nil
+	}
+
+	sess, transport, ok := e.getSession(ctx, payload.SID)
+	if !ok || sess == nil {
 		return nil
 	}
 
 	if err := sess.HandleUploadMessage(payload); err != nil {
 		if transport != nil {
-			_ = transport.SendServerError(serverError(session.SessionID(sessionID), "upload_failed", err))
+			_ = transport.SendServerError(serverError(session.SessionID(payload.SID), "upload_failed", err))
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (e *Endpoint) onScriptMessage(ctx *pond.EventContext) error {
+	var payload protocol.ScriptMessage
+	if err := ctx.ParsePayload(&payload); err != nil {
+		return nil
+	}
+
+	sess, transport, ok := e.getSession(ctx, payload.SID)
+	if !ok || sess == nil {
+		return nil
+	}
+
+	if err := sess.HandleScriptMessage(payload); err != nil {
+		if transport != nil {
+			_ = transport.SendServerError(serverError(session.SessionID(payload.SID), "script_message_failed", err))
 		}
 		return err
 	}
@@ -470,22 +442,6 @@ func mergeConnectionState(sess *session.LiveSession, state *connectionState) {
 	}
 }
 
-func getSessionID(ctx interface{}) string {
-	type withAssigns interface {
-		GetAssigns(key string) any
-	}
-
-	if c, ok := ctx.(withAssigns); ok {
-		raw := c.GetAssigns(sessionAssignKey)
-		if raw != nil {
-			if sessionID, ok := raw.(string); ok {
-				return sessionID
-			}
-		}
-	}
-	return ""
-}
-
 func payloadToDOMEvent(payload map[string]interface{}) dom.Event {
 	event := dom.Event{
 		Payload: make(map[string]any),
@@ -537,4 +493,18 @@ func payloadToDOMEvent(payload map[string]interface{}) dom.Event {
 	}
 
 	return event
+}
+
+func (e *Endpoint) getSession(ctx *pond.EventContext, sid string) (*session.LiveSession, session.Transport, bool) {
+	user := ctx.GetUser()
+	if user == nil {
+		return nil, nil, false
+	}
+
+	sess, t, ok := e.registry.LookupWithConnection(session.SessionID(sid), user.UserID)
+	if !ok || sess == nil {
+		return nil, nil, false
+	}
+
+	return sess, t, true
 }

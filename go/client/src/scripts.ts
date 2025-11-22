@@ -21,11 +21,12 @@ export class ScriptExecutor {
         };
 
         const transport: ScriptTransport = {
-            send: (data: Record<string, unknown>) => {
+            send: (event, data) => {
                 this.onMessage({
                     t: 'script:message',
                     sid: this.sessionId,
                     scriptId,
+                    event,
                     data
                 });
             },

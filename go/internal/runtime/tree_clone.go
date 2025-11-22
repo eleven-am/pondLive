@@ -45,6 +45,10 @@ func cloneTree(node *dom.StructuredNode) *dom.StructuredNode {
 		u := *node.Upload
 		clone.Upload = &u
 	}
+	if node.Script != nil {
+		s := *node.Script
+		clone.Script = &s
+	}
 	if len(node.UploadBindings) > 0 {
 		clone.UploadBindings = append([]dom.UploadBinding(nil), node.UploadBindings...)
 	}

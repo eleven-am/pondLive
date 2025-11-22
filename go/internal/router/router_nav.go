@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 
@@ -102,6 +101,5 @@ func locationFromURL(u *url.URL) Location {
 
 func recordNavigation(ctx runtime.Ctx, loc Location, replace bool) {
 	href := BuildHref(loc.Path, loc.Query, loc.Hash)
-	fmt.Println("Navigating to:", href, "replace:", replace)
 	ctx.EnqueueNavigation(href, replace)
 }

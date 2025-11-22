@@ -48,6 +48,7 @@ func (n *StructuredNode) Flatten() *StructuredNode {
 			Events:     copyEvents(n.Events),
 			Router:     n.Router,
 			Upload:     n.Upload,
+			Script:     n.Script,
 			UnsafeHTML: n.UnsafeHTML,
 		}
 

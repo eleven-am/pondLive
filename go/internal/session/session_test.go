@@ -105,9 +105,11 @@ func TestLiveSessionEventHandling(t *testing.T) {
 }
 
 type mockTransport struct {
-	frames []protocol.Frame
-	boots  []protocol.Boot
-	inits  []protocol.Init
+	frames       []protocol.Frame
+	boots        []protocol.Boot
+	inits        []protocol.Init
+	scriptEvents []protocol.ScriptEvent
+	closed       bool
 }
 
 func (m *mockTransport) SendBoot(boot protocol.Boot) error {
@@ -130,7 +132,7 @@ func (m *mockTransport) SendFrame(frame protocol.Frame) error {
 }
 
 func (m *mockTransport) IsLive() bool {
-	return true
+	return !m.closed
 }
 
 func (m *mockTransport) SendEventAck(ack protocol.EventAck) error {
@@ -157,7 +159,13 @@ func (m *mockTransport) SendUploadControl(ctrl protocol.UploadControl) error {
 	return nil
 }
 
+func (m *mockTransport) SendScriptEvent(event protocol.ScriptEvent) error {
+	m.scriptEvents = append(m.scriptEvents, event)
+	return nil
+}
+
 func (m *mockTransport) Close() error {
+	m.closed = true
 	return nil
 }
 
@@ -367,5 +375,160 @@ func TestLiveSessionCookieDeletes(t *testing.T) {
 	}
 	if len(batch.Delete) != 1 || batch.Delete[0] != "session" {
 		t.Fatalf("expected delete for session cookie, got %v", batch.Delete)
+	}
+}
+
+func TestLiveSessionScriptEventSend(t *testing.T) {
+	var scriptHandle runtime.ScriptHandle
+
+	root := func(ctx runtime.Ctx) *dom.StructuredNode {
+		scriptHandle = runtime.UseScript(ctx, "(element, transport) => {}")
+		node := dom.ElementNode("div")
+		scriptHandle.AttachTo(node)
+		return node
+	}
+
+	transport := &mockTransport{}
+	sess := NewLiveSession(SessionID("script-test"), 1, root, &Config{Transport: transport})
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush failed: %v", err)
+	}
+
+	testData := map[string]interface{}{"value": "hello"}
+	scriptHandle.Send("test-event", testData)
+
+	if len(transport.scriptEvents) != 1 {
+		t.Fatalf("expected 1 script event, got %d", len(transport.scriptEvents))
+	}
+
+	event := transport.scriptEvents[0]
+	if event.T != "script:event" {
+		t.Errorf("expected type 'script:event', got '%s'", event.T)
+	}
+	if event.SID != "script-test" {
+		t.Errorf("expected SID 'script-test', got '%s'", event.SID)
+	}
+	if event.Event != "test-event" {
+		t.Errorf("expected event 'test-event', got '%s'", event.Event)
+	}
+	dataMap := event.Data.(map[string]interface{})
+	if dataMap["value"] != "hello" {
+		t.Errorf("expected data value 'hello', got %v", dataMap["value"])
+	}
+}
+
+func TestLiveSessionScriptMultipleEvents(t *testing.T) {
+	var scriptHandle runtime.ScriptHandle
+
+	root := func(ctx runtime.Ctx) *dom.StructuredNode {
+		scriptHandle = runtime.UseScript(ctx, "(element, transport) => {}")
+		node := dom.ElementNode("div")
+		scriptHandle.AttachTo(node)
+		return node
+	}
+
+	transport := &mockTransport{}
+	sess := NewLiveSession(SessionID("multi-script"), 1, root, &Config{Transport: transport})
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush failed: %v", err)
+	}
+
+	scriptHandle.Send("event1", map[string]interface{}{"count": 1})
+	scriptHandle.Send("event2", map[string]interface{}{"count": 2})
+	scriptHandle.Send("event3", map[string]interface{}{"count": 3})
+
+	if len(transport.scriptEvents) != 3 {
+		t.Fatalf("expected 3 script events, got %d", len(transport.scriptEvents))
+	}
+
+	for i, event := range transport.scriptEvents {
+		expectedEvent := "event" + string(rune('1'+i))
+		if event.Event != expectedEvent {
+			t.Errorf("event %d: expected '%s', got '%s'", i, expectedEvent, event.Event)
+		}
+		dataMap := event.Data.(map[string]interface{})
+		if dataMap["count"] != i+1 {
+			t.Errorf("event %d: expected count %d, got %v", i, i+1, dataMap["count"])
+		}
+	}
+}
+
+func TestLiveSessionScriptMessageHandling(t *testing.T) {
+	messageReceived := false
+	var receivedData interface{}
+	var scriptHandle runtime.ScriptHandle
+	capturedScriptID := ""
+
+	root := func(ctx runtime.Ctx) *dom.StructuredNode {
+		scriptHandle = runtime.UseScript(ctx, "(element, transport) => {}")
+		scriptHandle.On("client-message", func(data interface{}) {
+			messageReceived = true
+			receivedData = data
+		})
+		node := dom.ElementNode("div")
+		scriptHandle.AttachTo(node)
+		// Capture script ID directly from the node
+		if node.Script != nil {
+			capturedScriptID = node.Script.ScriptID
+		}
+		return node
+	}
+
+	transport := &mockTransport{}
+	sess := NewLiveSession(SessionID("msg-test"), 1, root, &Config{Transport: transport})
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush failed: %v", err)
+	}
+
+	if capturedScriptID == "" {
+		t.Fatal("script ID was not captured")
+	}
+
+	// Simulate message from client
+	testData := map[string]interface{}{"message": "from-client", "value": 42}
+	sess.component.HandleScriptMessage(capturedScriptID, "client-message", testData)
+
+	if !messageReceived {
+		t.Error("expected message handler to be called")
+	}
+
+	dataMap := receivedData.(map[string]interface{})
+	if dataMap["message"] != "from-client" {
+		t.Errorf("expected message='from-client', got %v", dataMap["message"])
+	}
+	if dataMap["value"] != 42 {
+		t.Errorf("expected value=42, got %v", dataMap["value"])
+	}
+}
+
+func TestLiveSessionScriptTransportNotLive(t *testing.T) {
+	var scriptHandle runtime.ScriptHandle
+
+	root := func(ctx runtime.Ctx) *dom.StructuredNode {
+		scriptHandle = runtime.UseScript(ctx, "(element, transport) => {}")
+		node := dom.ElementNode("div")
+		scriptHandle.AttachTo(node)
+		return node
+	}
+
+	transport := &mockTransport{}
+	sess := NewLiveSession(SessionID("not-live"), 1, root, &Config{Transport: transport})
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("flush failed: %v", err)
+	}
+
+	// Close transport to make IsLive() return false
+	transport.Close()
+
+	// Should not panic when sending to closed transport
+	scriptHandle.Send("test", map[string]interface{}{"value": "test"})
+
+	// Event should not be added since transport is not live
+	if len(transport.scriptEvents) != 0 {
+		t.Errorf("expected no events to closed transport, got %d", len(transport.scriptEvents))
 	}
 }
