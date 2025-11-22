@@ -67,7 +67,7 @@ func countdown(ctx ui.Ctx) ui.Node {
 	timerScript := ui.UseScript(ctx, `
 		function(element, transport) {
 			let intervalId = null;
-			let count = 2;
+			let count = 10;
 
 			transport.on('start', () => {
 				if (intervalId) clearInterval(intervalId);
