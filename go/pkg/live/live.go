@@ -2,6 +2,7 @@ package live
 
 import (
 	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/session"
@@ -34,6 +35,8 @@ type (
 	UploadHandle                      = runtime.UploadHandle
 	UploadConfig                      = runtime.UploadConfig
 	UploadEvent                       = runtime.UploadEvent
+	HeadersHandle                     = headers.Handle
+	CookieOptions                     = headers.CookieOptions
 )
 
 // Component wraps a component function that accepts children as a slice.
@@ -534,7 +537,6 @@ func UseScript(ctx Ctx, script string) ScriptHandle {
 //	        return saveFile(header.Filename, data)
 //	    })
 //
-
 //	    input := h.Input(h.Type("file"))
 //	    upload.AttachTo(input)
 //
@@ -545,4 +547,116 @@ func UseScript(ctx Ctx, script string) ScriptHandle {
 //	}
 func UseUpload(ctx Ctx) UploadHandle {
 	return runtime.UseUpload(ctx)
+}
+
+// UseHeaders provides access to HTTP request headers and cookie management.
+// It works in both server-side rendering (SSR) and WebSocket modes, allowing you
+// to read incoming request headers and set/delete cookies that work across both contexts.
+//
+// The returned HeadersHandle provides these methods:
+//
+//   - Get(name): Read an HTTP request header value
+//   - GetCookie(name): Read a cookie from the request
+//   - SetCookie(name, value): Set a cookie with default options
+//   - SetCookieWithOptions(name, value, options): Set a cookie with custom options
+//   - DeleteCookie(name): Delete a cookie
+//
+// Example - Read request headers:
+//
+//	func Dashboard(ctx live.Ctx) h.Node {
+//	    headers := live.UseHeaders(ctx)
+//
+//	    userAgent, _ := headers.Get("User-Agent")
+//	    acceptLang, _ := headers.Get("Accept-Language")
+//
+//	    return h.Div(
+//	        h.P(h.Textf("Browser: %s", userAgent)),
+//	        h.P(h.Textf("Language: %s", acceptLang)),
+//	    )
+//	}
+//
+// Example - Cookie-based authentication:
+//
+//	func AuthenticatedPage(ctx live.Ctx) h.Node {
+//	    headers := live.UseHeaders(ctx)
+//
+//	    // Read authentication token from cookie
+//	    token, authenticated := headers.GetCookie("auth_token")
+//	    if !authenticated {
+//	        return h.Div(h.Text("Please log in"))
+//	    }
+//
+//	    return h.Div(h.Textf("Welcome! Token: %s", token))
+//	}
+//
+// Example - Set and delete cookies:
+//
+//	func LoginForm(ctx live.Ctx) h.Node {
+//	    headers := live.UseHeaders(ctx)
+//	    loggedIn, setLoggedIn := live.UseState(ctx, false)
+//
+//	    handleLogin := func() h.Updates {
+//	        // Set cookie with custom options
+//	        headers.SetCookieWithOptions("auth_token", "abc123", live.HeadersHandle{
+//	            Path:     "/",
+//	            MaxAge:   86400,  // 24 hours
+//	            Secure:   true,
+//	            HttpOnly: true,
+//	            SameSite: http.SameSiteStrictMode,
+//	        })
+//	        setLoggedIn(true)
+//	        return nil
+//	    }
+//
+//	    handleLogout := func() h.Updates {
+//	        headers.DeleteCookie("auth_token")
+//	        setLoggedIn(false)
+//	        return nil
+//	    }
+//
+//	    if loggedIn() {
+//	        return h.Button(h.OnClick(handleLogout), h.Text("Logout"))
+//	    }
+//	    return h.Button(h.OnClick(handleLogin), h.Text("Login"))
+//	}
+//
+// Example - User preferences with cookies:
+//
+//	func ThemeSwitcher(ctx live.Ctx) h.Node {
+//	    headers := live.UseHeaders(ctx)
+//
+//	    // Read theme preference from cookie
+//	    savedTheme, _ := headers.GetCookie("theme")
+//	    theme, setTheme := live.UseState(ctx, savedTheme)
+//	    if theme() == "" {
+//	        setTheme("light")  // Default
+//	    }
+//
+//	    toggleTheme := func() h.Updates {
+//	        newTheme := "dark"
+//	        if theme() == "dark" {
+//	            newTheme = "light"
+//	        }
+//
+//	        // Save preference to cookie
+//	        headers.SetCookieWithOptions("theme", newTheme, live.HeadersHandle{
+//	            Path:   "/",
+//	            MaxAge: 31536000,  // 1 year
+//	        })
+//	        setTheme(newTheme)
+//	        return nil
+//	    }
+//
+//	    return h.Div(
+//	        h.Class(theme()),
+//	        h.Button(h.OnClick(toggleTheme), h.Textf("Switch to %s mode",
+//	            if theme() == "dark" { "light" } else { "dark" })),
+//	    )
+//	}
+//
+// Note: GetCookie reads from the initial HTTP request headers, not cookies set
+// during the current render. To read newly set cookies, you need to wait for the
+// next request or page reload.
+func UseHeaders(ctx Ctx) HeadersHandle {
+	return headers.UseHeaders(ctx)
 }
