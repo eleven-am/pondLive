@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	internalserver "github.com/eleven-am/pondlive/go/internal/server"
 	ui "github.com/eleven-am/pondlive/go/pkg/live"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
