@@ -14,7 +14,6 @@ func TestComponentWithChildren(t *testing.T) {
 		)
 	})
 
-	// Test that it returns a function with variadic signature
 	_ = card
 }
 
@@ -30,7 +29,6 @@ func TestPropsComponentWithChildren(t *testing.T) {
 		)
 	})
 
-	// Test that it returns a function with variadic signature
 	_ = card
 }
 
@@ -40,14 +38,13 @@ func TestKeyExtraction(t *testing.T) {
 	}
 
 	card := PropsComponent(func(ctx Ctx, props CardProps, children []h.Item) h.Node {
-		// Children should have h.Key() extracted at this point
+
 		return h.Div(
 			h.H1(h.Text(props.Title)),
 			h.Fragment(children...),
 		)
 	})
 
-	// Usage with key
 	_ = card
-	// In actual usage: card(ctx, CardProps{Title: "Test"}, h.Key("my-key"), h.Text("child"))
+
 }

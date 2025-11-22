@@ -229,13 +229,13 @@ func OnWith(event string, opts EventOptions, handler EventHandler) Prop {
 func ExtractKey(items []Item) (key string, remaining []Item) {
 	for i, item := range items {
 		if kp, ok := item.(keyProp); ok {
-			// Found a key at top level - extract it
+
 			remaining = make([]Item, 0, len(items)-1)
 			remaining = append(remaining, items[:i]...)
 			remaining = append(remaining, items[i+1:]...)
 			return kp.GetKey(), remaining
 		}
 	}
-	// No key found at top level
+
 	return "", items
 }

@@ -225,7 +225,7 @@ var conflictGroupPatterns = map[string]*regexp.Regexp{
 // getConflictGroup returns the conflict group for a given class name.
 // Returns empty string if no conflict group is found.
 func getConflictGroup(class string) string {
-	// Check each pattern
+
 	for group, pattern := range conflictGroupPatterns {
 		if pattern.MatchString(class) {
 			return group
@@ -237,11 +237,11 @@ func getConflictGroup(class string) string {
 // splitVariantAndClass splits a class like "hover:bg-blue-500" into
 // variant ("hover") and base class ("bg-blue-500").
 func splitVariantAndClass(class string) (variant, baseClass string) {
-	// Handle multiple variants like "sm:hover:bg-blue-500"
+
 	parts := strings.Split(class, ":")
 	if len(parts) == 1 {
 		return "", class
 	}
-	// Join all but last as variant prefix
+
 	return strings.Join(parts[:len(parts)-1], ":"), parts[len(parts)-1]
 }

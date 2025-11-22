@@ -29,14 +29,13 @@ func CN(classes ...string) string {
 		return ""
 	}
 
-	// Split all input into individual class tokens
 	var allClasses []string
 	for _, cls := range classes {
 		cls = strings.TrimSpace(cls)
 		if cls == "" {
 			continue
 		}
-		// Split by whitespace
+
 		tokens := strings.Fields(cls)
 		allClasses = append(allClasses, tokens...)
 	}
@@ -45,10 +44,8 @@ func CN(classes ...string) string {
 		return ""
 	}
 
-	// Track conflicts: map of "variant:conflictGroup" -> class index
 	conflictMap := make(map[string]int)
 
-	// Store metadata for each class
 	type classInfo struct {
 		original      string
 		variant       string
@@ -60,7 +57,6 @@ func CN(classes ...string) string {
 
 	classInfos := make([]classInfo, len(allClasses))
 
-	// First pass: parse all classes and identify conflicts
 	for i, class := range allClasses {
 		variant, baseClass := splitVariantAndClass(class)
 		conflictGroup := getConflictGroup(baseClass)
@@ -73,8 +69,6 @@ func CN(classes ...string) string {
 			index:         i,
 		}
 
-		// Build conflict key: variant:conflictGroup
-		// This ensures hover:px-4 and px-4 are in different conflict spaces
 		if conflictGroup != "" {
 			if variant != "" {
 				info.conflictKey = variant + ":" + conflictGroup
@@ -85,32 +79,29 @@ func CN(classes ...string) string {
 
 		classInfos[i] = info
 
-		// Track the last occurrence of each conflict group
 		if info.conflictKey != "" {
 			conflictMap[info.conflictKey] = i
 		}
 	}
 
-	// Second pass: build result, keeping only last occurrence of conflicts
 	var result []string
-	seen := make(map[string]bool) // Track which conflict keys we've already added
+	seen := make(map[string]bool)
 
 	for i, info := range classInfos {
-		// If this class has a conflict group
+
 		if info.conflictKey != "" {
-			// Only include it if this is the last occurrence
+
 			if conflictMap[info.conflictKey] == i {
 				result = append(result, info.original)
 				seen[info.conflictKey] = true
 			}
-			// Otherwise skip it (conflict resolved by later occurrence)
+
 		} else {
-			// No conflict group - always include (but avoid exact duplicates)
+
 			result = append(result, info.original)
 		}
 	}
 
-	// Remove exact duplicates while preserving order
 	final := make([]string, 0, len(result))
 	seenExact := make(map[string]bool)
 	for _, class := range result {

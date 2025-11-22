@@ -9,7 +9,6 @@ func TestManager_Get(t *testing.T) {
 	headers := make(map[string][]string)
 	headers["Cookie"] = []string{"session=abc123; theme=dark"}
 
-	// Manually set headers for testing
 	controller.requestHeaders = headers
 
 	manager := &Manager{
@@ -52,7 +51,6 @@ func TestManager_SetCookie_NilController(t *testing.T) {
 		controller: nil,
 	}
 
-	// Should not panic
 	manager.SetCookie("test", "value")
 }
 
@@ -61,7 +59,6 @@ func TestManager_DeleteCookie_NilController(t *testing.T) {
 		controller: nil,
 	}
 
-	// Should not panic
 	manager.DeleteCookie("test")
 }
 
@@ -73,7 +70,6 @@ func TestManager_getAction(t *testing.T) {
 		},
 	}
 
-	// Test finding existing action
 	action, ok := manager.getAction("token1")
 	if !ok {
 		t.Error("expected ok=true for existing token")
@@ -85,7 +81,6 @@ func TestManager_getAction(t *testing.T) {
 		t.Errorf("wrong action returned: %+v", action)
 	}
 
-	// Test finding another action
 	action, ok = manager.getAction("token2")
 	if !ok {
 		t.Error("expected ok=true for token2")
@@ -94,7 +89,6 @@ func TestManager_getAction(t *testing.T) {
 		t.Error("wrong action returned")
 	}
 
-	// Test non-existent token
 	action, ok = manager.getAction("nonexistent")
 	if ok {
 		t.Error("expected ok=false for non-existent token")
@@ -112,7 +106,6 @@ func TestManager_replaceAction(t *testing.T) {
 		},
 	}
 
-	// Replace existing action
 	newAction := actionRequest{
 		Name:  "session",
 		Value: "new",
@@ -124,7 +117,6 @@ func TestManager_replaceAction(t *testing.T) {
 		t.Errorf("expected 2 actions, got %d", len(manager.actions))
 	}
 
-	// Verify session was replaced
 	found := false
 	for _, action := range manager.actions {
 		if action.Name == "session" {
@@ -138,7 +130,6 @@ func TestManager_replaceAction(t *testing.T) {
 		t.Error("session action not found")
 	}
 
-	// Add new action
 	newAction2 := actionRequest{
 		Name:  "lang",
 		Value: "en",

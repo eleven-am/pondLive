@@ -34,6 +34,10 @@ type component struct {
 
 	renderedThisFlush bool
 
+	// childRenderIndex tracks the current child render position during this render cycle.
+	// Used to generate positional auto-keys when no explicit key is provided.
+	childRenderIndex int
+
 	mu sync.Mutex
 }
 
@@ -158,6 +162,7 @@ func (c *component) beginRender() {
 	}
 	c.frame.idx = 0
 	c.providerSeq = 0
+	c.childRenderIndex = 0
 	if c.parent != nil {
 		c.combinedContextEpoch = c.contextEpoch + c.parent.combinedContextEpoch
 	} else {
