@@ -50,11 +50,6 @@ type LiveSession struct {
 	lastAck   int
 	clientSeq int
 
-	routerState struct {
-		mu  sync.RWMutex
-		set func(Location)
-	}
-
 	domGetTimeout  time.Duration
 	domCallTimeout time.Duration
 
@@ -370,26 +365,11 @@ func (s *LiveSession) GetResponseHeaders() http.Header {
 	return s.requestController.GetResponseHeaders()
 }
 
-// RouterLocationChan exposes navigation updates for the router component.
-func (s *LiveSession) registerRouterState(set func(Location)) {
-	if s == nil {
-		return
-	}
-	s.routerState.mu.Lock()
-	s.routerState.set = set
-	s.routerState.mu.Unlock()
-}
-
 func (s *LiveSession) seedRouterState(loc Location) {
 	if s == nil {
 		return
 	}
-	s.routerState.mu.RLock()
-	set := s.routerState.set
-	s.routerState.mu.RUnlock()
-	if set != nil {
-		set(loc)
-	}
+	s.requestController.SetCurrentLocation(loc.Path, loc.Query, loc.Hash)
 }
 
 // Flush renders dirty components, diffs the tree, and sends patches.

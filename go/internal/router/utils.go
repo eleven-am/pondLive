@@ -9,11 +9,10 @@ import (
 )
 
 // canonicalizeLocation normalizes a location's path, query, and hash.
-// Query canonicalization is optimized to avoid redundant sorting.
+// This ensures consistent location comparison and matching.
 func canonicalizeLocation(loc Location) Location {
 	parts := route.NormalizeParts(loc.Path)
 
-	// Only canonicalize query if it's not empty
 	var canonQuery url.Values
 	if len(loc.Query) > 0 {
 		canonQuery = canonicalizeValues(loc.Query)
@@ -30,31 +29,36 @@ func canonicalizeLocation(loc Location) Location {
 	if canon.Hash == "" && parts.Hash != "" {
 		canon.Hash = route.NormalizeHash(parts.Hash)
 	}
+
 	return canon
 }
 
 // cloneLocation creates a deep copy of a location.
-// Note: This now avoids double-canonicalization.
 func cloneLocation(loc Location) Location {
-	// Clone the query values
-	clonedQuery := cloneValues(loc.Query)
-
-	// Return location with cloned query
 	return Location{
 		Path:  loc.Path,
-		Query: clonedQuery,
+		Query: cloneValues(loc.Query),
 		Hash:  loc.Hash,
 	}
 }
 
-func normalizePath(path string) string {
-	return route.NormalizeParts(path).Path
+// locationEqual compares two locations for equality.
+func locationEqual(a, b Location) bool {
+	if a.Path != b.Path {
+		return false
+	}
+	if a.Hash != b.Hash {
+		return false
+	}
+	return valuesEqual(a.Query, b.Query)
 }
 
+// normalizeHash removes leading # prefix from hash.
 func normalizeHash(hash string) string {
 	return route.NormalizeHash(hash)
 }
 
+// cloneValues creates a deep copy of url.Values.
 func cloneValues(q url.Values) url.Values {
 	if len(q) == 0 {
 		return url.Values{}
@@ -68,6 +72,7 @@ func cloneValues(q url.Values) url.Values {
 	return out
 }
 
+// canonicalizeValues sorts and normalizes url.Values for consistent comparison.
 func canonicalizeValues(q url.Values) url.Values {
 	if len(q) == 0 {
 		return url.Values{}
@@ -84,6 +89,7 @@ func canonicalizeValues(q url.Values) url.Values {
 	return out
 }
 
+// canonicalizeList sorts and trims string values.
 func canonicalizeList(values []string) []string {
 	if len(values) == 0 {
 		return []string{}
@@ -96,24 +102,19 @@ func canonicalizeList(values []string) []string {
 	return cleaned
 }
 
-// valuesEqual compares two url.Values for equality without expensive canonicalization.
-// This is optimized to avoid double-sorting by comparing encoded representations.
+// valuesEqual compares two url.Values for equality.
+// Uses encoded representation for efficient comparison.
 func valuesEqual(a, b url.Values) bool {
-	// Quick length check
 	if len(a) != len(b) {
 		return false
 	}
-
-	// If both empty, they're equal
 	if len(a) == 0 {
 		return true
 	}
-
-	// Compare encoded form (which includes sorting)
-	// This is more efficient than canonicalizing both separately
 	return encodeQuery(a) == encodeQuery(b)
 }
 
+// encodeQuery creates a canonical encoded representation of url.Values.
 func encodeQuery(q url.Values) string {
 	if len(q) == 0 {
 		return ""
@@ -149,12 +150,28 @@ func encodeQuery(q url.Values) string {
 	return builder.String()
 }
 
-func LocEqual(a, b Location) bool {
-	if a.Path != b.Path {
-		return false
+// buildHref constructs a URL string from path, query, and hash.
+func buildHref(path string, query url.Values, hash string) string {
+	if path == "" {
+		path = "/"
 	}
-	if a.Hash != b.Hash {
-		return false
+
+	href := path
+
+	if len(query) > 0 {
+		encoded := query.Encode()
+		if encoded != "" {
+			href += "?" + encoded
+		}
 	}
-	return valuesEqual(a.Query, b.Query)
+
+	if hash != "" {
+		if !strings.HasPrefix(hash, "#") {
+			href += "#" + hash
+		} else {
+			href += hash
+		}
+	}
+
+	return href
 }

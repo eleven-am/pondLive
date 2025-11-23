@@ -9,10 +9,10 @@ import (
 )
 
 type (
-	Location   = route.Location
+	Location   = router.Location
 	RouteProps = router.RouteProps
 	LinkProps  = router.LinkProps
-	Match      = route.Match
+	Match      = router.Match
 )
 
 var (
@@ -35,16 +35,16 @@ func Router(ctx Ctx, children ...Node) Node {
 	return router.Router(ctx, children...)
 }
 
-func Routes(ctx Ctx, children ...Node) Node {
-	return router.Routes(ctx, children...)
+func Routes(ctx Ctx, props router.RoutesProps, children ...Node) Node {
+	return router.Routes(ctx, props, children...)
 }
 
 func Route(ctx Ctx, props RouteProps, children ...Node) Node {
 	return router.Route(ctx, props, children...)
 }
 
-func Outlet(ctx Ctx) Node {
-	return router.Outlet(ctx)
+func Outlet(ctx Ctx, name ...string) Node {
+	return router.Outlet(ctx, name...)
 }
 
 func Link(ctx Ctx, props LinkProps, children ...h.Item) Node {
@@ -71,127 +71,30 @@ func Redirect(ctx Ctx, to string) Node {
 	return router.Redirect(ctx, to)
 }
 
-// UseLocation returns the current router location including pathname, search params, and hash.
-//
-// Example:
-//
-//	func CurrentPage(ctx live.Ctx) h.Node {
-//	    loc := live.UseLocation(ctx)
-//
-//	    return h.Div(
-//	        h.Text(fmt.Sprintf("Current path: %s", loc.Pathname)),
-//	        h.Text(fmt.Sprintf("Search: %s", loc.Search)),
-//	    )
-//	}
+// UseLocation returns the current location (path, query, hash).
 func UseLocation(ctx Ctx) Location {
 	return router.UseLocation(ctx)
 }
 
-// UseParams returns all route parameters extracted from the current URL pattern.
-//
-// Example:
-//
-//	// Route pattern: "/users/:userID/posts/:postID"
-//	// Current URL: "/users/123/posts/456"
-//
-//	func PostDetail(ctx live.Ctx) h.Node {
-//	    params := live.UseParams(ctx)
-//	    userID := params["userID"]  // "123"
-//	    postID := params["postID"]  // "456"
-//
-//	    return h.Div(
-//	        h.Text(fmt.Sprintf("User: %s, Post: %s", userID, postID)),
-//	    )
-//	}
+// UseParams returns all route parameters from the URL pattern.
+// Example: pattern "/users/:id" with URL "/users/123" returns {"id": "123"}
 func UseParams(ctx Ctx) map[string]string {
 	return router.UseParams(ctx)
 }
 
-// UseParam returns a single route parameter by key. Returns empty string if not found.
-//
-// Example:
-//
-//	// Route pattern: "/users/:userID"
-//	// Current URL: "/users/123"
-//
-//	func UserProfile(ctx live.Ctx) h.Node {
-//	    userID := live.UseParam(ctx, "userID")  // "123"
-//
-//	    user, _ := live.UseState(ctx, User{})
-//
-//	    live.UseEffect(ctx, func() live.Cleanup {
-//	        u, err := fetchUser(userID)
-//	        if err == nil {
-//	            user(u)
-//	        }
-//	        return nil
-//	    }, userID)
-//
-//	    return h.Div(h.Text(user().Name))
-//	}
+// UseParam returns a single route parameter by key.
+// Returns empty string if not found.
 func UseParam(ctx Ctx, key string) string {
 	return router.UseParam(ctx, key)
 }
 
-// UseSearch returns the current URL search/query parameters as url.Values.
-//
-// Example:
-//
-//	// Current URL: "/products?category=electronics&sort=price&page=2"
-//
-//	func ProductList(ctx live.Ctx) h.Node {
-//	    search := live.UseSearch(ctx)
-//	    category := search.Get("category")  // "electronics"
-//	    sort := search.Get("sort")          // "price"
-//	    page := search.Get("page")          // "2"
-//
-//	    // Get multi-value params
-//	    tags := search["tag"]  // []string{"new", "sale"}
-//
-//	    return h.Div(
-//	        h.Text(fmt.Sprintf("Category: %s, Sort: %s, Page: %s", category, sort, page)),
-//	    )
-//	}
+// UseSearch returns the current query parameters as url.Values.
 func UseSearch(ctx Ctx) url.Values {
-	return router.UseSearch(ctx)
+	return router.UseQuery(ctx)
 }
 
-// UseSearchParam returns reactive getter/setter for a specific search parameter.
+// UseSearchParam returns getter/setter for a specific query parameter.
 // Setting the value updates the URL and triggers a render.
-//
-// Example - Single value parameter:
-//
-//	func SearchBox(ctx live.Ctx) h.Node {
-//	    query, setQuery := live.UseSearchParam(ctx, "q")
-//
-//	    return h.Input(
-//	        h.Type("search"),
-//	        h.Value(strings.Join(query(), "")),
-//	        h.OnInput(func(evt h.InputEvent) h.Updates {
-//	            setQuery([]string{evt.Value})  // Updates URL to ?q=newvalue
-//	            return nil
-//	        }),
-//	    )
-//	}
-//
-// Example - Multi-value parameter:
-//
-//	func FilterTags(ctx live.Ctx) h.Node {
-//	    tags, setTags := live.UseSearchParam(ctx, "tag")
-//	    currentTags := tags()  // ["electronics", "sale"]
-//
-//	    return h.Div(
-//	        h.Button(
-//	            h.OnClick(func() h.Updates {
-//	                // Add a new tag
-//	                newTags := append(currentTags, "featured")
-//	                setTags(newTags)  // Updates URL to ?tag=electronics&tag=sale&tag=featured
-//	                return nil
-//	            }),
-//	            h.Text("Add Featured Tag"),
-//	        ),
-//	    )
-//	}
 func UseSearchParam(ctx Ctx, key string) (func() []string, func([]string)) {
 	return router.UseSearchParam(ctx, key)
 }

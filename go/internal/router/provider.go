@@ -6,49 +6,54 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
-type Handle struct {
-	controller *Controller
-}
+// ProvideRouter sets up the router system and provides it to the application tree.
+// This is the main entry point for router.
+//
+// Key responsibilities:
+// 1. Gets RequestController from context (source of truth for location)
+// 2. Creates router controller that reads location from RequestController
+// 3. Provides router controller to tree
+// 4. Sets up slot context for outlets
+//
+// Usage:
+//
+//	func App(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
+//	    return router.ProvideRouter(ctx, func(rctx router.Ctx) *dom.StructuredNode {
+//	        return h.Div(
+//	            router.Routes(rctx, router.RoutesProps{Outlet: "main"},
+//	                router.Route(rctx, router.RouteProps{Path: "/", Component: HomePage}),
+//	            ),
+//	            h.Main(router.Outlet(rctx)),
+//	        )
+//	    })
+//	}
+func ProvideRouter(ctx Ctx, render func(Ctx) *dom.StructuredNode) *dom.StructuredNode {
 
-func (h *Handle) Controller() *Controller {
-	return h.controller
-}
-
-func ProvideRouter(ctx runtime.Ctx, onInit func(*Handle), render func(runtime.Ctx) *dom.StructuredNode) *dom.StructuredNode {
 	requestController := headers.UseRequestController(ctx)
+	if requestController == nil {
 
-	var initialLoc Location
-	if requestController != nil {
-		path, query, hash := requestController.GetInitialLocation()
-		initialLoc = Location{
-			Path:  path,
-			Query: query,
-			Hash:  hash,
-		}
-	} else {
-		initialLoc = Location{Path: "/"}
+		requestController = headers.NewRequestController()
+		requestController.SetInitialLocation("/", nil, "")
 	}
 
-	initial := &State{
-		Location: initialLoc,
-		Matched:  false,
-		Pattern:  "",
-		Params:   make(map[string]string),
-		Path:     "",
-	}
-
-	current, setCurrent := runtime.UseState(ctx, initial)
-	controller := runtime.UseMemo(ctx, func() *Controller {
-		return NewController(current, setCurrent)
+	matchState, setMatchState := runtime.UseState(ctx, &MatchState{
+		Matched: false,
+		Pattern: "",
+		Params:  make(map[string]string),
+		Path:    "",
 	})
 
-	handle := &Handle{
-		controller: controller,
-	}
+	controller := runtime.UseMemo(ctx, func() *Controller {
+		return NewController(requestController, matchState, setMatchState)
+	})
 
-	if onInit != nil {
-		onInit(handle)
-	}
+	return ProvideRouterController(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
 
-	return ProvideRouterState(ctx, controller, render)
+		children := render(rctx)
+
+		return routerOutletSlotCtx.Provide(rctx, []dom.Item{children}, func(sctx runtime.Ctx) *dom.StructuredNode {
+
+			return children
+		})
+	})
 }

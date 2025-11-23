@@ -1,5 +1,7 @@
 package router
 
+// navMessage represents a navigation-related message exchanged with the router.
+// Used for both navigate and popstate events from the client.
 type navMessage struct {
 	T    string `json:"t"`
 	Path string `json:"path"`

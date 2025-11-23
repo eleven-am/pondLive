@@ -12,11 +12,15 @@ type LinkProps struct {
 }
 
 func Link(ctx Ctx, p LinkProps, children ...*dom.StructuredNode) *dom.StructuredNode {
-	controller := UseRouterState(ctx)
-	state := controller.Get()
-	base := state.Location
+
+	controller := useRouterController(ctx)
+	base := Location{Path: "/"}
+	if controller != nil {
+		base = controller.GetLocation()
+	}
+
 	target := resolveHref(base, p.To)
-	href := BuildHref(target.Path, target.Query, target.Hash)
+	href := buildHref(target.Path, target.Query, target.Hash)
 
 	replaceAttr := strconv.FormatBool(p.Replace)
 	encodedQuery := encodeQuery(target.Query)

@@ -20,25 +20,10 @@ func documentRoot(sess *LiveSession, app Component) runtime.Component[struct{}] 
 			}
 
 			return headers.ProvideHeadersManager(hctx, func(mctx runtime.Ctx) *dom.StructuredNode {
-				return router.ProvideRouter(mctx, func(handle *router.Handle) {
-					sess.registerRouterState(func(loc Location) {
-						handle.Controller().SetLocation(toRouterLocation(loc))
-					})
-				}, func(rctx runtime.Ctx) *dom.StructuredNode {
+				return router.ProvideRouter(mctx, func(rctx runtime.Ctx) *dom.StructuredNode {
 					return meta.Provider(rctx, sess.clientAsset, wrapped, struct{}{})
 				})
 			})
 		})
 	}
-}
-
-func toRouterLocation(loc Location) router.Location {
-	cp := router.Location{
-		Path: loc.Path,
-		Hash: loc.Hash,
-	}
-	if loc.Query != nil {
-		cp.Query = cloneQuery(loc.Query)
-	}
-	return cp
 }
