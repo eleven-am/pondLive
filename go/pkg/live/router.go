@@ -9,10 +9,11 @@ import (
 )
 
 type (
-	Location   = router.Location
-	RouteProps = router.RouteProps
-	LinkProps  = router.LinkProps
-	Match      = router.Match
+	Location    = router.Location
+	RouteProps  = router.RouteProps
+	RoutesProps = router.RoutesProps
+	LinkProps   = router.LinkProps
+	Match       = router.Match
 )
 
 var (

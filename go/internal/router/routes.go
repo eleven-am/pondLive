@@ -59,7 +59,8 @@ func Routes(ctx Ctx, props RoutesProps, children ...*dom.StructuredNode) *dom.St
 	loc := controller.GetLocation()
 
 	entries := runtime.UseMemo(ctx, func() []routeEntry {
-		return collectRouteEntries(children)
+		collected := collectRouteEntries(children)
+		return collected
 	}, children)
 
 	trie := runtime.UseMemo(ctx, func() *RouterTrie {
@@ -71,11 +72,17 @@ func Routes(ctx Ctx, props RoutesProps, children ...*dom.StructuredNode) *dom.St
 	}, entries)
 
 	matchResult := runtime.UseMemo(ctx, func() *MatchResult {
-		return trie.Match(loc.Path)
+		result := trie.Match(loc.Path)
+		if result != nil {
+			fmt.Printf("[Routes] Matched path=%q to pattern=%q (outlet=%q)\n", loc.Path, result.Entry.pattern, outlet)
+		} else {
+			fmt.Printf("[Routes] No match for path=%q (outlet=%q)\n", loc.Path, outlet)
+		}
+		return result
 	}, loc.Path, trie)
 
 	if matchResult == nil {
-
+		fmt.Printf("[Routes] Returning empty fragment for outlet=%q (no match)\n", outlet)
 		if outlet == "default" {
 			runtime.UseEffect(ctx, func() runtime.Cleanup {
 				controller.ClearMatch()
@@ -117,7 +124,7 @@ func Routes(ctx Ctx, props RoutesProps, children ...*dom.StructuredNode) *dom.St
 }
 
 // collectRouteEntries scans children nodes for route metadata.
-// Returns a flat list of all route entries found.
+// Returns a flat list of all route entries found, including nested routes.
 func collectRouteEntries(nodes []*dom.StructuredNode) []routeEntry {
 	if len(nodes) == 0 {
 		return nil
@@ -133,6 +140,10 @@ func collectRouteEntries(nodes []*dom.StructuredNode) []routeEntry {
 			if meta, ok := node.Metadata[routeMetadataKey]; ok {
 				entry := meta.(routeEntry)
 				entries = append(entries, entry)
+				if len(entry.children) > 0 {
+					nested := collectRouteEntries(entry.children)
+					entries = append(entries, nested...)
+				}
 				continue
 			}
 		}
