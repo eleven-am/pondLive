@@ -47,8 +47,9 @@ type ComponentSession struct {
 
 	scriptEventSender func(scriptID, event string, data interface{}) error
 
-	// Pending navigation for server-initiated URL updates
-	pendingNav *NavDelta
+	// Pending navigations queue for server-initiated URL updates
+	// Changed from single pendingNav to a queue to preserve multiple navigation calls
+	pendingNavs []*NavDelta
 
 	nextRefID int
 
@@ -713,29 +714,58 @@ type NavDelta struct {
 }
 
 // EnqueueNavigation queues a navigation update to be sent to the client.
+// Multiple navigation calls in the same render are now preserved in a queue
+// instead of overwriting each other.
 func (s *ComponentSession) EnqueueNavigation(href string, replace bool) {
 	if s == nil {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	delta := &NavDelta{}
 	if replace {
-		s.pendingNav = &NavDelta{Replace: href}
+		delta.Replace = href
 	} else {
-		s.pendingNav = &NavDelta{Push: href}
+		delta.Push = href
 	}
+
+	// Add to queue instead of replacing
+	s.pendingNavs = append(s.pendingNavs, delta)
 }
 
-// TakeNavDelta returns and clears the pending navigation delta.
+// TakeNavDelta returns and removes the first pending navigation delta.
+// This maintains backward compatibility while allowing multiple navigations to be processed in order.
+// Returns nil if no navigations are pending.
 func (s *ComponentSession) TakeNavDelta() *NavDelta {
 	if s == nil {
 		return nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	nav := s.pendingNav
-	s.pendingNav = nil
+
+	if len(s.pendingNavs) == 0 {
+		return nil
+	}
+
+	// Return the FIRST navigation (FIFO queue)
+	nav := s.pendingNavs[0]
+	s.pendingNavs = s.pendingNavs[1:]
 	return nav
+}
+
+// TakeNavDeltas returns and clears all pending navigation deltas as a slice.
+// This allows the transport layer to apply navigations in order.
+func (s *ComponentSession) TakeNavDeltas() []*NavDelta {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	navs := s.pendingNavs
+	s.pendingNavs = nil
+	return navs
 }
 
 // IsLive returns true if the session is in websocket mode (transport connected).

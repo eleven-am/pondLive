@@ -42,7 +42,7 @@ func TestRouteMatching(t *testing.T) {
 
 	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
 		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
-			return renderRoutes(rctx, buildTrie(entries))
+			return renderRoutes(rctx, buildTrie(entries), nil)
 		})
 	}
 
@@ -59,7 +59,7 @@ func TestRouteMatching(t *testing.T) {
 
 	appFunc2 := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
 		return ProvideRouterState(ctx, controller2, func(rctx Ctx) *dom.StructuredNode {
-			return renderRoutes(rctx, buildTrie(entries))
+			return renderRoutes(rctx, buildTrie(entries), nil)
 		})
 	}
 
@@ -99,7 +99,7 @@ func TestUseLocationContext(t *testing.T) {
 	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
 		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
 			return LocationCtx.Provide(rctx, initialLoc, func(lctx Ctx) *dom.StructuredNode {
-				return renderRoutes(lctx, buildTrie(entries))
+				return renderRoutes(lctx, buildTrie(entries), nil)
 			})
 		})
 	}
@@ -141,7 +141,7 @@ func TestUseParamsExtractsParams(t *testing.T) {
 
 	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
 		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
-			return renderRoutes(rctx, buildTrie(entries))
+			return renderRoutes(rctx, buildTrie(entries), nil)
 		})
 	}
 
@@ -182,7 +182,7 @@ func TestUseSearchParamReturnsValues(t *testing.T) {
 
 	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
 		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
-			return renderRoutes(rctx, buildTrie(entries))
+			return renderRoutes(rctx, buildTrie(entries), nil)
 		})
 	}
 
@@ -226,7 +226,7 @@ func TestRouteSpecificity(t *testing.T) {
 
 	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
 		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
-			return renderRoutes(rctx, buildTrie(entries))
+			return renderRoutes(rctx, buildTrie(entries), nil)
 		})
 	}
 
@@ -253,7 +253,7 @@ func TestNoRouteMatchReturnsFragment(t *testing.T) {
 
 	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
 		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
-			return renderRoutes(rctx, buildTrie(entries))
+			return renderRoutes(rctx, buildTrie(entries), nil)
 		})
 	}
 
@@ -292,7 +292,7 @@ func TestUseLocationClonesLocation(t *testing.T) {
 	appFunc := func(ctx Ctx, _ struct{}) *dom.StructuredNode {
 		return ProvideRouterState(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
 			return LocationCtx.Provide(rctx, testLoc, func(lctx Ctx) *dom.StructuredNode {
-				return renderRoutes(lctx, buildTrie(entries))
+				return renderRoutes(lctx, buildTrie(entries), nil)
 			})
 		})
 	}

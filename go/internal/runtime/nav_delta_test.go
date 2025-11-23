@@ -9,14 +9,14 @@ func TestEnqueueNavigation_Push(t *testing.T) {
 
 	sess.EnqueueNavigation("/new-path?foo=bar", false)
 
-	if sess.pendingNav == nil {
-		t.Fatal("expected pendingNav to be set")
+	if len(sess.pendingNavs) != 1 {
+		t.Fatalf("expected 1 pending navigation, got %d", len(sess.pendingNavs))
 	}
-	if sess.pendingNav.Push != "/new-path?foo=bar" {
-		t.Errorf("expected Push to be '/new-path?foo=bar', got %q", sess.pendingNav.Push)
+	if sess.pendingNavs[0].Push != "/new-path?foo=bar" {
+		t.Errorf("expected Push to be '/new-path?foo=bar', got %q", sess.pendingNavs[0].Push)
 	}
-	if sess.pendingNav.Replace != "" {
-		t.Errorf("expected Replace to be empty, got %q", sess.pendingNav.Replace)
+	if sess.pendingNavs[0].Replace != "" {
+		t.Errorf("expected Replace to be empty, got %q", sess.pendingNavs[0].Replace)
 	}
 }
 
@@ -25,31 +25,50 @@ func TestEnqueueNavigation_Replace(t *testing.T) {
 
 	sess.EnqueueNavigation("/replaced-path", true)
 
-	if sess.pendingNav == nil {
-		t.Fatal("expected pendingNav to be set")
+	if len(sess.pendingNavs) != 1 {
+		t.Fatalf("expected 1 pending navigation, got %d", len(sess.pendingNavs))
 	}
-	if sess.pendingNav.Replace != "/replaced-path" {
-		t.Errorf("expected Replace to be '/replaced-path', got %q", sess.pendingNav.Replace)
+	if sess.pendingNavs[0].Replace != "/replaced-path" {
+		t.Errorf("expected Replace to be '/replaced-path', got %q", sess.pendingNavs[0].Replace)
 	}
-	if sess.pendingNav.Push != "" {
-		t.Errorf("expected Push to be empty, got %q", sess.pendingNav.Push)
+	if sess.pendingNavs[0].Push != "" {
+		t.Errorf("expected Push to be empty, got %q", sess.pendingNavs[0].Push)
 	}
 }
 
-func TestEnqueueNavigation_OverwritesPrevious(t *testing.T) {
+func TestEnqueueNavigation_QueuesMultiple(t *testing.T) {
 	sess := &ComponentSession{}
 
 	sess.EnqueueNavigation("/first", false)
-	if sess.pendingNav.Push != "/first" {
-		t.Errorf("expected first Push to be '/first', got %q", sess.pendingNav.Push)
+	sess.EnqueueNavigation("/second", true)
+
+	if len(sess.pendingNavs) != 2 {
+		t.Fatalf("expected 2 pending navigations, got %d", len(sess.pendingNavs))
 	}
 
-	sess.EnqueueNavigation("/second", true)
-	if sess.pendingNav.Replace != "/second" {
-		t.Errorf("expected Replace to be '/second', got %q", sess.pendingNav.Replace)
+	if sess.pendingNavs[0].Push != "/first" {
+		t.Errorf("expected first Push to be '/first', got %q", sess.pendingNavs[0].Push)
 	}
-	if sess.pendingNav.Push != "" {
-		t.Errorf("expected Push to be cleared, got %q", sess.pendingNav.Push)
+
+	if sess.pendingNavs[1].Replace != "/second" {
+		t.Errorf("expected second Replace to be '/second', got %q", sess.pendingNavs[1].Replace)
+	}
+
+	// Test FIFO behavior - take one at a time
+	nav1 := sess.TakeNavDelta()
+	if nav1 == nil || nav1.Push != "/first" {
+		t.Errorf("expected first navigation Push='/first'")
+	}
+
+	nav2 := sess.TakeNavDelta()
+	if nav2 == nil || nav2.Replace != "/second" {
+		t.Errorf("expected second navigation Replace='/second'")
+	}
+
+	// Queue should be empty now
+	nav3 := sess.TakeNavDelta()
+	if nav3 != nil {
+		t.Error("expected empty queue after taking all navigations")
 	}
 }
 

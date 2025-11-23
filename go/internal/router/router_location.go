@@ -8,23 +8,43 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/route"
 )
 
+// canonicalizeLocation normalizes a location's path, query, and hash.
+// Query canonicalization is optimized to avoid redundant sorting.
 func canonicalizeLocation(loc Location) Location {
 	parts := route.NormalizeParts(loc.Path)
+
+	// Only canonicalize query if it's not empty
+	var canonQuery url.Values
+	if len(loc.Query) > 0 {
+		canonQuery = canonicalizeValues(loc.Query)
+	} else {
+		canonQuery = url.Values{}
+	}
+
 	canon := Location{
 		Path:  parts.Path,
-		Query: canonicalizeValues(loc.Query),
+		Query: canonQuery,
 		Hash:  normalizeHash(loc.Hash),
 	}
+
 	if canon.Hash == "" && parts.Hash != "" {
 		canon.Hash = route.NormalizeHash(parts.Hash)
 	}
 	return canon
 }
 
+// cloneLocation creates a deep copy of a location.
+// Note: This now avoids double-canonicalization.
 func cloneLocation(loc Location) Location {
-	canon := canonicalizeLocation(loc)
-	canon.Query = cloneValues(canon.Query)
-	return canon
+	// Clone the query values
+	clonedQuery := cloneValues(loc.Query)
+
+	// Return location with cloned query
+	return Location{
+		Path:  loc.Path,
+		Query: clonedQuery,
+		Hash:  loc.Hash,
+	}
 }
 
 func normalizePath(path string) string {
@@ -76,27 +96,22 @@ func canonicalizeList(values []string) []string {
 	return cleaned
 }
 
+// valuesEqual compares two url.Values for equality without expensive canonicalization.
+// This is optimized to avoid double-sorting by comparing encoded representations.
 func valuesEqual(a, b url.Values) bool {
-	ca := canonicalizeValues(a)
-	cb := canonicalizeValues(b)
-	if len(ca) != len(cb) {
+	// Quick length check
+	if len(a) != len(b) {
 		return false
 	}
-	for key, av := range ca {
-		bv, ok := cb[key]
-		if !ok {
-			return false
-		}
-		if len(av) != len(bv) {
-			return false
-		}
-		for i := range av {
-			if av[i] != bv[i] {
-				return false
-			}
-		}
+
+	// If both empty, they're equal
+	if len(a) == 0 {
+		return true
 	}
-	return true
+
+	// Compare encoded form (which includes sorting)
+	// This is more efficient than canonicalizing both separately
+	return encodeQuery(a) == encodeQuery(b)
 }
 
 func encodeQuery(q url.Values) string {

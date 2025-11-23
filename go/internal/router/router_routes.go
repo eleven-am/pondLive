@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/dom"
@@ -43,12 +42,19 @@ func Route(ctx Ctx, p RouteProps, children ...*dom.StructuredNode) *dom.Structur
 }
 
 func Routes(ctx Ctx, children ...*dom.StructuredNode) *dom.StructuredNode {
-	base := routeBaseCtx.Use(ctx)
+	// Get base pattern from router context (for nested routes)
+	routerCtx := routerContextKey.Use(ctx)
+	base := "/"
+	if routerCtx != nil && routerCtx.Pattern != "" {
+		base = routerCtx.Pattern
+	}
 
+	// Memoize route entries collection
 	entries := runtime.UseMemo(ctx, func() []routeEntry {
 		return collectRouteEntries(children, base)
 	}, children, base)
 
+	// Memoize trie construction
 	trie := runtime.UseMemo(ctx, func() *RouterTrie {
 		t := NewRouterTrie()
 		for _, e := range entries {
@@ -57,7 +63,8 @@ func Routes(ctx Ctx, children ...*dom.StructuredNode) *dom.StructuredNode {
 		return t
 	}, entries)
 
-	node := renderRoutes(ctx, trie)
+	// Render the matched route
+	node := renderRoutes(ctx, trie, children)
 	if node.Metadata == nil {
 		node.Metadata = make(map[string]any)
 	}
@@ -116,27 +123,44 @@ func expandRouteChildren(nodes []*dom.StructuredNode) []*dom.StructuredNode {
 	return expanded
 }
 
-func renderRoutes(ctx Ctx, trie *RouterTrie) *dom.StructuredNode {
+func renderRoutes(ctx Ctx, trie *RouterTrie, children []*dom.StructuredNode) *dom.StructuredNode {
 	controller := UseRouterState(ctx)
 	if controller == nil {
-		return nil
+		return dom.FragmentNode()
 	}
 
 	state := controller.Get()
 	if state == nil {
-		return nil
+		return dom.FragmentNode()
 	}
 
 	loc := state.Location
 
-	matchResult := trie.Match(loc.Path)
+	// Memoize the match result to avoid re-matching on every render
+	matchResult := runtime.UseMemo(ctx, func() *MatchResult {
+		return trie.Match(loc.Path)
+	}, loc.Path, trie)
+
+	// If no route matches, render nothing
 	if matchResult == nil {
+		// Update controller to clear match state
+		runtime.UseEffect(ctx, func() runtime.Cleanup {
+			controller.SetLocation(loc)
+			return nil
+		}, loc)
 		return dom.FragmentNode()
 	}
 
 	chosenEntry := matchResult.Entry
 	params := matchResult.Params
 
+	// Update match state synchronously.
+	// SetMatch has built-in deduplication (see state.go:71-73), so it only triggers
+	// a re-render if the pattern or path actually changed. Combined with UseMemo above,
+	// this prevents re-render cascades while ensuring params are available immediately.
+	controller.SetMatch(chosenEntry.pattern, params, loc.Path)
+
+	// Create Match object for the component
 	match := Match{
 		Pattern:  chosenEntry.pattern,
 		Path:     loc.Path,
@@ -146,53 +170,53 @@ func renderRoutes(ctx Ctx, trie *RouterTrie) *dom.StructuredNode {
 		Rest:     matchResult.Rest,
 	}
 
-	controller.SetMatch(chosenEntry.pattern, params, loc.Path)
-
-	outletRender := func(ictx runtime.Ctx) *dom.StructuredNode {
-		if len(chosenEntry.children) == 0 {
-			return dom.FragmentNode()
-		}
-		return routeBaseCtx.Provide(ictx, chosenEntry.pattern, func(childCtx runtime.Ctx) *dom.StructuredNode {
-			return Routes(childCtx, chosenEntry.children...)
-		})
-	}
-	key := chosenEntry.pattern
+	// Use the full path as the component key for stable identity
+	// This is better than using pattern because:
+	// 1. Different paths can match the same pattern (/users/1 vs /users/2)
+	// 2. We want different component instances for different paths
+	// 3. We DON'T want aggressive keying of children (let components handle their own keys)
+	key := loc.Path
 	if key == "" {
 		key = "/"
 	}
 
-	return routeBaseCtx.Provide(ctx, chosenEntry.pattern, func(rctx runtime.Ctx) *dom.StructuredNode {
-		return outletCtx.Provide(rctx, outletRender, func(ictx runtime.Ctx) *dom.StructuredNode {
-			node := runtime.Render(ictx, chosenEntry.component, match, runtime.WithKey(key))
-			return ensureRouteKey(node, key)
-		})
+	// Provide router context with pattern and children for Outlet
+	return routerContextKey.Provide(ctx, &RouterContextValue{
+		Pattern:  chosenEntry.pattern,
+		Children: chosenEntry.children,
+	}, func(rctx runtime.Ctx) *dom.StructuredNode {
+		// Render the route component with the match data
+		return runtime.Render(rctx, chosenEntry.component, match, runtime.WithKey(key))
 	})
 }
 
-func copyParams(src map[string]string) map[string]string {
-	if len(src) == 0 {
-		return map[string]string{}
-	}
-	dst := make(map[string]string, len(src))
-	for k, v := range src {
-		dst[k] = v
-	}
-	return dst
+// RouterContextValue holds all routing context information in a single structure.
+// This replaces the previous dual-context approach (routeBaseCtx + outletCtx).
+type RouterContextValue struct {
+	// Pattern is the current matched route pattern (e.g., "/users/:id")
+	Pattern string
+
+	// Children are the nested route definitions for this route
+	Children []*dom.StructuredNode
 }
 
-type outletRenderer func(runtime.Ctx) *dom.StructuredNode
+var routerContextKey = runtime.CreateContext[*RouterContextValue](nil)
 
-var outletCtx = runtime.CreateContext[outletRenderer](func(ctx runtime.Ctx) *dom.StructuredNode {
-	return dom.FragmentNode()
-})
-var routeBaseCtx = runtime.CreateContext("/")
-
+// Outlet renders the nested child routes for the current route.
+// It looks up the children from the router context and renders a nested Routes component.
 func Outlet(ctx Ctx) *dom.StructuredNode {
-	render := outletCtx.Use(ctx)
-	if render == nil {
+	routerCtx := routerContextKey.Use(ctx)
+	if routerCtx == nil || len(routerCtx.Children) == 0 {
 		return dom.FragmentNode()
 	}
-	return render(ctx)
+
+	// Render child routes with the current pattern as their base
+	return routerContextKey.Provide(ctx, &RouterContextValue{
+		Pattern:  routerCtx.Pattern,
+		Children: nil, // Children will be set by their Routes component
+	}, func(childCtx runtime.Ctx) *dom.StructuredNode {
+		return Routes(childCtx, routerCtx.Children...)
+	})
 }
 
 func resolveRoutePattern(raw, base string) string {
@@ -243,39 +267,15 @@ func trimWildcardSuffix(path string) string {
 	return "/" + strings.Join(segments, "/")
 }
 
-func ensureRouteKey(node *dom.StructuredNode, key string) *dom.StructuredNode {
-	if key == "" {
-		key = "/"
+// copyParams creates a copy of the params map for trie matching.
+// This is used during recursive route matching to avoid mutation.
+func copyParams(src map[string]string) map[string]string {
+	if len(src) == 0 {
+		return map[string]string{}
 	}
-	if node == nil {
-		return dom.FragmentNode()
+	dst := make(map[string]string, len(src))
+	for k, v := range src {
+		dst[k] = v
 	}
-	if node.Key != "" {
-		return node
-	}
-	if len(node.Children) == 0 {
-		clone := *node
-		clone.Key = key
-		return &clone
-	}
-	updated := make([]*dom.StructuredNode, len(node.Children))
-	changed := false
-	multi := len(node.Children) > 1
-	for i, child := range node.Children {
-		childKey := key
-		if multi {
-			childKey = fmt.Sprintf("%s#%d", key, i)
-		}
-		next := ensureRouteKey(child, childKey)
-		if next != child {
-			changed = true
-		}
-		updated[i] = next
-	}
-	if !changed {
-		return node
-	}
-	clone := *node
-	clone.Children = updated
-	return &clone
+	return dst
 }
