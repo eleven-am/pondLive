@@ -34,7 +34,6 @@ func TestTabsLikeComponentSwitchProducesPatches(t *testing.T) {
 			key = "tab-content-signup"
 		}
 
-		// Wrapper component rendered with a stable key, as in the tabs implementation.
 		wrapper := func(wrapperCtx Ctx, _ struct{}) *dom.StructuredNode {
 			return dom.ElementNode("div").
 				WithAttr("data-slot", "tabs-content").
@@ -47,13 +46,11 @@ func TestTabsLikeComponentSwitchProducesPatches(t *testing.T) {
 	sess := NewSession(tabs, struct{}{})
 	sess.SetPatchSender(func(p []dom2diff.Patch) error { return nil })
 
-	// Initial render
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("initial flush failed: %v", err)
 	}
 	prev := sess.Tree().Flatten()
 
-	// Switch active tab
 	setActive("signup")
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush after switch failed: %v", err)
@@ -65,7 +62,6 @@ func TestTabsLikeComponentSwitchProducesPatches(t *testing.T) {
 		t.Fatalf("expected patches when switching tabs; prev=%q next=%q", prev.ToHTML(), next.ToHTML())
 	}
 
-	// Basic content sanity: new tree should contain signup text
 	if next.ToHTML() == prev.ToHTML() || !containsText(next, "signup-content") {
 		t.Fatalf("expected signup content in next tree; prev=%q next=%q", prev.ToHTML(), next.ToHTML())
 	}
@@ -75,7 +71,7 @@ func TestTabsLikeComponentSwitchProducesPatches(t *testing.T) {
 // and the active content is rendered via Render(ctx, wrapper, ...) where wrapper renders
 // tc.Content(wrapperCtx). This reproduces the component-boundary flattening path.
 func TestTabsLikeWithComponentChildren(t *testing.T) {
-	// Child content as ui.Component (adds a component boundary)
+
 	signin := Component[[]dom.Item](func(ctx Ctx, _ []dom.Item) *dom.StructuredNode {
 		return dom.ElementNode("div").WithChildren(dom.TextNode("signin-content"))
 	})
@@ -100,7 +96,6 @@ func TestTabsLikeWithComponentChildren(t *testing.T) {
 			key = "tab-content-signup"
 		}
 
-		// Wrapper component rendered with a key, mimicking common.Tabs logic.
 		wrapper := func(wrapperCtx Ctx, _ struct{}) *dom.StructuredNode {
 			return dom.ElementNode("div").
 				WithAttr("data-slot", "tabs-content").
@@ -113,13 +108,11 @@ func TestTabsLikeWithComponentChildren(t *testing.T) {
 	sess := NewSession(tabs, struct{}{})
 	sess.SetPatchSender(func(p []dom2diff.Patch) error { return nil })
 
-	// Initial render
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("initial flush failed: %v", err)
 	}
 	prev := sess.Tree().Flatten()
 
-	// Switch active tab
 	setActive("signup")
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush after switch failed: %v", err)

@@ -195,20 +195,22 @@ func UseUpload(ctx Ctx) UploadHandle {
 				http.Error(w, "Failed to stage file", http.StatusInternalServerError)
 				return tmpErr
 			}
+			tmpPath := tmp.Name()
+
+			defer func() {
+				_ = tmp.Close()
+				_ = os.Remove(tmpPath)
+			}()
 
 			var written int64
 			if handle.config != nil && handle.config.MaxSize > 0 {
 				written, err = io.Copy(tmp, io.LimitReader(part, handle.config.MaxSize+1))
 				if err != nil && err != io.EOF {
-					_ = tmp.Close()
-					_ = os.Remove(tmp.Name())
 					_ = part.Close()
 					http.Error(w, "Failed to read file", http.StatusBadRequest)
 					return err
 				}
 				if written > handle.config.MaxSize {
-					_ = tmp.Close()
-					_ = os.Remove(tmp.Name())
 					_ = part.Close()
 					http.Error(w, "File exceeds maximum size", http.StatusRequestEntityTooLarge)
 					return nil
@@ -216,8 +218,6 @@ func UseUpload(ctx Ctx) UploadHandle {
 			} else {
 				written, err = io.Copy(tmp, part)
 				if err != nil && err != io.EOF {
-					_ = tmp.Close()
-					_ = os.Remove(tmp.Name())
 					_ = part.Close()
 					http.Error(w, "Failed to read file", http.StatusBadRequest)
 					return err
@@ -227,8 +227,6 @@ func UseUpload(ctx Ctx) UploadHandle {
 			header.Size = written
 
 			if _, seekErr := tmp.Seek(0, io.SeekStart); seekErr != nil {
-				_ = tmp.Close()
-				_ = os.Remove(tmp.Name())
 				_ = part.Close()
 				http.Error(w, "Failed to rewind file", http.StatusInternalServerError)
 				return seekErr
@@ -238,20 +236,12 @@ func UseUpload(ctx Ctx) UploadHandle {
 
 			if handle.onComplete != nil {
 				if err := handle.onComplete(fileReader, header); err != nil {
-					if tmpCloser, ok := fileReader.(io.Closer); ok {
-						_ = tmpCloser.Close()
-					}
-					_ = os.Remove(tmp.Name())
 					_ = part.Close()
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return err
 				}
 			}
 			processed = true
-			if tmpCloser, ok := fileReader.(io.Closer); ok {
-				_ = tmpCloser.Close()
-			}
-			_ = os.Remove(tmp.Name())
 			_ = part.Close()
 		}
 

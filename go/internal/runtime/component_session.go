@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 
@@ -11,6 +12,7 @@ import (
 )
 
 const maxEffectsPerFlush = 64
+const maxPendingNavigations = 100 // Prevent memory leak from rapid navigation calls
 
 // ComponentSession drives component rendering, diffing, and event handling.
 type ComponentSession struct {
@@ -32,7 +34,6 @@ type ComponentSession struct {
 
 	pendingEffects  []effectTask
 	pendingCleanups []cleanupTask
-	pendingPubsub   []pubsubTask
 
 	pubsubSubs     map[string]pubsubSubscription
 	pubsubProvider PubsubProvider
@@ -158,8 +159,9 @@ func (s *ComponentSession) Tree() *dom.StructuredNode {
 	return s.prevTree
 }
 
-// cleanupHTTPHandlers removes all registered HTTP handlers.
-func (s *ComponentSession) cleanupHTTPHandlers() {
+// CleanupAllHandlers removes all registered HTTP handlers.
+// Use this during session teardown.
+func (s *ComponentSession) CleanupAllHandlers() {
 	if s == nil {
 		return
 	}
@@ -168,11 +170,6 @@ func (s *ComponentSession) cleanupHTTPHandlers() {
 		delete(s.httpHandlers, id)
 	}
 	s.httpHandlerMu.Unlock()
-}
-
-// CleanupAllHandlers is the exported cleanup for use by session teardown.
-func (s *ComponentSession) CleanupAllHandlers() {
-	s.cleanupHTTPHandlers()
 }
 
 // Flush renders dirty components, diffs the tree, and sends patches.
@@ -202,6 +199,8 @@ func (s *ComponentSession) Flush() error {
 
 		s.detectAndCleanupUnmounted()
 
+		s.pruneUnreferencedChildren(s.root)
+
 		nextTree := s.root.node
 
 		dom.AssignHandlerKeys(nextTree, s.root.id)
@@ -217,9 +216,7 @@ func (s *ComponentSession) Flush() error {
 		sendPatchFn := s.sendPatch
 		effects := s.takeEffectsBatchLocked()
 		cleanups := append([]cleanupTask(nil), s.pendingCleanups...)
-		pubsubs := append([]pubsubTask(nil), s.pendingPubsub...)
 		s.pendingCleanups = nil
-		s.pendingPubsub = nil
 		s.mu.Unlock()
 
 		s.handlersMu.Lock()
@@ -232,13 +229,12 @@ func (s *ComponentSession) Flush() error {
 			}
 		}
 
-		snapshot := cloneTree(nextTree)
+		snapshot := CloneTree(nextTree)
 		s.mu.Lock()
 		s.prevTree = snapshot
 		s.mu.Unlock()
 
 		runCleanups(cleanups)
-		s.runPubsubTasks(pubsubs)
 		runEffects(effects)
 
 		s.mu.Lock()
@@ -254,7 +250,7 @@ func (s *ComponentSession) Flush() error {
 		}
 
 		if s.root == nil {
-			s.cleanupHTTPHandlers()
+			s.CleanupAllHandlers()
 		}
 
 		return nil
@@ -346,6 +342,19 @@ func (s *ComponentSession) removeHandlersForComponent(comp *component) {
 	s.httpHandlerMu.Unlock()
 }
 
+func (s *ComponentSession) removeScriptsForComponent(comp *component) {
+	if s == nil || comp == nil {
+		return
+	}
+	s.scriptMu.Lock()
+	for id, slot := range s.scripts {
+		if slot != nil && slot.component == comp {
+			delete(s.scripts, id)
+		}
+	}
+	s.scriptMu.Unlock()
+}
+
 func (s *ComponentSession) clearRenderedFlags() {
 	for comp := range s.mountedComponents {
 		comp.renderedThisFlush = false
@@ -386,20 +395,17 @@ func (s *ComponentSession) detectAndCleanupUnmounted() {
 	s.mountedComponents = newMounted
 }
 
-// collectRenderedComponents recursively collects all components that were rendered this flush.
+// collectRenderedComponents recursively collects all components in the actual component tree.
+// This includes both components that rendered this flush and memoized components that skipped rendering.
 func (s *ComponentSession) collectRenderedComponents(comp *component, rendered map[*component]struct{}) {
 	if comp == nil {
 		return
 	}
 
-	if comp.renderedThisFlush {
-		rendered[comp] = struct{}{}
+	rendered[comp] = struct{}{}
 
-		for _, child := range comp.children {
-			if child.renderedThisFlush {
-				s.collectRenderedComponents(child, rendered)
-			}
-		}
+	for _, child := range comp.children {
+		s.collectRenderedComponents(child, rendered)
 	}
 }
 
@@ -419,20 +425,79 @@ func (s *ComponentSession) runComponentCleanups(comp *component) {
 	}
 }
 
-func (s *ComponentSession) runPubsubTasks(tasks []pubsubTask) {
-
-}
-
-// cleanupAllHandlers clears all registered HTTP handlers. Call on session close.
-func (s *ComponentSession) cleanupAllHandlers() {
-	if s == nil {
+// pruneUnreferencedChildren removes children that were not referenced during the last render.
+// This prevents memory leaks from components that are no longer in the tree.
+func (s *ComponentSession) pruneUnreferencedChildren(comp *component) {
+	if comp == nil {
 		return
 	}
-	s.httpHandlerMu.Lock()
-	for id := range s.httpHandlers {
-		delete(s.httpHandlers, id)
+
+	comp.mu.Lock()
+	var toRemove []string
+	var toRecurse []*component
+
+	for childID := range comp.children {
+		if comp.referencedChildren == nil || !comp.referencedChildren[childID] {
+			toRemove = append(toRemove, childID)
+		}
 	}
-	s.httpHandlerMu.Unlock()
+
+	for childID := range comp.referencedChildren {
+		if child, exists := comp.children[childID]; exists {
+			toRecurse = append(toRecurse, child)
+		}
+	}
+
+	for _, childID := range toRemove {
+		child := comp.children[childID]
+		delete(comp.children, childID)
+
+		if child != nil {
+			s.removeHandlersForComponent(child)
+			s.removeScriptsForComponent(child)
+			s.runComponentCleanups(child)
+
+			s.pruneComponentDescendants(child)
+		}
+	}
+	comp.mu.Unlock()
+
+	if len(toRemove) > 0 {
+		s.mu.Lock()
+		for _, childID := range toRemove {
+			delete(s.components, childID)
+		}
+		s.mu.Unlock()
+	}
+
+	for _, child := range toRecurse {
+		s.pruneUnreferencedChildren(child)
+	}
+}
+
+// pruneComponentDescendants recursively removes all descendants of a component.
+func (s *ComponentSession) pruneComponentDescendants(comp *component) {
+	if comp == nil {
+		return
+	}
+
+	comp.mu.Lock()
+	children := make([]*component, 0, len(comp.children))
+	for _, child := range comp.children {
+		children = append(children, child)
+	}
+	comp.mu.Unlock()
+
+	for _, child := range children {
+		s.removeHandlersForComponent(child)
+		s.removeScriptsForComponent(child)
+		s.runComponentCleanups(child)
+		s.pruneComponentDescendants(child)
+
+		s.mu.Lock()
+		delete(s.components, child.id)
+		s.mu.Unlock()
+	}
 }
 
 func (s *ComponentSession) takeEffectsBatchLocked() []effectTask {
@@ -440,8 +505,10 @@ func (s *ComponentSession) takeEffectsBatchLocked() []effectTask {
 		return nil
 	}
 	limit := len(s.pendingEffects)
+	hasMore := false
 	if limit > maxEffectsPerFlush {
 		limit = maxEffectsPerFlush
+		hasMore = true
 	}
 	batch := make([]effectTask, limit)
 	copy(batch, s.pendingEffects[:limit])
@@ -450,6 +517,14 @@ func (s *ComponentSession) takeEffectsBatchLocked() []effectTask {
 	} else {
 		s.pendingEffects = nil
 	}
+
+	if hasMore && s.autoFlush != nil {
+		go func() {
+
+			s.autoFlush()
+		}()
+	}
+
 	return batch
 }
 
@@ -542,10 +617,15 @@ func (s *ComponentSession) allocateElementRefID() string {
 func (s *ComponentSession) withRecovery(phase string, fn func() error) error {
 	defer func() {
 		if r := recover(); r != nil {
+			stack := string(debug.Stack())
 			if s.reporter != nil {
 				s.reporter.ReportDiagnostic(Diagnostic{
-					Phase:   phase,
-					Message: fmt.Sprintf("%v", r),
+					Phase:      phase,
+					Message:    fmt.Sprintf("panic: %v", r),
+					StackTrace: stack,
+					Metadata: map[string]any{
+						"panic_value": r,
+					},
 				})
 			}
 		}
@@ -614,7 +694,6 @@ func (s *ComponentSession) Reset() bool {
 
 	s.pendingEffects = nil
 	s.pendingCleanups = nil
-	s.pendingPubsub = nil
 
 	s.markDirtyLocked(s.root)
 
@@ -695,11 +774,6 @@ type cleanupTask struct {
 	run func()
 }
 
-type pubsubTask struct {
-	run func()
-	// ... existing fields ...
-}
-
 type pubsubSubscription struct {
 	token    string
 	topic    string
@@ -715,13 +789,30 @@ type NavDelta struct {
 
 // EnqueueNavigation queues a navigation update to be sent to the client.
 // Multiple navigation calls in the same render are now preserved in a queue
-// instead of overwriting each other.
+// instead of overwriting each other. Queue is bounded to prevent memory leaks.
 func (s *ComponentSession) EnqueueNavigation(href string, replace bool) {
 	if s == nil {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if len(s.pendingNavs) >= maxPendingNavigations {
+
+		dropped := s.pendingNavs[0]
+		s.pendingNavs = s.pendingNavs[1:]
+
+		if s.reporter != nil {
+			s.reporter.ReportDiagnostic(Diagnostic{
+				Phase:   "navigation",
+				Message: fmt.Sprintf("navigation queue full (%d), dropping oldest entry", maxPendingNavigations),
+				Metadata: map[string]any{
+					"dropped": dropped,
+					"limit":   maxPendingNavigations,
+				},
+			})
+		}
+	}
 
 	delta := &NavDelta{}
 	if replace {
@@ -730,7 +821,6 @@ func (s *ComponentSession) EnqueueNavigation(href string, replace bool) {
 		delta.Push = href
 	}
 
-	// Add to queue instead of replacing
 	s.pendingNavs = append(s.pendingNavs, delta)
 }
 
@@ -748,7 +838,6 @@ func (s *ComponentSession) TakeNavDelta() *NavDelta {
 		return nil
 	}
 
-	// Return the FIRST navigation (FIFO queue)
 	nav := s.pendingNavs[0]
 	s.pendingNavs = s.pendingNavs[1:]
 	return nav

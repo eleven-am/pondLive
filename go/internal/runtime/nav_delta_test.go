@@ -54,7 +54,6 @@ func TestEnqueueNavigation_QueuesMultiple(t *testing.T) {
 		t.Errorf("expected second Replace to be '/second', got %q", sess.pendingNavs[1].Replace)
 	}
 
-	// Test FIFO behavior - take one at a time
 	nav1 := sess.TakeNavDelta()
 	if nav1 == nil || nav1.Push != "/first" {
 		t.Errorf("expected first navigation Push='/first'")
@@ -65,7 +64,6 @@ func TestEnqueueNavigation_QueuesMultiple(t *testing.T) {
 		t.Errorf("expected second navigation Replace='/second'")
 	}
 
-	// Queue should be empty now
 	nav3 := sess.TakeNavDelta()
 	if nav3 != nil {
 		t.Error("expected empty queue after taking all navigations")

@@ -15,6 +15,7 @@ type contextID uintptr
 type Context[T any] struct {
 	id           contextID
 	defaultValue T
+	equal        func(a, b T) bool
 }
 
 // CreateContext creates a new context with a default value.
@@ -28,6 +29,14 @@ func CreateContext[T any](defaultValue T) *Context[T] {
 	return ctx
 }
 
+// WithEqual sets a custom equality function for context value comparison.
+// Use this when your context contains functions, maps, or other uncomparable values.
+// If not set, reflect.DeepEqual is used (which fails for functions/channels).
+func (c *Context[T]) WithEqual(eq func(a, b T) bool) *Context[T] {
+	c.equal = eq
+	return c
+}
+
 // Provide renders children with this context value available.
 // The value is provided to all descendants until another provider overrides it.
 // Creates a component boundary to scope the provider value.
@@ -39,6 +48,7 @@ func (c *Context[T]) Provide(ctx Ctx, value T, children func(Ctx) *dom.Structure
 	type providerProps struct {
 		contextID contextID
 		value     any
+		equal     func(a, b any) bool
 		children  func(Ctx) *dom.StructuredNode
 	}
 
@@ -47,11 +57,35 @@ func (c *Context[T]) Provide(ctx Ctx, value T, children func(Ctx) *dom.Structure
 			pctx.comp.providers = make(map[contextID]any)
 		}
 		prev, ok := pctx.comp.providers[props.contextID]
-		if !ok || !reflect.DeepEqual(prev, props.value) {
+
+		changed := !ok
+		if !changed {
+			if props.equal != nil {
+				changed = !props.equal(prev, props.value)
+			} else {
+
+				changed = !reflect.DeepEqual(prev, props.value)
+			}
+		}
+
+		if changed {
 			pctx.comp.notifyContextChange()
 		}
 		pctx.comp.providers[props.contextID] = props.value
 		return props.children(pctx)
+	}
+
+	var equalAny func(a, b any) bool
+	if c.equal != nil {
+		equalAny = func(a, b any) bool {
+			aTyped, aOk := a.(T)
+			bTyped, bOk := b.(T)
+			if !aOk || !bOk {
+
+				panic(fmt.Sprintf("runtime2: Context value type mismatch (expected %T, got a=%T, b=%T)", *new(T), a, b))
+			}
+			return c.equal(aTyped, bTyped)
+		}
 	}
 
 	seq := ctx.comp.providerSeq
@@ -61,6 +95,7 @@ func (c *Context[T]) Provide(ctx Ctx, value T, children func(Ctx) *dom.Structure
 	return Render(ctx, provider, providerProps{
 		contextID: c.id,
 		value:     value,
+		equal:     equalAny,
 		children:  children,
 	}, WithKey(key))
 }

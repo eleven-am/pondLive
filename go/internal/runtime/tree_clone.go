@@ -2,7 +2,9 @@ package runtime
 
 import "github.com/eleven-am/pondlive/go/internal/dom"
 
-func cloneTree(node *dom.StructuredNode) *dom.StructuredNode {
+// CloneTree creates a deep copy of a DOM node and all its children.
+// This prevents shared node pointers that could confuse diffing/hydration.
+func CloneTree(node *dom.StructuredNode) *dom.StructuredNode {
 	if node == nil {
 		return nil
 	}
@@ -21,7 +23,7 @@ func cloneTree(node *dom.StructuredNode) *dom.StructuredNode {
 	if len(node.Children) > 0 {
 		clone.Children = make([]*dom.StructuredNode, len(node.Children))
 		for i, child := range node.Children {
-			clone.Children[i] = cloneTree(child)
+			clone.Children[i] = CloneTree(child)
 		}
 	}
 

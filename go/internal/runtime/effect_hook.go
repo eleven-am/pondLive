@@ -10,6 +10,7 @@ type effectCell struct {
 }
 
 // UseEffect schedules side effects after the next flush and handles cleanup when deps change or unmount.
+// Dependencies are compared using smart equality that handles functions, channels, and maps.
 func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
 	if ctx.frame == nil {
 		panic("runtime2: UseEffect called outside render")
@@ -43,7 +44,6 @@ func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
 		}
 		cell.deps = cloneDeps(deps)
 	} else if !cell.hasRun {
-
 		if ctx.sess != nil {
 			ctx.sess.enqueueEffect(ctx.comp, idx, setup)
 		}

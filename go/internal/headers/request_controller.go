@@ -16,6 +16,12 @@ type RequestController struct {
 	initialQuery   url.Values
 	initialHash    string
 
+	// Current location state (for navigation tracking)
+	currentPath     string
+	currentQuery    url.Values
+	currentHash     string
+	locationMutated bool // true if current location differs from initial
+
 	// Response state
 	responseHeaders http.Header
 	statusCode      int
@@ -161,6 +167,53 @@ func (c *RequestController) GetInitialLocation() (path string, query url.Values,
 		queryCopy[k] = append([]string(nil), v...)
 	}
 	return c.initialPath, queryCopy, c.initialHash
+}
+
+// GetCurrentLocation returns the current location.
+// If the location hasn't been mutated (navigation hasn't occurred),
+// returns the initial location. Otherwise returns the current location.
+// Returns (path, query, hash).
+func (c *RequestController) GetCurrentLocation() (path string, query url.Values, hash string) {
+	if c == nil {
+		return "", nil, ""
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if !c.locationMutated {
+		queryCopy := make(url.Values)
+		for k, v := range c.initialQuery {
+			queryCopy[k] = append([]string(nil), v...)
+		}
+		return c.initialPath, queryCopy, c.initialHash
+	}
+
+	queryCopy := make(url.Values)
+	for k, v := range c.currentQuery {
+		queryCopy[k] = append([]string(nil), v...)
+	}
+	return c.currentPath, queryCopy, c.currentHash
+}
+
+// SetCurrentLocation updates the current location.
+// This marks the location as mutated, meaning subsequent GetCurrentLocation calls
+// will return this location instead of the initial location.
+// Thread-safe: blocks until the location is fully updated.
+func (c *RequestController) SetCurrentLocation(path string, query url.Values, hash string) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.currentPath = path
+
+	c.currentQuery = make(url.Values)
+	for k, v := range query {
+		c.currentQuery[k] = append([]string(nil), v...)
+	}
+	c.currentHash = hash
+	c.locationMutated = true
 }
 
 // UpdateCookie optimistically updates a cookie in the request headers.

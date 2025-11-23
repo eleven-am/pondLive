@@ -148,7 +148,7 @@ func TestUseMemo(t *testing.T) {
 		result := UseMemo(ctx, func() int {
 			computeCount++
 			return dep() * 2
-		}, dep())
+		}, []any{dep()})
 
 		return &dom.StructuredNode{
 			Tag:  "div",

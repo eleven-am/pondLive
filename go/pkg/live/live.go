@@ -7,6 +7,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/session"
+	"github.com/eleven-am/pondlive/go/internal/slot"
 	h "github.com/eleven-am/pondlive/go/pkg/live/html"
 )
 
@@ -38,6 +39,8 @@ type (
 	UploadEvent                       = runtime.UploadEvent
 	HeadersHandle                     = headers.Handle
 	CookieOptions                     = headers.CookieOptions
+	SlotContext                       = slot.SlotContext
+	ScopedSlotContext[T any]          = slot.ScopedSlotContext[T]
 )
 
 // Component wraps a component function that accepts children as a slice.
@@ -86,51 +89,25 @@ func Render[P any](ctx Ctx, fn RuntimeComponent[P], props P, opts ...RenderOptio
 func WithKey(key string) RenderOption { return runtime.WithKey(key) }
 
 // UseState creates reactive state. Returns getter and setter; setter schedules a render.
-//
-// Example:
-//
-//	count, setCount := UseState(ctx, 0)
-//	return h.Button(h.OnClick(func() h.Updates {
-//	    setCount(count() + 1)
-//	    return nil
-//	}), h.Text(fmt.Sprintf("Count: %d", count())))
+// Example: count, setCount := UseState(ctx, 0)
 func UseState[T any](ctx Ctx, initial T, opts ...StateOpt[T]) (func() T, func(T)) {
 	return runtime.UseState(ctx, initial, opts...)
 }
 
 // UseMemo memoizes a computation until dependencies change.
-//
-// Example:
-//
-//	filtered := UseMemo(ctx, func() []Product {
-//	    return filterProducts(products(), query())
-//	}, products(), query())
+// Example: filtered := UseMemo(ctx, func() []Product { return filter(products()) }, products())
 func UseMemo[T any](ctx Ctx, compute func() T, deps ...any) T {
 	return runtime.UseMemo(ctx, compute, deps...)
 }
 
 // UseEffect runs setup after render, returns optional cleanup.
-//
-// Example:
-//
-//	UseEffect(ctx, func() Cleanup {
-//	    ticker := time.NewTicker(time.Second)
-//	    go func() { for range ticker.C { setCount(count() + 1) } }()
-//	    return func() { ticker.Stop() }
-//	})
+// Example: UseEffect(ctx, func() Cleanup { ticker := time.NewTicker(1*time.Second); return ticker.Stop })
 func UseEffect(ctx Ctx, setup func() Cleanup, deps ...any) {
 	runtime.UseEffect(ctx, setup, deps...)
 }
 
 // UseRef returns mutable state that persists across renders without triggering rerenders.
-//
-// Example:
-//
-//	prevValue := UseRef(ctx, 0)
-//	UseEffect(ctx, func() Cleanup {
-//	    prevValue.Cur = value()
-//	    return nil
-//	}, value())
+// Example: prevValue := UseRef(ctx, 0); prevValue.Cur = newValue
 func UseRef[T any](ctx Ctx, zero T) *Ref[T] {
 	return runtime.UseRef(ctx, zero)
 }
@@ -140,25 +117,14 @@ type hookable[R any] interface {
 }
 
 // UseElement returns an HTML element ref for attaching events and calling DOM methods.
-//
-// Example:
-//
-//	buttonRef := UseElement[*h.ButtonRef](ctx)
-//	buttonRef.OnClick(func(evt h.ClickEvent) h.Updates { return nil })
-//	return h.Button(h.Attach(buttonRef), h.Text("Click me"))
+// Example: btnRef := UseElement[*h.ButtonRef](ctx); return h.Button(h.Attach(btnRef))
 func UseElement[R hookable[R]](ctx Ctx) R {
 	var zero R
 	return zero.HookBuild(ctx)
 }
 
 // UseStream renders and manages a keyed list with mutation helpers.
-//
-// Example:
-//
-//	node, handle := UseStream(ctx, func(item StreamItem[Todo]) h.Node {
-//	    return h.Li(h.Text(item.Value.Text))
-//	})
-//	handle.Append(StreamItem[Todo]{Key: "1", Value: Todo{Text: "Task"}})
+// Example: node, handle := UseStream(ctx, func(item StreamItem[Todo]) h.Node { return h.Li(...) })
 func UseStream[T any](ctx Ctx, renderRow func(StreamItem[T]) h.Node, initial ...StreamItem[T]) (h.Node, StreamHandle[T]) {
 	return runtime.UseStream(ctx, renderRow, initial...)
 }
@@ -174,51 +140,25 @@ func NewContext[T any](def T) *Context[T] {
 }
 
 // UseStyles parses CSS and returns scoped class names.
-//
-// Example:
-//
-//	styles := UseStyles(ctx, `.card { padding: 16px; }`)
-//	return h.Div(styles.StyleTag(), h.Div(h.Class(styles.Class("card"))))
+// Example: styles := UseStyles(ctx, `.card { padding: 16px; }`); return h.Div(h.Class(styles.Class("card")))
 func UseStyles(ctx Ctx, css string) *Styles {
 	return runtime.UseStyles(ctx, css)
 }
 
 // UseScript creates a client-side script with bidirectional server communication.
-//
-// Example:
-//
-//	script := UseScript(ctx, `(element, transport) => {
-//	    setInterval(() => transport.send({tick: true}), 1000)
-//	}`)
-//	script.OnMessage(func(data map[string]any) { setCount(count() + 1) })
-//	script.AttachTo(div)
+// Example: script := UseScript(ctx, `(el, t) => t.send({data})`); script.OnMessage(func(m) {...})
 func UseScript(ctx Ctx, script string) ScriptHandle {
 	return runtime.UseScript(ctx, script)
 }
 
 // UseUpload manages file uploads with progress tracking and server-side processing.
-//
-// Example:
-//
-//	upload := UseUpload(ctx)
-//	upload.Accept(UploadConfig{MaxSize: 10*1024*1024, Accept: []string{"image/*"}})
-//	upload.OnComplete(func(file multipart.File, header *multipart.FileHeader) error {
-//	    return saveFile(header.Filename, file)
-//	})
-//	upload.AttachTo(h.Input(h.Type("file")))
+// Example: upload := UseUpload(ctx); upload.Accept(UploadConfig{MaxSize: 10*1024*1024})
 func UseUpload(ctx Ctx) UploadHandle {
 	return runtime.UseUpload(ctx)
 }
 
 // UseHeaders provides access to request headers and cookie management.
-//
-// Example:
-//
-//	headers := UseHeaders(ctx)
-//	userAgent, _ := headers.Get("User-Agent")
-//	token, ok := headers.GetCookie("auth_token")
-//	headers.SetCookie("theme", "dark")
-//	headers.DeleteCookie("session")
+// Example: headers := UseHeaders(ctx); token, ok := headers.GetCookie("auth_token")
 func UseHeaders(ctx Ctx) HeadersHandle {
 	return headers.UseHeaders(ctx)
 }
@@ -232,4 +172,28 @@ func UseHeaders(ctx Ctx) HeadersHandle {
 //	CN("rounded-md px-3 py-2", "bg-blue-500", className) // allows overrides
 func CN(classes ...string) string {
 	return css.CN(classes...)
+}
+
+// CreateSlotContext creates a new slot context for component slot management.
+// Example: var cardSlots = CreateSlotContext(); cardSlots.Render(ctx, "header")
+func CreateSlotContext() *SlotContext {
+	return slot.CreateSlotContext()
+}
+
+// CreateScopedSlotContext creates a slot context that passes data to slots.
+// Example: var tableSlots = CreateScopedSlotContext[Row](); tableSlots.Render(ctx, "actions", row)
+func CreateScopedSlotContext[T any]() *ScopedSlotContext[T] {
+	return slot.CreateScopedSlotContext[T]()
+}
+
+// Slot creates a named slot marker for providing content to specific slots.
+// Example: Card(ctx, props, Slot("header", h.H2(h.Text("Title"))), h.P(h.Text("Body")))
+func Slot(name string, children ...h.Item) h.Item {
+	return slot.Slot(name, children...)
+}
+
+// ScopedSlot creates a scoped slot that receives data from the component.
+// Example: Table(ctx, props, ScopedSlot("actions", func(row Row) h.Node { return h.Button(...) }))
+func ScopedSlot[T any](name string, fn func(T) h.Node) h.Item {
+	return slot.ScopedSlot[T](name, fn)
 }

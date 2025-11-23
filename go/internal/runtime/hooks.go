@@ -170,6 +170,7 @@ type memoCell[T any] struct {
 }
 
 // UseMemo recomputes a value only when dependencies change.
+// Dependencies are compared using smart equality that handles functions, channels, and maps.
 func UseMemo[T any](ctx Ctx, compute func() T, deps ...any) T {
 	if ctx.frame == nil {
 		panic("runtime2: UseMemo called outside render")
@@ -178,13 +179,15 @@ func UseMemo[T any](ctx Ctx, compute func() T, deps ...any) T {
 	ctx.frame.idx++
 	if idx >= len(ctx.frame.cells) {
 		val := compute()
-		ctx.frame.cells = append(ctx.frame.cells, &memoCell[T]{val: val, deps: cloneDeps(deps)})
+		cell := &memoCell[T]{val: val, deps: cloneDeps(deps)}
+		ctx.frame.cells = append(ctx.frame.cells, cell)
 		return val
 	}
 	cell, ok := ctx.frame.cells[idx].(*memoCell[T])
 	if !ok {
 		panicHookMismatch(ctx.comp, idx, "UseMemo", ctx.frame.cells[idx])
 	}
+
 	if !depsEqual(cell.deps, deps) {
 		cell.val = compute()
 		cell.deps = cloneDeps(deps)
@@ -201,14 +204,61 @@ func cloneDeps(deps []any) []any {
 	return out
 }
 
+// depsEqual compares dependency arrays with support for functions, channels, and maps.
+// Functions and channels are compared by pointer identity (same function instance).
+// Maps are compared by pointer (same map instance, not deep map equality).
+// Other types use reflect.DeepEqual.
 func depsEqual(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := range a {
-		if !reflect.DeepEqual(a[i], b[i]) {
+		if !depsValueEqual(a[i], b[i]) {
 			return false
 		}
 	}
 	return true
+}
+
+func depsValueEqual(a, b any) bool {
+	va := reflect.ValueOf(a)
+	vb := reflect.ValueOf(b)
+
+	if !va.IsValid() && !vb.IsValid() {
+		return true
+	}
+
+	if !va.IsValid() || !vb.IsValid() {
+		return false
+	}
+
+	if va.Type() != vb.Type() {
+		return false
+	}
+
+	switch va.Kind() {
+	case reflect.Func, reflect.Chan:
+
+		if va.IsNil() && vb.IsNil() {
+			return true
+		}
+		if va.IsNil() || vb.IsNil() {
+			return false
+		}
+		return va.Pointer() == vb.Pointer()
+
+	case reflect.Map:
+
+		if va.IsNil() && vb.IsNil() {
+			return true
+		}
+		if va.IsNil() || vb.IsNil() {
+			return false
+		}
+		return va.Pointer() == vb.Pointer()
+
+	default:
+
+		return reflect.DeepEqual(a, b)
+	}
 }

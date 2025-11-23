@@ -8,7 +8,6 @@ import (
 func TestNavigationQueue_PreservesOrder(t *testing.T) {
 	sess := &ComponentSession{}
 
-	// Enqueue multiple navigations
 	sess.EnqueueNavigation("/first", false)
 	sess.EnqueueNavigation("/second", true)
 	sess.EnqueueNavigation("/third", false)
@@ -17,7 +16,6 @@ func TestNavigationQueue_PreservesOrder(t *testing.T) {
 		t.Fatalf("expected 3 pending navigations, got %d", len(sess.pendingNavs))
 	}
 
-	// Verify order
 	if sess.pendingNavs[0].Push != "/first" {
 		t.Errorf("expected first nav Push='/first', got %q", sess.pendingNavs[0].Push)
 	}
@@ -43,7 +41,6 @@ func TestTakeNavDeltas_ReturnsAllInOrder(t *testing.T) {
 		t.Fatalf("expected 3 navigations, got %d", len(navs))
 	}
 
-	// Verify all navigations returned in order
 	if navs[0].Push != "/a" {
 		t.Errorf("expected navs[0].Push='/a', got %q", navs[0].Push)
 	}
@@ -54,7 +51,6 @@ func TestTakeNavDeltas_ReturnsAllInOrder(t *testing.T) {
 		t.Errorf("expected navs[2].Push='/c', got %q", navs[2].Push)
 	}
 
-	// Verify queue is cleared
 	navs2 := sess.TakeNavDeltas()
 	if len(navs2) != 0 {
 		t.Errorf("expected empty queue after take, got %d items", len(navs2))
@@ -69,7 +65,6 @@ func TestTakeNavDelta_FIFO(t *testing.T) {
 	sess.EnqueueNavigation("/second", true)
 	sess.EnqueueNavigation("/third", false)
 
-	// TakeNavDelta should return the FIRST navigation (FIFO)
 	nav1 := sess.TakeNavDelta()
 	if nav1 == nil {
 		t.Fatal("expected first navigation to be returned")
@@ -78,7 +73,6 @@ func TestTakeNavDelta_FIFO(t *testing.T) {
 		t.Errorf("expected first navigation Push='/first', got %q", nav1.Push)
 	}
 
-	// Second call should return second navigation
 	nav2 := sess.TakeNavDelta()
 	if nav2 == nil {
 		t.Fatal("expected second navigation to be returned")
@@ -87,7 +81,6 @@ func TestTakeNavDelta_FIFO(t *testing.T) {
 		t.Errorf("expected second navigation Replace='/second', got %q", nav2.Replace)
 	}
 
-	// Third call should return third navigation
 	nav3 := sess.TakeNavDelta()
 	if nav3 == nil {
 		t.Fatal("expected third navigation to be returned")
@@ -96,7 +89,6 @@ func TestTakeNavDelta_FIFO(t *testing.T) {
 		t.Errorf("expected third navigation Push='/third', got %q", nav3.Push)
 	}
 
-	// Queue should now be empty
 	nav4 := sess.TakeNavDelta()
 	if nav4 != nil {
 		t.Error("expected nil after taking all navigations")
@@ -122,10 +114,10 @@ func TestNavigationQueue_EmptyQueue(t *testing.T) {
 func TestNavigationQueue_AlternatingTypes(t *testing.T) {
 	sess := &ComponentSession{}
 
-	sess.EnqueueNavigation("/a", false) // Push
-	sess.EnqueueNavigation("/b", true)  // Replace
-	sess.EnqueueNavigation("/c", false) // Push
-	sess.EnqueueNavigation("/d", true)  // Replace
+	sess.EnqueueNavigation("/a", false)
+	sess.EnqueueNavigation("/b", true)
+	sess.EnqueueNavigation("/c", false)
+	sess.EnqueueNavigation("/d", true)
 
 	navs := sess.TakeNavDeltas()
 
@@ -133,7 +125,6 @@ func TestNavigationQueue_AlternatingTypes(t *testing.T) {
 		t.Fatalf("expected 4 navigations, got %d", len(navs))
 	}
 
-	// Verify push/replace alternation
 	if navs[0].Push != "/a" || navs[0].Replace != "" {
 		t.Error("expected first to be push")
 	}
@@ -195,12 +186,8 @@ func TestNavigationQueue_ComplexPaths(t *testing.T) {
 func TestNavigationQueue_ConcurrentSafety(t *testing.T) {
 	sess := &ComponentSession{}
 
-	// This test verifies that concurrent access doesn't cause panics
-	// The mutex in EnqueueNavigation and TakeNavDeltas should protect against races
-
 	done := make(chan bool, 2)
 
-	// Goroutine 1: Enqueue navigations
 	go func() {
 		for i := 0; i < 100; i++ {
 			sess.EnqueueNavigation("/path", false)
@@ -208,7 +195,6 @@ func TestNavigationQueue_ConcurrentSafety(t *testing.T) {
 		done <- true
 	}()
 
-	// Goroutine 2: Take navigations
 	go func() {
 		for i := 0; i < 10; i++ {
 			sess.TakeNavDeltas()
@@ -216,18 +202,15 @@ func TestNavigationQueue_ConcurrentSafety(t *testing.T) {
 		done <- true
 	}()
 
-	// Wait for both to complete
 	<-done
 	<-done
 
-	// If we get here without panic, mutex protection is working
 }
 
 // TestNavigationQueue_NilSession tests nil safety
 func TestNavigationQueue_NilSession(t *testing.T) {
 	var sess *ComponentSession
 
-	// These should not panic
 	sess.EnqueueNavigation("/test", false)
 	navs := sess.TakeNavDeltas()
 	if navs != nil {
@@ -240,23 +223,23 @@ func TestNavigationQueue_NilSession(t *testing.T) {
 	}
 }
 
-// TestNavigationQueue_LargeQueue tests performance with many navigations
+// TestNavigationQueue_LargeQueue tests that queue is capped to prevent memory leaks.
+// The implementation limits the queue to 100 items and drops oldest entries when full.
 func TestNavigationQueue_LargeQueue(t *testing.T) {
 	sess := &ComponentSession{}
 
-	// Enqueue many navigations
 	for i := 0; i < 1000; i++ {
 		sess.EnqueueNavigation("/path", i%2 == 0)
 	}
 
 	navs := sess.TakeNavDeltas()
 
-	if len(navs) != 1000 {
-		t.Errorf("expected 1000 navigations, got %d", len(navs))
+	if len(navs) != 100 {
+		t.Errorf("expected queue to be capped at 100, got %d", len(navs))
 	}
 
-	// Verify queue is properly cleared
 	if len(sess.pendingNavs) != 0 {
-		t.Errorf("expected queue to be cleared, still has %d items", len(sess.pendingNavs))
+		t.Errorf("expected queue to be cleared after TakeNavDeltas, still has %d items", len(sess.pendingNavs))
 	}
+
 }

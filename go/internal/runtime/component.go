@@ -1,8 +1,8 @@
 package runtime
 
 import (
-	"crypto/sha256"
 	"fmt"
+	"hash/fnv"
 	"reflect"
 	"sync"
 
@@ -37,6 +37,10 @@ type component struct {
 	// childRenderIndex tracks the current child render position during this render cycle.
 	// Used to generate positional auto-keys when no explicit key is provided.
 	childRenderIndex int
+
+	// referencedChildren tracks which children were referenced during this render.
+	// Used to prune unreferenced children after render completes.
+	referencedChildren map[string]bool
 
 	mu sync.Mutex
 }
@@ -90,7 +94,7 @@ func (a *componentAdapter[P]) pointer() uintptr {
 }
 
 // buildComponentID generates a hierarchical component ID based on parent context,
-// component name, and key. This uses the dumpv1 approach for better tree-aware identity.
+// component name, and key. Uses FNV-1a hash for fast, collision-resistant IDs.
 func buildComponentID(parent *component, callable componentCallable, key string) string {
 	base := callable.name()
 	if base == "" {
@@ -100,7 +104,7 @@ func buildComponentID(parent *component, callable componentCallable, key string)
 		key = "_"
 	}
 
-	hasher := sha256.New()
+	hasher := fnv.New64a()
 	if parent == nil {
 		hasher.Write([]byte("root"))
 	} else {
@@ -111,8 +115,7 @@ func buildComponentID(parent *component, callable componentCallable, key string)
 	hasher.Write([]byte{0})
 	hasher.Write([]byte(key))
 
-	sum := hasher.Sum(nil)
-	return fmt.Sprintf("c%x", sum[:12])
+	return fmt.Sprintf("c%016x", hasher.Sum64())
 }
 
 func newComponent[P any](sess *ComponentSession, parent *component, key string, fn Component[P], props P) *component {
@@ -157,11 +160,7 @@ func (c *component) render() *dom.StructuredNode {
 		return c.node
 	}
 
-	if c.node == nil {
-		c.node = node
-	} else if c.node != node {
-		cloneInto(c.node, node)
-	}
+	c.node = node
 
 	if c.wrapper != nil {
 		c.wrapper.Children = []*dom.StructuredNode{c.node}
@@ -177,6 +176,11 @@ func (c *component) beginRender() {
 	c.frame.idx = 0
 	c.providerSeq = 0
 	c.childRenderIndex = 0
+
+	c.mu.Lock()
+	c.referencedChildren = make(map[string]bool)
+	c.mu.Unlock()
+
 	if c.parent != nil {
 		c.combinedContextEpoch = c.contextEpoch + c.parent.combinedContextEpoch
 	} else {
@@ -209,9 +213,13 @@ func (c *component) ensureChild(adapter componentCallable, key string, props any
 	childID := buildComponentID(c, adapter, key)
 
 	c.mu.Lock()
-	defer c.mu.Unlock()
+
+	if c.referencedChildren != nil {
+		c.referencedChildren[childID] = true
+	}
 
 	if child, exists := c.children[childID]; exists {
+		c.mu.Unlock()
 		return child
 	}
 
@@ -226,14 +234,16 @@ func (c *component) ensureChild(adapter componentCallable, key string, props any
 	}
 
 	c.children[childID] = child
+	sess := c.sess
+	c.mu.Unlock()
 
-	if c.sess != nil {
-		c.sess.mu.Lock()
-		if c.sess.components == nil {
-			c.sess.components = make(map[string]*component)
+	if sess != nil {
+		sess.mu.Lock()
+		if sess.components == nil {
+			sess.components = make(map[string]*component)
 		}
-		c.sess.components[childID] = child
-		c.sess.mu.Unlock()
+		sess.components[childID] = child
+		sess.mu.Unlock()
 	}
 
 	return child
@@ -242,14 +252,4 @@ func (c *component) ensureChild(adapter componentCallable, key string, props any
 type hookFrame struct {
 	cells []any
 	idx   int
-}
-
-func cloneInto(dst, src *dom.StructuredNode) {
-	if dst == nil || src == nil {
-		return
-	}
-	if dst == src {
-		return
-	}
-	*dst = *src
 }

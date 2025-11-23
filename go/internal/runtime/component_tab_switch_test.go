@@ -30,20 +30,17 @@ func TestComponentWrapperSwitchProducesPatches(t *testing.T) {
 			chosen = childB
 		}
 
-		// Mimics the tabs content render: component wrapper plus explicit key.
 		return Render(ctx, chosen, struct{}{}, WithKey("content"))
 	}
 
 	sess := NewSession(root, struct{}{})
 	sess.SetPatchSender(func(p []dom2diff.Patch) error { return nil })
 
-	// Initial render
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("initial flush failed: %v", err)
 	}
 	prev := sess.Tree().Flatten()
 
-	// Switch active tab
 	setActive("b")
 	if err := sess.Flush(); err != nil {
 		t.Fatalf("flush after switch failed: %v", err)
