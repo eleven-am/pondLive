@@ -73,16 +73,10 @@ func Routes(ctx Ctx, props RoutesProps, children ...*dom.StructuredNode) *dom.St
 
 	matchResult := runtime.UseMemo(ctx, func() *MatchResult {
 		result := trie.Match(loc.Path)
-		if result != nil {
-			fmt.Printf("[Routes] Matched path=%q to pattern=%q (outlet=%q)\n", loc.Path, result.Entry.pattern, outlet)
-		} else {
-			fmt.Printf("[Routes] No match for path=%q (outlet=%q)\n", loc.Path, outlet)
-		}
 		return result
 	}, loc.Path, trie)
 
 	if matchResult == nil {
-		fmt.Printf("[Routes] Returning empty fragment for outlet=%q (no match)\n", outlet)
 		if outlet == "default" {
 			runtime.UseEffect(ctx, func() runtime.Cleanup {
 				controller.ClearMatch()
