@@ -95,16 +95,12 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 	needsRender := false
 
 	if inst.WorkTree == nil {
-
 		needsRender = true
 	} else if inst.RenderedThisFlush {
-
 		needsRender = false
 	} else if !propsEqual(inst.PrevProps, comp.Props) {
-
 		needsRender = true
 	} else if inst.ParentContextEpoch != parent.CombinedContextEpoch {
-
 		needsRender = true
 	}
 

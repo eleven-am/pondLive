@@ -54,7 +54,7 @@ func App(ctx *runtime.Ctx) work.Node {
 			Label:        "Main Counter",
 		}),
 		html.Hr(),
-		work.PropsComponent(Counter, CounterProps{
+		Counter(ctx, CounterProps{
 			InitialValue: 100,
 			Label:        "Second Counter",
 		}),
