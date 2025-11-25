@@ -7,7 +7,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
-// TTLStore persists session expiry metadata for runtime2 sessions.
+// TTLStore persists session expiry metadata.
 type TTLStore interface {
 	Touch(id session.SessionID, ttl time.Duration) error
 	Remove(id session.SessionID) error

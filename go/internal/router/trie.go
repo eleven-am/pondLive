@@ -43,7 +43,6 @@ func NewRouterTrie() *RouterTrie {
 // Patterns are split into segments and inserted as a path from root to leaf.
 // Priority: static > param > wildcard (ensured by sorting children).
 func (t *RouterTrie) Insert(pattern string, entry routeEntry) {
-
 	if pattern == "" {
 		pattern = "/"
 	}
@@ -105,9 +104,11 @@ func (t *RouterTrie) Insert(pattern string, entry routeEntry) {
 
 // MatchResult contains the result of a successful route match.
 type MatchResult struct {
-	Entry  *routeEntry       // The matched route entry
-	Params map[string]string // Extracted route parameters
-	Rest   string            // Remaining path for wildcard matches
+	Entry   *routeEntry       // The matched route entry
+	Params  map[string]string // Extracted route parameters
+	Pattern string            // The matched pattern
+	Path    string            // The matched path
+	Rest    string            // Remaining path for wildcard matches
 }
 
 // Match attempts to match a path against the trie.
@@ -134,8 +135,10 @@ func (t *RouterTrie) Match(path string) *MatchResult {
 		if pathIdx >= len(path) {
 			if n.entry != nil {
 				bestMatch = &MatchResult{
-					Entry:  n.entry,
-					Params: params,
+					Entry:   n.entry,
+					Params:  params,
+					Pattern: n.entry.pattern,
+					Path:    path,
 				}
 			}
 			return
@@ -148,8 +151,10 @@ func (t *RouterTrie) Match(path string) *MatchResult {
 		if pathIdx >= len(path) {
 			if n.entry != nil {
 				bestMatch = &MatchResult{
-					Entry:  n.entry,
-					Params: params,
+					Entry:   n.entry,
+					Params:  params,
+					Pattern: n.entry.pattern,
+					Path:    path,
 				}
 			}
 			return
@@ -193,9 +198,11 @@ func (t *RouterTrie) Match(path string) *MatchResult {
 				}
 				if child.entry != nil {
 					bestMatch = &MatchResult{
-						Entry:  child.entry,
-						Params: newParams,
-						Rest:   "/" + rest,
+						Entry:   child.entry,
+						Params:  newParams,
+						Pattern: child.entry.pattern,
+						Path:    path,
+						Rest:    "/" + rest,
 					}
 					return
 				}

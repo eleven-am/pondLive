@@ -1,53 +1,59 @@
 package router
 
 import (
-	"net/http"
-
-	"github.com/eleven-am/pondlive/go/internal/dom"
-	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// Redirect performs a redirect to the specified href.
-// During SSR, sets HTTP redirect headers.
-// During live session, navigates client-side using replace mode.
+// RedirectProps configures the Redirect component.
+type RedirectProps struct {
+	To      string // Target href
+	Replace bool   // Use replaceState instead of pushState
+}
+
+// Redirect triggers navigation when rendered.
+// Use for programmatic redirects within the component tree.
 //
 // Usage:
 //
-//	func LoginRequired(ctx Ctx, match Match) *dom.StructuredNode {
-//	    user := UseUser(ctx)
-//	    if user == nil {
-//	        return router.Redirect(ctx, "/login")
-//	    }
-//	    return DashboardPage(ctx)
+//	if !isAuthenticated {
+//	    return router.Redirect(ctx, router.RedirectProps{To: "/login"})
 //	}
-func Redirect(ctx Ctx, to string) *dom.StructuredNode {
-	controller := useRouterController(ctx)
-	requestController := headers.UseRequestController(ctx)
+func Redirect(ctx *runtime.Ctx, props RedirectProps) work.Node {
 
-	var href string
-	if controller != nil {
-		current := controller.GetLocation()
-		target := resolveHref(current, to)
-		target = canonicalizeLocation(target)
-		href = buildHref(target.Path, target.Query, target.Hash)
-
-		runtime.UseEffect(ctx, func() runtime.Cleanup {
-			if ctx.IsLive() {
-				controller.requestController.SetCurrentLocation(target.Path, target.Query, target.Hash)
-				recordNavigation(ctx, target, true)
-			}
-			return nil
-		}, href)
-	} else {
-		href = to
-	}
-
-	if !ctx.IsLive() {
-		if requestController != nil {
-			requestController.SetRedirect(href, http.StatusFound)
+	runtime.UseEffect(ctx, func() func() {
+		if props.Replace {
+			Replace(ctx, props.To)
+		} else {
+			Navigate(ctx, props.To)
 		}
-	}
+		return nil
+	}, props.To, props.Replace)
 
-	return dom.FragmentNode()
+	return &work.Fragment{}
+}
+
+// RedirectIf conditionally redirects based on a condition.
+// If the condition is true, redirects to the target.
+// Otherwise, renders the children.
+//
+// Usage:
+//
+//	return router.RedirectIf(ctx, !isAuthenticated, "/login", content)
+func RedirectIf(ctx *runtime.Ctx, condition bool, to string, otherwise work.Node) work.Node {
+	if condition {
+		return Redirect(ctx, RedirectProps{To: to})
+	}
+	return otherwise
+}
+
+// RedirectIfNot conditionally redirects based on a condition.
+// If the condition is false, redirects to the target.
+// Otherwise, renders the children.
+//
+// Usage:
+//
+//	return router.RedirectIfNot(ctx, isAuthenticated, "/login", content)
+func RedirectIfNot(ctx *runtime.Ctx, condition bool, to string, otherwise work.Node) work.Node {
+	return RedirectIf(ctx, !condition, to, otherwise)
 }

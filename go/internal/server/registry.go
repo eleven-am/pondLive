@@ -10,12 +10,9 @@ import (
 )
 
 var (
-	// ErrSessionNotFound reports attempts to fetch sessions that don't exist in the registry.
+	// ErrSessionNotFound reports attempts to fetch sessions that don't exist.
 	ErrSessionNotFound = errors.New("server: session not found")
 )
-
-// Transport is the session transport interface.
-type Transport = session.Transport
 
 type sessionEntry struct {
 	session   *session.LiveSession
@@ -37,7 +34,7 @@ func (rel transportRelease) release() {
 	}
 }
 
-// SessionRegistry manages runtime2 LiveSession instances.
+// SessionRegistry manages LiveSession instances.
 type SessionRegistry struct {
 	mu             sync.RWMutex
 	sessions       map[session.SessionID]*sessionEntry
@@ -258,7 +255,7 @@ func (r *SessionRegistry) attachSessionLocked(sess *session.LiveSession) {
 	if ttl := sess.TTL(); ttl > 0 {
 		_ = r.ttl.Touch(sess.ID(), ttl)
 	}
-	remove := sess.AddTouchObserver(func(time.Time) {
+	remove := sess.OnTouch(func(time.Time) {
 		if ttl := sess.TTL(); ttl > 0 {
 			_ = r.ttl.Touch(sess.ID(), ttl)
 		}

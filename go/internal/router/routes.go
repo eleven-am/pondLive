@@ -3,37 +3,33 @@ package router
 import (
 	"strings"
 
-	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
-	"github.com/eleven-am/pondlive/go/internal/slot"
+	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 // Route defines a single route with a pattern and component.
-// Returns a fragment node with route metadata for collection by Routes().
+// Returns a fragment node with route metadata for collection by Routes.
 //
 // Usage:
 //
 //	router.Route(ctx, router.RouteProps{
 //	    Path: "/users/:id",
-//	    Component: UserDetailPage,
+//	    ComponentNode: UserDetailPage,
 //	})
-func Route(ctx Ctx, props RouteProps, children ...*dom.StructuredNode) *dom.StructuredNode {
+func Route(ctx *runtime.Ctx, props RouteProps) work.Node {
 	pattern := strings.TrimSpace(props.Path)
 	if pattern == "" {
 		pattern = "/"
 	}
 
-	node := dom.FragmentNode()
-	if node.Metadata == nil {
-		node.Metadata = make(map[string]any)
+	return &work.Fragment{
+		Metadata: map[string]any{
+			routeMetadataKey: routeEntry{
+				pattern:   pattern,
+				component: props.Component,
+			},
+		},
 	}
-	node.Metadata[routeMetadataKey] = routeEntry{
-		pattern:   pattern,
-		component: props.Component,
-		children:  children,
-	}
-
-	return node
 }
 
 // Routes collects route definitions, matches against current location,
@@ -42,26 +38,25 @@ func Route(ctx Ctx, props RouteProps, children ...*dom.StructuredNode) *dom.Stru
 // Usage:
 //
 //	router.Routes(ctx, router.RoutesProps{Outlet: "main"},
-//	    router.Route(ctx, router.RouteProps{Path: "/", Component: HomePage}),
-//	    router.Route(ctx, router.RouteProps{Path: "/about", Component: AboutPage}),
+//	    router.Route(ctx, router.RouteProps{Path: "/", ComponentNode: HomePage}),
+//	    router.Route(ctx, router.RouteProps{Path: "/about", ComponentNode: AboutPage}),
 //	)
-func Routes(ctx Ctx, props RoutesProps, children ...*dom.StructuredNode) *dom.StructuredNode {
+func Routes(ctx *runtime.Ctx, props RoutesProps, children []work.Node) work.Node {
 	outlet := props.Outlet
 	if outlet == "" {
 		outlet = "default"
 	}
 
-	controller := useRouterController(ctx)
-	if controller == nil {
-		return dom.FragmentNode()
+	location := LocationContext.UseContextValue(ctx)
+	if location == nil {
+		return &work.Fragment{}
 	}
 
-	loc := controller.GetLocation()
+	_, setMatch := MatchContext.UseProvider(ctx, nil)
 
 	entries := runtime.UseMemo(ctx, func() []routeEntry {
-		collected := collectRouteEntries(children)
-		return collected
-	}, children)
+		return collectRouteEntries(children)
+	}, fingerprintChildren(children))
 
 	trie := runtime.UseMemo(ctx, func() *RouterTrie {
 		t := NewRouterTrie()
@@ -72,54 +67,49 @@ func Routes(ctx Ctx, props RoutesProps, children ...*dom.StructuredNode) *dom.St
 	}, entries)
 
 	matchResult := runtime.UseMemo(ctx, func() *MatchResult {
-		result := trie.Match(loc.Path)
-		return result
-	}, loc.Path, trie)
+		return trie.Match(location.Path)
+	}, location.Path, trie)
 
-	if matchResult == nil {
+	if matchResult == nil || matchResult.Entry == nil {
 		if outlet == "default" {
-			runtime.UseEffect(ctx, func() runtime.Cleanup {
-				controller.ClearMatch()
+			runtime.UseEffect(ctx, func() func() {
+				setMatch(&MatchState{Matched: false})
 				return nil
-			}, loc)
+			}, location)
 		}
-		return dom.FragmentNode()
+		return &work.Fragment{}
 	}
 
 	if outlet == "default" {
-		controller.SetMatch(
-			matchResult.Entry.pattern,
-			matchResult.Params,
-			loc.Path,
-		)
+		setMatch(&MatchState{
+			Matched: true,
+			Pattern: matchResult.Entry.pattern,
+			Params:  matchResult.Params,
+			Path:    location.Path,
+			Rest:    matchResult.Rest,
+		})
 	}
 
 	match := Match{
 		Pattern:  matchResult.Entry.pattern,
-		Path:     loc.Path,
+		Path:     location.Path,
 		Params:   matchResult.Params,
-		Query:    loc.Query,
-		RawQuery: loc.Query.Encode(),
-		Hash:     loc.Hash,
+		Query:    location.Query,
+		RawQuery: location.Query.Encode(),
+		Hash:     location.Hash,
 		Rest:     matchResult.Rest,
 	}
 
-	key := outlet + ":" + loc.Path
-	if key == "" {
-		key = outlet + ":/"
-	}
+	component := matchResult.Entry.component(ctx, match, matchResult.Entry.children)
 
-	component := runtime.Render(ctx, matchResult.Entry.component, match, runtime.WithKey(key))
+	outletSlotCtx.SetSlot(ctx, outlet, component)
 
-	fragment := dom.FragmentNode()
-	slotItem := slot.Slot(outlet, component)
-	slotItem.ApplyTo(fragment)
-	return fragment
+	return &work.Fragment{}
 }
 
 // collectRouteEntries scans children nodes for route metadata.
-// Returns a flat list of all route entries found, including nested routes.
-func collectRouteEntries(nodes []*dom.StructuredNode) []routeEntry {
+// Returns a flat list of all route entries found.
+func collectRouteEntries(nodes []work.Node) []routeEntry {
 	if len(nodes) == 0 {
 		return nil
 	}
@@ -130,22 +120,37 @@ func collectRouteEntries(nodes []*dom.StructuredNode) []routeEntry {
 			continue
 		}
 
-		if node.Metadata != nil {
-			if meta, ok := node.Metadata[routeMetadataKey]; ok {
-				entry := meta.(routeEntry)
-				entries = append(entries, entry)
-				if len(entry.children) > 0 {
-					nested := collectRouteEntries(entry.children)
-					entries = append(entries, nested...)
-				}
-				continue
-			}
-		}
+		if frag, ok := node.(*work.Fragment); ok {
 
-		if len(node.Children) > 0 {
-			entries = append(entries, collectRouteEntries(node.Children)...)
+			if frag.Metadata != nil {
+				if meta, ok := frag.Metadata[routeMetadataKey]; ok {
+					if entry, ok := meta.(routeEntry); ok {
+						entries = append(entries, entry)
+						continue
+					}
+				}
+			}
+
+			if len(frag.Children) > 0 {
+				entries = append(entries, collectRouteEntries(frag.Children)...)
+			}
 		}
 	}
 
 	return entries
+}
+
+// fingerprintChildren creates a stable fingerprint of children for memoization.
+func fingerprintChildren(children []work.Node) string {
+	var parts []string
+	for _, child := range children {
+		if frag, ok := child.(*work.Fragment); ok && frag.Metadata != nil {
+			if meta, ok := frag.Metadata[routeMetadataKey]; ok {
+				if entry, ok := meta.(routeEntry); ok {
+					parts = append(parts, entry.pattern)
+				}
+			}
+		}
+	}
+	return strings.Join(parts, "|")
 }

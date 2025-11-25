@@ -2,12 +2,13 @@ package runtime
 
 import (
 	_ "embed"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 //go:embed upload.js
@@ -16,15 +17,6 @@ var uploadScript string
 type UploadProgress struct {
 	Loaded int64
 	Total  int64
-}
-
-type UploadHandle struct {
-	script         *ScriptHandle
-	handler        *HandlerHandle
-	config         *UploadConfig
-	progressGetter func() UploadProgress
-	onComplete     func(file multipart.File, header *multipart.FileHeader) error
-	token          string
 }
 
 type UploadConfig struct {
@@ -40,17 +32,23 @@ type UploadEvent struct {
 	Path string
 }
 
-func (h *UploadHandle) Accept(cfg UploadConfig) {
-	if h.script == nil {
-		return
-	}
+// UploadHandle coordinates client script and server handler.
+type UploadHandle struct {
+	script         *ScriptHandle
+	handler        HandlerHandle
+	config         *UploadConfig
+	progressGetter func() UploadProgress
+	onComplete     func(file multipart.File, header *multipart.FileHeader) error
+	token          string
+}
 
+func (h *UploadHandle) Accept(cfg UploadConfig) {
 	h.config = &cfg
 }
 
-func (h *UploadHandle) AttachTo(node *dom.StructuredNode) {
+func (h *UploadHandle) AttachTo(elem *work.Element) {
 	if h.script != nil {
-		h.script.AttachTo(node)
+		h.script.AttachTo(elem)
 	}
 }
 
@@ -142,17 +140,19 @@ func (h *UploadHandle) OnComplete(fn func(file multipart.File, header *multipart
 	h.onComplete = fn
 }
 
-func UseUpload(ctx Ctx) UploadHandle {
-	state, setState := UseState(ctx, UploadProgress{Loaded: 0, Total: 0})
+// UseUpload wires client script + server handler for file uploads.
+func UseUpload(ctx *Ctx) UploadHandle {
+	getProgress, setProgress := UseState(ctx, UploadProgress{Loaded: 0, Total: 0})
+	_ = getProgress
+	progRef := UseRef(ctx, UploadProgress{Loaded: 0, Total: 0})
 	script := UseScript(ctx, uploadScript)
 
 	handle := &UploadHandle{
 		script:         &script,
-		progressGetter: state,
-		token:          "",
+		progressGetter: func() UploadProgress { return progRef.Current },
 	}
 
-	handler := UseHandler(ctx, "POST", func(w http.ResponseWriter, r *http.Request) error {
+	handler := UseHandler(ctx, http.MethodPost, func(w http.ResponseWriter, r *http.Request) error {
 		token := r.Header.Get("X-Upload-Token")
 		if token == "" || token != handle.token {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -165,7 +165,7 @@ func UseUpload(ctx Ctx) UploadHandle {
 
 		reader, err := r.MultipartReader()
 		if err != nil {
-			http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+			http.Error(w, "invalid multipart data", http.StatusBadRequest)
 			return err
 		}
 
@@ -176,50 +176,53 @@ func UseUpload(ctx Ctx) UploadHandle {
 				if errPart == io.EOF {
 					break
 				}
-				http.Error(w, "Failed to read multipart", http.StatusBadRequest)
+				http.Error(w, "failed to read multipart", http.StatusBadRequest)
 				return errPart
 			}
 			if part.FormName() != "file" {
 				_ = part.Close()
 				continue
 			}
+
 			header := &multipart.FileHeader{
 				Filename: part.FileName(),
 				Header:   part.Header,
-				Size:     0,
 			}
 
 			tmp, tmpErr := os.CreateTemp("", "pond-upload-*")
 			if tmpErr != nil {
 				_ = part.Close()
-				http.Error(w, "Failed to stage file", http.StatusInternalServerError)
+				http.Error(w, "failed to stage file", http.StatusInternalServerError)
 				return tmpErr
 			}
 			tmpPath := tmp.Name()
 
-			defer func() {
+			var cleanup = func() {
 				_ = tmp.Close()
 				_ = os.Remove(tmpPath)
-			}()
+			}
 
 			var written int64
 			if handle.config != nil && handle.config.MaxSize > 0 {
 				written, err = io.Copy(tmp, io.LimitReader(part, handle.config.MaxSize+1))
 				if err != nil && err != io.EOF {
+					cleanup()
 					_ = part.Close()
-					http.Error(w, "Failed to read file", http.StatusBadRequest)
+					http.Error(w, "failed to read file", http.StatusBadRequest)
 					return err
 				}
 				if written > handle.config.MaxSize {
+					cleanup()
 					_ = part.Close()
-					http.Error(w, "File exceeds maximum size", http.StatusRequestEntityTooLarge)
+					http.Error(w, "file exceeds maximum size", http.StatusRequestEntityTooLarge)
 					return nil
 				}
 			} else {
 				written, err = io.Copy(tmp, part)
 				if err != nil && err != io.EOF {
+					cleanup()
 					_ = part.Close()
-					http.Error(w, "Failed to read file", http.StatusBadRequest)
+					http.Error(w, "failed to read file", http.StatusBadRequest)
 					return err
 				}
 			}
@@ -227,8 +230,9 @@ func UseUpload(ctx Ctx) UploadHandle {
 			header.Size = written
 
 			if _, seekErr := tmp.Seek(0, io.SeekStart); seekErr != nil {
+				cleanup()
 				_ = part.Close()
-				http.Error(w, "Failed to rewind file", http.StatusInternalServerError)
+				http.Error(w, "failed to rewind file", http.StatusInternalServerError)
 				return seekErr
 			}
 
@@ -236,38 +240,41 @@ func UseUpload(ctx Ctx) UploadHandle {
 
 			if handle.onComplete != nil {
 				if err := handle.onComplete(fileReader, header); err != nil {
+					cleanup()
 					_ = part.Close()
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return err
 				}
 			}
-			processed = true
+
+			cleanup()
 			_ = part.Close()
+			processed = true
+			break
 		}
 
 		if !processed {
-			http.Error(w, "No file provided", http.StatusBadRequest)
+			http.Error(w, "no file provided", http.StatusBadRequest)
 			return nil
 		}
 
 		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 		return nil
 	})
 
-	handle.handler = &handler
+	handle.handler = handler
 
 	script.On("progress", func(data interface{}) {
 		m, ok := data.(map[string]interface{})
 		if !ok {
 			return
 		}
-
 		loaded, _ := m["loaded"].(float64)
 		total, _ := m["total"].(float64)
-		setState(UploadProgress{
-			Loaded: int64(loaded),
-			Total:  int64(total),
-		})
+		progress := UploadProgress{Loaded: int64(loaded), Total: int64(total)}
+		setProgress(progress)
+		progRef.Current = progress
 	})
 
 	script.On("ready", func(data interface{}) {
@@ -278,19 +285,19 @@ func UseUpload(ctx Ctx) UploadHandle {
 }
 
 func (h *UploadHandle) sendStart() {
-	if h.script == nil || h.handler == nil {
+	if h.script == nil {
 		return
 	}
 
 	h.token = h.handler.GenerateToken()
 	url := h.handler.URL()
-
-	if url == "" {
+	if url == "" || h.token == "" {
 		return
 	}
 
 	payload := map[string]interface{}{
-		"url": url,
+		"url":   url,
+		"token": h.token,
 	}
 	if h.config != nil {
 		if h.config.MaxSize > 0 {
@@ -302,9 +309,6 @@ func (h *UploadHandle) sendStart() {
 		if h.config.Multiple {
 			payload["multiple"] = true
 		}
-	}
-	if h.token != "" {
-		payload["token"] = h.token
 	}
 
 	h.script.Send("start", payload)

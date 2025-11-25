@@ -2,121 +2,190 @@ package runtime
 
 import (
 	"fmt"
-	"reflect"
 	"unsafe"
-
-	"github.com/eleven-am/pondlive/go/internal/dom"
 )
 
 // contextID uniquely identifies a context type.
 type contextID uintptr
 
-// Context represents a typed context that can provide values to a component tree.
+// Context represents a typed context that can be provided and consumed in the component tree.
+//
+// Design notes:
+//   - Single provider per component: Multiple UseProvider calls for the same context on one
+//     component will overwrite. This is intentional - use different components for different providers.
+//   - Provider doesn't self-dirty: When setter is called, only children are marked dirty.
+//     If the provider component needs to re-render based on its own context value, use UseState
+//     alongside UseProvider to track the value locally.
+//   - SSR mode (session nil): The setter won't mark children dirty when session is nil.
+//     This is expected for SSR where the tree is rendered once without live updates.
+//   - Equality: Default uses reflect.DeepEqual which may cause extra re-renders for types
+//     containing functions, maps, or channels. Use WithEqual for such types.
 type Context[T any] struct {
 	id           contextID
 	defaultValue T
 	equal        func(a, b T) bool
 }
 
-// CreateContext creates a new context with a default value.
-// Each context instance has a unique ID derived from its pointer address.
+// CreateContext creates a new context with the given default value.
+// The default value is returned by UseContext when no provider exists in the ancestor chain.
 func CreateContext[T any](defaultValue T) *Context[T] {
 	ctx := &Context[T]{
 		defaultValue: defaultValue,
 	}
-
 	ctx.id = contextID(uintptr(unsafe.Pointer(ctx)))
 	return ctx
 }
 
-// WithEqual sets a custom equality function for context value comparison.
-// Use this when your context contains functions, maps, or other uncomparable values.
-// If not set, reflect.DeepEqual is used (which fails for functions/channels).
+// WithEqual sets a custom equality function for the context.
+// This is useful for types that contain functions, maps, or channels which cannot be compared with reflect.DeepEqual.
+// Without a custom equality function, types with uncomparable fields may cause unnecessary re-renders
+// or panics (which are recovered and treated as "values different").
 func (c *Context[T]) WithEqual(eq func(a, b T) bool) *Context[T] {
 	c.equal = eq
 	return c
 }
 
-// Provide renders children with this context value available.
-// The value is provided to all descendants until another provider overrides it.
-// Creates a component boundary to scope the provider value.
-func (c *Context[T]) Provide(ctx Ctx, value T, children func(Ctx) *dom.StructuredNode) *dom.StructuredNode {
-	if ctx.comp == nil {
-		panic("runtime2: Context.Provide called outside component render")
+// UseProvider provides a value to all descendants in the component tree.
+// Returns the current value and a setter function.
+// The setter performs deep equality check and only triggers re-renders if the value changed.
+//
+// Note: Calling UseProvider multiple times for the same context in one component will use
+// the existing stored value (not overwrite with the new initial). The initial is only used
+// on first render.
+func (c *Context[T]) UseProvider(ctx *Ctx, initial T) (T, func(T)) {
+	if ctx == nil || ctx.instance == nil {
+		panic("runtime: UseProvider called outside component render")
 	}
 
-	type providerProps struct {
-		contextID contextID
-		value     any
-		equal     func(a, b any) bool
-		children  func(Ctx) *dom.StructuredNode
+	inst := ctx.instance
+
+	inst.mu.Lock()
+	if inst.Providers == nil {
+		inst.Providers = make(map[any]any)
 	}
 
-	provider := func(pctx Ctx, props providerProps) *dom.StructuredNode {
-		if pctx.comp.providers == nil {
-			pctx.comp.providers = make(map[contextID]any)
-		}
-		prev, ok := pctx.comp.providers[props.contextID]
+	existing, hasExisting := inst.Providers[c.id]
+	if !hasExisting {
+		inst.Providers[c.id] = initial
+		existing = initial
+	}
+	inst.mu.Unlock()
 
-		changed := !ok
-		if !changed {
-			if props.equal != nil {
-				changed = !props.equal(prev, props.value)
-			} else {
-
-				changed = !reflect.DeepEqual(prev, props.value)
-			}
-		}
-
-		if changed {
-			pctx.comp.notifyContextChange()
-		}
-		pctx.comp.providers[props.contextID] = props.value
-		return props.children(pctx)
+	value, ok := existing.(T)
+	if !ok {
+		panic(fmt.Sprintf("runtime: context value type mismatch: expected %T, got %T (context ID: %v)", c.defaultValue, existing, c.id))
 	}
 
-	var equalAny func(a, b any) bool
-	if c.equal != nil {
-		equalAny = func(a, b any) bool {
-			aTyped, aOk := a.(T)
-			bTyped, bOk := b.(T)
-			if !aOk || !bOk {
+	setter := c.createSetter(ctx, inst)
 
-				panic(fmt.Sprintf("runtime2: Context value type mismatch (expected %T, got a=%T, b=%T)", *new(T), a, b))
-			}
-			return c.equal(aTyped, bTyped)
-		}
-	}
-
-	seq := ctx.comp.providerSeq
-	ctx.comp.providerSeq++
-	key := fmt.Sprintf("ctx:%d:%d", c.id, seq)
-
-	return Render(ctx, provider, providerProps{
-		contextID: c.id,
-		value:     value,
-		equal:     equalAny,
-		children:  children,
-	}, WithKey(key))
+	return value, setter
 }
 
-// Use reads the nearest provided value for this context.
-// Walks up the component tree until a provider is found.
-// Returns the default value if no provider exists.
-func (c *Context[T]) Use(ctx Ctx) T {
-	if ctx.comp == nil {
-		panic("runtime2: Context.Use called outside component render")
+// UseContext retrieves the context value from the nearest ancestor provider.
+// Returns the current value and a setter function.
+// If no provider exists, returns the default value and a nil setter.
+// Calling the setter updates the provider's value and triggers re-renders for all consumers.
+func (c *Context[T]) UseContext(ctx *Ctx) (T, func(T)) {
+	if ctx == nil || ctx.instance == nil {
+		panic("runtime: UseContext called outside component render")
 	}
 
-	current := ctx.comp
+	providerInst, value := c.findProvider(ctx.instance)
+	if providerInst == nil {
+		return value, nil
+	}
+
+	setter := c.createSetter(ctx, providerInst)
+	return value, setter
+}
+
+// UseContextValue retrieves the context value from the nearest ancestor provider.
+// Returns only the current value. If no provider exists, returns the default value.
+// Use this when you only need to read the context value without updating it.
+func (c *Context[T]) UseContextValue(ctx *Ctx) T {
+	value, _ := c.UseContext(ctx)
+	return value
+}
+
+// findProvider walks up the component tree to find the nearest provider.
+// Returns the provider instance and the current value.
+// If no provider is found, returns nil and the default value.
+func (c *Context[T]) findProvider(inst *Instance) (*Instance, T) {
+	current := inst
 	for current != nil {
-		if current.providers != nil {
-			if val, ok := current.providers[c.id]; ok {
-				return val.(T)
+		current.mu.Lock()
+		providers := current.Providers
+		current.mu.Unlock()
+
+		if providers != nil {
+			if val, ok := providers[c.id]; ok {
+
+				typed, typeOk := val.(T)
+				if !typeOk {
+					panic(fmt.Sprintf("runtime: context value type mismatch: expected %T, got %T (context ID: %v)", c.defaultValue, val, c.id))
+				}
+				return current, typed
 			}
 		}
-		current = current.parent
+		current = current.Parent
 	}
 
-	return c.defaultValue
+	return nil, c.defaultValue
+}
+
+// createSetter creates a setter function that updates the provider value.
+// The setter performs equality check and notifies children if the value changed.
+//
+// Note: The setter only marks children dirty, not the provider component itself.
+// If session is nil (SSR mode), children won't be marked dirty.
+func (c *Context[T]) createSetter(ctx *Ctx, providerInst *Instance) func(T) {
+	eq := c.equal
+	if eq == nil {
+		eq = defaultEqual[T]()
+	}
+
+	return func(newValue T) {
+		providerInst.mu.Lock()
+		raw, exists := providerInst.Providers[c.id]
+		if !exists {
+			providerInst.mu.Unlock()
+			return
+		}
+
+		oldValue, ok := raw.(T)
+		if !ok {
+			providerInst.mu.Unlock()
+
+			providerInst.Providers[c.id] = newValue
+			if ctx.session != nil {
+				providerInst.NotifyContextChange(ctx.session)
+			}
+			return
+		}
+
+		equal := safeEqual(eq, oldValue, newValue)
+		if equal {
+			providerInst.mu.Unlock()
+			return
+		}
+
+		providerInst.Providers[c.id] = newValue
+		providerInst.mu.Unlock()
+
+		if ctx.session != nil {
+			providerInst.NotifyContextChange(ctx.session)
+		}
+	}
+}
+
+// safeEqual calls the equality function with panic recovery.
+// If the equality check panics, returns false (values treated as different).
+// This handles uncomparable types gracefully when no custom equality is provided.
+func safeEqual[T any](eq func(a, b T) bool, a, b T) (equal bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			equal = false
+		}
+	}()
+	return eq(a, b)
 }

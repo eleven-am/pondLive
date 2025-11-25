@@ -45,11 +45,6 @@ func (a *App) PondManager() *pond.Manager {
 }
 
 // HandleFunc registers a handler function for the given pattern.
-// Pattern supports Go 1.22+ syntax:
-//   - Method-specific: "POST /api/users"
-//   - Wildcards: "GET /api/users/{id}"
-//   - Multi-segment: "GET /files/{path...}"
-//   - Exact match: "/{$}" for root only
 func (a *App) HandleFunc(pattern string, handler http.HandlerFunc) {
 	a.mux.HandleFunc(pattern, handler)
 }

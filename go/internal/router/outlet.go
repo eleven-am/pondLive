@@ -1,77 +1,47 @@
 package router
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
-	"github.com/eleven-am/pondlive/go/internal/slot"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// routerOutletSlotCtx is the package-level slot context used for all outlets.
-// Router provides matched route components as slot content.
-// Outlets render by pulling from this slot context.
-var routerOutletSlotCtx = slot.CreateSlotContext()
-
-// Outlet renders the content for a named outlet.
-// This is a pure wrapper around the slot system - no router-specific logic.
+// Outlet renders the matched route component for a named outlet.
+// If no route is matched, renders the fallback children.
 //
 // Usage:
 //
-//	router.Outlet(ctx)              // Renders "default" outlet
-//	router.Outlet(ctx, "sidebar")   // Renders "sidebar" outlet
-//
-// The outlet receives content from Routes() components that specified
-// the same outlet name in their RoutesProps.
-func Outlet(ctx Ctx, name ...string) *dom.StructuredNode {
-	outletName := "default"
-	if len(name) > 0 && name[0] != "" {
-		outletName = name[0]
+//	router.Outlet(ctx, "main", fallbackComponent)
+func Outlet(ctx *runtime.Ctx, name string, fallback ...work.Node) work.Node {
+	if name == "" {
+		name = "default"
 	}
-
-	return routerOutletSlotCtx.Render(ctx, outletName)
+	return outletSlotCtx.Render(ctx, name, fallback...)
 }
 
-// OutletFallback sets fallback content for an outlet.
-// This content renders when no route matches for the outlet.
-// This is a pure wrapper around the slot system's fallback mechanism.
+// OutletDefault is a convenience function for the default outlet.
 //
 // Usage:
 //
-//	router.OutletFallback(ctx, "sidebar", EmptySidebarComponent)
-//
-// The fallback component receives the current Match from the router controller.
-// This allows fallbacks to know the current route context even if their outlet didn't match.
-func OutletFallback(ctx Ctx, outlet string, component Component[Match]) *dom.StructuredNode {
-	controller := useRouterController(ctx)
-
-	match := Match{}
-	if controller != nil {
-		loc := controller.GetLocation()
-		matchState := controller.GetMatch()
-
-		match = Match{
-			Pattern:  matchState.Pattern,
-			Path:     loc.Path,
-			Params:   matchState.Params,
-			Query:    loc.Query,
-			RawQuery: loc.Query.Encode(),
-			Hash:     loc.Hash,
-		}
-	}
-
-	node := component(ctx, match)
-
-	routerOutletSlotCtx.SetFallback(ctx, outlet, node)
-
-	return dom.FragmentNode()
+//	router.OutletDefault(ctx, fallbackComponent)
+func OutletDefault(ctx *runtime.Ctx, fallback ...work.Node) work.Node {
+	return Outlet(ctx, "default", fallback...)
 }
 
-// HasOutlet checks if an outlet has content (either from a route or fallback).
-// Useful for conditional rendering based on outlet availability.
+// HasOutlet checks if a named outlet has matched content.
 //
 // Usage:
 //
 //	if router.HasOutlet(ctx, "sidebar") {
-//	    return h.Div(router.Outlet(ctx, "sidebar"))
+//	    // sidebar route is matched
 //	}
-func HasOutlet(ctx Ctx, outlet string) bool {
-	return routerOutletSlotCtx.Has(ctx, outlet)
+func HasOutlet(ctx *runtime.Ctx, name string) bool {
+	if name == "" {
+		name = "default"
+	}
+	return outletSlotCtx.Has(ctx, name)
+}
+
+// OutletNames returns all outlet names that have content.
+func OutletNames(ctx *runtime.Ctx) []string {
+	return outletSlotCtx.Names(ctx)
 }

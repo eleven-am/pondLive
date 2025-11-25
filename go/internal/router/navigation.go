@@ -1,159 +1,101 @@
 package router
 
 import (
+	"net/http"
 	"net/url"
-	"strings"
+
+	"github.com/eleven-am/pondlive/go/internal/headers"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
-// Navigate navigates to a new location (pushState).
-// Updates RequestController and syncs browser history.
+// Navigate triggers navigation to the specified href.
+// In live mode, publishes to Bus for client-side navigation.
+// In SSR mode, sets a redirect on the requestState.
 //
-// Usage:
-//
-//	router.Navigate(ctx, "/about")
-//	router.Navigate(ctx, "/users/123")
-//	router.Navigate(ctx, "#top")
-func Navigate(ctx Ctx, href string) {
-	performNavigation(ctx, href, false)
-}
-
-// Replace replaces the current location (replaceState).
-// Updates RequestController and syncs browser history without adding a new entry.
-//
-// Usage:
-//
-//	router.Replace(ctx, "/login")
-func Replace(ctx Ctx, href string) {
-	performNavigation(ctx, href, true)
-}
-
-// performNavigation handles the actual navigation logic.
-// Updates RequestController and calls ctx.EnqueueNavigation for browser sync.
-func performNavigation(ctx Ctx, href string, replace bool) {
-	controller := useRouterController(ctx)
-	if controller == nil || controller.requestController == nil {
-		return
-	}
-
-	current := controller.GetLocation()
-
-	target := resolveHref(current, href)
-
-	target = canonicalizeLocation(target)
-	if locationEqual(current, target) {
-		return
-	}
-
-	controller.requestController.SetCurrentLocation(target.Path, target.Query, target.Hash)
-
-	recordNavigation(ctx, target, replace)
-}
-
-// recordNavigation syncs browser history via ctx.EnqueueNavigation.
-func recordNavigation(ctx Ctx, loc Location, replace bool) {
-	href := buildHref(loc.Path, loc.Query, loc.Hash)
-	ctx.EnqueueNavigation(href, replace)
-}
-
-// resolveHref resolves a potentially relative href against a base location.
 // Supports:
-// - Absolute paths: "/about" -> {Path: "/about"}
-// - Hash-only: "#top" -> {Path: base.Path, Hash: "top"}
-// - Relative paths: "../users" -> resolved against base.Path
-func resolveHref(base Location, href string) Location {
-	trimmed := strings.TrimSpace(href)
-	if trimmed == "" {
-		return base
-	}
+// - Absolute paths: "/about", "/users/123"
+// - Hash-only: "#section"
+// - Relative: "./edit", "../settings"
+// - With query: "/search?q=foo"
+func Navigate(ctx *runtime.Ctx, href string) {
+	navigate(ctx, href, false)
+}
 
-	if strings.HasPrefix(trimmed, "#") {
-		next := base
-		next.Hash = normalizeHash(trimmed)
-		return next
-	}
+// Replace triggers navigation with history.replaceState semantics.
+// Same as Navigate but doesn't create a new history entry.
+func Replace(ctx *runtime.Ctx, href string) {
+	navigate(ctx, href, true)
+}
 
-	if strings.HasPrefix(trimmed, "/") {
-		parsed, err := url.Parse(trimmed)
-		if err != nil {
-			return base
+// NavigateWithQuery navigates to a path with the given query parameters.
+func NavigateWithQuery(ctx *runtime.Ctx, path string, query url.Values) {
+	href := buildHref(path, query, "")
+	Navigate(ctx, href)
+}
+
+// ReplaceWithQuery replaces current location with path and query parameters.
+func ReplaceWithQuery(ctx *runtime.Ctx, path string, query url.Values) {
+	href := buildHref(path, query, "")
+	Replace(ctx, href)
+}
+
+// NavigateToHash navigates to a hash on the current path.
+func NavigateToHash(ctx *runtime.Ctx, hash string) {
+	Navigate(ctx, "#"+hash)
+}
+
+// Back navigates in browser history.
+// Only works in live mode.
+func Back(ctx *runtime.Ctx) {
+	bus := getBus(ctx)
+	if bus == nil {
+		return
+	}
+	bus.Publish("router", "back", nil)
+}
+
+// Forward navigates in browser history.
+// Only works in live mode.
+func Forward(ctx *runtime.Ctx) {
+	bus := getBus(ctx)
+	if bus == nil {
+		return
+	}
+	bus.Publish("router", "forward", nil)
+}
+
+// navigate is the internal navigation implementation.
+func navigate(ctx *runtime.Ctx, href string, replace bool) {
+	bus := getBus(ctx)
+
+	if bus == nil {
+		requestState := headers.UseRequestState(ctx)
+		if requestState != nil {
+
+			currentLoc := &Location{
+				Path:  requestState.Path(),
+				Query: requestState.Query(),
+				Hash:  requestState.Hash(),
+			}
+			target := resolveHref(currentLoc, href)
+			redirectURL := buildHref(target.Path, target.Query, target.Hash)
+			requestState.SetRedirect(redirectURL, http.StatusFound)
 		}
-		return Location{
-			Path:  parsed.Path,
-			Query: parsed.Query(),
-			Hash:  parsed.Fragment,
-		}
-	}
-
-	baseURL := &url.URL{
-		Path:     base.Path,
-		RawQuery: base.Query.Encode(),
-		Fragment: base.Hash,
-	}
-	parsed, err := baseURL.Parse(trimmed)
-	if err != nil {
-		return base
-	}
-
-	return Location{
-		Path:  parsed.Path,
-		Query: parsed.Query(),
-		Hash:  parsed.Fragment,
-	}
-}
-
-// NavigateWithSearch updates query parameters while keeping the current path.
-// The patch function receives current query values and returns updated values.
-//
-// Usage:
-//
-//	router.NavigateWithSearch(ctx, func(q url.Values) url.Values {
-//	    q.Set("page", "2")
-//	    return q
-//	})
-func NavigateWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
-	updateSearchWithNavigation(ctx, patch, false)
-}
-
-// ReplaceWithSearch updates query parameters with replace instead of push.
-func ReplaceWithSearch(ctx Ctx, patch func(url.Values) url.Values) {
-	updateSearchWithNavigation(ctx, patch, true)
-}
-
-// updateSearchWithNavigation applies a query update function.
-func updateSearchWithNavigation(ctx Ctx, patch func(url.Values) url.Values, replace bool) {
-	controller := useRouterController(ctx)
-	if controller == nil || controller.requestController == nil {
 		return
 	}
 
-	current := controller.GetLocation()
-
-	nextQuery := cloneValues(current.Query)
-	if patch != nil {
-		nextQuery = patch(nextQuery)
+	currentLoc := LocationContext.UseContextValue(ctx)
+	if currentLoc == nil {
+		currentLoc = &Location{Path: "/", Query: url.Values{}}
 	}
 
-	next := current
-	next.Query = canonicalizeValues(nextQuery)
+	target := resolveHref(currentLoc, href)
+	target = canonicalizeLocation(target)
 
-	performLocationUpdate(ctx, next, replace)
-}
-
-// performLocationUpdate is a helper for updating location.
-func performLocationUpdate(ctx Ctx, target Location, replace bool) {
-	controller := useRouterController(ctx)
-	if controller == nil || controller.requestController == nil {
-		return
-	}
-
-	current := controller.GetLocation()
-	canon := canonicalizeLocation(target)
-
-	if locationEqual(current, canon) {
-		return
-	}
-
-	controller.requestController.SetCurrentLocation(canon.Path, canon.Query, canon.Hash)
-
-	recordNavigation(ctx, canon, replace)
+	bus.Publish("router", "navigate", NavPayload{
+		Path:    target.Path,
+		Query:   target.Query.Encode(),
+		Hash:    target.Hash,
+		Replace: replace,
+	})
 }

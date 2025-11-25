@@ -1,59 +1,114 @@
 package router
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"net/url"
+
 	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// ProvideRouter sets up the router system and provides it to the application tree.
-// This is the main entry point for router.
+// ProvideRouter sets up the router context hierarchy.
+// It provides:
+// - LocationContext (mutable URL state)
+// - MatchContext (current route match)
+// - outletSlotCtx (outlet slot distribution)
 //
-// Key responsibilities:
-// 1. Gets RequestController from context (source of truth for location)
-// 2. Creates router controller that reads location from RequestController
-// 3. Provides router controller to tree
-// 4. Sets up slot context for outlets
-//
-// Usage:
-//
-//	func App(ctx runtime.Ctx, _ struct{}) *dom.StructuredNode {
-//	    return router.ProvideRouter(ctx, func(rctx router.Ctx) *dom.StructuredNode {
-//	        return h.Div(
-//	            router.Routes(rctx, router.RoutesProps{Outlet: "main"},
-//	                router.Route(rctx, router.RouteProps{Path: "/", Component: HomePage}),
-//	            ),
-//	            h.Main(router.Outlet(rctx)),
-//	        )
-//	    })
-//	}
-func ProvideRouter(ctx Ctx, render func(Ctx) *dom.StructuredNode) *dom.StructuredNode {
+// And subscribes to Bus for navigation events (live mode only).
+func ProvideRouter(ctx *runtime.Ctx, children []work.Node) work.Node {
+	requestState := headers.UseRequestState(ctx)
+	bus := getBus(ctx)
 
-	requestController := headers.UseRequestController(ctx)
-	if requestController == nil {
-
-		requestController = headers.NewRequestController()
-		requestController.SetInitialLocation("/", nil, "")
+	initialLocation := &Location{
+		Path:  "/",
+		Query: url.Values{},
+	}
+	if requestState != nil {
+		initialLocation = &Location{
+			Path:  requestState.Path(),
+			Query: requestState.Query(),
+			Hash:  requestState.Hash(),
+		}
 	}
 
-	matchState, setMatchState := runtime.UseState(ctx, &MatchState{
-		Matched: false,
-		Pattern: "",
-		Params:  make(map[string]string),
-		Path:    "",
-	})
+	location, setLocation := LocationContext.UseProvider(ctx, initialLocation)
+	_ = location
 
-	controller := runtime.UseMemo(ctx, func() *Controller {
-		return NewController(requestController, matchState, setMatchState)
-	})
+	runtime.UseEffect(ctx, func() func() {
+		if bus == nil {
+			return nil
+		}
 
-	return ProvideRouterController(ctx, controller, func(rctx Ctx) *dom.StructuredNode {
+		sub := bus.Subscribe("router", func(event string, data interface{}) {
+			switch event {
+			case "navigate":
+				nav := parseNavPayload(data)
+				if nav == nil {
+					return
+				}
+				newLoc := canonicalizeLocation(nav.ToLocation())
+				setLocation(newLoc)
 
-		children := render(rctx)
+				if nav.Replace {
+					bus.Publish("router", "replaced", NavResponse{
+						Path:    newLoc.Path,
+						Query:   newLoc.Query.Encode(),
+						Hash:    newLoc.Hash,
+						Replace: true,
+					})
+				} else {
+					bus.Publish("router", "navigated", NavResponse{
+						Path:    newLoc.Path,
+						Query:   newLoc.Query.Encode(),
+						Hash:    newLoc.Hash,
+						Replace: false,
+					})
+				}
 
-		return routerOutletSlotCtx.Provide(rctx, []dom.Item{children}, func(sctx runtime.Ctx) *dom.StructuredNode {
+			case "popstate":
 
-			return children
+				nav := parseNavPayload(data)
+				if nav == nil {
+					return
+				}
+				newLoc := canonicalizeLocation(nav.ToLocation())
+				setLocation(newLoc)
+			}
 		})
-	})
+
+		return sub.Unsubscribe
+	}, bus)
+
+	return outletSlotCtx.ProvideWithoutDefault(ctx, children)
+}
+
+// parseNavPayload converts interface{} data from Bus to NavPayload.
+func parseNavPayload(data interface{}) *NavPayload {
+	if data == nil {
+		return nil
+	}
+
+	switch v := data.(type) {
+	case NavPayload:
+		return &v
+	case *NavPayload:
+		return v
+	case map[string]interface{}:
+		nav := &NavPayload{}
+		if path, ok := v["path"].(string); ok {
+			nav.Path = path
+		}
+		if query, ok := v["query"].(string); ok {
+			nav.Query = query
+		}
+		if hash, ok := v["hash"].(string); ok {
+			nav.Hash = hash
+		}
+		if replace, ok := v["replace"].(bool); ok {
+			nav.Replace = replace
+		}
+		return nav
+	default:
+		return nil
+	}
 }

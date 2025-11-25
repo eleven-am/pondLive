@@ -1,19 +1,20 @@
 package headers
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
-// requestCtx is the context for providing request controller to child components.
-var requestCtx = runtime.CreateContext[*RequestController](nil)
+// requestCtx is the context for providing request state to child components.
+var requestCtx = runtime.CreateContext[*RequestState](nil)
 
-// UseRequestController returns the request controller from context.
-func UseRequestController(ctx runtime.Ctx) *RequestController {
-	return requestCtx.Use(ctx)
+// UseRequestState returns the request state from context.
+// Returns nil if not within a RequestState provider.
+func UseRequestState(ctx *runtime.Ctx) *RequestState {
+	return requestCtx.UseContextValue(ctx)
 }
 
-// ProvideRequestController provides the request controller to child components.
-func ProvideRequestController(ctx runtime.Ctx, controller *RequestController, render func(runtime.Ctx) *dom.StructuredNode) *dom.StructuredNode {
-	return requestCtx.Provide(ctx, controller, render)
+// UseProvideRequestState provides a RequestState to child components.
+// Returns the state and a setter function (setter is typically unused since state is mutated directly).
+func UseProvideRequestState(ctx *runtime.Ctx, state *RequestState) (*RequestState, func(*RequestState)) {
+	return requestCtx.UseProvider(ctx, state)
 }

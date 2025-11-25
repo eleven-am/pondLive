@@ -5,36 +5,34 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"strings"
 
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
+	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/session"
+	"github.com/eleven-am/pondlive/go/internal/view"
+	"github.com/eleven-am/pondlive/go/internal/view/diff"
 )
 
 // SSRHandler handles server-side rendering of components.
 type SSRHandler struct {
-	registry       *SessionRegistry
-	component      session.Component
-	version        int
-	idGenerator    func(*http.Request) (session.SessionID, error)
-	sessionConfig  *session.Config
-	clientAsset    string
-	clientConfig   *protocol.ClientConfig
-	pubsubProvider runtime.PubsubProvider
+	registry      *SessionRegistry
+	component     session.Component
+	version       int
+	idGenerator   func(*http.Request) (session.SessionID, error)
+	sessionConfig *session.Config
+	clientAsset   string
+	clientConfig  *protocol.ClientConfig
 }
 
 // SSRConfig configures the SSR handler.
 type SSRConfig struct {
-	Registry       *SessionRegistry
-	Component      session.Component
-	IDGenerator    func(*http.Request) (session.SessionID, error)
-	SessionConfig  *session.Config
-	ClientAsset    string
-	ClientConfig   *protocol.ClientConfig
-	PubsubProvider runtime.PubsubProvider
+	Registry      *SessionRegistry
+	Component     session.Component
+	IDGenerator   func(*http.Request) (session.SessionID, error)
+	SessionConfig *session.Config
+	ClientAsset   string
+	ClientConfig  *protocol.ClientConfig
 }
 
 // NewSSRHandler creates a new SSR handler.
@@ -65,9 +63,6 @@ func NewSSRHandler(cfg SSRConfig) *SSRHandler {
 		clone := *cfg.ClientConfig
 		h.clientConfig = &clone
 	}
-	if cfg.PubsubProvider != nil {
-		h.pubsubProvider = cfg.PubsubProvider
-	}
 	return h
 }
 
@@ -95,57 +90,33 @@ func (h *SSRHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := cloneSessionConfig(h.sessionConfig)
-	capture := newBootCaptureTransport()
-	cfg.Transport = capture
 	cfg.ClientAsset = h.clientAsset
+
+	requestInfo := headers.NewRequestInfo(r)
 
 	sess := session.NewLiveSession(sid, version, h.component, &cfg)
 
-	if h.pubsubProvider != nil {
-		if cs := sess.ComponentSession(); cs != nil {
-			cs.SetPubsubProvider(h.pubsubProvider)
-		}
-	}
-
-	sess.MergeRequest(r)
+	capture := newBootCaptureTransport()
+	capture.requestInfo = requestInfo
+	sess.SetTransport(capture)
 
 	if err := sess.Flush(); err != nil {
 		http.Error(w, "initial render failed: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if redirectURL, statusCode, hasRedirect := sess.GetRedirect(); hasRedirect {
-		http.Redirect(w, r, redirectURL, statusCode)
+	rtSession := sess.Session()
+	if rtSession == nil || rtSession.View == nil {
+		http.Error(w, "render produced nil view", http.StatusInternalServerError)
 		return
 	}
 
-	for name, values := range sess.GetResponseHeaders() {
-		for _, value := range values {
-			w.Header().Add(name, value)
-		}
-	}
+	documentHTML := view.RenderHTML(rtSession.View)
 
-	root := sess.Tree()
-	if root == nil {
-		http.Error(w, "render produced nil node", http.StatusInternalServerError)
-		return
-	}
-
-	documentHTML := root.ToHTML()
-	initial := sess.InitialLocation()
 	location := protocol.Location{
-		Path:  initial.Path,
-		Query: encodeValues(initial.Query),
-		Hash:  initial.Hash,
-	}
-	if location.Path == "" {
-		location.Path = normalizePath(r.URL.Path)
-	}
-	if location.Query == "" {
-		location.Query = r.URL.RawQuery
-	}
-	if location.Hash == "" {
-		location.Hash = strings.TrimSpace(r.URL.Fragment)
+		Path:  normalizePath(r.URL.Path),
+		Query: r.URL.RawQuery,
+		Hash:  strings.TrimSpace(r.URL.Fragment),
 	}
 
 	clientCfg := cloneOptionalClientConfig(h.clientConfig)
@@ -164,7 +135,7 @@ func (h *SSRHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		SID:      string(sid),
 		Ver:      version,
 		Seq:      capture.LastSeq(),
-		Patch:    dom2diff.ExtractMetadata(root),
+		Patch:    diff.ExtractMetadata(rtSession.View),
 		Location: location,
 		Client:   clientCfg,
 	}
@@ -178,7 +149,7 @@ func (h *SSRHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sess.SetTransport(nil)
 	h.registry.Put(sess)
 
-	document := decorateDocument(documentHTML, bootJSON)
+	document := decorateDocument(documentHTML, bootJSON, h.clientAsset)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(document))
@@ -214,19 +185,25 @@ func cloneOptionalClientConfig(cfg *protocol.ClientConfig) *protocol.ClientConfi
 	return &clone
 }
 
-func decorateDocument(document string, bootJSON []byte) string {
+func decorateDocument(document string, bootJSON []byte, clientAsset string) string {
 	escaped := escapeJSON(string(bootJSON))
 	bootScript := `<script id="live-boot" type="application/json">` + escaped + `</script>`
 
+	clientScript := ""
+	if clientAsset != "" {
+		clientScript = `<script src="` + clientAsset + `" defer></script>`
+	}
+
 	idx := lastIndexFold(document, "</body>")
 	if idx < 0 {
-		return document + bootScript
+		return document + bootScript + clientScript
 	}
 
 	var b strings.Builder
-	b.Grow(len(document) + len(bootScript))
+	b.Grow(len(document) + len(bootScript) + len(clientScript))
 	b.WriteString(document[:idx])
 	b.WriteString(bootScript)
+	b.WriteString(clientScript)
 	b.WriteString(document[idx:])
 	return b.String()
 }
@@ -248,13 +225,6 @@ func lastIndexFold(haystack, needle string) int {
 	return -1
 }
 
-func encodeValues(values url.Values) string {
-	if values == nil {
-		return ""
-	}
-	return values.Encode()
-}
-
 func normalizePath(path string) string {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
@@ -268,7 +238,8 @@ func normalizePath(path string) string {
 
 // bootCaptureTransport captures the last sequence number during initial render.
 type bootCaptureTransport struct {
-	lastSeq int
+	lastSeq     int
+	requestInfo *headers.RequestInfo
 }
 
 func newBootCaptureTransport() *bootCaptureTransport {
@@ -281,18 +252,14 @@ func (b *bootCaptureTransport) LastSeq() int {
 
 func (b *bootCaptureTransport) IsLive() bool { return false }
 
-func (b *bootCaptureTransport) SendBoot(protocol.Boot) error                   { return nil }
-func (b *bootCaptureTransport) SendInit(protocol.Init) error                   { return nil }
-func (b *bootCaptureTransport) SendResume(protocol.ResumeOK) error             { return nil }
-func (b *bootCaptureTransport) SendEventAck(protocol.EventAck) error           { return nil }
-func (b *bootCaptureTransport) SendServerError(protocol.ServerError) error     { return nil }
-func (b *bootCaptureTransport) SendDiagnostic(protocol.Diagnostic) error       { return nil }
-func (b *bootCaptureTransport) SendDOMRequest(protocol.DOMRequest) error       { return nil }
-func (b *bootCaptureTransport) SendPubsubControl(protocol.PubsubControl) error { return nil }
-func (b *bootCaptureTransport) SendScriptEvent(protocol.ScriptEvent) error     { return nil }
-func (b *bootCaptureTransport) Close() error                                   { return nil }
+func (b *bootCaptureTransport) RequestInfo() *headers.RequestInfo { return b.requestInfo }
 
-func (b *bootCaptureTransport) SendFrame(frame protocol.Frame) error {
-	b.lastSeq = frame.Seq
+func (b *bootCaptureTransport) Close() error { return nil }
+
+func (b *bootCaptureTransport) Send(topic, event string, data any) error {
+
+	if topic == "frame" && event == "patch" {
+		b.lastSeq++
+	}
 	return nil
 }

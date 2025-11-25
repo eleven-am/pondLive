@@ -1,394 +1,205 @@
 package runtime
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/eleven-am/pondlive/go/internal/dom"
-	dom2diff "github.com/eleven-am/pondlive/go/internal/dom/diff"
 )
 
-func TestUseHandlerBasic(t *testing.T) {
-	var handlerCalled bool
-	var receivedMethod string
+func TestUseHandlerRegistersAndServes(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
 
-	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		h := UseHandler(ctx, "POST", func(w http.ResponseWriter, r *http.Request) error {
-			handlerCalled = true
-			receivedMethod = r.Method
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			return json.NewEncoder(w).Encode(map[string]string{"status": "success"})
-		})
+	ctx := &Ctx{instance: root, session: sess}
 
-		if h.URL() == "" {
-			t.Error("expected non-empty URL from handler")
-		}
+	h := UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+		w.WriteHeader(http.StatusTeapot)
+		_, _ = w.Write([]byte("ok"))
+		return nil
+	})
 
-		return dom.ElementNode("div").WithChildren(dom.TextNode(h.URL()))
+	if h.URL() != "/_handlers/sess1/root:h0" {
+		t.Fatalf("unexpected URL: %s", h.URL())
 	}
 
-	sess := NewSession(comp, struct{}{})
-	sess.SetSessionID("test-session")
-	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
+	req := httptest.NewRequest(http.MethodGet, h.URL(), nil)
+	rr := httptest.NewRecorder()
+	sess.ServeHTTP(rr, req)
 
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("flush failed: %v", err)
+	if rr.Code != http.StatusTeapot {
+		t.Fatalf("expected 418, got %d", rr.Code)
 	}
-
-	handlerID := fmt.Sprintf("%s:h0", sess.root.id)
-	entry := sess.FindHandler(handlerID)
-	if entry == nil {
-		t.Fatalf("expected handler to be registered with ID %s", handlerID)
-	}
-
-	if entry.Method != "POST" {
-		t.Errorf("expected method POST, got %s", entry.Method)
-	}
-
-	req := httptest.NewRequest("POST", "/test", nil)
-	w := httptest.NewRecorder()
-
-	if err := entry.Chain[0](w, req); err != nil {
-		t.Fatalf("handler execution failed: %v", err)
-	}
-
-	if !handlerCalled {
-		t.Error("expected handler to be called")
-	}
-
-	if receivedMethod != "POST" {
-		t.Errorf("expected method POST, got %s", receivedMethod)
-	}
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
+	if body := rr.Body.String(); body != "ok" {
+		t.Fatalf("unexpected body: %q", body)
 	}
 }
 
-func TestUseHandlerURL(t *testing.T) {
-	var capturedURL string
+func TestUseHandlerStoresHandlerHookType(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
+	ctx := &Ctx{instance: root, session: sess}
 
-	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		h := UseHandler(ctx, "GET", func(w http.ResponseWriter, r *http.Request) error {
-			return nil
-		})
-		capturedURL = h.URL()
-		return dom.ElementNode("div")
-	}
+	_ = UseHandler(ctx, http.MethodGet)
 
-	sess := NewSession(comp, struct{}{})
-	sess.SetSessionID("my-session-123")
-	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
-
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	expectedURL := fmt.Sprintf("/_handlers/my-session-123/%s:h0", sess.root.id)
-	if capturedURL != expectedURL {
-		t.Errorf("expected URL %s, got %s", expectedURL, capturedURL)
+	if got := root.HookFrame[0].Type; got != HookTypeHandler {
+		t.Fatalf("expected HookTypeHandler, got %v", got)
 	}
 }
 
-func TestUseHandlerMultipleHandlers(t *testing.T) {
-	var handler1Called, handler2Called bool
+func TestUseHandlerUpdatesOnRerender(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
+	ctx := &Ctx{instance: root, session: sess}
 
-	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		h1 := UseHandler(ctx, "GET", func(w http.ResponseWriter, r *http.Request) error {
-			handler1Called = true
-			return nil
-		})
+	h := UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+		_, _ = w.Write([]byte("v1"))
+		return nil
+	})
 
-		h2 := UseHandler(ctx, "POST", func(w http.ResponseWriter, r *http.Request) error {
-			handler2Called = true
-			return nil
-		})
+	ctx.hookIndex = 0
+	_ = UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+		_, _ = w.Write([]byte("v2"))
+		return nil
+	})
 
-		if h1.URL() == h2.URL() {
-			t.Error("expected different URLs for different handlers")
-		}
+	req := httptest.NewRequest(http.MethodGet, h.URL(), nil)
+	rr := httptest.NewRecorder()
+	sess.ServeHTTP(rr, req)
 
-		return dom.ElementNode("div")
-	}
-
-	sess := NewSession(comp, struct{}{})
-	sess.SetSessionID("test")
-	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
-
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	handlerID1 := fmt.Sprintf("%s:h0", sess.root.id)
-	entry1 := sess.FindHandler(handlerID1)
-	if entry1 == nil {
-		t.Fatalf("expected first handler to be registered with ID %s", handlerID1)
-	}
-
-	req1 := httptest.NewRequest("GET", "/test", nil)
-	w1 := httptest.NewRecorder()
-	if err := entry1.Chain[0](w1, req1); err != nil {
-		t.Fatalf("handler1 execution failed: %v", err)
-	}
-
-	if !handler1Called {
-		t.Error("expected handler1 to be called")
-	}
-
-	handlerID2 := fmt.Sprintf("%s:h1", sess.root.id)
-	entry2 := sess.FindHandler(handlerID2)
-	if entry2 == nil {
-		t.Fatalf("expected second handler to be registered with ID %s", handlerID2)
-	}
-
-	req2 := httptest.NewRequest("POST", "/test", nil)
-	w2 := httptest.NewRecorder()
-	if err := entry2.Chain[0](w2, req2); err != nil {
-		t.Fatalf("handler2 execution failed: %v", err)
-	}
-
-	if !handler2Called {
-		t.Error("expected handler2 to be called")
+	if body := rr.Body.String(); body != "v2" {
+		t.Fatalf("expected updated handler body v2, got %q", body)
 	}
 }
 
-func TestUseHandlerMiddleware(t *testing.T) {
-	var middlewareCalled bool
-	var handlerCalled bool
-	var executionOrder []string
+func TestUseHandlerMethodGuard(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
+	ctx := &Ctx{instance: root, session: sess}
 
-	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		middleware := func(w http.ResponseWriter, r *http.Request) error {
-			middlewareCalled = true
-			executionOrder = append(executionOrder, "middleware")
-			return nil
-		}
+	h := UseHandler(ctx, http.MethodPost, func(w http.ResponseWriter, r *http.Request) error {
+		_, _ = w.Write([]byte("ok"))
+		return nil
+	})
 
-		handler := func(w http.ResponseWriter, r *http.Request) error {
-			handlerCalled = true
-			executionOrder = append(executionOrder, "handler")
-			return nil
-		}
+	req := httptest.NewRequest(http.MethodGet, h.URL(), nil)
+	rr := httptest.NewRecorder()
+	sess.ServeHTTP(rr, req)
 
-		UseHandler(ctx, "GET", middleware, handler)
-		return dom.ElementNode("div")
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rr.Code)
 	}
-
-	sess := NewSession(comp, struct{}{})
-	sess.SetSessionID("test")
-	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
-
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	handlerID := fmt.Sprintf("%s:h0", sess.root.id)
-	entry := sess.FindHandler(handlerID)
-	if entry == nil {
-		t.Fatalf("expected handler to be registered with ID %s", handlerID)
-	}
-
-	if len(entry.Chain) != 2 {
-		t.Fatalf("expected 2 functions in chain, got %d", len(entry.Chain))
-	}
-
-	req := httptest.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-
-	for _, fn := range entry.Chain {
-		if err := fn(w, req); err != nil {
-			t.Fatalf("chain execution failed: %v", err)
-		}
-	}
-
-	if !middlewareCalled {
-		t.Error("expected middleware to be called")
-	}
-
-	if !handlerCalled {
-		t.Error("expected handler to be called")
-	}
-
-	if len(executionOrder) != 2 || executionOrder[0] != "middleware" || executionOrder[1] != "handler" {
-		t.Errorf("expected execution order [middleware, handler], got %v", executionOrder)
+	if allow := rr.Header().Get("Allow"); allow != http.MethodPost {
+		t.Fatalf("expected Allow header %s, got %s", http.MethodPost, allow)
 	}
 }
 
-func TestUseHandlerErrorHandling(t *testing.T) {
-	testErr := fmt.Errorf("handler error")
+func TestUseHandlerPanicRecovery(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
+	ctx := &Ctx{instance: root, session: sess}
 
-	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		UseHandler(ctx, "POST", func(w http.ResponseWriter, r *http.Request) error {
-			return testErr
-		})
-		return dom.ElementNode("div")
-	}
+	h := UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+		panic("boom")
+	})
 
-	sess := NewSession(comp, struct{}{})
-	sess.SetSessionID("test")
-	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
+	req := httptest.NewRequest(http.MethodGet, h.URL(), nil)
+	rr := httptest.NewRecorder()
+	sess.ServeHTTP(rr, req)
 
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	handlerID := fmt.Sprintf("%s:h0", sess.root.id)
-	entry := sess.FindHandler(handlerID)
-	if entry == nil {
-		t.Fatalf("expected handler to be registered with ID %s", handlerID)
-	}
-
-	req := httptest.NewRequest("POST", "/test", nil)
-	w := httptest.NewRecorder()
-
-	err := entry.Chain[0](w, req)
-	if err != testErr {
-		t.Errorf("expected error %v, got %v", testErr, err)
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rr.Code)
 	}
 }
 
-func TestUseHandlerRequestBody(t *testing.T) {
-	var receivedBody string
+func TestUseHandlerDestroy(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
+	ctx := &Ctx{instance: root, session: sess}
 
-	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		UseHandler(ctx, "POST", func(w http.ResponseWriter, r *http.Request) error {
-			body, err := io.ReadAll(r.Body)
-			if err != nil {
-				return err
-			}
-			receivedBody = string(body)
-			w.WriteHeader(http.StatusOK)
-			return nil
-		})
-		return dom.ElementNode("div")
-	}
+	h := UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+		_, _ = w.Write([]byte("ok"))
+		return nil
+	})
 
-	sess := NewSession(comp, struct{}{})
-	sess.SetSessionID("test")
-	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
+	h.Destroy()
 
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
+	req := httptest.NewRequest(http.MethodGet, h.URL(), nil)
+	rr := httptest.NewRecorder()
+	sess.ServeHTTP(rr, req)
 
-	handlerID := fmt.Sprintf("%s:h0", sess.root.id)
-	entry := sess.FindHandler(handlerID)
-	if entry == nil {
-		t.Fatalf("expected handler to be registered with ID %s", handlerID)
-	}
-
-	testBody := `{"test": "data"}`
-	req := httptest.NewRequest("POST", "/test", strings.NewReader(testBody))
-	w := httptest.NewRecorder()
-
-	if err := entry.Chain[0](w, req); err != nil {
-		t.Fatalf("handler execution failed: %v", err)
-	}
-
-	if receivedBody != testBody {
-		t.Errorf("expected body %s, got %s", testBody, receivedBody)
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 after destroy, got %d", rr.Code)
 	}
 }
 
-func TestUseHandlerPersistence(t *testing.T) {
-	callCount := 0
+func TestUseHandlerCleanupOnUnmount(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
+	ctx := &Ctx{instance: root, session: sess}
 
-	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		UseHandler(ctx, "GET", func(w http.ResponseWriter, r *http.Request) error {
-			callCount++
-			return nil
-		})
-		return dom.ElementNode("div")
-	}
+	h := UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+		_, _ = w.Write([]byte("ok"))
+		return nil
+	})
 
-	sess := NewSession(comp, struct{}{})
-	sess.SetSessionID("test")
-	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
+	sess.cleanupInstance(root)
 
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("first flush failed: %v", err)
-	}
+	req := httptest.NewRequest(http.MethodGet, h.URL(), nil)
+	rr := httptest.NewRecorder()
+	sess.ServeHTTP(rr, req)
 
-	handlerID := fmt.Sprintf("%s:h0", sess.root.id)
-	entry1 := sess.FindHandler(handlerID)
-	if entry1 == nil {
-		t.Fatalf("expected handler to be registered after first render with ID %s", handlerID)
-	}
-
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("second flush failed: %v", err)
-	}
-
-	entry2 := sess.FindHandler(handlerID)
-	if entry2 == nil {
-		t.Fatalf("expected handler to persist after second render with ID %s", handlerID)
-	}
-
-	if entry1.ID != entry2.ID {
-		t.Errorf("expected same handler ID, got %s and %s", entry1.ID, entry2.ID)
-	}
-
-	if entry1.Method != entry2.Method {
-		t.Errorf("expected same method, got %s and %s", entry1.Method, entry2.Method)
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 after cleanup, got %d", rr.Code)
 	}
 }
 
-func TestUseHandlerEmptyURL(t *testing.T) {
-	var handle HandlerHandle
+func TestUseHandler500OnErrorAndNoWrite(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
+	ctx := &Ctx{instance: root, session: sess}
 
-	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		handle = UseHandler(ctx, "GET", func(w http.ResponseWriter, r *http.Request) error {
-			return nil
-		})
-		return dom.ElementNode("div")
-	}
+	h := UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+		return fmt.Errorf("fail")
+	})
 
-	sess := NewSession(comp, struct{}{})
+	req := httptest.NewRequest(http.MethodGet, h.URL(), nil)
+	rr := httptest.NewRecorder()
+	sess.ServeHTTP(rr, req)
 
-	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
-
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	expectedURL := fmt.Sprintf("/_handlers//%s:h0", sess.root.id)
-	if handle.URL() != expectedURL {
-		t.Errorf("expected URL %s, got %s", expectedURL, handle.URL())
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rr.Code)
 	}
 }
 
-func TestUseHandlerNotFoundAfterRemoval(t *testing.T) {
-	comp := func(ctx Ctx, props struct{}) *dom.StructuredNode {
-		UseHandler(ctx, "GET", func(w http.ResponseWriter, r *http.Request) error {
+func TestUseHandlerSkipsNilHandlers(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
+	ctx := &Ctx{instance: root, session: sess}
+
+	h := UseHandler(ctx, http.MethodGet,
+		nil,
+		func(w http.ResponseWriter, r *http.Request) error {
+			_, _ = w.Write([]byte("ok"))
 			return nil
-		})
-		return dom.ElementNode("div")
-	}
+		},
+	)
 
-	sess := NewSession(comp, struct{}{})
-	sess.SetSessionID("test")
-	sess.SetPatchSender(func(patches []dom2diff.Patch) error { return nil })
+	req := httptest.NewRequest(http.MethodGet, h.URL(), nil)
+	rr := httptest.NewRecorder()
+	sess.ServeHTTP(rr, req)
 
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	handlerID := fmt.Sprintf("%s:h0", sess.root.id)
-	entry := sess.FindHandler(handlerID)
-	if entry == nil {
-		t.Fatalf("expected handler to be registered with ID %s", handlerID)
-	}
-
-	sess.removeHandler(handlerID)
-
-	entry = sess.FindHandler(handlerID)
-	if entry != nil {
-		t.Error("expected handler to be removed")
+	if body := strings.TrimSpace(rr.Body.String()); body != "ok" {
+		t.Fatalf("expected ok, got %q", body)
 	}
 }

@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/url"
+	"path"
 	"sort"
 	"strings"
 
@@ -10,7 +11,11 @@ import (
 
 // canonicalizeLocation normalizes a location's path, query, and hash.
 // This ensures consistent location comparison and matching.
-func canonicalizeLocation(loc Location) Location {
+func canonicalizeLocation(loc *Location) *Location {
+	if loc == nil {
+		return &Location{Path: "/", Query: url.Values{}}
+	}
+
 	parts := route.NormalizeParts(loc.Path)
 
 	var canonQuery url.Values
@@ -20,7 +25,7 @@ func canonicalizeLocation(loc Location) Location {
 		canonQuery = url.Values{}
 	}
 
-	canon := Location{
+	canon := &Location{
 		Path:  parts.Path,
 		Query: canonQuery,
 		Hash:  normalizeHash(loc.Hash),
@@ -34,8 +39,11 @@ func canonicalizeLocation(loc Location) Location {
 }
 
 // cloneLocation creates a deep copy of a location.
-func cloneLocation(loc Location) Location {
-	return Location{
+func cloneLocation(loc *Location) *Location {
+	if loc == nil {
+		return &Location{Path: "/", Query: url.Values{}}
+	}
+	return &Location{
 		Path:  loc.Path,
 		Query: cloneValues(loc.Query),
 		Hash:  loc.Hash,
@@ -43,7 +51,13 @@ func cloneLocation(loc Location) Location {
 }
 
 // locationEqual compares two locations for equality.
-func locationEqual(a, b Location) bool {
+func locationEqual(a, b *Location) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
 	if a.Path != b.Path {
 		return false
 	}
@@ -174,4 +188,72 @@ func buildHref(path string, query url.Values, hash string) string {
 	}
 
 	return href
+}
+
+// resolveHref resolves an href relative to the current location.
+// Supports absolute paths ("/about"), hash-only ("#section"), and relative ("./edit").
+func resolveHref(current *Location, href string) *Location {
+	if href == "" {
+		return cloneLocation(current)
+	}
+
+	if strings.HasPrefix(href, "/") {
+		parsed, err := url.Parse(href)
+		if err != nil {
+			return cloneLocation(current)
+		}
+		return &Location{
+			Path:  parsed.Path,
+			Query: parsed.Query(),
+			Hash:  normalizeHash(parsed.Fragment),
+		}
+	}
+
+	if strings.HasPrefix(href, "#") {
+		return &Location{
+			Path:  current.Path,
+			Query: cloneValues(current.Query),
+			Hash:  normalizeHash(strings.TrimPrefix(href, "#")),
+		}
+	}
+
+	if strings.HasPrefix(href, "./") || strings.HasPrefix(href, "../") {
+		basePath := current.Path
+		if !strings.HasSuffix(basePath, "/") {
+
+			if idx := strings.LastIndex(basePath, "/"); idx >= 0 {
+				basePath = basePath[:idx+1]
+			}
+		}
+
+		resolved := basePath + href
+		parsed, err := url.Parse(resolved)
+		if err != nil {
+			return cloneLocation(current)
+		}
+
+		cleanPath := path.Clean(parsed.Path)
+
+		return &Location{
+			Path:  cleanPath,
+			Query: parsed.Query(),
+			Hash:  normalizeHash(parsed.Fragment),
+		}
+	}
+
+	parsed, err := url.Parse(href)
+	if err != nil {
+		return cloneLocation(current)
+	}
+
+	path := parsed.Path
+	if path == "" {
+		path = current.Path
+	}
+
+	return &Location{
+		Path:  path,
+		Query: parsed.Query(),
+		Hash:  normalizeHash(parsed.Fragment),
+	}
 }
