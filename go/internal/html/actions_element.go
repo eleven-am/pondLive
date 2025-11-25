@@ -1,7 +1,9 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/metadata"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 // DOMRect represents the size and position of an element's bounding box.
@@ -26,38 +28,26 @@ type ScrollMetrics struct {
 	ClientWidth  float64 // Visible width (excluding scrollbar)
 }
 
-// WindowMetrics represents viewport and scroll information for the window.
-type WindowMetrics struct {
-	InnerWidth  float64 // Viewport width
-	InnerHeight float64 // Viewport height
-	OuterWidth  float64 // Browser window width
-	OuterHeight float64 // Browser window height
-	ScrollX     float64 // Horizontal scroll position
-	ScrollY     float64 // Vertical scroll position
-	ScreenX     float64 // Window position on screen (X)
-	ScreenY     float64 // Window position on screen (Y)
-}
-
 // ElementActions provides common DOM actions and queries available on all HTML elements.
-// This is the base action mixin embedded in all element ref types, offering fundamental
-// DOM inspection capabilities like bounds checking, scroll metrics, and computed styles.
+// This is the base action mixin embedded in all element action types.
 //
 // Example:
 //
-//	divRef := ui.UseElement[*h.DivRef](ctx)
+//	divRef := ui.UseRef(ctx)
+//	actions := html.Element(ctx, divRef)
 //
-//	// Query element dimensions
-//	rect, _ := divRef.GetBoundingClientRect()
-//	fmt.Printf("Element at (%f, %f) with size %fx%f\n", rect.X, rect.Y, rect.Width, rect.Height)
+//	rect, _ := actions.GetBoundingClientRect()
+//	fmt.Printf("Element at (%f, %f)\n", rect.X, rect.Y)
 //
-//	return h.Div(h.Attach(divRef), h.Text("Container"))
-type ElementActions[T dom.ElementDescriptor] struct {
-	ref *dom.ElementRef[T]
-	ctx dom.Dispatcher
+//	return html.El("div", html.Attach(divRef), html.Text("Container"))
+type ElementActions struct {
+	ctx *runtime.Ctx
+	ref work.Attachment
 }
 
-func NewElementActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *ElementActions[T] {
-	return &ElementActions[T]{ref: ref, ctx: ctx}
+// NewElementActions creates an ElementActions for the given ref.
+func NewElementActions(ctx *runtime.Ctx, ref work.Attachment) *ElementActions {
+	return &ElementActions{ctx: ctx, ref: ref}
 }
 
 // Call invokes an arbitrary method on the DOM element with the provided arguments.
@@ -65,54 +55,67 @@ func NewElementActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.
 //
 // Example:
 //
-//	videoRef := ui.UseElement[*h.VideoRef](ctx)
-//
-//	// Call a method not available in MediaAPI
-//	videoRef.Call("requestPictureInPicture")
-//
-//	// Call with arguments
-//	videoRef.Call("scrollTo", 0, 100)
-//
-//	return h.Video(h.Attach(videoRef), h.Src("/movie.mp4"))
-//
-// Note: This method provides no type safety. Use typed API methods when available.
-// Arguments are serialized to JSON and sent to the client, so ensure they're JSON-serializable.
-func (a *ElementActions[T]) Call(method string, args ...any) {
-	dom.DOMCall[T](a.ctx, a.ref, method, args...)
+//	actions := html.Element(ctx, ref)
+//	actions.Call("scrollTo", 0, 100)
+func (a *ElementActions) Call(method string, args ...any) {
+	if a.ctx == nil || a.ref == nil {
+		return
+	}
+	a.ctx.Call(a.ref, method, args...)
+}
+
+// Set assigns a value to a property on the element.
+func (a *ElementActions) Set(prop string, value any) {
+	if a.ctx == nil || a.ref == nil {
+		return
+	}
+	a.ctx.Set(a.ref, prop, value)
+}
+
+// Query retrieves property values from the element.
+func (a *ElementActions) Query(selectors ...string) (map[string]any, error) {
+	if a.ctx == nil || a.ref == nil {
+		return nil, runtime.ErrNilRef
+	}
+	return a.ctx.Query(a.ref, selectors...)
+}
+
+// AsyncCall invokes a method and waits for the result.
+func (a *ElementActions) AsyncCall(method string, args ...any) (any, error) {
+	if a.ctx == nil || a.ref == nil {
+		return nil, runtime.ErrNilRef
+	}
+	return a.ctx.AsyncCall(a.ref, method, args...)
+}
+
+// Focus sets focus on the element.
+func (a *ElementActions) Focus() {
+	a.Call("focus")
+}
+
+// Blur removes focus from the element.
+func (a *ElementActions) Blur() {
+	a.Call("blur")
+}
+
+// Click simulates a click on the element.
+func (a *ElementActions) Click() {
+	a.Call("click")
 }
 
 // GetBoundingClientRect returns the size and position of the element relative to the viewport.
-// This makes a synchronous call to the client (~1-2ms latency) and waits for the response.
-//
-// DOMRect fields:
-//   - X, Y: Position relative to viewport top-left corner
-//   - Width, Height: Element dimensions including padding and border
-//   - Top, Right, Bottom, Left: Edges relative to viewport
+// This makes a synchronous call to the client and waits for the response.
 //
 // Example:
 //
-//	tooltipRef := ui.UseElement[*h.DivRef](ctx)
-//
-//	// Position tooltip relative to trigger element
-//	triggerRect, err := tooltipRef.GetBoundingClientRect()
+//	actions := html.Element(ctx, ref)
+//	rect, err := actions.GetBoundingClientRect()
 //	if err == nil {
-//	    tooltipX := triggerRect.Right + 10 // 10px to the right
-//	    tooltipY := triggerRect.Top
-//	    positionTooltip(tooltipX, tooltipY)
+//	    tooltipX := rect.Right + 10
+//	    tooltipY := rect.Top
 //	}
-//
-//	return h.Div(h.Attach(tooltipRef), h.Text("Tooltip"))
-//
-// Use Cases:
-//   - Positioning popups, tooltips, or dropdowns
-//   - Detecting element visibility in viewport
-//   - Calculating relative positions between elements
-//   - Implementing drag-and-drop with precise positioning
-//
-// Note: Coordinates are relative to the viewport, not the document. For document-relative
-// positions, add window scroll offsets (scrollX, scrollY) to the returned values.
-func (a *ElementActions[T]) GetBoundingClientRect() (*DOMRect, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getBoundingClientRect")
+func (a *ElementActions) GetBoundingClientRect() (*DOMRect, error) {
+	result, err := a.AsyncCall("getBoundingClientRect")
 	if err != nil {
 		return nil, err
 	}
@@ -120,137 +123,60 @@ func (a *ElementActions[T]) GetBoundingClientRect() (*DOMRect, error) {
 		return nil, nil
 	}
 
-	rectMap, ok := result.(map[string]any)
+	m, ok := result.(map[string]any)
 	if !ok {
 		return nil, nil
 	}
 
 	return &DOMRect{
-		X:      payloadFloat(rectMap, "x", 0),
-		Y:      payloadFloat(rectMap, "y", 0),
-		Width:  payloadFloat(rectMap, "width", 0),
-		Height: payloadFloat(rectMap, "height", 0),
-		Top:    payloadFloat(rectMap, "top", 0),
-		Right:  payloadFloat(rectMap, "right", 0),
-		Bottom: payloadFloat(rectMap, "bottom", 0),
-		Left:   payloadFloat(rectMap, "left", 0),
+		X:      toFloat64(m["x"]),
+		Y:      toFloat64(m["y"]),
+		Width:  toFloat64(m["width"]),
+		Height: toFloat64(m["height"]),
+		Top:    toFloat64(m["top"]),
+		Right:  toFloat64(m["right"]),
+		Bottom: toFloat64(m["bottom"]),
+		Left:   toFloat64(m["left"]),
 	}, nil
 }
 
 // GetScrollMetrics returns detailed scroll information for scrollable elements.
-// This makes multiple synchronous calls (~6-12ms total) to gather comprehensive scroll state.
-//
-// ScrollMetrics fields:
-//   - ScrollTop/ScrollLeft: Current scroll position
-//   - ScrollHeight/ScrollWidth: Total scrollable content size
-//   - ClientHeight/ClientWidth: Visible area size (excluding scrollbar)
+// This makes a synchronous call to the client and waits for the response.
 //
 // Example:
 //
-//	chatRef := ui.UseElement[*h.DivRef](ctx)
-//
-//	// Check if user has scrolled to bottom
-//	metrics, err := chatRef.GetScrollMetrics()
+//	actions := html.Element(ctx, ref)
+//	metrics, err := actions.GetScrollMetrics()
 //	if err == nil {
 //	    atBottom := metrics.ScrollTop + metrics.ClientHeight >= metrics.ScrollHeight - 10
-//	    if atBottom {
-//	        markAllMessagesAsRead()
-//	    }
-//
-//	    // Calculate scroll percentage
-//	    scrollPercent := (metrics.ScrollTop / (metrics.ScrollHeight - metrics.ClientHeight)) * 100
 //	}
-//
-//	return h.Div(h.Attach(chatRef), h.Text("Chat window"))
-//
-// Use Cases:
-//   - Implementing infinite scroll (detect when near bottom)
-//   - Auto-scrolling to latest content
-//   - Showing scroll position indicators
-//   - Detecting scroll progress through long content
-//   - Implementing "scroll to top" buttons
-//
-// Note: For non-scrollable elements, ScrollHeight/Width equals ClientHeight/Width and
-// ScrollTop/Left will be 0. Use this to detect if an element is scrollable.
-func (a *ElementActions[T]) GetScrollMetrics() (*ScrollMetrics, error) {
-	scrollTop, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollTop")
+func (a *ElementActions) GetScrollMetrics() (*ScrollMetrics, error) {
+	values, err := a.Query("scrollTop", "scrollLeft", "scrollHeight", "scrollWidth", "clientHeight", "clientWidth")
 	if err != nil {
 		return nil, err
 	}
-	scrollLeft, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollLeft")
-	if err != nil {
-		return nil, err
-	}
-	scrollHeight, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollHeight")
-	if err != nil {
-		return nil, err
-	}
-	scrollWidth, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "scrollWidth")
-	if err != nil {
-		return nil, err
-	}
-	clientHeight, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "clientHeight")
-	if err != nil {
-		return nil, err
-	}
-	clientWidth, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "clientWidth")
-	if err != nil {
-		return nil, err
-	}
-
 	return &ScrollMetrics{
-		ScrollTop:    payloadFloatDirect(scrollTop, 0),
-		ScrollLeft:   payloadFloatDirect(scrollLeft, 0),
-		ScrollHeight: payloadFloatDirect(scrollHeight, 0),
-		ScrollWidth:  payloadFloatDirect(scrollWidth, 0),
-		ClientHeight: payloadFloatDirect(clientHeight, 0),
-		ClientWidth:  payloadFloatDirect(clientWidth, 0),
+		ScrollTop:    toFloat64(values["scrollTop"]),
+		ScrollLeft:   toFloat64(values["scrollLeft"]),
+		ScrollHeight: toFloat64(values["scrollHeight"]),
+		ScrollWidth:  toFloat64(values["scrollWidth"]),
+		ClientHeight: toFloat64(values["clientHeight"]),
+		ClientWidth:  toFloat64(values["clientWidth"]),
 	}, nil
 }
 
-// payloadFloatDirect converts a direct any value to float64
-func payloadFloatDirect(value any, defaultValue float64) float64 {
-	if value == nil {
-		return defaultValue
-	}
-	if v, ok := value.(float64); ok {
-		return v
-	}
-	return defaultValue
-}
-
-// GetComputedStyle returns the computed CSS styles for the element as resolved by the browser.
-// If properties are specified, returns only those properties. Otherwise returns common styles.
-// This makes a synchronous call (~1-2ms latency) to the client.
+// GetComputedStyle returns the computed CSS styles for the element.
+// If properties are specified, returns only those properties.
 //
 // Example:
 //
-//	buttonRef := ui.UseElement[*h.ButtonRef](ctx)
-//
-//	// Get specific styles
-//	styles, err := buttonRef.GetComputedStyle("color", "backgroundColor", "fontSize")
+//	actions := html.Element(ctx, ref)
+//	styles, err := actions.GetComputedStyle("color", "backgroundColor")
 //	if err == nil {
-//	    textColor := styles["color"]          // e.g., "rgb(255, 255, 255)"
-//	    bgColor := styles["backgroundColor"]  // e.g., "rgb(0, 123, 255)"
-//	    fontSize := styles["fontSize"]        // e.g., "16px"
+//	    textColor := styles["color"]
 //	}
-//
-//	// Get all common styles (when no properties specified)
-//	allStyles, _ := buttonRef.GetComputedStyle()
-//
-//	return h.Button(h.Attach(buttonRef), h.Text("Click me"))
-//
-// Use Cases:
-//   - Reading theme colors or dimensions set by CSS
-//   - Checking if element is hidden via display:none or visibility:hidden
-//   - Getting animation/transition properties
-//   - Debugging style inheritance issues
-//   - Implementing responsive behavior based on computed styles
-//
-// Note: Computed styles are the final values after CSS cascade, inheritance, and defaults.
-// Use camelCase for multi-word properties (e.g., "backgroundColor" not "background-color").
-func (a *ElementActions[T]) GetComputedStyle(properties ...string) (map[string]string, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "getComputedStyle", properties)
+func (a *ElementActions) GetComputedStyle(properties ...string) (map[string]string, error) {
+	result, err := a.AsyncCall("getComputedStyle", properties)
 	if err != nil {
 		return nil, err
 	}
@@ -264,94 +190,707 @@ func (a *ElementActions[T]) GetComputedStyle(properties ...string) (map[string]s
 	}
 
 	styles := make(map[string]string, len(stylesMap))
-	for key := range stylesMap {
-		styles[key] = PayloadString(stylesMap, key, "")
+	for key, val := range stylesMap {
+		if s, ok := val.(string); ok {
+			styles[key] = s
+		}
 	}
 	return styles, nil
 }
 
 // CheckVisibility checks if the element is currently visible according to CSS visibility rules.
 // This considers opacity, visibility, display, and content-visibility properties.
-// This makes a synchronous call (~1-2ms latency) to the client.
 //
 // Example:
 //
-//	modalRef := ui.UseElement[*h.DivRef](ctx)
-//
-//	// Check if modal is visible before showing toast
-//	visible, err := modalRef.CheckVisibility()
+//	actions := html.Element(ctx, ref)
+//	visible, err := actions.CheckVisibility()
 //	if err == nil && !visible {
-//	    showToastNotification()
+//	    showNotification()
 //	}
-//
-//	return h.Div(h.Attach(modalRef), h.Text("Modal"))
-//
-// Use Cases:
-//   - Conditional logic based on visibility state
-//   - Verifying animations completed correctly
-//   - Implementing focus management (don't focus hidden elements)
-//   - A/B testing visibility experiments
-//
-// Note: This checks CSS-level visibility, not whether the element is in the viewport.
-// An element can be "visible" according to this method but scrolled out of view.
-// Use GetBoundingClientRect() to check viewport visibility.
-func (a *ElementActions[T]) CheckVisibility() (bool, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "checkVisibility")
+func (a *ElementActions) CheckVisibility() (bool, error) {
+	result, err := a.AsyncCall("checkVisibility")
 	if err != nil {
 		return false, err
 	}
-	if result == nil {
-		return false, nil
+	if b, ok := result.(bool); ok {
+		return b, nil
 	}
-
-	visible, ok := result.(bool)
-	if !ok {
-		return false, nil
-	}
-	return visible, nil
+	return false, nil
 }
 
 // Matches checks if the element matches the given CSS selector.
-// This is useful for dynamic behavior based on element state or attributes.
-// This makes a synchronous call (~1-2ms latency) to the client.
 //
 // Example:
 //
-//	listItemRef := ui.UseElement[*h.LiRef](ctx)
-//
-//	// Check if element has specific class or pseudo-class
-//	isActive, _ := listItemRef.Matches(".active")
-//	isFirst, _ := listItemRef.Matches(":first-child")
-//	isChecked, _ := listItemRef.Matches(":checked")
-//
-//	// Complex selectors work too
-//	matches, _ := listItemRef.Matches("li.item[data-status='completed']:not(.archived)")
-//	if matches {
-//	    // Element matches all criteria
-//	}
-//
-//	return h.Li(h.Attach(listItemRef), h.Text("Item"))
-//
-// Use Cases:
-//   - Checking if element has specific classes or attributes
-//   - Testing pseudo-classes (:hover, :focus, :checked, etc.)
-//   - Validating element state matches expected selector
-//   - Implementing conditional logic based on CSS selectors
-//
-// Note: This is equivalent to element.matches(selector) in JavaScript. The selector is evaluated
-// in the browser, so all standard CSS selectors including pseudo-classes are supported.
-func (a *ElementActions[T]) Matches(selector string) (bool, error) {
-	result, err := dom.DOMAsyncCall[T](a.ctx, a.ref, "matches", selector)
+//	actions := html.Element(ctx, ref)
+//	isActive, _ := actions.Matches(".active")
+//	isFirst, _ := actions.Matches(":first-child")
+func (a *ElementActions) Matches(selector string) (bool, error) {
+	result, err := a.AsyncCall("matches", selector)
 	if err != nil {
 		return false, err
 	}
-	if result == nil {
-		return false, nil
+	if b, ok := result.(bool); ok {
+		return b, nil
 	}
+	return false, nil
+}
 
-	matches, ok := result.(bool)
-	if !ok {
-		return false, nil
+// Helper functions for type conversion
+
+func toFloat64(v any) float64 {
+	if v == nil {
+		return 0
 	}
-	return matches, nil
+	switch n := v.(type) {
+	case float64:
+		return n
+	case float32:
+		return float64(n)
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	}
+	return 0
+}
+
+func toInt(v any) int {
+	if v == nil {
+		return 0
+	}
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case float32:
+		return int(n)
+	case int:
+		return n
+	case int64:
+		return int(n)
+	}
+	return 0
+}
+
+// ============================================================================
+// Event Handler Methods
+// ============================================================================
+
+// addHandler registers an event handler on the ref if it supports adding handlers.
+func (a *ElementActions) addHandler(event string, handler work.Handler) {
+	if a.ref == nil {
+		return
+	}
+	if adder, ok := a.ref.(work.HandlerAdder); ok {
+		adder.AddHandler(event, handler)
+	}
+}
+
+// ============================================================================
+// Click Events
+// ============================================================================
+
+// OnClick registers a handler for click events.
+func (a *ElementActions) OnClick(handler func(ClickEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("click", work.Handler{
+		EventOptions: metadata.EventOptions{Props: ClickEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildClickEvent(evt)) },
+	})
+	return a
+}
+
+// OnDoubleClick registers a handler for double-click events.
+func (a *ElementActions) OnDoubleClick(handler func(ClickEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("dblclick", work.Handler{
+		EventOptions: metadata.EventOptions{Props: ClickEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildClickEvent(evt)) },
+	})
+	return a
+}
+
+// OnContextMenu registers a handler for right-click/context menu events.
+func (a *ElementActions) OnContextMenu(handler func(ClickEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("contextmenu", work.Handler{
+		EventOptions: metadata.EventOptions{Props: ClickEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildClickEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Mouse Events
+// ============================================================================
+
+// OnMouseDown registers a handler for mousedown events.
+func (a *ElementActions) OnMouseDown(handler func(MouseEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("mousedown", work.Handler{
+		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
+	})
+	return a
+}
+
+// OnMouseUp registers a handler for mouseup events.
+func (a *ElementActions) OnMouseUp(handler func(MouseEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("mouseup", work.Handler{
+		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
+	})
+	return a
+}
+
+// OnMouseMove registers a handler for mousemove events.
+func (a *ElementActions) OnMouseMove(handler func(MouseEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("mousemove", work.Handler{
+		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
+	})
+	return a
+}
+
+// OnMouseEnter registers a handler for mouseenter events.
+func (a *ElementActions) OnMouseEnter(handler func(MouseEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("mouseenter", work.Handler{
+		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
+	})
+	return a
+}
+
+// OnMouseLeave registers a handler for mouseleave events.
+func (a *ElementActions) OnMouseLeave(handler func(MouseEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("mouseleave", work.Handler{
+		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
+	})
+	return a
+}
+
+// OnMouseOver registers a handler for mouseover events.
+func (a *ElementActions) OnMouseOver(handler func(MouseEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("mouseover", work.Handler{
+		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
+	})
+	return a
+}
+
+// OnMouseOut registers a handler for mouseout events.
+func (a *ElementActions) OnMouseOut(handler func(MouseEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("mouseout", work.Handler{
+		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Focus Events
+// ============================================================================
+
+// OnFocus registers a handler for focus events.
+func (a *ElementActions) OnFocus(handler func(FocusEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("focus", work.Handler{
+		EventOptions: metadata.EventOptions{Props: FocusEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildFocusEvent(evt)) },
+	})
+	return a
+}
+
+// OnBlur registers a handler for blur events.
+func (a *ElementActions) OnBlur(handler func(FocusEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("blur", work.Handler{
+		EventOptions: metadata.EventOptions{Props: FocusEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildFocusEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Keyboard Events
+// ============================================================================
+
+// OnKeyDown registers a handler for keydown events.
+func (a *ElementActions) OnKeyDown(handler func(KeyboardEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("keydown", work.Handler{
+		EventOptions: metadata.EventOptions{Props: KeyboardEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildKeyboardEvent(evt)) },
+	})
+	return a
+}
+
+// OnKeyUp registers a handler for keyup events.
+func (a *ElementActions) OnKeyUp(handler func(KeyboardEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("keyup", work.Handler{
+		EventOptions: metadata.EventOptions{Props: KeyboardEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildKeyboardEvent(evt)) },
+	})
+	return a
+}
+
+// OnKeyPress registers a handler for keypress events.
+func (a *ElementActions) OnKeyPress(handler func(KeyboardEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("keypress", work.Handler{
+		EventOptions: metadata.EventOptions{Props: KeyboardEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildKeyboardEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Pointer Events
+// ============================================================================
+
+// OnPointerDown registers a handler for pointerdown events.
+func (a *ElementActions) OnPointerDown(handler func(PointerEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("pointerdown", work.Handler{
+		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
+	})
+	return a
+}
+
+// OnPointerUp registers a handler for pointerup events.
+func (a *ElementActions) OnPointerUp(handler func(PointerEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("pointerup", work.Handler{
+		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
+	})
+	return a
+}
+
+// OnPointerMove registers a handler for pointermove events.
+func (a *ElementActions) OnPointerMove(handler func(PointerEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("pointermove", work.Handler{
+		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
+	})
+	return a
+}
+
+// OnPointerEnter registers a handler for pointerenter events.
+func (a *ElementActions) OnPointerEnter(handler func(PointerEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("pointerenter", work.Handler{
+		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
+	})
+	return a
+}
+
+// OnPointerLeave registers a handler for pointerleave events.
+func (a *ElementActions) OnPointerLeave(handler func(PointerEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("pointerleave", work.Handler{
+		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
+	})
+	return a
+}
+
+// OnPointerCancel registers a handler for pointercancel events.
+func (a *ElementActions) OnPointerCancel(handler func(PointerEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("pointercancel", work.Handler{
+		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Touch Events
+// ============================================================================
+
+// OnTouchStart registers a handler for touchstart events.
+func (a *ElementActions) OnTouchStart(handler func(TouchEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("touchstart", work.Handler{
+		EventOptions: metadata.EventOptions{Props: TouchEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildTouchEvent(evt)) },
+	})
+	return a
+}
+
+// OnTouchEnd registers a handler for touchend events.
+func (a *ElementActions) OnTouchEnd(handler func(TouchEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("touchend", work.Handler{
+		EventOptions: metadata.EventOptions{Props: TouchEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildTouchEvent(evt)) },
+	})
+	return a
+}
+
+// OnTouchMove registers a handler for touchmove events.
+func (a *ElementActions) OnTouchMove(handler func(TouchEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("touchmove", work.Handler{
+		EventOptions: metadata.EventOptions{Props: TouchEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildTouchEvent(evt)) },
+	})
+	return a
+}
+
+// OnTouchCancel registers a handler for touchcancel events.
+func (a *ElementActions) OnTouchCancel(handler func(TouchEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("touchcancel", work.Handler{
+		EventOptions: metadata.EventOptions{Props: TouchEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildTouchEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Drag Events
+// ============================================================================
+
+// OnDrag registers a handler for drag events.
+func (a *ElementActions) OnDrag(handler func(DragEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("drag", work.Handler{
+		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
+	})
+	return a
+}
+
+// OnDragStart registers a handler for dragstart events.
+func (a *ElementActions) OnDragStart(handler func(DragEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("dragstart", work.Handler{
+		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
+	})
+	return a
+}
+
+// OnDragEnd registers a handler for dragend events.
+func (a *ElementActions) OnDragEnd(handler func(DragEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("dragend", work.Handler{
+		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
+	})
+	return a
+}
+
+// OnDragEnter registers a handler for dragenter events.
+func (a *ElementActions) OnDragEnter(handler func(DragEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("dragenter", work.Handler{
+		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
+	})
+	return a
+}
+
+// OnDragLeave registers a handler for dragleave events.
+func (a *ElementActions) OnDragLeave(handler func(DragEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("dragleave", work.Handler{
+		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
+	})
+	return a
+}
+
+// OnDragOver registers a handler for dragover events.
+func (a *ElementActions) OnDragOver(handler func(DragEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("dragover", work.Handler{
+		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
+	})
+	return a
+}
+
+// OnDrop registers a handler for drop events.
+func (a *ElementActions) OnDrop(handler func(DragEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("drop", work.Handler{
+		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Wheel Events
+// ============================================================================
+
+// OnWheel registers a handler for wheel events.
+func (a *ElementActions) OnWheel(handler func(WheelEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("wheel", work.Handler{
+		EventOptions: metadata.EventOptions{Props: WheelEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildWheelEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Animation & Transition Events
+// ============================================================================
+
+// OnAnimationStart registers a handler for animationstart events.
+func (a *ElementActions) OnAnimationStart(handler func(AnimationEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("animationstart", work.Handler{
+		EventOptions: metadata.EventOptions{Props: AnimationEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildAnimationEvent(evt)) },
+	})
+	return a
+}
+
+// OnAnimationEnd registers a handler for animationend events.
+func (a *ElementActions) OnAnimationEnd(handler func(AnimationEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("animationend", work.Handler{
+		EventOptions: metadata.EventOptions{Props: AnimationEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildAnimationEvent(evt)) },
+	})
+	return a
+}
+
+// OnAnimationIteration registers a handler for animationiteration events.
+func (a *ElementActions) OnAnimationIteration(handler func(AnimationEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("animationiteration", work.Handler{
+		EventOptions: metadata.EventOptions{Props: AnimationEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildAnimationEvent(evt)) },
+	})
+	return a
+}
+
+// OnAnimationCancel registers a handler for animationcancel events.
+func (a *ElementActions) OnAnimationCancel(handler func(AnimationEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("animationcancel", work.Handler{
+		EventOptions: metadata.EventOptions{Props: AnimationEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildAnimationEvent(evt)) },
+	})
+	return a
+}
+
+// OnTransitionStart registers a handler for transitionstart events.
+func (a *ElementActions) OnTransitionStart(handler func(TransitionEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("transitionstart", work.Handler{
+		EventOptions: metadata.EventOptions{Props: TransitionEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildTransitionEvent(evt)) },
+	})
+	return a
+}
+
+// OnTransitionEnd registers a handler for transitionend events.
+func (a *ElementActions) OnTransitionEnd(handler func(TransitionEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("transitionend", work.Handler{
+		EventOptions: metadata.EventOptions{Props: TransitionEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildTransitionEvent(evt)) },
+	})
+	return a
+}
+
+// OnTransitionRun registers a handler for transitionrun events.
+func (a *ElementActions) OnTransitionRun(handler func(TransitionEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("transitionrun", work.Handler{
+		EventOptions: metadata.EventOptions{Props: TransitionEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildTransitionEvent(evt)) },
+	})
+	return a
+}
+
+// OnTransitionCancel registers a handler for transitioncancel events.
+func (a *ElementActions) OnTransitionCancel(handler func(TransitionEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("transitioncancel", work.Handler{
+		EventOptions: metadata.EventOptions{Props: TransitionEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildTransitionEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Clipboard Events
+// ============================================================================
+
+// OnCopy registers a handler for copy events.
+func (a *ElementActions) OnCopy(handler func(ClipboardEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("copy", work.Handler{
+		EventOptions: metadata.EventOptions{Props: ClipboardEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildClipboardEvent(evt)) },
+	})
+	return a
+}
+
+// OnCut registers a handler for cut events.
+func (a *ElementActions) OnCut(handler func(ClipboardEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("cut", work.Handler{
+		EventOptions: metadata.EventOptions{Props: ClipboardEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildClipboardEvent(evt)) },
+	})
+	return a
+}
+
+// OnPaste registers a handler for paste events.
+func (a *ElementActions) OnPaste(handler func(ClipboardEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("paste", work.Handler{
+		EventOptions: metadata.EventOptions{Props: ClipboardEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildClipboardEvent(evt)) },
+	})
+	return a
+}
+
+// ============================================================================
+// Composition Events
+// ============================================================================
+
+// OnCompositionStart registers a handler for compositionstart events.
+func (a *ElementActions) OnCompositionStart(handler func(CompositionEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("compositionstart", work.Handler{
+		EventOptions: metadata.EventOptions{Props: CompositionEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildCompositionEvent(evt)) },
+	})
+	return a
+}
+
+// OnCompositionUpdate registers a handler for compositionupdate events.
+func (a *ElementActions) OnCompositionUpdate(handler func(CompositionEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("compositionupdate", work.Handler{
+		EventOptions: metadata.EventOptions{Props: CompositionEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildCompositionEvent(evt)) },
+	})
+	return a
+}
+
+// OnCompositionEnd registers a handler for compositionend events.
+func (a *ElementActions) OnCompositionEnd(handler func(CompositionEvent) work.Updates) *ElementActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("compositionend", work.Handler{
+		EventOptions: metadata.EventOptions{Props: CompositionEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildCompositionEvent(evt)) },
+	})
+	return a
 }

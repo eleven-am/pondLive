@@ -1,10 +1,6 @@
 package html
 
-import (
-	"sort"
-
-	"github.com/eleven-am/pondlive/go/internal/dom"
-)
+import "sort"
 
 // MetaTag describes a <meta> element.
 type MetaTag struct {
@@ -17,43 +13,48 @@ type MetaTag struct {
 	Attrs     map[string]string
 }
 
-// MetaTags renders meta tag definitions into HTML nodes.
-func MetaTags(tags ...MetaTag) []*dom.StructuredNode {
+// ToNode converts a MetaTag to a work.Node.
+func (m MetaTag) ToNode() Node {
+	items := make([]Item, 0, 6+len(m.Attrs))
+	if m.Name != "" {
+		items = append(items, Name(m.Name))
+	}
+	if m.Content != "" {
+		items = append(items, Attr("content", m.Content))
+	}
+	if m.Property != "" {
+		items = append(items, Attr("property", m.Property))
+	}
+	if m.Charset != "" {
+		items = append(items, Attr("charset", m.Charset))
+	}
+	if m.HTTPEquiv != "" {
+		items = append(items, Attr("http-equiv", m.HTTPEquiv))
+	}
+	if m.ItemProp != "" {
+		items = append(items, Attr("itemprop", m.ItemProp))
+	}
+	if len(m.Attrs) > 0 {
+		keys := make([]string, 0, len(m.Attrs))
+		for k := range m.Attrs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			items = append(items, Attr(k, m.Attrs[k]))
+		}
+	}
+	return Meta(items...)
+}
+
+// MetaTags converts multiple MetaTag to work.Node slice.
+func MetaTags(tags ...MetaTag) []Node {
 	if len(tags) == 0 {
 		return nil
 	}
-	nodes := make([]*dom.StructuredNode, 0, len(tags))
+	nodes := make([]Node, 0, len(tags))
 	for _, tag := range tags {
-		items := make([]dom.Item, 0, 6+len(tag.Attrs))
-		if tag.Name != "" {
-			items = append(items, dom.Name(tag.Name))
-		}
-		if tag.Content != "" {
-			items = append(items, dom.Attr("content", tag.Content))
-		}
-		if tag.Property != "" {
-			items = append(items, dom.Attr("property", tag.Property))
-		}
-		if tag.Charset != "" {
-			items = append(items, dom.Attr("charset", tag.Charset))
-		}
-		if tag.HTTPEquiv != "" {
-			items = append(items, dom.Attr("http-equiv", tag.HTTPEquiv))
-		}
-		if tag.ItemProp != "" {
-			items = append(items, dom.Attr("itemprop", tag.ItemProp))
-		}
-		if len(tag.Attrs) > 0 {
-			keys := make([]string, 0, len(tag.Attrs))
-			for k := range tag.Attrs {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				items = append(items, dom.Attr(k, tag.Attrs[k]))
-			}
-		}
-		nodes = append(nodes, dom.El(HTMLMetaElement{}, items...))
+		nodes = append(nodes, tag.ToNode())
 	}
 	return nodes
 }
@@ -74,58 +75,63 @@ type LinkTag struct {
 	Attrs          map[string]string
 }
 
-// LinkTags renders link descriptors into HTML nodes.
-func LinkTags(tags ...LinkTag) []*dom.StructuredNode {
+// ToNode converts a LinkTag to a work.Node.
+func (l LinkTag) ToNode() Node {
+	items := make([]Item, 0, 11+len(l.Attrs))
+	if l.Rel != "" {
+		items = append(items, Rel(l.Rel))
+	}
+	if l.Href != "" {
+		items = append(items, Href(l.Href))
+	}
+	if l.Type != "" {
+		items = append(items, Type(l.Type))
+	}
+	if l.As != "" {
+		items = append(items, Attr("as", l.As))
+	}
+	if l.Media != "" {
+		items = append(items, Attr("media", l.Media))
+	}
+	if l.HrefLang != "" {
+		items = append(items, Attr("hreflang", l.HrefLang))
+	}
+	if l.Title != "" {
+		items = append(items, Title(l.Title))
+	}
+	if l.CrossOrigin != "" {
+		items = append(items, Attr("crossorigin", l.CrossOrigin))
+	}
+	if l.Integrity != "" {
+		items = append(items, Attr("integrity", l.Integrity))
+	}
+	if l.ReferrerPolicy != "" {
+		items = append(items, Attr("referrerpolicy", l.ReferrerPolicy))
+	}
+	if l.Sizes != "" {
+		items = append(items, Attr("sizes", l.Sizes))
+	}
+	if len(l.Attrs) > 0 {
+		keys := make([]string, 0, len(l.Attrs))
+		for k := range l.Attrs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			items = append(items, Attr(k, l.Attrs[k]))
+		}
+	}
+	return Link(items...)
+}
+
+// LinkTags converts multiple LinkTag to work.Node slice.
+func LinkTags(tags ...LinkTag) []Node {
 	if len(tags) == 0 {
 		return nil
 	}
-	nodes := make([]*dom.StructuredNode, 0, len(tags))
+	nodes := make([]Node, 0, len(tags))
 	for _, tag := range tags {
-		items := make([]dom.Item, 0, 8+len(tag.Attrs))
-		if tag.Rel != "" {
-			items = append(items, dom.Rel(tag.Rel))
-		}
-		if tag.Href != "" {
-			items = append(items, dom.Href(tag.Href))
-		}
-		if tag.Type != "" {
-			items = append(items, dom.Type(tag.Type))
-		}
-		if tag.As != "" {
-			items = append(items, dom.Attr("as", tag.As))
-		}
-		if tag.Media != "" {
-			items = append(items, dom.Attr("media", tag.Media))
-		}
-		if tag.HrefLang != "" {
-			items = append(items, dom.Attr("hreflang", tag.HrefLang))
-		}
-		if tag.Title != "" {
-			items = append(items, dom.Title(tag.Title))
-		}
-		if tag.CrossOrigin != "" {
-			items = append(items, dom.Attr("crossorigin", tag.CrossOrigin))
-		}
-		if tag.Integrity != "" {
-			items = append(items, dom.Attr("integrity", tag.Integrity))
-		}
-		if tag.ReferrerPolicy != "" {
-			items = append(items, dom.Attr("referrerpolicy", tag.ReferrerPolicy))
-		}
-		if tag.Sizes != "" {
-			items = append(items, dom.Attr("sizes", tag.Sizes))
-		}
-		if len(tag.Attrs) > 0 {
-			keys := make([]string, 0, len(tag.Attrs))
-			for k := range tag.Attrs {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				items = append(items, dom.Attr(k, tag.Attrs[k]))
-			}
-		}
-		nodes = append(nodes, dom.El(HTMLLinkElement{}, items...))
+		nodes = append(nodes, tag.ToNode())
 	}
 	return nodes
 }
@@ -146,59 +152,63 @@ type ScriptTag struct {
 	Inner          string
 }
 
-// ScriptTags renders script descriptors into HTML nodes.
-func ScriptTags(tags ...ScriptTag) []*dom.StructuredNode {
+// ToNode converts a ScriptTag to a work.Node.
+func (s ScriptTag) ToNode() Node {
+	items := make([]Item, 0, 10+len(s.Attrs))
+	if s.Src != "" {
+		items = append(items, Src(s.Src))
+	}
+	if s.Type != "" && !s.Module {
+		items = append(items, Type(s.Type))
+	}
+	if s.Async {
+		items = append(items, boolAttrItem{name: "async"})
+	}
+	if s.Defer {
+		items = append(items, boolAttrItem{name: "defer"})
+	}
+	if s.Module {
+		items = append(items, Type("module"))
+	}
+	if s.NoModule {
+		items = append(items, boolAttrItem{name: "nomodule"})
+	}
+	if s.CrossOrigin != "" {
+		items = append(items, Attr("crossorigin", s.CrossOrigin))
+	}
+	if s.Integrity != "" {
+		items = append(items, Attr("integrity", s.Integrity))
+	}
+	if s.ReferrerPolicy != "" {
+		items = append(items, Attr("referrerpolicy", s.ReferrerPolicy))
+	}
+	if s.Nonce != "" {
+		items = append(items, Attr("nonce", s.Nonce))
+	}
+	if len(s.Attrs) > 0 {
+		keys := make([]string, 0, len(s.Attrs))
+		for k := range s.Attrs {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			items = append(items, Attr(k, s.Attrs[k]))
+		}
+	}
+	if s.Inner != "" {
+		items = append(items, UnsafeHTML(s.Inner))
+	}
+	return ScriptEl(items...)
+}
+
+// ScriptTags converts multiple ScriptTag to work.Node slice.
+func ScriptTags(tags ...ScriptTag) []Node {
 	if len(tags) == 0 {
 		return nil
 	}
-	nodes := make([]*dom.StructuredNode, 0, len(tags))
+	nodes := make([]Node, 0, len(tags))
 	for _, tag := range tags {
-		items := make([]dom.Item, 0, 10+len(tag.Attrs))
-		if tag.Src != "" {
-			items = append(items, dom.Src(tag.Src))
-		}
-		if tag.Type != "" {
-			items = append(items, dom.Type(tag.Type))
-		}
-		if tag.Async {
-			items = append(items, dom.Attr("async", ""))
-		}
-		if tag.Defer {
-			items = append(items, dom.Attr("defer", ""))
-		}
-		if tag.Module {
-			items = append(items, dom.Attr("type", "module"))
-		}
-		if tag.NoModule {
-			items = append(items, dom.Attr("nomodule", ""))
-		}
-		if tag.CrossOrigin != "" {
-			items = append(items, dom.Attr("crossorigin", tag.CrossOrigin))
-		}
-		if tag.Integrity != "" {
-			items = append(items, dom.Attr("integrity", tag.Integrity))
-		}
-		if tag.ReferrerPolicy != "" {
-			items = append(items, dom.Attr("referrerpolicy", tag.ReferrerPolicy))
-		}
-		if tag.Nonce != "" {
-			items = append(items, dom.Attr("nonce", tag.Nonce))
-		}
-		if len(tag.Attrs) > 0 {
-			keys := make([]string, 0, len(tag.Attrs))
-			for k := range tag.Attrs {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
-				items = append(items, dom.Attr(k, tag.Attrs[k]))
-			}
-		}
-		script := dom.El(HTMLScriptElement{}, items...)
-		if tag.Inner != "" {
-			script.UnsafeHTML = tag.Inner
-		}
-		nodes = append(nodes, script)
+		nodes = append(nodes, tag.ToNode())
 	}
 	return nodes
 }

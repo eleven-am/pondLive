@@ -1,31 +1,72 @@
 package html
 
 import (
-	"github.com/eleven-am/pondlive/go/internal/dom"
+	"github.com/eleven-am/pondlive/go/internal/metadata"
+	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// DetailsActions provides details-related DOM actions for details elements.
-// Embedded in refs for details elements.
-type DetailsActions[T dom.ElementDescriptor] struct {
-	ref *dom.ElementRef[T]
-	ctx dom.Dispatcher
+// DetailsActions provides details element actions.
+//
+// Example:
+//
+//	detailsRef := ui.UseRef(ctx)
+//	actions := html.Details(ctx, detailsRef)
+//	actions.SetOpen(true)  // Expand the details
+//
+//	return html.El("details", html.Attach(detailsRef),
+//	    html.El("summary", html.Text("Click to expand")),
+//	    html.El("p", html.Text("Hidden content")),
+//	)
+type DetailsActions struct {
+	*ElementActions
 }
 
-func NewDetailsActions[T dom.ElementDescriptor](ref *dom.ElementRef[T], ctx dom.Dispatcher) *DetailsActions[T] {
-	return &DetailsActions[T]{ref: ref, ctx: ctx}
+// Details creates a DetailsActions for the given ref.
+func NewDetailsActions(ctx *runtime.Ctx, ref work.Attachment) *DetailsActions {
+	return &DetailsActions{ElementActions: NewElementActions(ctx, ref)}
 }
 
 // SetOpen sets the open state of the details element.
 //
 // Example:
 //
-//	detailsRef := ui.UseElement[*h.DetailsRef](ctx)
-//	detailsRef.SetOpen(true)  // Expand the details element
-//
-//	return h.Details(h.Attach(detailsRef), h.Children(
-//	    h.Summary(h.Text("Click to expand")),
-//	    h.P(h.Text("Hidden content")),
-//	))
-func (a *DetailsActions[T]) SetOpen(open bool) {
-	dom.DOMSet[T](a.ctx, a.ref, "open", open)
+//	actions := html.Details(ctx, detailsRef)
+//	actions.SetOpen(true)  // Expand
+//	actions.SetOpen(false)  // Collapse
+func (a *DetailsActions) SetOpen(open bool) {
+	a.Set("open", open)
+}
+
+// GetOpen retrieves whether the details element is currently open.
+func (a *DetailsActions) GetOpen() (bool, error) {
+	values, err := a.Query("open")
+	if err != nil {
+		return false, err
+	}
+	if b, ok := values["open"].(bool); ok {
+		return b, nil
+	}
+	return false, nil
+}
+
+// Toggle toggles the open state of the details element.
+func (a *DetailsActions) Toggle() error {
+	open, err := a.GetOpen()
+	if err != nil {
+		return err
+	}
+	a.SetOpen(!open)
+	return nil
+}
+
+func (a *DetailsActions) OnToggle(handler func(ToggleEvent) work.Updates) *DetailsActions {
+	if handler == nil {
+		return a
+	}
+	a.addHandler("toggle", work.Handler{
+		EventOptions: metadata.EventOptions{Props: ToggleEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildToggleEvent(evt)) },
+	})
+	return a
 }
