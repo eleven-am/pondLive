@@ -66,7 +66,6 @@ func ProvideRouter(ctx *runtime.Ctx, children []work.Node) work.Node {
 				}
 
 			case "popstate":
-
 				nav := parseNavPayload(data)
 				if nav == nil {
 					return
