@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -142,7 +143,7 @@ func TestEffectRunsOutsideLock(t *testing.T) {
 		DirtySet:          make(map[*Instance]struct{}),
 		PendingEffects:    []effectTask{},
 		PendingCleanups:   []cleanupTask{},
-		Bus:               NewBus(),
+		Bus:               protocol.NewBus(),
 	}
 
 	inst := &Instance{

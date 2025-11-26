@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/view"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
@@ -28,13 +29,11 @@ type Session struct {
 	nextElementRefID int // Counter for generating element ref IDs
 
 	// Scripts
-	Scripts           map[string]*scriptSlot // Script ID -> scriptSlot
-	scriptsMu         sync.RWMutex
-	scriptEventSender func(scriptID, event string, data interface{}) error
-	scriptSenderMu    sync.RWMutex
+	Scripts   map[string]*scriptSlot // Script ID -> scriptSlot
+	scriptsMu sync.RWMutex
 
 	// Message bus
-	Bus *Bus // Pubsub message router for bidirectional messaging
+	Bus *protocol.Bus // Pubsub message router for bidirectional messaging
 
 	// DOM request manager for blocking queries
 	domReqMgr   *domRequestManager
@@ -42,8 +41,8 @@ type Session struct {
 	domTimeout  time.Duration // Configurable timeout for DOM operations
 
 	// Handler tracking for cleanup
-	currentHandlerIDs map[string]bool          // Handler IDs active in current flush
-	allHandlerSubs    map[string]*Subscription // All handler subscriptions (for cleanup)
+	currentHandlerIDs map[string]bool                   // Handler IDs active in current flush
+	allHandlerSubs    map[string]*protocol.Subscription // All handler subscriptions (for cleanup)
 	handlerIDsMu      sync.Mutex
 
 	// HTTP handlers (UseHandler hook)

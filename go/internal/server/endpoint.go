@@ -121,7 +121,10 @@ func (e *Endpoint) onClientEvent(ctx *pond.EventContext) error {
 
 	domEvent := payloadToWorkEvent(evt.Payload)
 
-	sess.Receive(evt.HID, "invoke", domEvent)
+	sess.Touch()
+	if bus := sess.Bus(); bus != nil {
+		bus.PublishHandlerInvoke(evt.HID, domEvent)
+	}
 
 	if transport != nil {
 		ack := map[string]any{

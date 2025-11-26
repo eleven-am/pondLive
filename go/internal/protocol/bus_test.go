@@ -1,4 +1,4 @@
-package runtime
+package protocol
 
 import (
 	"sync"
@@ -350,23 +350,23 @@ func TestBusUpsertReturnsValidSubscription(t *testing.T) {
 func TestBusUpsertWithHandlerPattern(t *testing.T) {
 	bus := NewBus()
 
-	handlerID := "h-123"
+	handlerID := Topic("h-123")
 
 	value1 := 0
 	bus.Upsert(handlerID, func(event string, data interface{}) {
-		if event == "invoke" {
+		if event == string(HandlerInvokeAction) {
 			value1 = 1
 		}
 	})
 
-	bus.Publish(handlerID, "invoke", nil)
+	bus.PublishHandlerInvoke(string(handlerID), nil)
 	if value1 != 1 {
 		t.Errorf("expected value1=1, got %d", value1)
 	}
 
 	value2 := 0
 	bus.Upsert(handlerID, func(event string, data interface{}) {
-		if event == "invoke" {
+		if event == string(HandlerInvokeAction) {
 			value2 = 2
 		}
 	})
@@ -375,7 +375,7 @@ func TestBusUpsertWithHandlerPattern(t *testing.T) {
 		t.Errorf("expected 1 subscriber, got %d", bus.SubscriberCount(handlerID))
 	}
 
-	bus.Publish(handlerID, "invoke", nil)
+	bus.PublishHandlerInvoke(string(handlerID), nil)
 
 	if value1 != 1 {
 		t.Errorf("expected value1 still 1, got %d", value1)
@@ -547,12 +547,12 @@ func TestBusSubscribeAllReceivesAllMessages(t *testing.T) {
 		data  interface{}
 	}
 
-	bus.SubscribeAll(func(topic string, event string, data interface{}) {
+	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
 		received = append(received, struct {
 			topic string
 			event string
 			data  interface{}
-		}{topic, event, data})
+		}{string(topic), event, data})
 	})
 
 	bus.Publish("topic1", "event1", "data1")
@@ -578,7 +578,7 @@ func TestBusSubscribeAllUnsubscribe(t *testing.T) {
 	bus := NewBus()
 
 	count := 0
-	sub := bus.SubscribeAll(func(topic string, event string, data interface{}) {
+	sub := bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
 		count++
 	})
 
@@ -601,7 +601,7 @@ func TestBusSubscribeAllWithRegularSubscribers(t *testing.T) {
 	wildcardCount := 0
 	regularCount := 0
 
-	bus.SubscribeAll(func(topic string, event string, data interface{}) {
+	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
 		wildcardCount++
 	})
 
@@ -634,11 +634,11 @@ func TestBusSubscribeAllMultipleWildcards(t *testing.T) {
 	count1 := 0
 	count2 := 0
 
-	bus.SubscribeAll(func(topic string, event string, data interface{}) {
+	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
 		count1++
 	})
 
-	bus.SubscribeAll(func(topic string, event string, data interface{}) {
+	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
 		count2++
 	})
 
@@ -657,11 +657,11 @@ func TestBusSubscribeAllPanicRecovery(t *testing.T) {
 
 	called := false
 
-	bus.SubscribeAll(func(topic string, event string, data interface{}) {
+	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
 		panic("wildcard panic")
 	})
 
-	bus.SubscribeAll(func(topic string, event string, data interface{}) {
+	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
 		called = true
 	})
 
@@ -681,7 +681,7 @@ func TestBusSubscribeAllPanicRecovery(t *testing.T) {
 func TestBusSubscribeAllNilSafety(t *testing.T) {
 	var bus *Bus
 
-	sub := bus.SubscribeAll(func(topic string, event string, data interface{}) {})
+	sub := bus.SubscribeAll(func(topic Topic, event string, data interface{}) {})
 	if sub == nil {
 		t.Error("expected non-nil subscription from nil bus")
 	}

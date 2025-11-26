@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 )
 
 // mockRef implements work.Attachment for testing
@@ -19,17 +21,18 @@ func (m *mockRef) RefID() string {
 }
 
 func TestCtxCall(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
-	var received DOMCallPayload
-	var receivedTopic, receivedEvent string
+	var received protocol.DOMCallPayload
+	var receivedTopic protocol.Topic
+	var receivedEvent string
 
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
-		receivedTopic = TopicDOM
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
+		receivedTopic = protocol.DOMHandler
 		receivedEvent = event
-		if payload, ok := data.(DOMCallPayload); ok {
+		if payload, ok := data.(protocol.DOMCallPayload); ok {
 			received = payload
 		}
 	})
@@ -37,11 +40,11 @@ func TestCtxCall(t *testing.T) {
 	ref := &mockRef{id: "ref-1"}
 	ctx.Call(ref, "focus")
 
-	if receivedTopic != TopicDOM {
-		t.Errorf("expected topic %q, got %q", TopicDOM, receivedTopic)
+	if receivedTopic != protocol.DOMHandler {
+		t.Errorf("expected topic %q, got %q", protocol.DOMHandler, receivedTopic)
 	}
-	if receivedEvent != EventDOMCall {
-		t.Errorf("expected event %q, got %q", EventDOMCall, receivedEvent)
+	if receivedEvent != string(protocol.DOMCallAction) {
+		t.Errorf("expected event %q, got %q", string(protocol.DOMCallAction), receivedEvent)
 	}
 	if received.Ref != "ref-1" {
 		t.Errorf("expected ref 'ref-1', got %q", received.Ref)
@@ -52,14 +55,14 @@ func TestCtxCall(t *testing.T) {
 }
 
 func TestCtxCallWithArgs(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
-	var received DOMCallPayload
+	var received protocol.DOMCallPayload
 
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
-		if payload, ok := data.(DOMCallPayload); ok {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
+		if payload, ok := data.(protocol.DOMCallPayload); ok {
 			received = payload
 		}
 	})
@@ -82,12 +85,12 @@ func TestCtxCallWithArgs(t *testing.T) {
 }
 
 func TestCtxCallNilRef(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
 	called := false
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
 		called = true
 	})
 
@@ -99,12 +102,12 @@ func TestCtxCallNilRef(t *testing.T) {
 }
 
 func TestCtxCallEmptyRef(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
 	called := false
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
 		called = true
 	})
 
@@ -123,16 +126,16 @@ func TestCtxCallNilSession(t *testing.T) {
 }
 
 func TestCtxSet(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
-	var received DOMSetPayload
+	var received protocol.DOMSetPayload
 	var receivedEvent string
 
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
 		receivedEvent = event
-		if payload, ok := data.(DOMSetPayload); ok {
+		if payload, ok := data.(protocol.DOMSetPayload); ok {
 			received = payload
 		}
 	})
@@ -140,8 +143,8 @@ func TestCtxSet(t *testing.T) {
 	ref := &mockRef{id: "ref-3"}
 	ctx.Set(ref, "value", "hello world")
 
-	if receivedEvent != EventDOMSet {
-		t.Errorf("expected event %q, got %q", EventDOMSet, receivedEvent)
+	if receivedEvent != string(protocol.DOMSetAction) {
+		t.Errorf("expected event %q, got %q", string(protocol.DOMSetAction), receivedEvent)
 	}
 	if received.Ref != "ref-3" {
 		t.Errorf("expected ref 'ref-3', got %q", received.Ref)
@@ -155,12 +158,12 @@ func TestCtxSet(t *testing.T) {
 }
 
 func TestCtxSetNilRef(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
 	called := false
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
 		called = true
 	})
 
@@ -172,22 +175,22 @@ func TestCtxSetNilRef(t *testing.T) {
 }
 
 func TestCtxQuery(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
-		if event != EventDOMQuery {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
+		if event != string(protocol.DOMQueryAction) {
 			return
 		}
-		payload, ok := data.(DOMQueryPayload)
+		payload, ok := data.(protocol.DOMQueryPayload)
 		if !ok {
 			return
 		}
 
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			bus.Publish(TopicDOM, EventDOMResponse, DOMResponsePayload{
+			bus.Publish(protocol.DOMHandler, string(protocol.DOMResponseAction), protocol.DOMResponsePayload{
 				RequestID: payload.RequestID,
 				Values: map[string]any{
 					"value":     "test value",
@@ -212,7 +215,7 @@ func TestCtxQuery(t *testing.T) {
 }
 
 func TestCtxQueryTimeout(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 
 	session.domReqMgr = newDOMRequestManager(bus, 50*time.Millisecond)
@@ -228,7 +231,7 @@ func TestCtxQueryTimeout(t *testing.T) {
 }
 
 func TestCtxQueryNilRef(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
@@ -240,7 +243,7 @@ func TestCtxQueryNilRef(t *testing.T) {
 }
 
 func TestCtxQueryEmptySelectors(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
@@ -256,22 +259,22 @@ func TestCtxQueryEmptySelectors(t *testing.T) {
 }
 
 func TestCtxQueryError(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
-		if event != EventDOMQuery {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
+		if event != string(protocol.DOMQueryAction) {
 			return
 		}
-		payload, ok := data.(DOMQueryPayload)
+		payload, ok := data.(protocol.DOMQueryPayload)
 		if !ok {
 			return
 		}
 
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			bus.Publish(TopicDOM, EventDOMResponse, DOMResponsePayload{
+			bus.Publish(protocol.DOMHandler, string(protocol.DOMResponseAction), protocol.DOMResponsePayload{
 				RequestID: payload.RequestID,
 				Error:     "element not found",
 			})
@@ -287,22 +290,22 @@ func TestCtxQueryError(t *testing.T) {
 }
 
 func TestCtxAsyncCall(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
-		if event != EventDOMAsync {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
+		if event != string(protocol.DOMAsyncAction) {
 			return
 		}
-		payload, ok := data.(DOMAsyncPayload)
+		payload, ok := data.(protocol.DOMAsyncPayload)
 		if !ok {
 			return
 		}
 
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			bus.Publish(TopicDOM, EventDOMResponse, DOMResponsePayload{
+			bus.Publish(protocol.DOMHandler, string(protocol.DOMResponseAction), protocol.DOMResponsePayload{
 				RequestID: payload.RequestID,
 				Result:    "data:image/png;base64,abc123",
 			})
@@ -321,7 +324,7 @@ func TestCtxAsyncCall(t *testing.T) {
 }
 
 func TestCtxAsyncCallTimeout(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 
 	session.domReqMgr = newDOMRequestManager(bus, 50*time.Millisecond)
@@ -337,22 +340,22 @@ func TestCtxAsyncCallTimeout(t *testing.T) {
 }
 
 func TestCtxAsyncCallError(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
-		if event != EventDOMAsync {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
+		if event != string(protocol.DOMAsyncAction) {
 			return
 		}
-		payload, ok := data.(DOMAsyncPayload)
+		payload, ok := data.(protocol.DOMAsyncPayload)
 		if !ok {
 			return
 		}
 
 		go func() {
 			time.Sleep(10 * time.Millisecond)
-			bus.Publish(TopicDOM, EventDOMResponse, DOMResponsePayload{
+			bus.Publish(protocol.DOMHandler, string(protocol.DOMResponseAction), protocol.DOMResponsePayload{
 				RequestID: payload.RequestID,
 				Error:     "method not supported",
 			})
@@ -368,22 +371,22 @@ func TestCtxAsyncCallError(t *testing.T) {
 }
 
 func TestDOMRequestManagerConcurrent(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
-	bus.Subscribe(TopicDOM, func(event string, data interface{}) {
-		if event != EventDOMQuery {
+	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
+		if event != string(protocol.DOMQueryAction) {
 			return
 		}
-		payload, ok := data.(DOMQueryPayload)
+		payload, ok := data.(protocol.DOMQueryPayload)
 		if !ok {
 			return
 		}
 
 		go func() {
 			time.Sleep(5 * time.Millisecond)
-			bus.Publish(TopicDOM, EventDOMResponse, DOMResponsePayload{
+			bus.Publish(protocol.DOMHandler, string(protocol.DOMResponseAction), protocol.DOMResponsePayload{
 				RequestID: payload.RequestID,
 				Values:    map[string]any{"value": payload.RequestID},
 			})
@@ -415,7 +418,7 @@ func TestDOMRequestManagerConcurrent(t *testing.T) {
 }
 
 func TestSessionGetDOMRequestManagerLazy(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 
 	if session.domReqMgr != nil {
@@ -434,17 +437,17 @@ func TestSessionGetDOMRequestManagerLazy(t *testing.T) {
 }
 
 func TestSetDOMTimeoutUpdatesExistingManager(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 	ref := &mockRef{id: "ref-timeout"}
 
-	firstSub := bus.Subscribe(TopicDOM, func(event string, data interface{}) {
-		if event != EventDOMQuery {
+	firstSub := bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
+		if event != string(protocol.DOMQueryAction) {
 			return
 		}
-		payload := data.(DOMQueryPayload)
-		bus.Publish(TopicDOM, EventDOMResponse, DOMResponsePayload{RequestID: payload.RequestID})
+		payload := data.(protocol.DOMQueryPayload)
+		bus.Publish(protocol.DOMHandler, string(protocol.DOMResponseAction), protocol.DOMResponsePayload{RequestID: payload.RequestID})
 	})
 	if _, err := ctx.Query(ref, "value"); err != nil {
 		t.Fatalf("unexpected error priming query: %v", err)
@@ -454,7 +457,7 @@ func TestSetDOMTimeoutUpdatesExistingManager(t *testing.T) {
 	session.SetDOMTimeout(20 * time.Millisecond)
 
 	start := time.Now()
-	secondSub := bus.Subscribe(TopicDOM, func(event string, data interface{}) {})
+	secondSub := bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {})
 	defer secondSub.Unsubscribe()
 
 	if _, err := ctx.Query(ref, "value"); err != ErrQueryTimeout {
@@ -467,7 +470,7 @@ func TestSetDOMTimeoutUpdatesExistingManager(t *testing.T) {
 }
 
 func TestSessionCloseCleansDOMManager(t *testing.T) {
-	bus := NewBus()
+	bus := protocol.NewBus()
 	session := &Session{
 		Bus:               bus,
 		MountedComponents: make(map[*Instance]struct{}),

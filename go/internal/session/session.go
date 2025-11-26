@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
@@ -35,7 +36,7 @@ type LiveSession struct {
 	clientAsset string
 
 	mu          sync.Mutex
-	outboundSub *runtime.Subscription
+	outboundSub *protocol.Subscription
 }
 
 // NewLiveSession creates a new session with the given root component.
@@ -74,7 +75,7 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 		Components:        map[string]*runtime.Instance{"root": rootInst},
 		Handlers:          make(map[string]work.Handler),
 		MountedComponents: make(map[*runtime.Instance]struct{}),
-		Bus:               runtime.NewBus(),
+		Bus:               protocol.NewBus(),
 		SessionID:         string(id),
 	}
 
@@ -85,13 +86,13 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 
 	sess.session = rtSession
 
-	sess.outboundSub = rtSession.Bus.SubscribeAll(func(topic string, event string, data interface{}) {
+	sess.outboundSub = rtSession.Bus.SubscribeAll(func(topic protocol.Topic, event string, data interface{}) {
 		sess.mu.Lock()
 		t := sess.transport
 		sess.mu.Unlock()
 
 		if t != nil {
-			_ = t.Send(topic, event, data)
+			_ = t.Send(string(topic), event, data)
 		}
 	})
 
@@ -139,7 +140,7 @@ func (s *LiveSession) Receive(topic, event string, data any) {
 		return
 	}
 	s.Touch()
-	s.session.Bus.Publish(topic, event, data)
+	s.session.Bus.Publish(protocol.Topic(topic), event, data)
 }
 
 // Flush triggers a render/flush cycle on the runtime session.
@@ -271,7 +272,7 @@ func (s *LiveSession) SetClientAsset(path string) {
 }
 
 // Bus returns the session's message bus.
-func (s *LiveSession) Bus() *runtime.Bus {
+func (s *LiveSession) Bus() *protocol.Bus {
 	if s == nil || s.session == nil {
 		return nil
 	}

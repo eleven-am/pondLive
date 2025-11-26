@@ -1,5 +1,7 @@
 package runtime
 
+import "github.com/eleven-am/pondlive/go/internal/protocol"
+
 // Ctx is passed to component functions during render.
 // It provides access to hooks and runtime functionality.
 type Ctx struct {
@@ -11,7 +13,7 @@ type Ctx struct {
 // GetBus returns the session's Bus, or nil if not available (e.g., SSR).
 // This provides controlled access to the Bus without exposing the full Session.
 // Internal packages can use this for pub/sub communication.
-func GetBus(ctx *Ctx) *Bus {
+func GetBus(ctx *Ctx) *protocol.Bus {
 	if ctx == nil || ctx.session == nil {
 		return nil
 	}

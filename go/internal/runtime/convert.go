@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/eleven-am/pondlive/go/internal/metadata"
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/view"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
@@ -164,15 +165,12 @@ func (s *Session) registerHandler(elem *work.Element, event string, handler work
 	}
 
 	if s.Bus == nil {
-		s.Bus = NewBus()
+		s.Bus = protocol.NewBus()
 	}
 
-	sub := s.Bus.Upsert(handlerID, func(eventName string, data interface{}) {
-
-		if eventName == "invoke" {
-			if event, ok := data.(work.Event); ok {
-				handler.Fn(event)
-			}
+	sub := s.Bus.SubscribeToHandlerInvoke(handlerID, func(data interface{}) {
+		if event, ok := data.(work.Event); ok {
+			handler.Fn(event)
 		}
 	})
 
@@ -181,7 +179,7 @@ func (s *Session) registerHandler(elem *work.Element, event string, handler work
 		s.currentHandlerIDs = make(map[string]bool)
 	}
 	if s.allHandlerSubs == nil {
-		s.allHandlerSubs = make(map[string]*Subscription)
+		s.allHandlerSubs = make(map[string]*protocol.Subscription)
 	}
 	s.currentHandlerIDs[handlerID] = true
 	s.allHandlerSubs[handlerID] = sub

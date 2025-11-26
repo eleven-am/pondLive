@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/eleven-am/pondlive/go/internal/metadata"
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -59,8 +60,8 @@ type scriptSlot struct {
 	script   string
 	scriptMu sync.RWMutex
 
-	subs              map[string]*Subscription // event -> bus subscription
-	cleanupRegistered bool                     // ensure cleanup is added once
+	subs              map[string]*protocol.Subscription // event -> bus subscription
+	cleanupRegistered bool                              // ensure cleanup is added once
 }
 
 func (slot *scriptSlot) attachTo(elem *work.Element) {
@@ -99,16 +100,22 @@ func (slot *scriptSlot) setEventHandler(event string, fn func(interface{})) {
 	}
 
 	if slot.sess.Bus == nil {
-		slot.sess.Bus = NewBus()
+		slot.sess.Bus = protocol.NewBus()
 	}
-
-	channelID := fmt.Sprintf("%s:%s", slot.id, event)
 
 	if slot.subs == nil {
-		slot.subs = make(map[string]*Subscription)
+		slot.subs = make(map[string]*protocol.Subscription)
 	}
-	slot.subs[event] = slot.sess.Bus.Upsert(channelID, func(eventName string, data interface{}) {
-		fn(data)
+
+	// Unsubscribe old handler if one exists for this event
+	if oldSub := slot.subs[event]; oldSub != nil {
+		oldSub.Unsubscribe()
+	}
+
+	slot.subs[event] = slot.sess.Bus.SubscribeToScriptMessages(slot.id, func(evt string, data interface{}) {
+		if evt == event {
+			fn(data)
+		}
 	})
 
 	if !slot.cleanupRegistered {
@@ -128,16 +135,11 @@ func (slot *scriptSlot) send(event string, data interface{}) {
 		return
 	}
 
-	slot.sess.scriptSenderMu.RLock()
-	sender := slot.sess.scriptEventSender
-	slot.sess.scriptSenderMu.RUnlock()
-
-	if sender != nil {
-		if err := sender(slot.id, event, data); err != nil {
-
-			_ = err
-		}
+	if slot.sess.Bus == nil {
+		return
 	}
+
+	slot.sess.Bus.PublishScriptSend(slot.id, event, data)
 }
 
 func (slot *scriptSlot) handleMessage(event string, data interface{}) {
@@ -145,9 +147,8 @@ func (slot *scriptSlot) handleMessage(event string, data interface{}) {
 		return
 	}
 
-	channelID := fmt.Sprintf("%s:%s", slot.id, event)
 	if slot.sess.Bus != nil {
-		slot.sess.Bus.Publish(channelID, event, data)
+		slot.sess.Bus.PublishScriptMessage(slot.id, event, data)
 	}
 }
 
@@ -245,16 +246,6 @@ func (s *Session) HandleScriptMessage(id string, event string, data interface{})
 		slot.handleMessage(event, data)
 		return nil
 	})
-}
-
-// SetScriptEventSender installs the callback for sending events to client scripts.
-func (s *Session) SetScriptEventSender(sender func(scriptID, event string, data interface{}) error) {
-	if s == nil {
-		return
-	}
-	s.scriptSenderMu.Lock()
-	s.scriptEventSender = sender
-	s.scriptSenderMu.Unlock()
 }
 
 // minifyJS performs basic JavaScript minification by removing unnecessary whitespace.

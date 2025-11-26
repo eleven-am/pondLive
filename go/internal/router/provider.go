@@ -4,6 +4,7 @@ import (
 	"net/url"
 
 	"github.com/eleven-am/pondlive/go/internal/headers"
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
@@ -23,6 +24,7 @@ func ProvideRouter(ctx *runtime.Ctx, children []work.Node) work.Node {
 		Path:  "/",
 		Query: url.Values{},
 	}
+
 	if requestState != nil {
 		initialLocation = &Location{
 			Path:  requestState.Path(),
@@ -31,46 +33,21 @@ func ProvideRouter(ctx *runtime.Ctx, children []work.Node) work.Node {
 		}
 	}
 
-	location, setLocation := LocationContext.UseProvider(ctx, initialLocation)
-	_ = location
+	_, setLocation := LocationContext.UseProvider(ctx, initialLocation)
 
 	runtime.UseEffect(ctx, func() func() {
 		if bus == nil {
 			return nil
 		}
 
-		sub := bus.Subscribe("router", func(event string, data interface{}) {
+		sub := bus.Subscribe(protocol.RouteHandler, func(event string, data interface{}) {
 			switch event {
-			case "navigate":
-				nav := parseNavPayload(data)
-				if nav == nil {
-					return
-				}
-				newLoc := canonicalizeLocation(nav.ToLocation())
-				setLocation(newLoc)
-
-				if nav.Replace {
-					bus.Publish("router", "replaced", NavResponse{
-						Path:    newLoc.Path,
-						Query:   newLoc.Query.Encode(),
-						Hash:    newLoc.Hash,
-						Replace: true,
-					})
-				} else {
-					bus.Publish("router", "navigated", NavResponse{
-						Path:    newLoc.Path,
-						Query:   newLoc.Query.Encode(),
-						Hash:    newLoc.Hash,
-						Replace: false,
-					})
-				}
-
 			case "popstate":
 				nav := parseNavPayload(data)
 				if nav == nil {
 					return
 				}
-				newLoc := canonicalizeLocation(nav.ToLocation())
+				newLoc := canonicalizeLocation(navPayloadToLocation(nav))
 				setLocation(newLoc)
 			}
 		})
@@ -81,19 +58,19 @@ func ProvideRouter(ctx *runtime.Ctx, children []work.Node) work.Node {
 	return outletSlotCtx.ProvideWithoutDefault(ctx, children)
 }
 
-// parseNavPayload converts interface{} data from Bus to NavPayload.
-func parseNavPayload(data interface{}) *NavPayload {
+// parseNavPayload converts interface{} data from Bus to protocol.RouterNavPayload.
+func parseNavPayload(data interface{}) *protocol.RouterNavPayload {
 	if data == nil {
 		return nil
 	}
 
 	switch v := data.(type) {
-	case NavPayload:
+	case protocol.RouterNavPayload:
 		return &v
-	case *NavPayload:
+	case *protocol.RouterNavPayload:
 		return v
 	case map[string]interface{}:
-		nav := &NavPayload{}
+		nav := &protocol.RouterNavPayload{}
 		if path, ok := v["path"].(string); ok {
 			nav.Path = path
 		}
@@ -109,5 +86,18 @@ func parseNavPayload(data interface{}) *NavPayload {
 		return nav
 	default:
 		return nil
+	}
+}
+
+// navPayloadToLocation converts protocol.RouterNavPayload to Location.
+func navPayloadToLocation(nav *protocol.RouterNavPayload) *Location {
+	if nav == nil {
+		return nil
+	}
+	query, _ := url.ParseQuery(nav.Query)
+	return &Location{
+		Path:  nav.Path,
+		Query: query,
+		Hash:  nav.Hash,
 	}
 }

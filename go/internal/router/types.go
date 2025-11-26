@@ -51,31 +51,15 @@ type LinkProps struct {
 	Replace bool   // Use replaceState instead of pushState
 }
 
-// NavPayload for Bus communication (inbound navigation requests).
-type NavPayload struct {
-	Path    string `json:"path"`
-	Query   string `json:"query"`
-	Hash    string `json:"hash"`
-	Replace bool   `json:"replace"`
-}
-
-// ToLocation converts NavPayload to Location.
-func (n NavPayload) ToLocation() *Location {
-	query, _ := url.ParseQuery(n.Query)
-	return &Location{
-		Path:  n.Path,
-		Query: query,
-		Hash:  n.Hash,
-	}
-}
-
-// NavResponse for Bus communication (outbound confirmation).
-type NavResponse struct {
-	Path    string `json:"path"`
-	Query   string `json:"query"`
-	Hash    string `json:"hash"`
-	Replace bool   `json:"replace"`
-}
+// Router Protocol Events (see protocol.RouterNavPayload):
+// Server → Client:
+//   - "push" with RouterNavPayload - command client to call history.pushState()
+//   - "replace" with RouterNavPayload - command client to call history.replaceState()
+//   - "back" with nil - command client to call history.back()
+//   - "forward" with nil - command client to call history.forward()
+//
+// Client → Server:
+//   - "popstate" with RouterNavPayload - notify server that browser URL changed
 
 // routeEntry is an internal representation of a route.
 // Used during collection and trie building.

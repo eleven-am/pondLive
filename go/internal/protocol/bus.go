@@ -1,4 +1,4 @@
-package runtime
+package protocol
 
 import (
 	"sync"
@@ -8,7 +8,7 @@ import (
 // Bus is a simple pubsub message router that maps IDs to callbacks.
 // It doesn't track components or lifecycle - hooks are responsible for cleanup.
 type Bus struct {
-	subscribers         map[string][]*subscriber
+	subscribers         map[Topic][]*subscriber
 	wildcardSubscribers []*wildcardSubscriber
 	mu                  sync.RWMutex
 	nextSubID           atomic.Uint64
@@ -17,7 +17,7 @@ type Bus struct {
 // wildcardSubscriber receives all messages on the bus.
 type wildcardSubscriber struct {
 	id       uint64
-	callback func(topic string, event string, data interface{})
+	callback func(topic Topic, event string, data interface{})
 }
 
 // subscriber represents a single subscription.
@@ -41,14 +41,14 @@ func (s *Subscription) Unsubscribe() {
 // NewBus creates a new message bus.
 func NewBus() *Bus {
 	return &Bus{
-		subscribers: make(map[string][]*subscriber),
+		subscribers: make(map[Topic][]*subscriber),
 	}
 }
 
 // Subscribe registers a callback for messages with the given ID.
 // Returns a Subscription that can be used to unsubscribe.
 // Multiple subscribers can subscribe to the same ID (broadcast).
-func (b *Bus) Subscribe(id string, callback func(event string, data interface{})) *Subscription {
+func (b *Bus) Subscribe(id Topic, callback func(event string, data interface{})) *Subscription {
 	if b == nil || id == "" || callback == nil {
 		return &Subscription{}
 	}
@@ -82,7 +82,7 @@ func (b *Bus) Subscribe(id string, callback func(event string, data interface{})
 // Use Subscribe for multi-subscriber broadcast channels (events, notifications).
 //
 // Returns a Subscription that can be used to unsubscribe.
-func (b *Bus) Upsert(id string, callback func(event string, data interface{})) *Subscription {
+func (b *Bus) Upsert(id Topic, callback func(event string, data interface{})) *Subscription {
 	if b == nil || id == "" || callback == nil {
 		return &Subscription{}
 	}
@@ -125,7 +125,7 @@ func (b *Bus) Upsert(id string, callback func(event string, data interface{})) *
 // SubscribeAll registers a callback that receives ALL messages on the bus.
 // The callback receives the topic ID, event, and data for every publish.
 // Returns a Subscription that can be used to unsubscribe.
-func (b *Bus) SubscribeAll(callback func(topic string, event string, data interface{})) *Subscription {
+func (b *Bus) SubscribeAll(callback func(topic Topic, event string, data interface{})) *Subscription {
 	if b == nil || callback == nil {
 		return &Subscription{}
 	}
@@ -147,53 +147,11 @@ func (b *Bus) SubscribeAll(callback func(topic string, event string, data interf
 	}
 }
 
-// unsubscribeWildcard removes a wildcard subscriber.
-func (b *Bus) unsubscribeWildcard(subID uint64) {
-	if b == nil {
-		return
-	}
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	for i, sub := range b.wildcardSubscribers {
-		if sub.id == subID {
-			b.wildcardSubscribers[i] = b.wildcardSubscribers[len(b.wildcardSubscribers)-1]
-			b.wildcardSubscribers = b.wildcardSubscribers[:len(b.wildcardSubscribers)-1]
-			return
-		}
-	}
-}
-
-// unsubscribe removes a specific subscriber from an ID.
-func (b *Bus) unsubscribe(id string, subID uint64) {
-	if b == nil {
-		return
-	}
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	subs := b.subscribers[id]
-	for i, sub := range subs {
-		if sub.id == subID {
-
-			subs[i] = subs[len(subs)-1]
-			b.subscribers[id] = subs[:len(subs)-1]
-
-			if len(b.subscribers[id]) == 0 {
-				delete(b.subscribers, id)
-			}
-			return
-		}
-	}
-}
-
 // Publish sends a message to all subscribers of the given ID and all wildcard subscribers.
 // Broadcasts to all subscribers (if multiple are registered).
 // Callback panics are recovered to prevent cascading failures - the panic is silently swallowed
 // and remaining subscribers continue to receive the message.
-func (b *Bus) Publish(id string, event string, data interface{}) {
+func (b *Bus) Publish(id Topic, event string, data interface{}) {
 	if b == nil || id == "" {
 		return
 	}
@@ -207,7 +165,7 @@ func (b *Bus) Publish(id string, event string, data interface{}) {
 		callbacks[i] = sub.callback
 	}
 
-	wildcardCallbacks := make([]func(topic string, event string, data interface{}), len(wildcards))
+	wildcardCallbacks := make([]func(topic Topic, event string, data interface{}), len(wildcards))
 	for i, sub := range wildcards {
 		wildcardCallbacks[i] = sub.callback
 	}
@@ -236,7 +194,7 @@ func (b *Bus) Publish(id string, event string, data interface{}) {
 
 // SubscriberCount returns the number of subscribers for a given ID.
 // Useful for testing.
-func (b *Bus) SubscriberCount(id string) int {
+func (b *Bus) SubscriberCount(id Topic) int {
 	if b == nil {
 		return 0
 	}
@@ -245,4 +203,46 @@ func (b *Bus) SubscriberCount(id string) int {
 	count := len(b.subscribers[id])
 	b.mu.RUnlock()
 	return count
+}
+
+// unsubscribeWildcard removes a wildcard subscriber.
+func (b *Bus) unsubscribeWildcard(subID uint64) {
+	if b == nil {
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for i, sub := range b.wildcardSubscribers {
+		if sub.id == subID {
+			b.wildcardSubscribers[i] = b.wildcardSubscribers[len(b.wildcardSubscribers)-1]
+			b.wildcardSubscribers = b.wildcardSubscribers[:len(b.wildcardSubscribers)-1]
+			return
+		}
+	}
+}
+
+// unsubscribe removes a specific subscriber from an ID.
+func (b *Bus) unsubscribe(id Topic, subID uint64) {
+	if b == nil {
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	subs := b.subscribers[id]
+	for i, sub := range subs {
+		if sub.id == subID {
+
+			subs[i] = subs[len(subs)-1]
+			b.subscribers[id] = subs[:len(subs)-1]
+
+			if len(b.subscribers[id]) == 0 {
+				delete(b.subscribers, id)
+			}
+			return
+		}
+	}
 }

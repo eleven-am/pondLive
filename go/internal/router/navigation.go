@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/eleven-am/pondlive/go/internal/headers"
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
@@ -51,7 +52,7 @@ func Back(ctx *runtime.Ctx) {
 	if bus == nil {
 		return
 	}
-	bus.Publish("router", "back", nil)
+	bus.PublishRouterBack()
 }
 
 // Forward navigates in browser history.
@@ -61,30 +62,31 @@ func Forward(ctx *runtime.Ctx) {
 	if bus == nil {
 		return
 	}
-	bus.Publish("router", "forward", nil)
+	bus.PublishRouterForward()
 }
 
 // navigate is the internal navigation implementation.
 func navigate(ctx *runtime.Ctx, href string, replace bool) {
+	requestState := headers.UseRequestState(ctx)
+	currentLoc, setLocation := LocationContext.UseContext(ctx)
 	bus := getBus(ctx)
 
-	if bus == nil {
-		requestState := headers.UseRequestState(ctx)
+	if bus == nil || !requestState.IsLive() {
 		if requestState != nil {
-
 			currentLoc := &Location{
 				Path:  requestState.Path(),
 				Query: requestState.Query(),
 				Hash:  requestState.Hash(),
 			}
+
 			target := resolveHref(currentLoc, href)
 			redirectURL := buildHref(target.Path, target.Query, target.Hash)
 			requestState.SetRedirect(redirectURL, http.StatusFound)
 		}
+
 		return
 	}
 
-	currentLoc := LocationContext.UseContextValue(ctx)
 	if currentLoc == nil {
 		currentLoc = &Location{Path: "/", Query: url.Values{}}
 	}
@@ -92,10 +94,20 @@ func navigate(ctx *runtime.Ctx, href string, replace bool) {
 	target := resolveHref(currentLoc, href)
 	target = canonicalizeLocation(target)
 
-	bus.Publish("router", "navigate", NavPayload{
+	if setLocation != nil {
+		setLocation(target)
+	}
+
+	payload := protocol.RouterNavPayload{
 		Path:    target.Path,
 		Query:   target.Query.Encode(),
 		Hash:    target.Hash,
 		Replace: replace,
-	})
+	}
+
+	if replace {
+		bus.PublishRouterReplace(payload)
+	} else {
+		bus.PublishRouterPush(payload)
+	}
 }

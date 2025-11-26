@@ -7,12 +7,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/view/diff"
 )
 
-// Bus topic constants for frame publishing.
-const (
-	TopicFrame = "frame"
-	EventPatch = "patch"
-)
-
 // SetAutoFlush sets the callback that will be invoked when a flush is requested.
 // This allows external code (e.g., event loop) to schedule flushes appropriately.
 // The callback should eventually call Flush() to execute the render cycle.
@@ -137,7 +131,7 @@ func (s *Session) Flush() error {
 	if s.Bus != nil {
 		patches := diff.Diff(s.PrevView, s.View)
 		if len(patches) > 0 {
-			s.Bus.Publish(TopicFrame, EventPatch, patches)
+			s.Bus.PublishFramePatch(patches)
 		}
 	}
 

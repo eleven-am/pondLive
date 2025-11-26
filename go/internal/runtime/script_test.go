@@ -3,6 +3,7 @@ package runtime
 import (
 	"testing"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -86,7 +87,7 @@ func TestScriptHandleOn(t *testing.T) {
 		cleanups: []func(){},
 	}
 	sess := &Session{
-		Bus: NewBus(),
+		Bus: protocol.NewBus(),
 	}
 	slot := &scriptSlot{
 		id:       "test:s0",
@@ -103,7 +104,7 @@ func TestScriptHandleOn(t *testing.T) {
 		receivedData = data
 	})
 
-	channelID := "test:s0:test-event"
+	channelID := protocol.Topic("script:test:s0")
 	if sess.Bus.SubscriberCount(channelID) != 1 {
 		t.Errorf("expected 1 subscriber on bus channel, got %d", sess.Bus.SubscriberCount(channelID))
 	}
@@ -124,7 +125,7 @@ func TestScriptHandleSend(t *testing.T) {
 		ID: "test-comp",
 	}
 	sess := &Session{
-		Bus: NewBus(),
+		Bus: protocol.NewBus(),
 	}
 	slot := &scriptSlot{
 		id:       "test:s0",
@@ -133,27 +134,31 @@ func TestScriptHandleSend(t *testing.T) {
 	}
 	handle := ScriptHandle{slot: slot}
 
-	var sentScriptID, sentEvent string
-	var sentData interface{}
+	var receivedAction string
+	var receivedPayload protocol.ScriptPayload
 
-	sess.SetScriptEventSender(func(scriptID, event string, data interface{}) error {
-		sentScriptID = scriptID
-		sentEvent = event
-		sentData = data
-		return nil
+	sess.Bus.Subscribe(protocol.Topic("script:test:s0"), func(action string, data interface{}) {
+		receivedAction = action
+		if payload, ok := data.(protocol.ScriptPayload); ok {
+			receivedPayload = payload
+		}
 	})
 
 	handle.Send("client-event", map[string]string{"key": "value"})
 
-	if sentScriptID != "test:s0" {
-		t.Errorf("expected script ID 'test:s0', got '%s'", sentScriptID)
+	if receivedAction != "send" {
+		t.Errorf("expected action 'send', got '%s'", receivedAction)
 	}
 
-	if sentEvent != "client-event" {
-		t.Errorf("expected event 'client-event', got '%s'", sentEvent)
+	if receivedPayload.ScriptID != "test:s0" {
+		t.Errorf("expected script ID 'test:s0', got '%s'", receivedPayload.ScriptID)
 	}
 
-	if sentData == nil {
+	if receivedPayload.Event != "client-event" {
+		t.Errorf("expected event 'client-event', got '%s'", receivedPayload.Event)
+	}
+
+	if receivedPayload.Data == nil {
 		t.Error("expected data to be non-nil")
 	}
 }
@@ -311,7 +316,7 @@ func TestSessionHandleScriptMessage(t *testing.T) {
 	}
 	sess := &Session{
 		Scripts: make(map[string]*scriptSlot),
-		Bus:     NewBus(),
+		Bus:     protocol.NewBus(),
 	}
 
 	slot := &scriptSlot{
@@ -373,7 +378,7 @@ func TestScriptPanicRecovery(t *testing.T) {
 	}
 	sess := &Session{
 		Scripts: make(map[string]*scriptSlot),
-		Bus:     NewBus(),
+		Bus:     protocol.NewBus(),
 	}
 
 	slot := &scriptSlot{
@@ -404,7 +409,7 @@ func TestScriptCleanupAccumulationFix(t *testing.T) {
 	}
 	sess := &Session{
 		Scripts: make(map[string]*scriptSlot),
-		Bus:     NewBus(),
+		Bus:     protocol.NewBus(),
 	}
 
 	slot := &scriptSlot{
@@ -423,7 +428,8 @@ func TestScriptCleanupAccumulationFix(t *testing.T) {
 		t.Errorf("expected 1 cleanup registered, got %d", len(inst.cleanups))
 	}
 
-	channelID := "test:s0:test-event"
+	// New protocol uses "script:{scriptID}" as topic
+	channelID := protocol.Topic("script:test:s0")
 	if sess.Bus.SubscriberCount(channelID) != 1 {
 		t.Errorf("expected 1 bus subscriber, got %d", sess.Bus.SubscriberCount(channelID))
 	}

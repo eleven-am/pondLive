@@ -3,6 +3,7 @@ package runtime
 import (
 	"testing"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -191,8 +192,8 @@ func TestSessionClose(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
 		Scripts:           make(map[string]*scriptSlot),
-		Bus:               NewBus(),
-		allHandlerSubs:    make(map[string]*Subscription),
+		Bus:               protocol.NewBus(),
+		allHandlerSubs:    make(map[string]*protocol.Subscription),
 		currentHandlerIDs: make(map[string]bool),
 		MountedComponents: make(map[*Instance]struct{}),
 	}
@@ -265,7 +266,7 @@ func TestSessionClose(t *testing.T) {
 func TestSessionCloseWithPanicingCleanup(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
-		Bus:        NewBus(),
+		Bus:        protocol.NewBus(),
 	}
 
 	root := &Instance{

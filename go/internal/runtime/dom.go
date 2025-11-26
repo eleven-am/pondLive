@@ -7,55 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
-
-// DOM action topic constants
-const (
-	TopicDOM         = "dom"
-	EventDOMCall     = "call"
-	EventDOMSet      = "set"
-	EventDOMQuery    = "query"
-	EventDOMAsync    = "async"
-	EventDOMResponse = "response"
-)
-
-// DOMCallPayload represents a fire-and-forget method call on an element.
-type DOMCallPayload struct {
-	Ref    string `json:"ref"`
-	Method string `json:"method"`
-	Args   []any  `json:"args,omitempty"`
-}
-
-// DOMSetPayload represents a property assignment on an element.
-type DOMSetPayload struct {
-	Ref   string `json:"ref"`
-	Prop  string `json:"prop"`
-	Value any    `json:"value"`
-}
-
-// DOMQueryPayload represents a query request for element properties.
-type DOMQueryPayload struct {
-	RequestID string   `json:"requestId"`
-	Ref       string   `json:"ref"`
-	Selectors []string `json:"selectors"`
-}
-
-// DOMAsyncPayload represents an async method call request.
-type DOMAsyncPayload struct {
-	RequestID string `json:"requestId"`
-	Ref       string `json:"ref"`
-	Method    string `json:"method"`
-	Args      []any  `json:"args,omitempty"`
-}
-
-// DOMResponsePayload represents a response from the client.
-type DOMResponsePayload struct {
-	RequestID string         `json:"requestId"`
-	Values    map[string]any `json:"values,omitempty"`
-	Result    any            `json:"result,omitempty"`
-	Error     string         `json:"error,omitempty"`
-}
 
 // Errors
 var (
@@ -69,32 +23,25 @@ const defaultDOMTimeout = 5 * time.Second
 
 // domRequestManager manages pending DOM requests that expect responses.
 type domRequestManager struct {
-	pending   map[string]chan DOMResponsePayload
+	pending   map[string]chan protocol.DOMResponsePayload
 	mu        sync.Mutex
 	nextID    atomic.Uint64
 	timeout   atomic.Int64
-	closedSub *Subscription
+	closedSub *protocol.Subscription
 }
 
 // newDOMRequestManager creates a new request manager and wires it to the bus.
-func newDOMRequestManager(bus *Bus, timeout time.Duration) *domRequestManager {
+func newDOMRequestManager(bus *protocol.Bus, timeout time.Duration) *domRequestManager {
 	if timeout == 0 {
 		timeout = defaultDOMTimeout
 	}
 
 	mgr := &domRequestManager{
-		pending: make(map[string]chan DOMResponsePayload),
+		pending: make(map[string]chan protocol.DOMResponsePayload),
 	}
 	mgr.setTimeout(timeout)
 
-	mgr.closedSub = bus.Subscribe(TopicDOM, func(event string, data interface{}) {
-		if event != EventDOMResponse {
-			return
-		}
-		resp, ok := data.(DOMResponsePayload)
-		if !ok {
-			return
-		}
+	mgr.closedSub = bus.SubscribeToDOMResponses(func(resp protocol.DOMResponsePayload) {
 		mgr.handleResponse(resp)
 	})
 
@@ -102,9 +49,9 @@ func newDOMRequestManager(bus *Bus, timeout time.Duration) *domRequestManager {
 }
 
 // allocateRequest creates a new request ID and registers the response channel.
-func (m *domRequestManager) allocateRequest() (string, chan DOMResponsePayload) {
+func (m *domRequestManager) allocateRequest() (string, chan protocol.DOMResponsePayload) {
 	id := fmt.Sprintf("dom-%d", m.nextID.Add(1))
-	ch := make(chan DOMResponsePayload, 1)
+	ch := make(chan protocol.DOMResponsePayload, 1)
 
 	m.mu.Lock()
 	m.pending[id] = ch
@@ -121,7 +68,7 @@ func (m *domRequestManager) releaseRequest(id string) {
 }
 
 // handleResponse routes a response to the waiting caller.
-func (m *domRequestManager) handleResponse(resp DOMResponsePayload) {
+func (m *domRequestManager) handleResponse(resp protocol.DOMResponsePayload) {
 	m.mu.Lock()
 	ch, ok := m.pending[resp.RequestID]
 	m.mu.Unlock()
@@ -135,12 +82,12 @@ func (m *domRequestManager) handleResponse(resp DOMResponsePayload) {
 }
 
 // wait blocks until response or timeout.
-func (m *domRequestManager) wait(ch chan DOMResponsePayload) (DOMResponsePayload, error) {
+func (m *domRequestManager) wait(ch chan protocol.DOMResponsePayload) (protocol.DOMResponsePayload, error) {
 	select {
 	case resp := <-ch:
 		return resp, nil
 	case <-time.After(time.Duration(m.timeout.Load())):
-		return DOMResponsePayload{}, ErrQueryTimeout
+		return protocol.DOMResponsePayload{}, ErrQueryTimeout
 	}
 }
 
@@ -171,7 +118,7 @@ func (c *Ctx) Call(ref work.Attachment, method string, args ...any) {
 		return
 	}
 
-	c.session.Bus.Publish(TopicDOM, EventDOMCall, DOMCallPayload{
+	c.session.Bus.PublishDOMCall(protocol.DOMCallPayload{
 		Ref:    ref.RefID(),
 		Method: method,
 		Args:   args,
@@ -188,7 +135,7 @@ func (c *Ctx) Set(ref work.Attachment, prop string, value any) {
 		return
 	}
 
-	c.session.Bus.Publish(TopicDOM, EventDOMSet, DOMSetPayload{
+	c.session.Bus.PublishDOMSet(protocol.DOMSetPayload{
 		Ref:   ref.RefID(),
 		Prop:  prop,
 		Value: value,
@@ -217,7 +164,7 @@ func (c *Ctx) Query(ref work.Attachment, selectors ...string) (map[string]any, e
 	requestID, ch := mgr.allocateRequest()
 	defer mgr.releaseRequest(requestID)
 
-	c.session.Bus.Publish(TopicDOM, EventDOMQuery, DOMQueryPayload{
+	c.session.Bus.PublishDOMQuery(protocol.DOMQueryPayload{
 		RequestID: requestID,
 		Ref:       ref.RefID(),
 		Selectors: selectors,
@@ -253,7 +200,7 @@ func (c *Ctx) AsyncCall(ref work.Attachment, method string, args ...any) (any, e
 	requestID, ch := mgr.allocateRequest()
 	defer mgr.releaseRequest(requestID)
 
-	c.session.Bus.Publish(TopicDOM, EventDOMAsync, DOMAsyncPayload{
+	c.session.Bus.PublishDOMAsync(protocol.DOMAsyncPayload{
 		RequestID: requestID,
 		Ref:       ref.RefID(),
 		Method:    method,

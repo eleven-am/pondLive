@@ -3,6 +3,7 @@ package router
 import (
 	"net/url"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
@@ -18,7 +19,7 @@ var MatchContext = runtime.CreateContext[*MatchState](nil)
 var outletSlotCtx = runtime.CreateSlotContext()
 
 // getBus accesses Bus from context (keeps Session private).
-func getBus(ctx *runtime.Ctx) *runtime.Bus {
+func getBus(ctx *runtime.Ctx) *protocol.Bus {
 	return runtime.GetBus(ctx)
 }
 
