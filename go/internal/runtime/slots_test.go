@@ -835,3 +835,337 @@ func TestSlotContext_NoProvider(t *testing.T) {
 		t.Error("expected Has to return false when no provider")
 	}
 }
+
+func TestSlotRenderer_RequireSlots_AllPresent(t *testing.T) {
+	session := &Session{
+		Components: make(map[string]*Instance),
+		Handlers:   make(map[string]work.Handler),
+	}
+
+	inst := &Instance{
+		ID:        "test-require-1",
+		HookFrame: []HookSlot{},
+	}
+
+	ctx := &Ctx{
+		instance:  inst,
+		session:   session,
+		hookIndex: 0,
+	}
+
+	children := []work.Node{
+		work.SlotMarker("header", &work.Element{Tag: "h1"}),
+		work.SlotMarker("footer", &work.Element{Tag: "footer"}),
+	}
+
+	slots := UseSlots(ctx, children)
+
+	err := slots.RequireSlots("header", "footer")
+	if err != nil {
+		t.Errorf("expected no error when all slots present, got %v", err)
+	}
+}
+
+func TestSlotRenderer_RequireSlots_Missing(t *testing.T) {
+	session := &Session{
+		Components: make(map[string]*Instance),
+		Handlers:   make(map[string]work.Handler),
+	}
+
+	inst := &Instance{
+		ID:        "test-require-2",
+		HookFrame: []HookSlot{},
+	}
+
+	ctx := &Ctx{
+		instance:  inst,
+		session:   session,
+		hookIndex: 0,
+	}
+
+	children := []work.Node{
+		work.SlotMarker("header", &work.Element{Tag: "h1"}),
+	}
+
+	slots := UseSlots(ctx, children)
+
+	err := slots.RequireSlots("header", "footer", "sidebar")
+	if err == nil {
+		t.Error("expected error when slots are missing")
+	}
+}
+
+func TestScopedSlotRenderer_Names(t *testing.T) {
+	session := &Session{
+		Components: make(map[string]*Instance),
+		Handlers:   make(map[string]work.Handler),
+	}
+
+	inst := &Instance{
+		ID:        "test-scoped-names",
+		HookFrame: []HookSlot{},
+	}
+
+	ctx := &Ctx{
+		instance:  inst,
+		session:   session,
+		hookIndex: 0,
+	}
+
+	type TestData struct {
+		Value int
+	}
+
+	children := []work.Node{
+		work.ScopedSlotMarker("actions", func(data TestData) work.Node {
+			return &work.Element{Tag: "button"}
+		}),
+		work.ScopedSlotMarker("header", func(data TestData) work.Node {
+			return &work.Element{Tag: "h1"}
+		}),
+		work.ScopedSlotMarker("footer", func(data TestData) work.Node {
+			return &work.Element{Tag: "footer"}
+		}),
+	}
+
+	slots := UseScopedSlots[TestData](ctx, children)
+
+	names := slots.Names()
+	expected := []string{"actions", "header", "footer"}
+
+	if len(names) != len(expected) {
+		t.Errorf("expected %d slot names, got %d", len(expected), len(names))
+	}
+
+	for i, name := range expected {
+		if i >= len(names) || names[i] != name {
+			t.Errorf("expected slot %d to be %s, got %s", i, name, names[i])
+		}
+	}
+}
+
+func TestSlotContext_AppendSlot(t *testing.T) {
+	slotCtx := CreateSlotContext()
+
+	session := &Session{
+		Components: make(map[string]*Instance),
+		Handlers:   make(map[string]work.Handler),
+	}
+
+	parent := &Instance{
+		ID:        "provider",
+		HookFrame: []HookSlot{},
+		Providers: make(map[any]any),
+	}
+
+	child := &Instance{
+		ID:        "consumer",
+		HookFrame: []HookSlot{},
+		Parent:    parent,
+	}
+
+	parent.Children = []*Instance{child}
+
+	providerCtx := &Ctx{
+		instance:  parent,
+		session:   session,
+		hookIndex: 0,
+	}
+
+	children := []work.Node{}
+	slotCtx.Provide(providerCtx, children)
+
+	slotCtx.SetSlot(providerCtx, "items", &work.Element{Tag: "li"})
+	slotCtx.AppendSlot(providerCtx, "items", &work.Element{Tag: "li"})
+	slotCtx.AppendSlot(providerCtx, "items", &work.Element{Tag: "li"})
+
+	consumerCtx := &Ctx{
+		instance:  child,
+		session:   session,
+		hookIndex: 0,
+	}
+
+	result := slotCtx.Render(consumerCtx, "items")
+
+	if frag, ok := result.(*work.Fragment); ok {
+		if len(frag.Children) != 3 {
+			t.Errorf("expected 3 children after append, got %d", len(frag.Children))
+		}
+	} else {
+		t.Fatalf("expected Fragment from appended slot, got %T", result)
+	}
+}
+
+func TestSlotContext_AppendSlot_NewSlot(t *testing.T) {
+	slotCtx := CreateSlotContext()
+
+	session := &Session{
+		Components: make(map[string]*Instance),
+		Handlers:   make(map[string]work.Handler),
+	}
+
+	parent := &Instance{
+		ID:        "provider",
+		HookFrame: []HookSlot{},
+		Providers: make(map[any]any),
+	}
+
+	child := &Instance{
+		ID:        "consumer",
+		HookFrame: []HookSlot{},
+		Parent:    parent,
+	}
+
+	parent.Children = []*Instance{child}
+
+	providerCtx := &Ctx{
+		instance:  parent,
+		session:   session,
+		hookIndex: 0,
+	}
+
+	children := []work.Node{}
+	slotCtx.Provide(providerCtx, children)
+
+	slotCtx.AppendSlot(providerCtx, "newslot", &work.Element{Tag: "span"})
+
+	consumerCtx := &Ctx{
+		instance:  child,
+		session:   session,
+		hookIndex: 0,
+	}
+
+	if !slotCtx.Has(consumerCtx, "newslot") {
+		t.Error("expected newslot to exist after AppendSlot")
+	}
+
+	result := slotCtx.Render(consumerCtx, "newslot")
+
+	if elem, ok := result.(*work.Element); ok {
+		if elem.Tag != "span" {
+			t.Errorf("expected span, got %s", elem.Tag)
+		}
+	} else {
+		t.Fatalf("expected Element from new appended slot, got %T", result)
+	}
+}
+
+func TestDefaultSlotName_Constant(t *testing.T) {
+	if DefaultSlotName != "default" {
+		t.Errorf("expected DefaultSlotName to be 'default', got %s", DefaultSlotName)
+	}
+}
+
+func TestFilterRenderedChildren_NoSlots(t *testing.T) {
+	children := []work.Node{
+		&work.Element{Tag: "div"},
+		&work.Element{Tag: "span"},
+	}
+
+	result := filterRenderedChildren(children)
+
+	if len(result) != len(children) {
+		t.Errorf("expected same length, got %d vs %d", len(result), len(children))
+	}
+
+	for i := range children {
+		if result[i] != children[i] {
+			t.Errorf("expected same slice returned when no slots")
+			break
+		}
+	}
+}
+
+func TestFilterRenderedChildren_WithSlots(t *testing.T) {
+	children := []work.Node{
+		&work.Element{Tag: "div"},
+		work.SlotMarker("header", &work.Element{Tag: "h1"}),
+		&work.Element{Tag: "span"},
+	}
+
+	result := filterRenderedChildren(children)
+
+	if len(result) != 2 {
+		t.Errorf("expected 2 non-slot children, got %d", len(result))
+	}
+}
+
+func TestFingerprintNode_TextContentHash(t *testing.T) {
+	text1 := &work.Text{Value: "hello"}
+	text2 := &work.Text{Value: "world"}
+	text3 := &work.Text{Value: "hello"}
+
+	fp1 := fingerprintNode(text1)
+	fp2 := fingerprintNode(text2)
+	fp3 := fingerprintNode(text3)
+
+	if fp1 == fp2 {
+		t.Error("expected different fingerprints for different text content")
+	}
+
+	if fp1 != fp3 {
+		t.Error("expected same fingerprint for same text content")
+	}
+}
+
+func TestSetSlot_ReplacesExisting(t *testing.T) {
+	slotCtx := CreateSlotContext()
+
+	session := &Session{
+		Components: make(map[string]*Instance),
+		Handlers:   make(map[string]work.Handler),
+	}
+
+	parent := &Instance{
+		ID:        "provider",
+		HookFrame: []HookSlot{},
+		Providers: make(map[any]any),
+	}
+
+	child := &Instance{
+		ID:        "consumer",
+		HookFrame: []HookSlot{},
+		Parent:    parent,
+	}
+
+	parent.Children = []*Instance{child}
+
+	providerCtx := &Ctx{
+		instance:  parent,
+		session:   session,
+		hookIndex: 0,
+	}
+
+	children := []work.Node{}
+	slotCtx.Provide(providerCtx, children)
+
+	slotCtx.SetSlot(providerCtx, "test", &work.Element{Tag: "div"})
+	slotCtx.SetSlot(providerCtx, "test", &work.Element{Tag: "span"})
+
+	consumerCtx := &Ctx{
+		instance:  child,
+		session:   session,
+		hookIndex: 0,
+	}
+
+	result := slotCtx.Render(consumerCtx, "test")
+
+	if elem, ok := result.(*work.Element); ok {
+		if elem.Tag != "span" {
+			t.Errorf("expected SetSlot to replace, got %s instead of span", elem.Tag)
+		}
+	} else {
+		t.Fatalf("expected Element, got %T", result)
+	}
+
+	names := slotCtx.Names(consumerCtx)
+	count := 0
+	for _, n := range names {
+		if n == "test" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected slot name to appear once in order, got %d", count)
+	}
+}

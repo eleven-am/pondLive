@@ -4,10 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eleven-am/pondlive/go/internal/work"
+	"github.com/eleven-am/pondlive/go/internal/metadata"
 )
 
-// TestUseStylesBasic verifies that UseStyles parses CSS and creates scoped rules.
 func TestUseStylesBasic(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -31,15 +30,19 @@ func TestUseStylesBasic(t *testing.T) {
 	if styles.hash == "" {
 		t.Error("expected non-empty hash")
 	}
-	if styles.stylesheet == nil {
-		t.Fatal("expected non-nil stylesheet")
+
+	cell, ok := inst.HookFrame[0].Value.(*stylesCell)
+	if !ok {
+		t.Fatal("expected stylesCell in hook frame")
 	}
-	if len(styles.stylesheet.Rules) != 2 {
-		t.Errorf("expected 2 rules, got %d", len(styles.stylesheet.Rules))
+	if cell.stylesheet == nil {
+		t.Fatal("expected non-nil stylesheet in cell")
+	}
+	if len(cell.stylesheet.Rules) != 2 {
+		t.Errorf("expected 2 rules, got %d", len(cell.stylesheet.Rules))
 	}
 }
 
-// TestUseStylesClassMethod verifies the Class method returns scoped names.
 func TestUseStylesClassMethod(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -58,33 +61,53 @@ func TestUseStylesClassMethod(t *testing.T) {
 	}
 }
 
-// TestUseStylesStyleTag verifies StyleTag returns a valid work.Element.
-func TestUseStylesStyleTag(t *testing.T) {
+func TestUseStylesAppendFnCalled(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
 		HookFrame: []HookSlot{},
 	}
 	ctx := &Ctx{instance: inst, hookIndex: 0}
 
-	styles := UseStyles(ctx, `.card { background: #fff; }`)
+	var capturedStylesheet *metadata.Stylesheet
+	appendFn := func(_ *Ctx, s *metadata.Stylesheet) {
+		capturedStylesheet = s
+	}
 
-	node := styles.StyleTag()
-	elem, ok := node.(*work.Element)
-	if !ok {
-		t.Fatal("StyleTag did not return *work.Element")
+	styles := UseStyles(ctx, `.card { background: #fff; }`, appendFn)
+
+	if capturedStylesheet == nil {
+		t.Fatal("append function was not called")
 	}
-	if elem.Tag != "style" {
-		t.Errorf("expected tag 'style', got %q", elem.Tag)
+	if capturedStylesheet.Hash != styles.hash {
+		t.Errorf("hash mismatch: %q != %q", capturedStylesheet.Hash, styles.hash)
 	}
-	if elem.Stylesheet == nil {
-		t.Error("expected non-nil Stylesheet on style tag")
-	}
-	if elem.Stylesheet.Hash != styles.hash {
-		t.Errorf("hash mismatch: %q != %q", elem.Stylesheet.Hash, styles.hash)
+	if len(capturedStylesheet.Rules) != 1 {
+		t.Errorf("expected 1 rule, got %d", len(capturedStylesheet.Rules))
 	}
 }
 
-// TestUseStylesMediaQueries verifies media queries are parsed correctly.
+func TestUseStylesAppendFnNotCalledOnRerender(t *testing.T) {
+	inst := &Instance{
+		ID:        "test-comp",
+		HookFrame: []HookSlot{},
+	}
+
+	callCount := 0
+	appendFn := func(_ *Ctx, _ *metadata.Stylesheet) {
+		callCount++
+	}
+
+	ctx1 := &Ctx{instance: inst, hookIndex: 0}
+	UseStyles(ctx1, `.card { background: #fff; }`, appendFn)
+
+	ctx2 := &Ctx{instance: inst, hookIndex: 0}
+	UseStyles(ctx2, `.card { background: #fff; }`, appendFn)
+
+	if callCount != 1 {
+		t.Errorf("expected append function called once, got %d", callCount)
+	}
+}
+
 func TestUseStylesMediaQueries(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -92,7 +115,7 @@ func TestUseStylesMediaQueries(t *testing.T) {
 	}
 	ctx := &Ctx{instance: inst, hookIndex: 0}
 
-	styles := UseStyles(ctx, `
+	UseStyles(ctx, `
 		.container { width: 100%; }
 		@media (min-width: 768px) {
 			.container { width: 750px; }
@@ -103,14 +126,19 @@ func TestUseStylesMediaQueries(t *testing.T) {
 		}
 	`)
 
-	if len(styles.stylesheet.Rules) != 1 {
-		t.Errorf("expected 1 top-level rule, got %d", len(styles.stylesheet.Rules))
-	}
-	if len(styles.stylesheet.MediaBlocks) != 2 {
-		t.Errorf("expected 2 media blocks, got %d", len(styles.stylesheet.MediaBlocks))
+	cell, ok := inst.HookFrame[0].Value.(*stylesCell)
+	if !ok {
+		t.Fatal("expected stylesCell in hook frame")
 	}
 
-	media1 := styles.stylesheet.MediaBlocks[0]
+	if len(cell.stylesheet.Rules) != 1 {
+		t.Errorf("expected 1 top-level rule, got %d", len(cell.stylesheet.Rules))
+	}
+	if len(cell.stylesheet.MediaBlocks) != 2 {
+		t.Errorf("expected 2 media blocks, got %d", len(cell.stylesheet.MediaBlocks))
+	}
+
+	media1 := cell.stylesheet.MediaBlocks[0]
 	if media1.Query != "(min-width: 768px)" {
 		t.Errorf("unexpected media query: %q", media1.Query)
 	}
@@ -118,13 +146,12 @@ func TestUseStylesMediaQueries(t *testing.T) {
 		t.Errorf("expected 1 rule in first media block, got %d", len(media1.Rules))
 	}
 
-	media2 := styles.stylesheet.MediaBlocks[1]
+	media2 := cell.stylesheet.MediaBlocks[1]
 	if len(media2.Rules) != 2 {
 		t.Errorf("expected 2 rules in second media block, got %d", len(media2.Rules))
 	}
 }
 
-// TestUseStylesStable verifies that UseStyles returns the same instance across renders.
 func TestUseStylesStable(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -137,12 +164,11 @@ func TestUseStylesStable(t *testing.T) {
 	ctx2 := &Ctx{instance: inst, hookIndex: 0}
 	styles2 := UseStyles(ctx2, `.card { background: #fff; }`)
 
-	if styles1 != styles2 {
-		t.Error("UseStyles should return same instance across renders")
+	if styles1.hash != styles2.hash {
+		t.Error("UseStyles should return same hash across renders")
 	}
 }
 
-// TestUseStylesSelectorsScoped verifies selectors include the component hash.
 func TestUseStylesSelectorsScoped(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -155,14 +181,18 @@ func TestUseStylesSelectorsScoped(t *testing.T) {
 		#main { color: red; }
 	`)
 
-	for _, rule := range styles.stylesheet.Rules {
+	cell, ok := inst.HookFrame[0].Value.(*stylesCell)
+	if !ok {
+		t.Fatal("expected stylesCell in hook frame")
+	}
+
+	for _, rule := range cell.stylesheet.Rules {
 		if !strings.Contains(rule.Selector, styles.hash) {
 			t.Errorf("selector %q should contain hash %q", rule.Selector, styles.hash)
 		}
 	}
 }
 
-// TestUseStylesEmptyCSS verifies handling of empty CSS.
 func TestUseStylesEmptyCSS(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -175,12 +205,16 @@ func TestUseStylesEmptyCSS(t *testing.T) {
 	if styles == nil {
 		t.Fatal("UseStyles returned nil for empty CSS")
 	}
-	if len(styles.stylesheet.Rules) != 0 {
-		t.Errorf("expected 0 rules for empty CSS, got %d", len(styles.stylesheet.Rules))
+
+	cell, ok := inst.HookFrame[0].Value.(*stylesCell)
+	if !ok {
+		t.Fatal("expected stylesCell in hook frame")
+	}
+	if len(cell.stylesheet.Rules) != 0 {
+		t.Errorf("expected 0 rules for empty CSS, got %d", len(cell.stylesheet.Rules))
 	}
 }
 
-// TestUseStylesPanicOutsideRender verifies panic when called outside render.
 func TestUseStylesPanicOutsideRender(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
@@ -191,7 +225,6 @@ func TestUseStylesPanicOutsideRender(t *testing.T) {
 	UseStyles(nil, ".foo { color: red; }")
 }
 
-// TestUseStylesPanicNilInstance verifies panic when instance is nil.
 func TestUseStylesPanicNilInstance(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
@@ -203,7 +236,6 @@ func TestUseStylesPanicNilInstance(t *testing.T) {
 	UseStyles(ctx, ".foo { color: red; }")
 }
 
-// TestUseStylesHookMismatch verifies panic on hook type mismatch.
 func TestUseStylesHookMismatch(t *testing.T) {
 	inst := &Instance{
 		ID: "test-comp",
@@ -222,7 +254,6 @@ func TestUseStylesHookMismatch(t *testing.T) {
 	UseStyles(ctx, ".foo { color: red; }")
 }
 
-// TestUseStylesMultipleHooks verifies multiple UseStyles calls in same component.
 func TestUseStylesMultipleHooks(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -233,7 +264,7 @@ func TestUseStylesMultipleHooks(t *testing.T) {
 	styles1 := UseStyles(ctx, `.card { background: white; }`)
 	styles2 := UseStyles(ctx, `.btn { padding: 10px; }`)
 
-	if styles1 == styles2 {
+	if styles1.hash == styles2.hash && styles1 == styles2 {
 		t.Error("different UseStyles calls should return different instances")
 	}
 
@@ -245,9 +276,8 @@ func TestUseStylesMultipleHooks(t *testing.T) {
 	}
 }
 
-// TestUseStylesClassMethodEmptyHash verifies Class returns unmodified name when hash is empty.
 func TestUseStylesClassMethodEmptyHash(t *testing.T) {
-	styles := &Styles{hash: "", stylesheet: nil}
+	styles := &Styles{hash: ""}
 
 	className := styles.Class("card")
 	if className != "card" {

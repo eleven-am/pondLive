@@ -1,5 +1,9 @@
 package work
 
+import "reflect"
+
+var OnMapNonNodeDrop func(itemType string, index int)
+
 // Conditional rendering helpers
 
 type noopItem struct{}
@@ -51,7 +55,7 @@ func Map[T any](xs []T, render func(T) Item) *Fragment {
 		return NewFragment()
 	}
 	children := make([]Node, 0, len(xs))
-	for _, v := range xs {
+	for i, v := range xs {
 		child := render(v)
 		if child == nil {
 			continue
@@ -59,6 +63,8 @@ func Map[T any](xs []T, render func(T) Item) *Fragment {
 
 		if node, ok := child.(Node); ok {
 			children = append(children, node)
+		} else if OnMapNonNodeDrop != nil {
+			OnMapNonNodeDrop(reflect.TypeOf(child).String(), i)
 		}
 	}
 	return &Fragment{Children: children}
@@ -78,6 +84,8 @@ func MapIdx[T any](xs []T, render func(int, T) Item) *Fragment {
 
 		if node, ok := child.(Node); ok {
 			children = append(children, node)
+		} else if OnMapNonNodeDrop != nil {
+			OnMapNonNodeDrop(reflect.TypeOf(child).String(), i)
 		}
 	}
 	return &Fragment{Children: children}

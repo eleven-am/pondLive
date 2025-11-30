@@ -124,7 +124,7 @@ func renderStylesheet(b *strings.Builder, ss *metadata.Stylesheet) {
 	b.WriteString("<style>")
 
 	for _, rule := range ss.Rules {
-		b.WriteString(rule.Selector)
+		b.WriteString(escapeCSSForHTML(rule.Selector))
 		b.WriteString("{")
 		writeProps(b, rule.Props)
 		b.WriteString("}")
@@ -132,10 +132,10 @@ func renderStylesheet(b *strings.Builder, ss *metadata.Stylesheet) {
 
 	for _, media := range ss.MediaBlocks {
 		b.WriteString("@media ")
-		b.WriteString(media.Query)
+		b.WriteString(escapeCSSForHTML(media.Query))
 		b.WriteString("{")
 		for _, rule := range media.Rules {
-			b.WriteString(rule.Selector)
+			b.WriteString(escapeCSSForHTML(rule.Selector))
 			b.WriteString("{")
 			writeProps(b, rule.Props)
 			b.WriteString("}")
@@ -144,6 +144,10 @@ func renderStylesheet(b *strings.Builder, ss *metadata.Stylesheet) {
 	}
 
 	b.WriteString("</style>")
+}
+
+func escapeCSSForHTML(s string) string {
+	return strings.ReplaceAll(s, "</", "<\\/")
 }
 
 func writeProps(b *strings.Builder, props map[string]string) {
@@ -161,8 +165,8 @@ func writeProps(b *strings.Builder, props map[string]string) {
 		if i > 0 {
 			b.WriteByte(';')
 		}
-		b.WriteString(k)
+		b.WriteString(escapeCSSForHTML(k))
 		b.WriteByte(':')
-		b.WriteString(props[k])
+		b.WriteString(escapeCSSForHTML(props[k]))
 	}
 }

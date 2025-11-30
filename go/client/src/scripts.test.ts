@@ -1,487 +1,370 @@
-import {describe, it, expect, vi, beforeEach} from 'vitest';
-import {ScriptExecutor} from './scripts';
-import {ScriptMeta} from './types';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ScriptExecutor, ScriptExecutorConfig } from './scripts';
+import { Bus } from './bus';
+import { ScriptMeta } from './protocol';
 
 describe('ScriptExecutor', () => {
     let executor: ScriptExecutor;
-    let mockOnMessage: ReturnType<typeof vi.fn>;
+    let bus: Bus;
 
     beforeEach(() => {
-        mockOnMessage = vi.fn();
-        executor = new ScriptExecutor({
-            sessionId: 'test-session',
-            onMessage: mockOnMessage
+        bus = new Bus();
+        const config: ScriptExecutorConfig = { bus };
+        executor = new ScriptExecutor(config);
+    });
+
+    describe('execute', () => {
+        it('should execute a simple script', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: '(element, transport) => { element.textContent = "Hello"; }',
+            };
+
+            await executor.execute(meta, el);
+
+            expect(el.textContent).toBe('Hello');
+        });
+
+        it('should provide element to script', async () => {
+            const el = document.createElement('input');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: '(element, transport) => { element.value = "test"; }',
+            };
+
+            await executor.execute(meta, el);
+
+            expect((el as HTMLInputElement).value).toBe('test');
+        });
+
+        it('should support async scripts', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `async (element, transport) => {
+                    await Promise.resolve();
+                    element.textContent = "Async Done";
+                }`,
+            };
+
+            await executor.execute(meta, el);
+
+            expect(el.textContent).toBe('Async Done');
+        });
+
+        it('should throw on script error', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: '(element, transport) => { throw new Error("Script error"); }',
+            };
+
+            await expect(executor.execute(meta, el)).rejects.toThrow('Script error');
         });
     });
 
-    it('executes a simple script', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: '(element, transport) => { element.textContent = "Hello"; }'
-        };
+    describe('transport.send', () => {
+        it('should publish message to bus', async () => {
+            const callback = vi.fn();
+            bus.subscribeScript('script-1', 'message', callback);
 
-        await executor.execute(meta, element);
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: '(element, transport) => { transport.send("test", { foo: "bar" }); }',
+            };
 
-        expect(element.textContent).toBe('Hello');
-    });
+            await executor.execute(meta, el);
 
-    it('sends messages to server via transport.send', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: '(element, transport) => { transport.send({ foo: "bar" }); }'
-        };
+            expect(callback).toHaveBeenCalledWith({
+                scriptId: 'script-1',
+                event: 'test',
+                data: { foo: 'bar' },
+            });
+        });
 
-        await executor.execute(meta, element);
+        it('should send multiple messages', async () => {
+            const callback = vi.fn();
+            bus.subscribeScript('script-1', 'message', callback);
 
-        expect(mockOnMessage).toHaveBeenCalledWith({
-            t: 'script:message',
-            sid: 'test-session',
-            scriptId: 'script-1',
-            event: '',
-            data: {foo: 'bar'}
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    transport.send("event1", { a: 1 });
+                    transport.send("event2", { b: 2 });
+                }`,
+            };
+
+            await executor.execute(meta, el);
+
+            expect(callback).toHaveBeenCalledTimes(2);
         });
     });
 
-    it('registers event handlers via transport.on', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                transport.on('update', (data) => {
-                    element.textContent = data.text;
-                });
-            }`
-        };
+    describe('transport.on', () => {
+        it('should register event handler', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    transport.on("update", (data) => {
+                        element.textContent = data.text;
+                    });
+                }`,
+            };
 
-        await executor.execute(meta, element);
+            await executor.execute(meta, el);
 
-        executor.handleEvent('script-1', 'update', {text: 'Updated'});
+            bus.publishScript('script-1', 'send', {
+                scriptId: 'script-1',
+                event: 'update',
+                data: { text: 'Updated' },
+            });
 
-        expect(element.textContent).toBe('Updated');
-    });
-
-    it('calls cleanup function when script is re-executed', async () => {
-        const element = document.createElement('div');
-
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                return () => { window.__cleanupCalled = true; };
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        await executor.execute(meta, element);
-
-        expect((window as any).__cleanupCalled).toBe(true);
-    });
-
-    it('executes async script', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `async (element, transport) => {
-                await Promise.resolve();
-                element.textContent = "Async";
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        expect(element.textContent).toBe('Async');
-    });
-
-    it('handles script execution errors gracefully', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: '(element, transport) => { throw new Error("Script error"); }'
-        };
-
-        await expect(executor.execute(meta, element)).resolves.not.toThrow();
-    });
-
-    it('handles event handler errors gracefully', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                transport.on('error', () => {
-                    throw new Error("Handler error");
-                });
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        expect(() => {
-            executor.handleEvent('script-1', 'error', {});
-        }).not.toThrow();
-    });
-
-    it('cleans up script instance', async () => {
-        const element = document.createElement('div');
-
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                return () => { window.__cleanupCalled2 = true; };
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        executor.cleanup('script-1');
-
-        expect((window as any).__cleanupCalled2).toBe(true);
-    });
-
-    it('supports arrow functions', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: '(element, transport) => { element.className = "test"; }'
-        };
-
-        await executor.execute(meta, element);
-
-        expect(element.className).toBe('test');
-    });
-
-    it('supports regular functions', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: 'function(element, transport) { element.id = "test-id"; }'
-        };
-
-        await executor.execute(meta, element);
-
-        expect(element.id).toBe('test-id');
-    });
-
-    it('handles multiple event handlers on same script', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                transport.on('event1', (data) => {
-                    element.dataset.event1 = data.value;
-                });
-                transport.on('event2', (data) => {
-                    element.dataset.event2 = data.value;
-                });
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        executor.handleEvent('script-1', 'event1', {value: 'first'});
-        executor.handleEvent('script-1', 'event2', {value: 'second'});
-
-        expect(element.dataset.event1).toBe('first');
-        expect(element.dataset.event2).toBe('second');
-    });
-
-    it('handles multiple messages sent to server', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                transport.send({ msg: 'first' });
-                transport.send({ msg: 'second' });
-                transport.send({ msg: 'third' });
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        expect(mockOnMessage).toHaveBeenCalledTimes(3);
-        expect(mockOnMessage).toHaveBeenNthCalledWith(1, {
-            t: 'script:message',
-            sid: 'test-session',
-            scriptId: 'script-1',
-            event: '',
-            data: {msg: 'first'}
+            expect(el.textContent).toBe('Updated');
         });
-        expect(mockOnMessage).toHaveBeenNthCalledWith(2, {
-            t: 'script:message',
-            sid: 'test-session',
-            scriptId: 'script-1',
-            event: '',
-            data: {msg: 'second'}
+
+        it('should handle multiple event types', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    transport.on("event1", (data) => { element.dataset.e1 = data.v; });
+                    transport.on("event2", (data) => { element.dataset.e2 = data.v; });
+                }`,
+            };
+
+            await executor.execute(meta, el);
+
+            bus.publishScript('script-1', 'send', { scriptId: 'script-1', event: 'event1', data: { v: 'one' } });
+            bus.publishScript('script-1', 'send', { scriptId: 'script-1', event: 'event2', data: { v: 'two' } });
+
+            expect(el.dataset.e1).toBe('one');
+            expect(el.dataset.e2).toBe('two');
         });
-        expect(mockOnMessage).toHaveBeenNthCalledWith(3, {
-            t: 'script:message',
-            sid: 'test-session',
-            scriptId: 'script-1',
-            event: '',
-            data: {msg: 'third'}
+
+        it('should swallow handler errors', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    transport.on("error", () => { throw new Error("Handler error"); });
+                }`,
+            };
+
+            await executor.execute(meta, el);
+
+            expect(() => {
+                bus.publishScript('script-1', 'send', { scriptId: 'script-1', event: 'error', data: {} });
+            }).not.toThrow();
         });
     });
 
-    it('ignores events for non-existent scripts', () => {
-        expect(() => {
-            executor.handleEvent('non-existent', 'update', {});
-        }).not.toThrow();
-    });
+    describe('cleanup function', () => {
+        it('should call cleanup on re-execute', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    return () => { element.dataset.cleanupCalled = "true"; };
+                }`,
+            };
 
-    it('ignores events for non-registered event handlers', async () => {
-        const element = document.createElement('div');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                transport.on('registered', (data) => {
-                    element.textContent = 'registered';
-                });
-            }`
-        };
+            await executor.execute(meta, el);
+            expect(el.dataset.cleanupCalled).toBeUndefined();
 
-        await executor.execute(meta, element);
+            await executor.execute(meta, el);
+            expect(el.dataset.cleanupCalled).toBe('true');
+        });
 
-        expect(() => {
-            executor.handleEvent('script-1', 'unregistered', {});
-        }).not.toThrow();
+        it('should call cleanup on manual cleanup', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    return () => { element.dataset.manualCleanup = "true"; };
+                }`,
+            };
 
-        expect(element.textContent).toBe('');
-    });
+            await executor.execute(meta, el);
+            executor.cleanup('script-1');
 
-    it('re-executing script with new code replaces old behavior', async () => {
-        const element = document.createElement('div');
+            expect(el.dataset.manualCleanup).toBe('true');
+        });
 
-        const meta1: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                element.textContent = 'version 1';
-            }`
-        };
+        it('should handle async cleanup', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `async (element, transport) => {
+                    return () => { element.dataset.asyncCleanup = "true"; };
+                }`,
+            };
 
-        await executor.execute(meta1, element);
-        expect(element.textContent).toBe('version 1');
+            await executor.execute(meta, el);
+            executor.cleanup('script-1');
 
-        const meta2: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                element.textContent = 'version 2';
-            }`
-        };
-
-        await executor.execute(meta2, element);
-        expect(element.textContent).toBe('version 2');
-    });
-
-    it('event handlers from previous script are not called after re-execution', async () => {
-        const element = document.createElement('div');
-
-        const meta1: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                transport.on('test', (data) => {
-                    element.textContent = 'old handler';
-                });
-            }`
-        };
-
-        await executor.execute(meta1, element);
-
-        const meta2: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                transport.on('test', (data) => {
-                    element.textContent = 'new handler';
-                });
-            }`
-        };
-
-        await executor.execute(meta2, element);
-
-        executor.handleEvent('script-1', 'test', {});
-        expect(element.textContent).toBe('new handler');
-    });
-
-    it('can access and modify DOM properties', async () => {
-        const element = document.createElement('input');
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                element.value = 'test value';
-                element.disabled = true;
-                element.placeholder = 'test placeholder';
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        expect((element as HTMLInputElement).value).toBe('test value');
-        expect((element as HTMLInputElement).disabled).toBe(true);
-        expect((element as HTMLInputElement).placeholder).toBe('test placeholder');
-    });
-
-    it('can add and remove event listeners', async () => {
-        const element = document.createElement('button');
-
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                const handler = () => {
-                    window.__testClicked = true;
-                };
-                element.addEventListener('click', handler);
-                return () => {
-                    element.removeEventListener('click', handler);
-                };
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        element.click();
-        expect((window as any).__testClicked).toBe(true);
-
-        (window as any).__testClicked = false;
-        executor.cleanup('script-1');
-        element.click();
-        expect((window as any).__testClicked).toBe(false);
-    });
-
-    it('handles complex data types in messages', async () => {
-        const element = document.createElement('div');
-        const complexData = {
-            string: 'test',
-            number: 42,
-            boolean: true,
-            null: null,
-            array: [1, 2, 3],
-            nested: {
-                key: 'value',
-                deep: {
-                    level: 3
-                }
-            }
-        };
-
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                transport.send(${JSON.stringify(complexData)});
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        expect(mockOnMessage).toHaveBeenCalledWith({
-            t: 'script:message',
-            sid: 'test-session',
-            scriptId: 'script-1',
-            event: '',
-            data: complexData
+            expect(el.dataset.asyncCleanup).toBe('true');
         });
     });
 
-    it('handles async cleanup function', async () => {
-        const element = document.createElement('div');
+    describe('cleanup', () => {
+        it('should be idempotent for non-existent scripts', () => {
+            expect(() => {
+                executor.cleanup('non-existent');
+                executor.cleanup('non-existent');
+            }).not.toThrow();
+        });
 
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `async (element, transport) => {
-                return async () => {
-                    window.__asyncCleanupCalled = true;
-                };
-            }`
-        };
+        it('should unsubscribe from bus', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    transport.on("test", () => { element.textContent = "should not appear"; });
+                }`,
+            };
 
-        await executor.execute(meta, element);
-        await executor.execute(meta, element);
+            await executor.execute(meta, el);
+            executor.cleanup('script-1');
 
-        expect((window as any).__asyncCleanupCalled).toBe(true);
+            bus.publishScript('script-1', 'send', { scriptId: 'script-1', event: 'test', data: {} });
+
+            expect(el.textContent).toBe('');
+        });
     });
 
-    it('handles scripts that return non-function values', async () => {
-        const element = document.createElement('div');
+    describe('destroy', () => {
+        it('should cleanup all scripts', async () => {
+            const el1 = document.createElement('div');
+            const el2 = document.createElement('div');
 
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                element.textContent = 'test';
-                return 'not a function';
-            }`
-        };
+            await executor.execute(
+                { scriptId: 'script-1', script: '(el, t) => () => { el.dataset.destroyed = "true"; }' },
+                el1
+            );
+            await executor.execute(
+                { scriptId: 'script-2', script: '(el, t) => () => { el.dataset.destroyed = "true"; }' },
+                el2
+            );
 
-        await expect(executor.execute(meta, element)).resolves.not.toThrow();
-        expect(element.textContent).toBe('test');
+            executor.destroy();
+
+            expect(el1.dataset.destroyed).toBe('true');
+            expect(el2.dataset.destroyed).toBe('true');
+        });
     });
 
-    it('can interact with global window object', async () => {
-        const element = document.createElement('div');
-        (window as any).__testData = {counter: 0};
+    describe('sandbox', () => {
+        it('should provide whitelisted globals', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    element.dataset.hasConsole = String(typeof console !== 'undefined');
+                    element.dataset.hasPromise = String(typeof Promise !== 'undefined');
+                    element.dataset.hasFetch = String(typeof fetch !== 'undefined');
+                    element.dataset.hasMath = String(typeof Math !== 'undefined');
+                }`,
+            };
 
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                window.__testData.counter++;
-                element.textContent = String(window.__testData.counter);
-            }`
-        };
+            await executor.execute(meta, el);
 
-        await executor.execute(meta, element);
-        expect(element.textContent).toBe('1');
-        expect((window as any).__testData.counter).toBe(1);
+            expect(el.dataset.hasConsole).toBe('true');
+            expect(el.dataset.hasPromise).toBe('true');
+            expect(el.dataset.hasFetch).toBe('true');
+            expect(el.dataset.hasMath).toBe('true');
+        });
+
+        it('should block access to window', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    element.dataset.hasWindow = String(typeof window !== 'undefined');
+                }`,
+            };
+
+            await executor.execute(meta, el);
+
+            expect(el.dataset.hasWindow).toBe('false');
+        });
+
+        it('should block access to document', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    element.dataset.hasDocument = String(typeof document !== 'undefined');
+                }`,
+            };
+
+            await executor.execute(meta, el);
+
+            expect(el.dataset.hasDocument).toBe('false');
+        });
+
+        it('should allow setting local variables', async () => {
+            const el = document.createElement('div');
+            const meta: ScriptMeta = {
+                scriptId: 'script-1',
+                script: `(element, transport) => {
+                    let x = 42;
+                    element.textContent = String(x);
+                }`,
+            };
+
+            await executor.execute(meta, el);
+
+            expect(el.textContent).toBe('42');
+        });
     });
 
-    it('cleanup is idempotent for non-existent scripts', () => {
-        expect(() => {
-            executor.cleanup('non-existent');
-            executor.cleanup('non-existent');
-        }).not.toThrow();
-    });
+    describe('re-execution', () => {
+        it('should replace old behavior with new', async () => {
+            const el = document.createElement('div');
 
-    it('handles script with syntax that requires parentheses', async () => {
-        const element = document.createElement('div');
+            await executor.execute(
+                { scriptId: 'script-1', script: '(el, t) => { el.textContent = "v1"; }' },
+                el
+            );
+            expect(el.textContent).toBe('v1');
 
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => ({ result: 'object literal' })`
-        };
+            await executor.execute(
+                { scriptId: 'script-1', script: '(el, t) => { el.textContent = "v2"; }' },
+                el
+            );
+            expect(el.textContent).toBe('v2');
+        });
 
-        await executor.execute(meta, element);
-    });
+        it('should replace event handlers on re-execute', async () => {
+            const el = document.createElement('div');
 
-    it('cleanup removes script instance and prevents event handling', async () => {
-        const element = document.createElement('div');
+            await executor.execute(
+                {
+                    scriptId: 'script-1',
+                    script: `(el, t) => {
+                        t.on("test", () => { el.textContent = "old"; });
+                    }`,
+                },
+                el
+            );
 
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                transport.on('test', (data) => {
-                    element.textContent = 'should not be called';
-                });
-            }`
-        };
+            await executor.execute(
+                {
+                    scriptId: 'script-1',
+                    script: `(el, t) => {
+                        t.on("test", () => { el.textContent = "new"; });
+                    }`,
+                },
+                el
+            );
 
-        await executor.execute(meta, element);
+            bus.publishScript('script-1', 'send', { scriptId: 'script-1', event: 'test', data: {} });
 
-        executor.cleanup('script-1');
-
-        executor.handleEvent('script-1', 'test', {});
-        expect(element.textContent).toBe('');
-    });
-
-    it('cleanup with return value calls cleanup function', async () => {
-        const element = document.createElement('div');
-
-        const meta: ScriptMeta = {
-            scriptId: 'script-1',
-            script: `(element, transport) => {
-                return () => { window.__manualCleanupCalled = true; };
-            }`
-        };
-
-        await executor.execute(meta, element);
-
-        executor.cleanup('script-1');
-        expect((window as any).__manualCleanupCalled).toBe(true);
+            expect(el.textContent).toBe('new');
+        });
     });
 });

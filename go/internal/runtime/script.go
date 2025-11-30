@@ -107,7 +107,6 @@ func (slot *scriptSlot) setEventHandler(event string, fn func(interface{})) {
 		slot.subs = make(map[string]*protocol.Subscription)
 	}
 
-	// Unsubscribe old handler if one exists for this event
 	if oldSub := slot.subs[event]; oldSub != nil {
 		oldSub.Unsubscribe()
 	}
@@ -248,62 +247,169 @@ func (s *Session) HandleScriptMessage(id string, event string, data interface{})
 	})
 }
 
-// minifyJS performs basic JavaScript minification by removing unnecessary whitespace.
-// It preserves spaces where syntactically required (between keywords, identifiers).
-// Consecutive whitespace (\s+) is reduced to a single space (\s) when needed.
 func minifyJS(script string) string {
 	var result strings.Builder
 	result.Grow(len(script))
 
-	inString := false
-	stringChar := byte(0)
-	prevChar := byte(0)
+	n := len(script)
+	lastTokenCanPrecedeDivision := false
 
-	for i := 0; i < len(script); i++ {
+	for i := 0; i < n; i++ {
 		ch := script[i]
 
 		if ch == '"' || ch == '\'' || ch == '`' {
-			if !inString {
-				inString = true
-				stringChar = ch
-			} else if ch == stringChar && prevChar != '\\' {
-				inString = false
-				stringChar = 0
+			start := i
+			i = skipString(script, i)
+			result.WriteString(script[start : i+1])
+			lastTokenCanPrecedeDivision = true
+			continue
+		}
+
+		if ch == '/' && i+1 < n {
+			next := script[i+1]
+
+			if next == '/' {
+				for i < n && script[i] != '\n' {
+					i++
+				}
+				i--
+				continue
 			}
-			result.WriteByte(ch)
-			prevChar = ch
-			continue
+
+			if next == '*' {
+				i += 2
+				for i+1 < n {
+					if script[i] == '*' && script[i+1] == '/' {
+						i++
+						break
+					}
+					i++
+				}
+				continue
+			}
+
+			if !lastTokenCanPrecedeDivision {
+				start := i
+				i = skipRegex(script, i)
+				result.WriteString(script[start : i+1])
+				lastTokenCanPrecedeDivision = true
+				continue
+			}
 		}
 
-		if inString {
-			result.WriteByte(ch)
-			prevChar = ch
-			continue
-		}
-
-		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
-			wsStart := i
-			for i+1 < len(script) && isWhitespace(script[i+1]) {
+		if isWhitespace(ch) {
+			for i+1 < n && isWhitespace(script[i+1]) {
 				i++
 			}
 
-			if wsStart > 0 && i < len(script)-1 {
-				prev := script[wsStart-1]
-				next := script[i+1]
-				if isIdentifierChar(prev) && isIdentifierChar(next) {
+			if result.Len() > 0 && i+1 < n {
+				prevByte := result.String()[result.Len()-1]
+				nextByte := script[i+1]
+				if isIdentifierChar(prevByte) && isIdentifierChar(nextByte) {
 					result.WriteByte(' ')
 				}
 			}
-
-			prevChar = ch
 			continue
 		}
 
 		result.WriteByte(ch)
-		prevChar = ch
+		lastTokenCanPrecedeDivision = canPrecedeDivision(ch)
 	}
 
 	return result.String()
+}
+
+func skipString(s string, i int) int {
+	quote := s[i]
+	n := len(s)
+	i++
+
+	for i < n {
+		ch := s[i]
+
+		if ch == '\\' && i+1 < n {
+			i += 2
+			continue
+		}
+
+		if ch == quote {
+			return i
+		}
+
+		if quote == '`' && ch == '$' && i+1 < n && s[i+1] == '{' {
+			i += 2
+			braceDepth := 1
+			for i < n && braceDepth > 0 {
+				c := s[i]
+				if c == '{' {
+					braceDepth++
+				} else if c == '}' {
+					braceDepth--
+				} else if c == '"' || c == '\'' || c == '`' {
+					i = skipString(s, i)
+				}
+				i++
+			}
+			continue
+		}
+
+		i++
+	}
+
+	return n - 1
+}
+
+func skipRegex(s string, i int) int {
+	n := len(s)
+	i++
+
+	for i < n {
+		ch := s[i]
+
+		if ch == '\\' && i+1 < n {
+			i += 2
+			continue
+		}
+
+		if ch == '[' {
+			i++
+			for i < n && s[i] != ']' {
+				if s[i] == '\\' && i+1 < n {
+					i += 2
+				} else {
+					i++
+				}
+			}
+			i++
+			continue
+		}
+
+		if ch == '/' {
+			i++
+			for i < n && isRegexFlag(s[i]) {
+				i++
+			}
+			return i - 1
+		}
+
+		i++
+	}
+
+	return n - 1
+}
+
+func isRegexFlag(ch byte) bool {
+	return ch == 'g' || ch == 'i' || ch == 'm' || ch == 's' || ch == 'u' || ch == 'y' || ch == 'd' || ch == 'v'
+}
+
+func canPrecedeDivision(ch byte) bool {
+	if ch == ')' || ch == ']' {
+		return true
+	}
+	if isIdentifierChar(ch) {
+		return true
+	}
+	return false
 }
 
 // isWhitespace returns true if the character is whitespace.

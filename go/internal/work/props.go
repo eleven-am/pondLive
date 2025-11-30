@@ -112,7 +112,6 @@ func (e eventItem) ApplyTo(el *Element) {
 
 	existing, exists := el.Handlers[e.event]
 	if !exists {
-
 		el.Handlers[e.event] = e.handler
 		return
 	}
@@ -123,14 +122,14 @@ func (e eventItem) ApplyTo(el *Element) {
 	el.Handlers[e.event] = Handler{
 		EventOptions: MergeEventOptions(existing.EventOptions, e.handler.EventOptions),
 		Fn: func(evt Event) Updates {
-			var result Updates
+			var oldResult, newResult Updates
 			if oldFn != nil {
-				result = oldFn(evt)
+				oldResult = oldFn(evt)
 			}
 			if newFn != nil {
-				result = newFn(evt)
+				newResult = newFn(evt)
 			}
-			return result
+			return mergeUpdates(oldResult, newResult)
 		},
 	}
 }
@@ -255,6 +254,27 @@ func MergeEventOptions(a, b metadata.EventOptions) metadata.EventOptions {
 	merged.Listen = deduplicateStrings(append(a.Listen, b.Listen...))
 
 	return merged
+}
+
+func mergeUpdates(a, b Updates) Updates {
+	if a == nil {
+		return b
+	}
+	if b == nil {
+		return a
+	}
+	aSlice, aIsSlice := a.([]Updates)
+	bSlice, bIsSlice := b.([]Updates)
+	switch {
+	case aIsSlice && bIsSlice:
+		return append(aSlice, bSlice...)
+	case aIsSlice:
+		return append(aSlice, b)
+	case bIsSlice:
+		return append([]Updates{a}, bSlice...)
+	default:
+		return []Updates{a, b}
+	}
 }
 
 func deduplicateStrings(input []string) []string {

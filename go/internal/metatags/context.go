@@ -8,6 +8,8 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
+type Ctx = runtime.Ctx
+
 // noopController is the default controller when no Provider exists.
 // It silently drops meta changes - this is intentional for SSR or when
 // meta is not needed.
@@ -19,8 +21,7 @@ var noopController = &Controller{
 
 var metaCtx = runtime.CreateContext[*Controller](noopController)
 
-// Provider creates a meta context with reactive state so meta changes rerender <head>.
-func Provider(ctx *runtime.Ctx, assetURL string, children []work.Node) work.Node {
+var Provider = html.Component(func(ctx *Ctx, children []work.Node) work.Node {
 	entries, setEntries := runtime.UseState(ctx, map[string]metaEntry{})
 
 	entriesRef := runtime.UseRef(ctx, entries)
@@ -45,24 +46,6 @@ func Provider(ctx *runtime.Ctx, assetURL string, children []work.Node) work.Node
 	})
 
 	metaCtx.UseProvider(ctx, controller)
-	scriptNodes := html.ScriptTags(html.ScriptTag{
-		Src:   assetURL,
-		Defer: true,
-	})
 
-	bodyChildren := make([]html.Item, 0, 1+len(scriptNodes))
-	for _, child := range children {
-		if child != nil {
-			bodyChildren = append(bodyChildren, child)
-		}
-	}
-
-	for _, script := range scriptNodes {
-		bodyChildren = append(bodyChildren, script)
-	}
-
-	return html.Html(
-		Head(ctx),
-		html.Body(bodyChildren...),
-	)
-}
+	return &work.Fragment{Children: children}
+})

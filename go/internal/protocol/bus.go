@@ -217,6 +217,7 @@ func (b *Bus) unsubscribeWildcard(subID uint64) {
 	for i, sub := range b.wildcardSubscribers {
 		if sub.id == subID {
 			b.wildcardSubscribers[i] = b.wildcardSubscribers[len(b.wildcardSubscribers)-1]
+			b.wildcardSubscribers[len(b.wildcardSubscribers)-1] = nil
 			b.wildcardSubscribers = b.wildcardSubscribers[:len(b.wildcardSubscribers)-1]
 			return
 		}
@@ -235,8 +236,8 @@ func (b *Bus) unsubscribe(id Topic, subID uint64) {
 	subs := b.subscribers[id]
 	for i, sub := range subs {
 		if sub.id == subID {
-
 			subs[i] = subs[len(subs)-1]
+			subs[len(subs)-1] = nil
 			b.subscribers[id] = subs[:len(subs)-1]
 
 			if len(b.subscribers[id]) == 0 {
@@ -245,4 +246,16 @@ func (b *Bus) unsubscribe(id Topic, subID uint64) {
 			return
 		}
 	}
+}
+
+func (b *Bus) Close() {
+	if b == nil {
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.subscribers = make(map[Topic][]*subscriber)
+	b.wildcardSubscribers = nil
 }

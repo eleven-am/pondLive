@@ -39,3 +39,7 @@ func (c *Ctx) ComponentDepth() int {
 	}
 	return depth
 }
+
+func NewCtxForTest(inst *Instance, sess *Session) *Ctx {
+	return &Ctx{instance: inst, session: sess}
+}

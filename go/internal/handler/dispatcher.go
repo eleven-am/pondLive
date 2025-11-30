@@ -2,33 +2,30 @@ package handler
 
 import (
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
-// PathPrefix is the URL prefix for all handler endpoints.
 const PathPrefix = "/_handlers/"
 
-// SessionRegistry provides session lookup by ID.
 type SessionRegistry interface {
 	Lookup(id session.SessionID) (*session.LiveSession, bool)
 }
 
-// Dispatcher routes HTTP requests to registered component handlers.
-// It extracts the session ID from the URL and delegates to the session's ServeHTTP.
 type Dispatcher struct {
 	registry SessionRegistry
 }
 
-// NewDispatcher creates a handler dispatcher bound to the session registry.
 func NewDispatcher(reg SessionRegistry) *Dispatcher {
 	return &Dispatcher{registry: reg}
 }
 
-// ServeHTTP handles requests to /_handlers/{sessionId}/{handlerId}.
-// The session's ServeHTTP validates the handler ID and executes the chain.
 func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store, private")
+
 	if d == nil || d.registry == nil {
 		http.Error(w, "handler: dispatcher not available", http.StatusServiceUnavailable)
 		return
@@ -40,26 +37,58 @@ func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	handlerID := extractHandlerID(r.URL.Path)
+	if handlerID == "" {
+		http.Error(w, "handler: missing handler ID", http.StatusBadRequest)
+		return
+	}
+
 	sess, ok := d.registry.Lookup(session.SessionID(sessionID))
 	if !ok || sess == nil {
 		http.Error(w, "handler: session not found", http.StatusNotFound)
 		return
 	}
 
-	w.Header().Set("Cache-Control", "no-store, private")
-
 	sess.ServeHTTP(w, r)
 }
 
-// extractSessionID extracts the session ID from /_handlers/{sessionID}/{handlerID}
-func extractSessionID(path string) string {
-	trimmed := strings.TrimPrefix(path, PathPrefix)
-	if trimmed == path {
+func normalizePath(rawPath string) string {
+	decoded, err := url.PathUnescape(rawPath)
+	if err != nil {
+		return path.Clean(rawPath)
+	}
+	return path.Clean(decoded)
+}
+
+func extractSessionID(rawPath string) string {
+	cleanPath := normalizePath(rawPath)
+	trimmed := strings.TrimPrefix(cleanPath, PathPrefix)
+	if trimmed == cleanPath {
 		return ""
 	}
 	parts := strings.SplitN(trimmed, "/", 2)
 	if len(parts) < 1 || parts[0] == "" {
 		return ""
 	}
-	return strings.TrimSpace(parts[0])
+	if strings.Contains(parts[0], "/") {
+		return ""
+	}
+	return parts[0]
+}
+
+func extractHandlerID(rawPath string) string {
+	cleanPath := normalizePath(rawPath)
+	trimmed := strings.TrimPrefix(cleanPath, PathPrefix)
+	if trimmed == cleanPath {
+		return ""
+	}
+	parts := strings.SplitN(trimmed, "/", 2)
+	if len(parts) < 2 || parts[1] == "" {
+		return ""
+	}
+	handlerParts := strings.SplitN(parts[1], "/", 2)
+	if handlerParts[0] == "" {
+		return ""
+	}
+	return handlerParts[0]
 }

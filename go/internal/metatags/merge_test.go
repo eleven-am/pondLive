@@ -6,7 +6,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/html"
 )
 
-// TestControllerGetEmpty tests that Get returns default meta when no entries exist.
 func TestControllerGetEmpty(t *testing.T) {
 	entries := make(map[string]metaEntry)
 	controller := &Controller{
@@ -25,7 +24,6 @@ func TestControllerGetEmpty(t *testing.T) {
 	}
 }
 
-// TestControllerGetSingleEntry tests that Get returns the single entry's meta.
 func TestControllerGetSingleEntry(t *testing.T) {
 	entries := make(map[string]metaEntry)
 	controller := &Controller{
@@ -49,7 +47,6 @@ func TestControllerGetSingleEntry(t *testing.T) {
 	}
 }
 
-// TestControllerMergeChildWins tests that deeper components override shallower ones.
 func TestControllerMergeChildWins(t *testing.T) {
 	entries := make(map[string]metaEntry)
 	controller := &Controller{
@@ -78,7 +75,6 @@ func TestControllerMergeChildWins(t *testing.T) {
 	}
 }
 
-// TestControllerMergeGrandchildWins tests three-level depth merging.
 func TestControllerMergeGrandchildWins(t *testing.T) {
 	entries := make(map[string]metaEntry)
 	controller := &Controller{
@@ -112,7 +108,6 @@ func TestControllerMergeGrandchildWins(t *testing.T) {
 	}
 }
 
-// TestControllerMergeMetaTags tests that meta tags merge by name/property.
 func TestControllerMergeMetaTags(t *testing.T) {
 	entries := make(map[string]metaEntry)
 	controller := &Controller{
@@ -155,7 +150,6 @@ func TestControllerMergeMetaTags(t *testing.T) {
 	}
 }
 
-// TestControllerMergeLinks tests that links merge by rel:href key.
 func TestControllerMergeLinks(t *testing.T) {
 	entries := make(map[string]metaEntry)
 	controller := &Controller{
@@ -184,7 +178,6 @@ func TestControllerMergeLinks(t *testing.T) {
 	}
 }
 
-// TestControllerRemove tests that removing an entry updates merged result.
 func TestControllerRemove(t *testing.T) {
 	entries := make(map[string]metaEntry)
 	controller := &Controller{
@@ -214,7 +207,6 @@ func TestControllerRemove(t *testing.T) {
 	}
 }
 
-// TestControllerNilSafety tests nil receiver safety.
 func TestControllerNilSafety(t *testing.T) {
 	var controller *Controller
 
@@ -227,7 +219,6 @@ func TestControllerNilSafety(t *testing.T) {
 	controller.Remove("id")
 }
 
-// TestControllerMergeScripts tests that scripts merge by src key.
 func TestControllerMergeScripts(t *testing.T) {
 	entries := make(map[string]metaEntry)
 	controller := &Controller{
@@ -256,5 +247,70 @@ func TestControllerMergeScripts(t *testing.T) {
 
 	if len(meta.Scripts) > 0 && !meta.Scripts[0].Defer {
 		t.Error("Expected child's script with Defer=true to win")
+	}
+}
+
+func TestControllerMergeInlineScripts(t *testing.T) {
+	entries := make(map[string]metaEntry)
+	controller := &Controller{
+		get:    func() map[string]metaEntry { return entries },
+		set:    func(id string, e metaEntry) { entries[id] = e },
+		remove: func(id string) { delete(entries, id) },
+	}
+
+	controller.Set("comp1", 0, &Meta{
+		Scripts: []html.ScriptTag{
+			{Type: "text/javascript"},
+			{Type: "module"},
+		},
+	})
+
+	controller.Set("comp2", 0, &Meta{
+		Scripts: []html.ScriptTag{
+			{Async: true},
+		},
+	})
+
+	controller.Set("comp3", 1, &Meta{
+		Scripts: []html.ScriptTag{
+			{Defer: true},
+		},
+	})
+
+	meta := controller.Get()
+
+	if len(meta.Scripts) != 4 {
+		t.Errorf("Expected 4 inline scripts from different components, got %d", len(meta.Scripts))
+	}
+}
+
+func TestControllerMergeInlineScriptsDeepWins(t *testing.T) {
+	entries := make(map[string]metaEntry)
+	controller := &Controller{
+		get:    func() map[string]metaEntry { return entries },
+		set:    func(id string, e metaEntry) { entries[id] = e },
+		remove: func(id string) { delete(entries, id) },
+	}
+
+	controller.Set("parent", 0, &Meta{
+		Scripts: []html.ScriptTag{
+			{Src: "/shared.js", Async: true},
+		},
+	})
+
+	controller.Set("child", 1, &Meta{
+		Scripts: []html.ScriptTag{
+			{Src: "/shared.js", Defer: true},
+		},
+	})
+
+	meta := controller.Get()
+
+	if len(meta.Scripts) != 1 {
+		t.Fatalf("Expected 1 script, got %d", len(meta.Scripts))
+	}
+
+	if !meta.Scripts[0].Defer {
+		t.Error("Expected deeper component's script to win")
 	}
 }

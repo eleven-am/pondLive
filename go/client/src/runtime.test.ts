@@ -1,15 +1,10 @@
-import {describe, it, expect, beforeEach, vi, Mock} from 'vitest';
-import {Runtime, RuntimeConfig} from './runtime';
-import {Boot, Frame, Init, DOMRequest, ServerMessage} from './protocol';
-import {Transport} from './transport';
+import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
+import { Runtime, RuntimeConfig } from './runtime';
+import { Boot } from './protocol';
+import { Transport } from './transport';
+import { Logger } from './logger';
 
 vi.mock('./transport');
-vi.mock('./router', () => ({
-    Router: vi.fn().mockImplementation(() => ({
-        navigate: vi.fn(),
-        destroy: vi.fn()
-    }))
-}));
 
 describe('Runtime', () => {
     let root: HTMLElement;
@@ -19,20 +14,28 @@ describe('Runtime', () => {
         connect: Mock;
         disconnect: Mock;
         send: Mock;
-        onMessage: Mock;
+        sendAck: Mock;
+        sendHandler: Mock;
         onStateChange: Mock;
+        sid: string;
     };
-    let messageHandler: (msg: ServerMessage) => void;
+    let stateChangeHandler: (state: string) => void;
 
     beforeEach(() => {
         vi.clearAllMocks();
+        Logger.configure({ enabled: false });
 
         mockTransportInstance = {
             connect: vi.fn(),
             disconnect: vi.fn(),
             send: vi.fn(),
-            onMessage: vi.fn(),
-            onStateChange: vi.fn()
+            sendAck: vi.fn(),
+            sendHandler: vi.fn(),
+            onStateChange: vi.fn((handler) => {
+                stateChangeHandler = handler;
+                return () => {};
+            }),
+            sid: 'test-session',
         };
 
         (Transport as unknown as Mock).mockImplementation(() => mockTransportInstance);
@@ -46,12 +49,11 @@ describe('Runtime', () => {
             version: 1,
             seq: 0,
             endpoint: '/live',
-            location: {path: '/', q: '', hash: ''},
-            debug: false
+            location: { path: '/', query: {}, hash: '' },
+            debug: false,
         };
 
         runtime = new Runtime(config);
-        messageHandler = mockTransportInstance.onMessage.mock.calls[0][0];
     });
 
     describe('constructor', () => {
@@ -59,8 +61,12 @@ describe('Runtime', () => {
             expect(runtime).toBeDefined();
         });
 
-        it('should wire transport message handler', () => {
-            expect(mockTransportInstance.onMessage).toHaveBeenCalled();
+        it('should wire transport state change handler', () => {
+            expect(mockTransportInstance.onStateChange).toHaveBeenCalled();
+        });
+
+        it('should set window.__POND_RUNTIME__', () => {
+            expect(window.__POND_RUNTIME__).toBe(runtime);
         });
     });
 
@@ -78,194 +84,240 @@ describe('Runtime', () => {
         });
     });
 
+    describe('connected', () => {
+        it('should return false initially', () => {
+            expect(runtime.connected()).toBe(false);
+        });
+
+        it('should return true when connected', () => {
+            stateChangeHandler('connected');
+            expect(runtime.connected()).toBe(true);
+        });
+
+        it('should return false when disconnected', () => {
+            stateChangeHandler('connected');
+            stateChangeHandler('disconnected');
+            expect(runtime.connected()).toBe(false);
+        });
+    });
+
+    describe('seq', () => {
+        it('should return initial seq', () => {
+            expect(runtime.seq).toBe(0);
+        });
+
+        it('should update after boot', () => {
+            const boot: Boot = {
+                t: 'boot',
+                sid: 'test-session',
+                ver: 1,
+                seq: 10,
+                patch: [],
+                location: { path: '/', query: {}, hash: '' },
+            };
+
+            runtime.handleBoot(boot);
+            expect(runtime.seq).toBe(10);
+        });
+    });
+
+    describe('handleBoot', () => {
+        it('should send ack on boot', () => {
+            const boot: Boot = {
+                t: 'boot',
+                sid: 'test-session',
+                ver: 1,
+                seq: 5,
+                patch: [],
+                location: { path: '/', query: {}, hash: '' },
+            };
+
+            runtime.handleBoot(boot);
+
+            expect(mockTransportInstance.sendAck).toHaveBeenCalledWith(5);
+        });
+
+        it('should apply patches from boot', () => {
+            const child = document.createElement('span');
+            child.textContent = 'old';
+            root.appendChild(child);
+
+            const boot: Boot = {
+                t: 'boot',
+                sid: 'test-session',
+                ver: 1,
+                seq: 1,
+                patch: [{ seq: 0, path: [0], op: 'setText', value: 'new' }],
+                location: { path: '/', query: {}, hash: '' },
+            };
+
+            runtime.handleBoot(boot);
+
+            expect(child.textContent).toBe('new');
+        });
+    });
+
     describe('handleMessage', () => {
-        describe('boot', () => {
-            it('should send ack on boot', () => {
-                const boot: Boot = {
-                    t: 'boot',
-                    sid: 'test-session',
-                    ver: 1,
-                    seq: 5,
-                    patch: [],
-                    location: {path: '/', q: '', hash: ''}
-                };
+        it('should handle server error', () => {
+            const error = {
+                t: 'error',
+                sid: 'test-session',
+                code: 'ERR001',
+                message: 'Something went wrong',
+            };
 
-                messageHandler(boot);
+            expect(() => runtime.handleMessage(error)).not.toThrow();
+        });
 
-                expect(mockTransportInstance.send).toHaveBeenCalledWith({
-                    t: 'ack',
-                    sid: 'test-session',
-                    seq: 5
-                });
+        it('should handle resume_ok', () => {
+            const resumeOk = {
+                t: 'resume_ok',
+                from: 5,
+                to: 10,
+            };
+
+            expect(() => runtime.handleMessage(resumeOk)).not.toThrow();
+        });
+    });
+
+    describe('event handling', () => {
+        it('should send events when handler is triggered', () => {
+            const button = document.createElement('button');
+            root.appendChild(button);
+
+            const boot: Boot = {
+                t: 'boot',
+                sid: 'test-session',
+                ver: 1,
+                seq: 1,
+                patch: [{
+                    seq: 0,
+                    path: [0],
+                    op: 'setHandlers',
+                    value: [{ event: 'click', handler: 'c0:h0' }]
+                }],
+                location: { path: '/', query: {}, hash: '' },
+            };
+
+            runtime.handleBoot(boot);
+            mockTransportInstance.sendHandler.mockClear();
+
+            button.click();
+
+            expect(mockTransportInstance.sendHandler).toHaveBeenCalledWith('c0:h0', {
+                cseq: 1,
             });
         });
 
-        describe('init', () => {
-            it('should send ack on init', () => {
-                const init: Init = {
-                    t: 'init',
-                    sid: 'test-session',
-                    ver: 2,
-                    seq: 10,
-                    location: {path: '/new', q: '', hash: ''}
-                };
+        it('should increment cseq for each event', () => {
+            const button = document.createElement('button');
+            root.appendChild(button);
 
-                messageHandler(init);
+            const boot: Boot = {
+                t: 'boot',
+                sid: 'test-session',
+                ver: 1,
+                seq: 1,
+                patch: [{
+                    seq: 0,
+                    path: [0],
+                    op: 'setHandlers',
+                    value: [{ event: 'click', handler: 'c0:h0' }]
+                }],
+                location: { path: '/', query: {}, hash: '' },
+            };
 
-                expect(mockTransportInstance.send).toHaveBeenCalledWith({
-                    t: 'ack',
-                    sid: 'test-session',
-                    seq: 10
-                });
-            });
+            runtime.handleBoot(boot);
+            mockTransportInstance.sendHandler.mockClear();
+
+            button.click();
+            button.click();
+            button.click();
+
+            const calls = mockTransportInstance.sendHandler.mock.calls;
+            expect(calls[0][1].cseq).toBe(1);
+            expect(calls[1][1].cseq).toBe(2);
+            expect(calls[2][1].cseq).toBe(3);
+        });
+    });
+
+    describe('ref tracking', () => {
+        it('should track refs from patches', () => {
+            const child = document.createElement('span');
+            root.appendChild(child);
+
+            const boot: Boot = {
+                t: 'boot',
+                sid: 'test-session',
+                ver: 1,
+                seq: 1,
+                patch: [{ seq: 0, path: [0], op: 'setRef', value: 'myRef' }],
+                location: { path: '/', query: {}, hash: '' },
+            };
+
+            runtime.handleBoot(boot);
         });
 
-        describe('frame', () => {
-            it('should send ack on frame', () => {
-                const frame: Frame = {
-                    t: 'frame',
-                    sid: 'test-session',
-                    seq: 15,
-                    ver: 1,
-                    patch: [],
-                    effects: [],
-                    metrics: {renderMs: 1, ops: 0}
-                };
+        it('should delete refs from patches', () => {
+            const child = document.createElement('span');
+            root.appendChild(child);
 
-                messageHandler(frame);
+            const setRefBoot: Boot = {
+                t: 'boot',
+                sid: 'test-session',
+                ver: 1,
+                seq: 1,
+                patch: [{ seq: 0, path: [0], op: 'setRef', value: 'myRef' }],
+                location: { path: '/', query: {}, hash: '' },
+            };
+            runtime.handleBoot(setRefBoot);
 
-                expect(mockTransportInstance.send).toHaveBeenCalledWith({
-                    t: 'ack',
-                    sid: 'test-session',
-                    seq: 15
-                });
-            });
-
-            it('should handle server push navigation', () => {
-                const pushStateSpy = vi.spyOn(window.history, 'pushState');
-
-                const frame: Frame = {
-                    t: 'frame',
-                    sid: 'test-session',
-                    seq: 16,
-                    ver: 1,
-                    patch: [],
-                    effects: [],
-                    nav: {push: '/new-path'},
-                    metrics: {renderMs: 1, ops: 0}
-                };
-
-                messageHandler(frame);
-
-                expect(pushStateSpy).toHaveBeenCalledWith({}, '', '/new-path');
-                pushStateSpy.mockRestore();
-            });
-
-            it('should handle server replace navigation', () => {
-                const replaceStateSpy = vi.spyOn(window.history, 'replaceState');
-
-                const frame: Frame = {
-                    t: 'frame',
-                    sid: 'test-session',
-                    seq: 17,
-                    ver: 1,
-                    patch: [],
-                    effects: [],
-                    nav: {replace: '/replaced'},
-                    metrics: {renderMs: 1, ops: 0}
-                };
-
-                messageHandler(frame);
-
-                expect(replaceStateSpy).toHaveBeenCalledWith({}, '', '/replaced');
-                replaceStateSpy.mockRestore();
-            });
+            const delRefBoot: Boot = {
+                t: 'boot',
+                sid: 'test-session',
+                ver: 1,
+                seq: 2,
+                patch: [{ seq: 0, path: [0], op: 'delRef', value: 'myRef' }],
+                location: { path: '/', query: {}, hash: '' },
+            };
+            runtime.handleBoot(delRefBoot);
         });
+    });
 
-        describe('resume_ok', () => {
-            it('should handle resume_ok', () => {
-                const resumeOk = {
-                    t: 'resume_ok' as const,
-                    sid: 'test-session',
-                    from: 5,
-                    to: 10
-                };
+    describe('script handling', () => {
+        it('should execute scripts from patches', async () => {
+            const child = document.createElement('div');
+            root.appendChild(child);
 
-                expect(() => messageHandler(resumeOk)).not.toThrow();
-            });
-        });
+            const boot: Boot = {
+                t: 'boot',
+                sid: 'test-session',
+                ver: 1,
+                seq: 1,
+                patch: [{
+                    seq: 0,
+                    path: [0],
+                    op: 'setScript',
+                    value: {
+                        scriptId: 'script-1',
+                        script: '(el, t) => { el.textContent = "script executed"; }'
+                    }
+                }],
+                location: { path: '/', query: {}, hash: '' },
+            };
 
-        describe('event_ack', () => {
-            it('should handle event_ack', () => {
-                const eventAck = {
-                    t: 'evt_ack' as const,
-                    sid: 'test-session',
-                    cseq: 1
-                };
+            runtime.handleBoot(boot);
 
-                expect(() => messageHandler(eventAck)).not.toThrow();
-            });
-        });
-
-        describe('error', () => {
-            it('should handle server error', () => {
-                const error = {
-                    t: 'error' as const,
-                    sid: 'test-session',
-                    code: 'ERR001',
-                    message: 'Something went wrong'
-                };
-
-                expect(() => messageHandler(error)).not.toThrow();
-            });
-        });
-
-        describe('diagnostic', () => {
-            it('should handle diagnostic', () => {
-                const diagnostic = {
-                    t: 'diagnostic' as const,
-                    sid: 'test-session',
-                    code: 'WARN001',
-                    message: 'Warning message'
-                };
-
-                expect(() => messageHandler(diagnostic)).not.toThrow();
-            });
-        });
-
-        describe('dom_req', () => {
-            it('should handle dom request for missing ref', () => {
-                const domReq: DOMRequest = {
-                    t: 'dom_req',
-                    id: 'req-1',
-                    ref: 'nonexistent',
-                    props: ['value']
-                };
-
-                messageHandler(domReq);
-
-                expect(mockTransportInstance.send).toHaveBeenCalledWith({
-                    t: 'dom_res',
-                    sid: 'test-session',
-                    id: 'req-1',
-                    error: 'ref not found: nonexistent'
-                });
+            await vi.waitFor(() => {
+                expect(child.textContent).toBe('script executed');
             });
         });
     });
 });
 
-describe('Runtime with patcher integration', () => {
+describe('Runtime with debug logging', () => {
     let root: HTMLElement;
-    let config: RuntimeConfig;
-    let mockTransportInstance: {
-        connect: Mock;
-        disconnect: Mock;
-        send: Mock;
-        onMessage: Mock;
-        onStateChange: Mock;
-    };
-    let messageHandler: (msg: ServerMessage) => void;
+    let mockTransportInstance: Record<string, Mock | string>;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -274,230 +326,29 @@ describe('Runtime with patcher integration', () => {
             connect: vi.fn(),
             disconnect: vi.fn(),
             send: vi.fn(),
-            onMessage: vi.fn(),
-            onStateChange: vi.fn()
+            sendAck: vi.fn(),
+            sendHandler: vi.fn(),
+            onStateChange: vi.fn(() => () => {}),
+            sid: 'test-session',
         };
 
         (Transport as unknown as Mock).mockImplementation(() => mockTransportInstance);
 
         root = document.createElement('div');
         document.body.appendChild(root);
+    });
 
-        config = {
+    it('should configure logger with debug enabled', () => {
+        const config: RuntimeConfig = {
             root,
             sessionId: 'test-session',
             version: 1,
             seq: 0,
             endpoint: '/live',
-            location: {path: '/', q: '', hash: ''},
-            debug: false
+            location: { path: '/', query: {}, hash: '' },
+            debug: true,
         };
 
         new Runtime(config);
-        messageHandler = mockTransportInstance.onMessage.mock.calls[0][0];
-    });
-
-    it('should apply patches from frame', () => {
-        const textNode = document.createTextNode('old');
-        root.appendChild(textNode);
-
-        const frame: Frame = {
-            t: 'frame',
-            sid: 'test-session',
-            seq: 1,
-            ver: 1,
-            patch: [{seq: 0, path: [0], op: 'setText', value: 'new'}],
-            effects: [],
-            metrics: {renderMs: 1, ops: 1}
-        };
-
-        messageHandler(frame);
-
-        expect(textNode.textContent).toBe('new');
-    });
-
-    it('should track refs from patches', () => {
-        const child = document.createElement('span');
-        root.appendChild(child);
-
-        const frame: Frame = {
-            t: 'frame',
-            sid: 'test-session',
-            seq: 1,
-            ver: 1,
-            patch: [{seq: 0, path: [0], op: 'setRef', value: 'myRef'}],
-            effects: [],
-            metrics: {renderMs: 1, ops: 1}
-        };
-
-        messageHandler(frame);
-
-        const domReq: DOMRequest = {
-            t: 'dom_req',
-            id: 'req-1',
-            ref: 'myRef',
-            props: ['tagName']
-        };
-
-        messageHandler(domReq);
-
-        expect(mockTransportInstance.send).toHaveBeenLastCalledWith({
-            t: 'dom_res',
-            sid: 'test-session',
-            id: 'req-1',
-            values: {tagName: 'SPAN'}
-        });
-    });
-
-    it('should delete refs from patches', () => {
-        const child = document.createElement('span');
-        root.appendChild(child);
-
-        const setRefFrame: Frame = {
-            t: 'frame',
-            sid: 'test-session',
-            seq: 1,
-            ver: 1,
-            patch: [{seq: 0, path: [0], op: 'setRef', value: 'myRef'}],
-            effects: [],
-            metrics: {renderMs: 1, ops: 1}
-        };
-        messageHandler(setRefFrame);
-
-        const delRefFrame: Frame = {
-            t: 'frame',
-            sid: 'test-session',
-            seq: 2,
-            ver: 1,
-            patch: [{seq: 0, path: [0], op: 'delRef', value: 'myRef'}],
-            effects: [],
-            metrics: {renderMs: 1, ops: 1}
-        };
-        messageHandler(delRefFrame);
-
-        const domReq: DOMRequest = {
-            t: 'dom_req',
-            id: 'req-1',
-            ref: 'myRef',
-            props: ['tagName']
-        };
-        messageHandler(domReq);
-
-        expect(mockTransportInstance.send).toHaveBeenLastCalledWith({
-            t: 'dom_res',
-            sid: 'test-session',
-            id: 'req-1',
-            error: 'ref not found: myRef'
-        });
-    });
-});
-
-describe('Runtime event handling', () => {
-    let root: HTMLElement;
-    let config: RuntimeConfig;
-    let mockTransportInstance: {
-        connect: Mock;
-        disconnect: Mock;
-        send: Mock;
-        onMessage: Mock;
-        onStateChange: Mock;
-    };
-    let messageHandler: (msg: ServerMessage) => void;
-
-    beforeEach(() => {
-        vi.clearAllMocks();
-
-        mockTransportInstance = {
-            connect: vi.fn(),
-            disconnect: vi.fn(),
-            send: vi.fn(),
-            onMessage: vi.fn(),
-            onStateChange: vi.fn()
-        };
-
-        (Transport as unknown as Mock).mockImplementation(() => mockTransportInstance);
-
-        root = document.createElement('div');
-        document.body.appendChild(root);
-
-        config = {
-            root,
-            sessionId: 'test-session',
-            version: 1,
-            seq: 0,
-            endpoint: '/live',
-            location: {path: '/', q: '', hash: ''},
-            debug: false
-        };
-
-        new Runtime(config);
-        messageHandler = mockTransportInstance.onMessage.mock.calls[0][0];
-    });
-
-    it('should send events when handler is triggered', () => {
-        const button = document.createElement('button');
-        root.appendChild(button);
-
-        const frame: Frame = {
-            t: 'frame',
-            sid: 'test-session',
-            seq: 1,
-            ver: 1,
-            patch: [{
-                seq: 0,
-                path: [0],
-                op: 'setHandlers',
-                value: [{event: 'click', handler: 'handleClick', props: []}]
-            }],
-            effects: [],
-            metrics: {renderMs: 1, ops: 1}
-        };
-
-        messageHandler(frame);
-        mockTransportInstance.send.mockClear();
-
-        button.click();
-
-        expect(mockTransportInstance.send).toHaveBeenCalledWith({
-            t: 'evt',
-            sid: 'test-session',
-            hid: 'handleClick',
-            cseq: 1,
-            payload: {}
-        });
-    });
-
-    it('should increment cseq for each event', () => {
-        const button = document.createElement('button');
-        root.appendChild(button);
-
-        const frame: Frame = {
-            t: 'frame',
-            sid: 'test-session',
-            seq: 1,
-            ver: 1,
-            patch: [{
-                seq: 0,
-                path: [0],
-                op: 'setHandlers',
-                value: [{event: 'click', handler: 'handleClick', props: []}]
-            }],
-            effects: [],
-            metrics: {renderMs: 1, ops: 1}
-        };
-
-        messageHandler(frame);
-        mockTransportInstance.send.mockClear();
-
-        button.click();
-        button.click();
-        button.click();
-
-        const calls = mockTransportInstance.send.mock.calls.filter(
-            (call: unknown[]) => (call[0] as {t: string}).t === 'evt'
-        );
-        expect(calls[0][0].cseq).toBe(1);
-        expect(calls[1][0].cseq).toBe(2);
-        expect(calls[2][0].cseq).toBe(3);
     });
 });

@@ -11,8 +11,9 @@ type Lifecycle struct {
 	clock func() time.Time
 	ttl   time.Duration
 
-	lastTouch time.Time
-	observers []chan struct{}
+	lastTouch      time.Time
+	observers      map[int]chan struct{}
+	nextObserverID int
 }
 
 // NewLifecycle creates a lifecycle manager with the given clock and TTL.
@@ -21,6 +22,7 @@ func NewLifecycle(clock func() time.Time, ttl time.Duration) *Lifecycle {
 		clock:     clock,
 		ttl:       ttl,
 		lastTouch: clock(),
+		observers: make(map[int]chan struct{}),
 	}
 }
 
@@ -36,12 +38,16 @@ func (l *Lifecycle) Touch() {
 }
 
 // IsExpired returns true if the session has exceeded its TTL.
+// A zero or negative TTL means the session never expires.
 func (l *Lifecycle) IsExpired() bool {
 	if l == nil {
 		return true
 	}
 	l.mu.RLock()
 	defer l.mu.RUnlock()
+	if l.ttl <= 0 {
+		return false
+	}
 	return l.clock().Sub(l.lastTouch) > l.ttl
 }
 
@@ -86,13 +92,22 @@ func (l *Lifecycle) LastTouch() time.Time {
 }
 
 // OnTouch registers a channel that receives a signal on each touch.
-func (l *Lifecycle) OnTouch(ch chan struct{}) {
-	if l == nil {
-		return
+// Returns an unsubscribe function to remove the observer.
+func (l *Lifecycle) OnTouch(ch chan struct{}) func() {
+	if l == nil || ch == nil {
+		return func() {}
 	}
 	l.mu.Lock()
-	l.observers = append(l.observers, ch)
+	id := l.nextObserverID
+	l.nextObserverID++
+	l.observers[id] = ch
 	l.mu.Unlock()
+
+	return func() {
+		l.mu.Lock()
+		delete(l.observers, id)
+		l.mu.Unlock()
+	}
 }
 
 func (l *Lifecycle) notifyObservers() {
@@ -100,7 +115,10 @@ func (l *Lifecycle) notifyObservers() {
 		return
 	}
 	l.mu.RLock()
-	observers := append([]chan struct{}(nil), l.observers...)
+	observers := make([]chan struct{}, 0, len(l.observers))
+	for _, ch := range l.observers {
+		observers = append(observers, ch)
+	}
 	l.mu.RUnlock()
 
 	for _, ch := range observers {

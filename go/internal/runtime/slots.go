@@ -2,40 +2,35 @@ package runtime
 
 import (
 	"fmt"
+	"hash/fnv"
 	"strings"
 
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// SlotMap organizes slot content by name.
+const DefaultSlotName = "default"
+
 type SlotMap struct {
 	slots     map[string][]work.Node
 	slotOrder []string
 }
 
-// SlotContext provides slot functionality using the Context API.
-// Used for patterns where the slot provider and consumer are separate components.
 type SlotContext struct {
 	ctx *Context[*SlotMap]
 }
 
-// CreateSlotContext creates a new slot context instance.
 func CreateSlotContext() *SlotContext {
 	return &SlotContext{
 		ctx: CreateContext[*SlotMap](nil),
 	}
 }
 
-// Provide extracts slots from children (including default content) and provides them via context.
 func (sc *SlotContext) Provide(ctx *Ctx, children []work.Node) work.Node {
 	slots := extractSlotsWithDefault(children, true)
 	sc.ctx.UseProvider(ctx, slots)
 	return &work.Fragment{Children: filterRenderedChildren(children)}
 }
 
-// ProvideWithoutDefault extracts only named slots and provides them via context without
-// populating the default slot. This is useful when children should render normally but
-// an empty default slot is desired until explicitly set.
 func (sc *SlotContext) ProvideWithoutDefault(ctx *Ctx, children []work.Node) work.Node {
 	slots := extractSlotsWithDefault(children, false)
 	sc.ctx.UseProvider(ctx, slots)
@@ -43,8 +38,24 @@ func (sc *SlotContext) ProvideWithoutDefault(ctx *Ctx, children []work.Node) wor
 }
 
 func filterRenderedChildren(children []work.Node) []work.Node {
-	filtered := make([]work.Node, 0, len(children))
+	hasSlots := false
+	for _, child := range children {
+		if frag, ok := child.(*work.Fragment); ok && frag.Metadata != nil {
+			if _, ok := frag.Metadata["slot:name"]; ok {
+				hasSlots = true
+				break
+			}
+			if _, ok := frag.Metadata["scoped-slot:name"]; ok {
+				hasSlots = true
+				break
+			}
+		}
+	}
+	if !hasSlots {
+		return children
+	}
 
+	filtered := make([]work.Node, 0, len(children))
 	for _, child := range children {
 		if frag, ok := child.(*work.Fragment); ok && frag.Metadata != nil {
 			if _, ok := frag.Metadata["slot:name"]; ok {
@@ -54,17 +65,13 @@ func filterRenderedChildren(children []work.Node) []work.Node {
 				continue
 			}
 		}
-
 		filtered = append(filtered, child)
 	}
-
 	return filtered
 }
 
-// Render retrieves and renders a named slot from the context.
-func (sc *SlotContext) Render(ctx *Ctx, name string, fallback ...work.Node) work.Node {
-	slots := sc.ctx.UseContextValue(ctx)
-	if slots == nil || len(slots.slots[name]) == 0 {
+func renderSlotNodes(nodes []work.Node, fallback []work.Node) work.Node {
+	if len(nodes) == 0 {
 		if len(fallback) == 0 {
 			return &work.Fragment{Children: nil}
 		}
@@ -73,16 +80,20 @@ func (sc *SlotContext) Render(ctx *Ctx, name string, fallback ...work.Node) work
 		}
 		return &work.Fragment{Children: fallback}
 	}
-
-	nodes := slots.slots[name]
 	if len(nodes) == 1 {
 		return nodes[0]
 	}
-
 	return &work.Fragment{Children: nodes}
 }
 
-// Has checks if a named slot was provided.
+func (sc *SlotContext) Render(ctx *Ctx, name string, fallback ...work.Node) work.Node {
+	slots := sc.ctx.UseContextValue(ctx)
+	if slots == nil {
+		return renderSlotNodes(nil, fallback)
+	}
+	return renderSlotNodes(slots.slots[name], fallback)
+}
+
 func (sc *SlotContext) Has(ctx *Ctx, name string) bool {
 	slots := sc.ctx.UseContextValue(ctx)
 	if slots == nil {
@@ -91,7 +102,6 @@ func (sc *SlotContext) Has(ctx *Ctx, name string) bool {
 	return len(slots.slots[name]) > 0
 }
 
-// SetSlot adds content to a named slot in the current context.
 func (sc *SlotContext) SetSlot(ctx *Ctx, name string, content ...work.Node) {
 	slots := sc.ctx.UseContextValue(ctx)
 	if slots == nil {
@@ -102,21 +112,32 @@ func (sc *SlotContext) SetSlot(ctx *Ctx, name string, content ...work.Node) {
 		slots.slots = make(map[string][]work.Node)
 	}
 
+	_, existed := slots.slots[name]
 	slots.slots[name] = content
 
-	found := false
-	for _, n := range slots.slotOrder {
-		if n == name {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !existed {
 		slots.slotOrder = append(slots.slotOrder, name)
 	}
 }
 
-// Names returns all slot names in declaration order.
+func (sc *SlotContext) AppendSlot(ctx *Ctx, name string, content ...work.Node) {
+	slots := sc.ctx.UseContextValue(ctx)
+	if slots == nil {
+		return
+	}
+
+	if slots.slots == nil {
+		slots.slots = make(map[string][]work.Node)
+	}
+
+	_, existed := slots.slots[name]
+	slots.slots[name] = append(slots.slots[name], content...)
+
+	if !existed {
+		slots.slotOrder = append(slots.slotOrder, name)
+	}
+}
+
 func (sc *SlotContext) Names(ctx *Ctx) []string {
 	slots := sc.ctx.UseContextValue(ctx)
 	if slots == nil {
@@ -125,35 +146,20 @@ func (sc *SlotContext) Names(ctx *Ctx) []string {
 	return slots.slotOrder
 }
 
-// UseSlots extracts slots from children using context.
-// This is a convenience function for components that both provide and consume slots.
 func UseSlots(ctx *Ctx, children []work.Node) *SlotRenderer {
 	slots := extractSlots(children)
 	return &SlotRenderer{slots: slots}
 }
 
-// SlotRenderer provides methods to render extracted slots.
 type SlotRenderer struct {
 	slots *SlotMap
 }
 
 func (sr *SlotRenderer) Render(name string, fallback ...work.Node) work.Node {
-	if sr.slots == nil || len(sr.slots.slots[name]) == 0 {
-		if len(fallback) == 0 {
-			return &work.Fragment{Children: nil}
-		}
-		if len(fallback) == 1 {
-			return fallback[0]
-		}
-		return &work.Fragment{Children: fallback}
+	if sr.slots == nil {
+		return renderSlotNodes(nil, fallback)
 	}
-
-	nodes := sr.slots.slots[name]
-	if len(nodes) == 1 {
-		return nodes[0]
-	}
-
-	return &work.Fragment{Children: nodes}
+	return renderSlotNodes(sr.slots.slots[name], fallback)
 }
 
 func (sr *SlotRenderer) Has(name string) bool {
@@ -168,6 +174,19 @@ func (sr *SlotRenderer) Names() []string {
 		return nil
 	}
 	return sr.slots.slotOrder
+}
+
+func (sr *SlotRenderer) RequireSlots(names ...string) error {
+	var missing []string
+	for _, name := range names {
+		if !sr.Has(name) {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required slots: %v", missing)
+	}
+	return nil
 }
 
 func extractSlots(children []work.Node) *SlotMap {
@@ -204,9 +223,9 @@ func extractSlotsWithDefault(children []work.Node, includeDefault bool) *SlotMap
 	}
 
 	if includeDefault && len(defaultContent) > 0 {
-		slots["default"] = defaultContent
+		slots[DefaultSlotName] = defaultContent
 		if seenDefault {
-			slotOrder = append(slotOrder, "default")
+			slotOrder = append(slotOrder, DefaultSlotName)
 		}
 	}
 
@@ -217,7 +236,8 @@ func extractSlotsWithDefault(children []work.Node, includeDefault bool) *SlotMap
 }
 
 type ScopedSlotMap[T any] struct {
-	slots map[string][]func(T) work.Node
+	slots     map[string][]func(T) work.Node
+	slotOrder []string
 }
 
 type ScopedSlotRenderer[T any] struct {
@@ -226,13 +246,7 @@ type ScopedSlotRenderer[T any] struct {
 
 func (sr *ScopedSlotRenderer[T]) Render(name string, data T, fallback ...work.Node) work.Node {
 	if sr.slots == nil || len(sr.slots.slots[name]) == 0 {
-		if len(fallback) == 0 {
-			return &work.Fragment{Children: nil}
-		}
-		if len(fallback) == 1 {
-			return fallback[0]
-		}
-		return &work.Fragment{Children: fallback}
+		return renderSlotNodes(nil, fallback)
 	}
 
 	fns := sr.slots.slots[name]
@@ -241,11 +255,7 @@ func (sr *ScopedSlotRenderer[T]) Render(name string, data T, fallback ...work.No
 		results[i] = fn(data)
 	}
 
-	if len(results) == 1 {
-		return results[0]
-	}
-
-	return &work.Fragment{Children: results}
+	return renderSlotNodes(results, nil)
 }
 
 func (sr *ScopedSlotRenderer[T]) Has(name string) bool {
@@ -253,6 +263,13 @@ func (sr *ScopedSlotRenderer[T]) Has(name string) bool {
 		return false
 	}
 	return len(sr.slots.slots[name]) > 0
+}
+
+func (sr *ScopedSlotRenderer[T]) Names() []string {
+	if sr.slots == nil {
+		return nil
+	}
+	return sr.slots.slotOrder
 }
 
 func UseScopedSlots[T any](ctx *Ctx, children []work.Node) *ScopedSlotRenderer[T] {
@@ -265,18 +282,22 @@ func UseScopedSlots[T any](ctx *Ctx, children []work.Node) *ScopedSlotRenderer[T
 
 func extractScopedSlots[T any](children []work.Node) *ScopedSlotMap[T] {
 	slots := make(map[string][]func(T) work.Node)
+	var slotOrder []string
 
 	for _, child := range children {
 		if frag, ok := child.(*work.Fragment); ok && frag.Metadata != nil {
 			if slotName, ok := frag.Metadata["scoped-slot:name"].(string); ok {
 				if fn, ok := frag.Metadata["scoped-slot:fn"].(func(T) work.Node); ok {
+					if _, exists := slots[slotName]; !exists {
+						slotOrder = append(slotOrder, slotName)
+					}
 					slots[slotName] = append(slots[slotName], fn)
 				}
 			}
 		}
 	}
 
-	return &ScopedSlotMap[T]{slots: slots}
+	return &ScopedSlotMap[T]{slots: slots, slotOrder: slotOrder}
 }
 
 func fingerprintChildren(children []work.Node) string {
@@ -299,7 +320,9 @@ func fingerprintNode(node work.Node) string {
 		return fmt.Sprintf("e:%s:%d", n.Tag, len(n.Children))
 
 	case *work.Text:
-		return fmt.Sprintf("t:%d", len(n.Value))
+		h := fnv.New32a()
+		h.Write([]byte(n.Value))
+		return fmt.Sprintf("t:%d:%x", len(n.Value), h.Sum32())
 
 	case *work.Fragment:
 		if n.Metadata != nil {
@@ -308,7 +331,7 @@ func fingerprintNode(node work.Node) string {
 			}
 			if name, ok := n.Metadata["scoped-slot:name"].(string); ok {
 				if fn, ok := n.Metadata["scoped-slot:fn"]; ok {
-					return fmt.Sprintf("scoped:%s:%p", name, fn)
+					return fmt.Sprintf("scoped:%s:%p:%d", name, fn, len(n.Children))
 				}
 			}
 		}

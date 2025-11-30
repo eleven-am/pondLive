@@ -1,8 +1,12 @@
 package metatags
 
-import "github.com/eleven-am/pondlive/go/internal/html"
+import (
+	"crypto/sha256"
+	"fmt"
 
-// Meta holds document metadata including title, description, and various head elements.
+	"github.com/eleven-am/pondlive/go/internal/html"
+)
+
 type Meta struct {
 	Title       string
 	Description string
@@ -11,21 +15,23 @@ type Meta struct {
 	Scripts     []html.ScriptTag
 }
 
-// metaEntry stores meta along with the component depth for priority merging.
 type metaEntry struct {
-	meta  *Meta
-	depth int // component depth in the tree (deeper = higher priority)
+	meta        *Meta
+	depth       int
+	componentID string
 }
 
-// Controller provides get/set access to meta state.
+type scriptEntry struct {
+	script html.ScriptTag
+	depth  int
+}
+
 type Controller struct {
-	get    func() map[string]metaEntry // map of componentID -> metaEntry
+	get    func() map[string]metaEntry
 	set    func(componentID string, entry metaEntry)
 	remove func(componentID string)
 }
 
-// Get returns the current merged meta state.
-// Merges all meta entries with deeper components taking priority.
 func (c *Controller) Get() *Meta {
 	if c == nil || c.get == nil {
 		return defaultMeta
@@ -40,9 +46,9 @@ func (c *Controller) Get() *Meta {
 	var deepestDescription *metaEntry
 	metaMap := make(map[string]metaEntry)
 	linkMap := make(map[string]metaEntry)
-	scriptMap := make(map[string]metaEntry)
+	scriptMap := make(map[string]scriptEntry)
 
-	for _, entry := range entries {
+	for componentID, entry := range entries {
 		if entry.meta == nil {
 			continue
 		}
@@ -79,10 +85,10 @@ func (c *Controller) Get() *Meta {
 		for i, script := range entry.meta.Scripts {
 			key := script.Src
 			if key == "" {
-				key = string(rune('0'+entry.depth)) + ":" + string(rune('0'+i))
+				key = inlineScriptKey(componentID, entry.depth, i, script)
 			}
 			if existing, ok := scriptMap[key]; !ok || entry.depth > existing.depth {
-				scriptMap[key] = entry
+				scriptMap[key] = scriptEntry{script: script, depth: entry.depth}
 			}
 		}
 	}
@@ -124,27 +130,24 @@ func (c *Controller) Get() *Meta {
 		}
 	}
 
-	for key, entry := range scriptMap {
-		for _, script := range entry.meta.Scripts {
-			scriptKey := script.Src
-			if scriptKey == key || scriptKey == "" {
-				result.Scripts = append(result.Scripts, script)
-				break
-			}
-		}
+	for _, entry := range scriptMap {
+		result.Scripts = append(result.Scripts, entry.script)
 	}
 
 	return result
 }
 
-// Set updates the meta for a specific component.
+func inlineScriptKey(componentID string, depth, idx int, script html.ScriptTag) string {
+	data := script.Inner + "|" + script.Nonce + "|" + script.Type + "|" + script.Src
+	return fmt.Sprintf("inline:%s:%d:%d:%x", componentID, depth, idx, sha256.Sum256([]byte(data)))
+}
+
 func (c *Controller) Set(componentID string, depth int, meta *Meta) {
 	if c != nil && c.set != nil {
-		c.set(componentID, metaEntry{meta: meta, depth: depth})
+		c.set(componentID, metaEntry{meta: meta, depth: depth, componentID: componentID})
 	}
 }
 
-// Remove removes the meta for a specific component.
 func (c *Controller) Remove(componentID string) {
 	if c != nil && c.remove != nil {
 		c.remove(componentID)

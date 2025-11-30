@@ -1,11 +1,41 @@
-import {HandlerMeta, Patch, PatcherCallbacks, RouterMeta, ScriptMeta, StructuredNode} from './types';
-import {Logger} from './logger';
+import { Patch, HandlerMeta, ScriptMeta } from './protocol';
+
+export interface StructuredNode {
+    tag?: string;
+    text?: string;
+    comment?: string;
+    attrs?: Record<string, string[]>;
+    style?: Record<string, string>;
+    children?: StructuredNode[];
+    handlers?: HandlerMeta[];
+    script?: ScriptMeta;
+    refId?: string;
+    unsafeHTML?: string;
+}
+
+export type EventCallback = (handlerId: string, data: Record<string, unknown>) => void;
+export type RefCallback = (refId: string, el: Element) => void;
+export type RefDeleteCallback = (refId: string) => void;
+export type ScriptCallback = (meta: ScriptMeta, el: Element) => void;
+export type ScriptCleanupCallback = (scriptId: string) => void;
+
+export interface PatcherCallbacks {
+    onEvent: EventCallback;
+    onRef: RefCallback;
+    onRefDelete: RefDeleteCallback;
+    onScript: ScriptCallback;
+    onScriptCleanup: ScriptCleanupCallback;
+}
+
+interface HandlerState {
+    listener: (e: Event) => void;
+    cleanup?: () => void;
+}
 
 export class Patcher {
     private readonly root: Node;
     private callbacks: PatcherCallbacks;
-    private handlerStore = new WeakMap<Element, Map<string, (e: Event) => void>>();
-    private routerStore = new WeakMap<Element, (e: Event) => void>();
+    private handlerStore = new WeakMap<Element, Map<string, HandlerState>>();
     private scriptStore = new WeakMap<Element, string>();
 
     constructor(root: Node, callbacks: PatcherCallbacks) {
@@ -23,7 +53,6 @@ export class Patcher {
     private applyPatch(patch: Patch): void {
         const node = this.resolvePath(patch.path);
         if (!node) {
-            Logger.warn('Patcher', 'Could not resolve path', patch.path);
             return;
         }
 
@@ -54,12 +83,6 @@ export class Patcher {
                 break;
             case 'setHandlers':
                 this.setHandlers(node as Element, patch.value as HandlerMeta[]);
-                break;
-            case 'setRouter':
-                this.setRouter(node as Element, patch.value as RouterMeta);
-                break;
-            case 'delRouter':
-                this.delRouter(node as Element);
                 break;
             case 'setScript':
                 this.setScript(node as Element, patch.value as ScriptMeta);
@@ -106,7 +129,6 @@ export class Patcher {
     }
 
     private setAttr(el: Element, attrs: Record<string, string[]>): void {
-        Logger.info('Patcher', 'setAttr', el, attrs);
         for (const [name, values] of Object.entries(attrs)) {
             if (name === 'class') {
                 el.className = values.join(' ');
@@ -125,7 +147,6 @@ export class Patcher {
     }
 
     private delAttr(el: Element, name: string): void {
-        Logger.info('Patcher', 'delAttr', el, name);
         if (name === 'value' && el instanceof HTMLInputElement) {
             el.value = '';
         } else if (name === 'checked' && el instanceof HTMLInputElement) {
@@ -138,19 +159,16 @@ export class Patcher {
     }
 
     private setStyle(el: HTMLElement, styles: Record<string, string>): void {
-        Logger.info('Patcher', 'setStyle', el, styles);
         for (const [prop, value] of Object.entries(styles)) {
             el.style.setProperty(prop, value);
         }
     }
 
     private delStyle(el: HTMLElement, prop: string): void {
-        Logger.info('Patcher', 'delStyle', el, prop);
         el.style.removeProperty(prop);
     }
 
     private setStyleDecl(styleEl: HTMLStyleElement, selector: string, prop: string, value: string): void {
-        Logger.info('Patcher', 'setStyleDecl', styleEl, selector, prop, value);
         const sheet = styleEl.sheet;
         if (!sheet) return;
 
@@ -161,7 +179,6 @@ export class Patcher {
     }
 
     private delStyleDecl(styleEl: HTMLStyleElement, selector: string, prop: string): void {
-        Logger.info('Patcher', 'delStyleDecl', styleEl, selector, prop);
         const sheet = styleEl.sheet;
         if (!sheet) return;
 
@@ -191,45 +208,102 @@ export class Patcher {
     }
 
     private setHandlers(el: Element, handlers: HandlerMeta[]): void {
-        Logger.info('Patcher', 'setHandlers', el, handlers);
         const oldHandlers = this.handlerStore.get(el);
         if (oldHandlers) {
-            for (const [event, listener] of oldHandlers) {
-                el.removeEventListener(event, listener);
-            }
+            oldHandlers.forEach((state) => {
+                if (state.cleanup) state.cleanup();
+            });
         }
 
-        const newHandlers = new Map<string, (e: Event) => void>();
+        const newHandlers = new Map<string, HandlerState>();
+
         for (const meta of handlers) {
-            const listen = meta.listen ?? [];
-            const listener = (e: Event) => {
-                if (!listen.includes('allowDefault') && e.cancelable) {
-                    e.preventDefault();
-                }
-
-                const data = this.extractEventData(e, meta.props ?? []);
-                this.callbacks.onEvent(meta.event, meta.handler, data);
-
-                if (!listen.includes('bubble')) {
-                    e.stopPropagation();
-                }
-            };
-            el.addEventListener(meta.event, listener);
-            newHandlers.set(meta.event, listener);
+            const state = this.createHandler(el, meta);
+            newHandlers.set(meta.event, state);
         }
+
         this.handlerStore.set(el, newHandlers);
     }
 
-    private extractEventData(e: Event, props: string[], el?: Element): Record<string, unknown> {
-        Logger.info('Patcher', 'extractEventData', e, props, el);
-        return Object.fromEntries(props.map(prop => [prop, this.resolveProp(e, prop, el)]).filter(([_, value]) => value !== undefined));
+    private createHandler(el: Element, meta: HandlerMeta): HandlerState {
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        let lastCall = 0;
+
+        const invoke = (e: Event) => {
+            if (meta.prevent && e.cancelable) {
+                e.preventDefault();
+            }
+            if (meta.stop) {
+                e.stopPropagation();
+            }
+
+            const data = this.extractEventData(e, meta.props ?? []);
+            this.callbacks.onEvent(meta.handler, data);
+        };
+
+        let handler: (e: Event) => void;
+
+        if (meta.debounce && meta.debounce > 0) {
+            handler = (e: Event) => {
+                if (meta.prevent && e.cancelable) e.preventDefault();
+                if (meta.stop) e.stopPropagation();
+
+                if (timeoutId) clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    const data = this.extractEventData(e, meta.props ?? []);
+                    this.callbacks.onEvent(meta.handler, data);
+                }, meta.debounce);
+            };
+        } else if (meta.throttle && meta.throttle > 0) {
+            handler = (e: Event) => {
+                if (meta.prevent && e.cancelable) e.preventDefault();
+                if (meta.stop) e.stopPropagation();
+
+                const now = Date.now();
+                if (now - lastCall >= meta.throttle!) {
+                    lastCall = now;
+                    const data = this.extractEventData(e, meta.props ?? []);
+                    this.callbacks.onEvent(meta.handler, data);
+                }
+            };
+        } else {
+            handler = invoke;
+        }
+
+        const options: AddEventListenerOptions = {};
+        if (meta.passive) options.passive = true;
+        if (meta.once) options.once = true;
+        if (meta.capture) options.capture = true;
+
+        el.addEventListener(meta.event, handler, options);
+
+        return {
+            listener: handler,
+            cleanup: () => {
+                el.removeEventListener(meta.event, handler, options);
+                if (timeoutId) clearTimeout(timeoutId);
+            },
+        };
     }
 
-    private resolveProp(e: Event, path: string, el?: Element): unknown {
+    private extractEventData(e: Event, props: string[]): Record<string, unknown> {
+        const result: Record<string, unknown> = {};
+        for (const prop of props) {
+            const value = this.resolveProp(e, prop);
+            if (value !== undefined) {
+                result[prop] = value;
+            }
+        }
+        return result;
+    }
+
+    private resolveProp(e: Event, path: string): unknown {
         const segments = path.split('.').map(s => s.trim()).filter(Boolean);
         if (segments.length === 0) return undefined;
+
         const root = segments.shift()!;
         let current: unknown;
+
         switch (root) {
             case 'event':
                 current = e;
@@ -239,10 +313,6 @@ export class Patcher {
                 break;
             case 'currentTarget':
                 current = e.currentTarget;
-                break;
-            case 'element':
-            case 'ref':
-                current = el ?? (e.currentTarget instanceof Element ? e.currentTarget : null);
                 break;
             default:
                 current = (e as unknown as Record<string, unknown>)[root];
@@ -282,37 +352,13 @@ export class Patcher {
         }
     }
 
-    private setRouter(el: Element, meta: RouterMeta): void {
-        Logger.info('Patcher', 'setRouter', el, meta);
-        this.delRouter(el);
-
-        const listener = (e: Event) => {
-            e.preventDefault();
-            this.callbacks.onRouter(meta);
-        };
-        el.addEventListener('click', listener);
-        this.routerStore.set(el, listener);
-    }
-
-    private delRouter(el: Element): void {
-        Logger.info('Patcher', 'delRouter', el);
-        const listener = this.routerStore.get(el);
-        if (listener) {
-            el.removeEventListener('click', listener);
-            this.routerStore.delete(el);
-        }
-    }
-
     private setScript(el: Element, meta: ScriptMeta): void {
-        Logger.info('Patcher', 'setScript', el, meta);
         this.delScript(el);
-
         this.scriptStore.set(el, meta.scriptId);
         this.callbacks.onScript(meta, el);
     }
 
     private delScript(el: Element): void {
-        Logger.info('Patcher', 'delScript', el);
         const scriptId = this.scriptStore.get(el);
         if (scriptId) {
             this.scriptStore.delete(el);
@@ -321,16 +367,14 @@ export class Patcher {
     }
 
     private replaceNode(oldNode: Node, newNodeData: StructuredNode): void {
-        Logger.info('Patcher', 'replaceNode', oldNode, newNodeData);
         const newNode = this.createNode(newNodeData);
         if (newNode && oldNode.parentNode) {
-            this.cleanupScriptsInTree(oldNode);
+            this.cleanupTree(oldNode);
             oldNode.parentNode.replaceChild(newNode, oldNode);
         }
     }
 
     private addChild(parent: Node, index: number, nodeData: StructuredNode): void {
-        Logger.info('Patcher', 'addChild', parent, index, nodeData);
         const newNode = this.createNode(nodeData);
         if (!newNode) return;
 
@@ -339,31 +383,14 @@ export class Patcher {
     }
 
     private delChild(parent: Node, index: number): void {
-        Logger.info('Patcher', 'delChild', parent, index);
         const child = parent.childNodes[index];
         if (child) {
-            this.cleanupScriptsInTree(child);
+            this.cleanupTree(child);
             parent.removeChild(child);
         }
     }
 
-    private cleanupScriptsInTree(node: Node): void {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-            const el = node as Element;
-            const scriptId = this.scriptStore.get(el);
-            if (scriptId) {
-                this.scriptStore.delete(el);
-                this.callbacks.onScriptCleanup(scriptId);
-            }
-
-            for (let i = 0; i < node.childNodes.length; i++) {
-                this.cleanupScriptsInTree(node.childNodes[i]);
-            }
-        }
-    }
-
     private moveChild(parent: Node, move: { fromIndex: number; newIdx: number }): void {
-        Logger.info('Patcher', 'moveChild', parent, move);
         const child = parent.childNodes[move.fromIndex];
         if (!child) return;
 
@@ -372,8 +399,31 @@ export class Patcher {
         parent.insertBefore(child, refChild);
     }
 
+    private cleanupTree(node: Node): void {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as Element;
+
+            const handlers = this.handlerStore.get(el);
+            if (handlers) {
+                handlers.forEach((state) => {
+                    if (state.cleanup) state.cleanup();
+                });
+                this.handlerStore.delete(el);
+            }
+
+            const scriptId = this.scriptStore.get(el);
+            if (scriptId) {
+                this.scriptStore.delete(el);
+                this.callbacks.onScriptCleanup(scriptId);
+            }
+
+            for (let i = 0; i < node.childNodes.length; i++) {
+                this.cleanupTree(node.childNodes[i]);
+            }
+        }
+    }
+
     private createNode(data: StructuredNode): Node | null {
-        Logger.info('Patcher', 'createNode', data);
         if (data.text !== undefined) {
             return document.createTextNode(data.text);
         }
@@ -396,10 +446,6 @@ export class Patcher {
 
         if (data.handlers && data.handlers.length > 0) {
             this.setHandlers(el, data.handlers);
-        }
-
-        if (data.router) {
-            this.setRouter(el, data.router);
         }
 
         if (data.script) {

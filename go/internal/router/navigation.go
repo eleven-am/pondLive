@@ -71,7 +71,7 @@ func navigate(ctx *runtime.Ctx, href string, replace bool) {
 	currentLoc, setLocation := LocationContext.UseContext(ctx)
 	bus := getBus(ctx)
 
-	if bus == nil || !requestState.IsLive() {
+	if bus == nil || requestState == nil || !requestState.IsLive() {
 		if requestState != nil {
 			currentLoc := &Location{
 				Path:  requestState.Path(),
@@ -81,7 +81,11 @@ func navigate(ctx *runtime.Ctx, href string, replace bool) {
 
 			target := resolveHref(currentLoc, href)
 			redirectURL := buildHref(target.Path, target.Query, target.Hash)
-			requestState.SetRedirect(redirectURL, http.StatusFound)
+			status := http.StatusFound
+			if replace {
+				status = http.StatusSeeOther
+			}
+			requestState.SetRedirect(redirectURL, status)
 		}
 
 		return

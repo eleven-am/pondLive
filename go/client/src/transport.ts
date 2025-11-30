@@ -1,55 +1,214 @@
-import {PondClient} from '@eleven-am/pondsocket-client';
-import {ClientMessage, ServerMessage} from './protocol';
-import {MessageHandler, StateChangeHandler, TransportConfig} from './types';
+import { PondClient, ChannelState } from '@eleven-am/pondsocket-client';
+import {
+    Topic,
+    Topics,
+    Location,
+    ActionFor,
+    PayloadFor,
+    ClientEvt,
+    ClientAck,
+    isMessage,
+    HandlerEventPayload,
+    handlerTopic,
+} from './protocol';
+import { Bus } from './bus';
+
+export interface TransportConfig {
+    endpoint: string;
+    sessionId: string;
+    version: number;
+    lastAck: number;
+    location: Location;
+    bus: Bus;
+}
+
+export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'stalled';
+
+export interface JoinPayload {
+    sid: string;
+    ver: number;
+    ack: number;
+    loc: Location;
+}
 
 export class Transport {
     private readonly client: PondClient;
     private readonly channel: ReturnType<PondClient['createChannel']>;
-    private readonly _sessionId: string;
-    private handler: MessageHandler | null = null;
+    private readonly sessionId: string;
+    private readonly bus: Bus;
+    private state: ConnectionState = 'disconnected';
+    private stateListeners: Array<(state: ConnectionState) => void> = [];
 
     constructor(config: TransportConfig) {
-        this._sessionId = config.sessionId;
+        this.sessionId = config.sessionId;
+        this.bus = config.bus;
 
         this.client = new PondClient(config.endpoint);
 
-        const joinPayload = {
+        const joinPayload: JoinPayload = {
             sid: config.sessionId,
             ver: config.version,
-            ack: config.ack,
+            ack: config.lastAck,
             loc: config.location,
         };
 
         this.channel = this.client.createChannel(`live/${config.sessionId}`, joinPayload);
-        this.channel.join();
 
         this.channel.onMessage((_event: string, payload: unknown) => {
-            this.handler?.(payload as ServerMessage);
+            this.handleMessage(payload);
+        });
+
+        this.channel.onChannelStateChange((channelState: ChannelState) => {
+            this.handleStateChange(channelState);
         });
     }
 
-    get sessionId(): string {
-        return this._sessionId;
+    get sid(): string {
+        return this.sessionId;
+    }
+
+    get connectionState(): ConnectionState {
+        return this.state;
     }
 
     connect(): void {
+        this.state = 'connecting';
+        this.notifyStateChange();
+        this.channel.join();
         this.client.connect();
     }
 
     disconnect(): void {
         this.channel.leave();
         this.client.disconnect();
+        this.state = 'disconnected';
+        this.notifyStateChange();
     }
 
-    send(msg: ClientMessage): void {
-        this.channel.sendMessage(msg.t, msg);
+    onStateChange(listener: (state: ConnectionState) => void): () => void {
+        this.stateListeners.push(listener);
+        return () => {
+            const idx = this.stateListeners.indexOf(listener);
+            if (idx !== -1) {
+                this.stateListeners.splice(idx, 1);
+            }
+        };
     }
 
-    onMessage(handler: MessageHandler): void {
-        this.handler = handler;
+    send<T extends Topic, A extends ActionFor<T>>(
+        topic: T,
+        action: A,
+        payload: PayloadFor<T, A>
+    ): void {
+        const evt: ClientEvt = {
+            t: topic,
+            sid: this.sessionId,
+            a: String(action),
+            p: payload,
+        };
+        this.channel.sendMessage('evt', evt);
     }
 
-    onStateChange(handler: StateChangeHandler): void {
-        this.channel.onChannelStateChange(handler);
+    sendAck(seq: number): void {
+        const ack: ClientAck = {
+            t: Topics.Ack,
+            sid: this.sessionId,
+            seq,
+        };
+        this.channel.sendMessage('ack', ack);
+    }
+
+    sendHandler(handlerId: string, payload: HandlerEventPayload): void {
+        const evt: ClientEvt = {
+            t: handlerTopic(handlerId),
+            sid: this.sessionId,
+            a: 'invoke',
+            p: payload,
+        };
+        this.channel.sendMessage('evt', evt);
+    }
+
+    private handleMessage(payload: unknown): void {
+        if (!isMessage(payload)) {
+            return;
+        }
+
+        const { topic, event, data } = payload;
+
+        if (!this.isValidTopic(topic)) {
+            return;
+        }
+
+        this.publishToBus(topic, event, data);
+    }
+
+    private isValidTopic(topic: string): topic is Topic {
+        return topic === 'router' || topic === 'dom' || topic === 'frame' || topic === 'ack';
+    }
+
+    private publishToBus(topic: Topic, action: string, data: unknown): void {
+        switch (topic) {
+            case 'frame':
+                if (action === 'patch') {
+                    this.bus.publish('frame', 'patch', data as PayloadFor<'frame', 'patch'>);
+                }
+                break;
+            case 'router':
+                if (action === 'push') {
+                    this.bus.publish('router', 'push', data as PayloadFor<'router', 'push'>);
+                } else if (action === 'replace') {
+                    this.bus.publish('router', 'replace', data as PayloadFor<'router', 'replace'>);
+                } else if (action === 'back') {
+                    this.bus.publish('router', 'back', undefined);
+                } else if (action === 'forward') {
+                    this.bus.publish('router', 'forward', undefined);
+                }
+                break;
+            case 'dom':
+                if (action === 'call') {
+                    this.bus.publish('dom', 'call', data as PayloadFor<'dom', 'call'>);
+                } else if (action === 'set') {
+                    this.bus.publish('dom', 'set', data as PayloadFor<'dom', 'set'>);
+                } else if (action === 'query') {
+                    this.bus.publish('dom', 'query', data as PayloadFor<'dom', 'query'>);
+                } else if (action === 'async') {
+                    this.bus.publish('dom', 'async', data as PayloadFor<'dom', 'async'>);
+                }
+                break;
+            case 'ack':
+                if (action === 'ack') {
+                    this.bus.publish('ack', 'ack', data as PayloadFor<'ack', 'ack'>);
+                }
+                break;
+        }
+    }
+
+    private handleStateChange(channelState: ChannelState): void {
+        switch (channelState) {
+            case ChannelState.JOINED:
+                this.state = 'connected';
+                break;
+            case ChannelState.STALLED:
+                this.state = 'stalled';
+                break;
+            case ChannelState.CLOSED:
+                this.state = 'disconnected';
+                break;
+            case ChannelState.JOINING:
+            case ChannelState.IDLE:
+                this.state = 'connecting';
+                break;
+        }
+        this.notifyStateChange();
+    }
+
+    private notifyStateChange(): void {
+        for (const listener of this.stateListeners) {
+            try {
+                listener(this.state);
+            } catch {
+                // swallow
+            }
+        }
     }
 }

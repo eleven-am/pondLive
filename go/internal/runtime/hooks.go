@@ -129,12 +129,7 @@ func UseElement(ctx *Ctx) *ElementRef {
 	ctx.hookIndex++
 
 	if idx >= len(ctx.instance.HookFrame) {
-		var id string
-		if ctx.session != nil {
-			id = ctx.session.allocateElementRefID()
-		} else {
-			id = fmt.Sprintf("ref-%s-%d", ctx.instance.ID, idx)
-		}
+		id := fmt.Sprintf("%s:r%d", ctx.instance.ID, idx)
 		ref := &ElementRef{
 			id:       id,
 			handlers: make(map[string][]work.Handler),

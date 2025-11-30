@@ -6,6 +6,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/metatags"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/styles"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -26,18 +27,35 @@ func wrapComponent(component Component) runtime.ComponentNode[struct{}] {
 func bootComponent(ctx *html.Ctx, props bootProps, children []work.Node) work.Node {
 	app := wrapComponent(props.component)
 	headers.UseProvideRequestState(ctx, props.requestState)
-	appNode := app(ctx, struct{}{}, children)
-	routerWrapped := router.ProvideRouter(ctx, []work.Node{appNode})
-	return metatags.Provider(ctx, props.ClientAsset, []work.Node{routerWrapped})
+
+	return metatags.Provider(ctx,
+		router.ProvideRouter(ctx,
+			styles.Provider(ctx,
+				html.Html(
+					html.Head(
+						metatags.Render(ctx),
+						styles.Render(ctx),
+					),
+					html.Body(
+						app(ctx, struct{}{}, children),
+						html.ScriptEl(
+							html.Src(props.ClientAsset),
+							html.Attr("defer", ""),
+						),
+					),
+				),
+			),
+		),
+	)
 }
 
 // loadBootComponent loads the boot component with the given props.
 func loadBootComponent(liveSession *LiveSession, component Component, clientAsset string) func(*runtime.Ctx, any, []work.Node) work.Node {
 	var requestInfo *headers.RequestInfo
 	if liveSession != nil {
-		liveSession.mu.Lock()
+		liveSession.transportMu.RLock()
 		t := liveSession.transport
-		liveSession.mu.Unlock()
+		liveSession.transportMu.RUnlock()
 
 		if t != nil {
 			requestInfo = t.RequestInfo()

@@ -36,6 +36,7 @@ type LiveSession struct {
 	clientAsset string
 
 	mu          sync.Mutex
+	transportMu sync.RWMutex
 	outboundSub *protocol.Subscription
 }
 
@@ -87,13 +88,12 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 	sess.session = rtSession
 
 	sess.outboundSub = rtSession.Bus.SubscribeAll(func(topic protocol.Topic, event string, data interface{}) {
-		sess.mu.Lock()
+		sess.transportMu.RLock()
 		t := sess.transport
-		sess.mu.Unlock()
-
 		if t != nil {
 			_ = t.Send(string(topic), event, data)
 		}
+		sess.transportMu.RUnlock()
 	})
 
 	return sess
@@ -128,9 +128,9 @@ func (s *LiveSession) SetTransport(t Transport) {
 	if s == nil {
 		return
 	}
-	s.mu.Lock()
+	s.transportMu.Lock()
 	s.transport = t
-	s.mu.Unlock()
+	s.transportMu.Unlock()
 }
 
 // Receive handles inbound messages from the transport.
@@ -168,7 +168,10 @@ func (s *LiveSession) Touch() {
 	now := s.lifecycle.LastTouch()
 	for _, obs := range observers {
 		if obs != nil {
-			obs(now)
+			func() {
+				defer func() { recover() }()
+				obs(now)
+			}()
 		}
 	}
 }
@@ -203,10 +206,10 @@ func (s *LiveSession) Close() error {
 		s.session.Close()
 	}
 
-	s.mu.Lock()
+	s.transportMu.Lock()
 	t := s.transport
 	s.transport = nil
-	s.mu.Unlock()
+	s.transportMu.Unlock()
 
 	if t != nil {
 		_ = t.Close()

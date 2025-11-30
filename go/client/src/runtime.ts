@@ -1,23 +1,18 @@
-import {Transport} from './transport';
-import {Patcher} from './patcher';
-import {Router} from './router';
-import {EffectExecutor} from './effects';
-import {ScriptExecutor} from './scripts';
-import {Logger} from './logger';
-import {ChannelState} from '@eleven-am/pondsocket-client';
 import {
     Boot,
-    ClientEvent,
-    DOMRequest,
-    Frame,
-    Init,
-    Location as ProtoLocation,
-    NavMessage,
-    ResumeOK,
-    ScriptEvent,
-    ServerMessage
+    Location,
+    Patch,
+    FramePatchPayload,
+    ScriptMeta,
+    isBoot,
+    isServerError,
 } from './protocol';
-import {Effect, RouterMeta, ScriptMeta} from './types';
+import { Bus } from './bus';
+import { Transport, ConnectionState } from './transport';
+import { Patcher } from './patcher';
+import { Executor } from './executor';
+import { ScriptExecutor } from './scripts';
+import { Logger } from './logger';
 
 export interface RuntimeConfig {
     root: Node;
@@ -25,201 +20,191 @@ export interface RuntimeConfig {
     version: number;
     seq: number;
     endpoint: string;
-    location: ProtoLocation;
+    location: Location;
     debug?: boolean;
 }
 
+interface ResumeOK {
+    t: 'resume_ok';
+    from: number;
+    to: number;
+}
+
+function isResumeOK(msg: unknown): msg is ResumeOK {
+    return (
+        typeof msg === 'object' &&
+        msg !== null &&
+        (msg as ResumeOK).t === 'resume_ok'
+    );
+}
+
+declare global {
+    interface Window {
+        __POND_RUNTIME__?: Runtime;
+        __LIVEUI_BOOT__?: Boot;
+    }
+}
+
 export class Runtime {
-    private connectedState = true;
-    private readonly sessionId: string;
+    private readonly bus: Bus;
     private readonly transport: Transport;
     private readonly patcher: Patcher;
-    private readonly router: Router;
-    private readonly effects: EffectExecutor;
+    private readonly executor: Executor;
     private readonly scripts: ScriptExecutor;
     private readonly refs = new Map<string, Element>();
 
     private cseq = 0;
+    private lastSeq = 0;
+    private connectedState = false;
 
     constructor(config: RuntimeConfig) {
-        this.sessionId = config.sessionId;
+        this.lastSeq = config.seq;
 
-        Logger.configure({enabled: config.debug ?? false, level: 'debug'});
+        Logger.configure({ enabled: config.debug ?? false, level: 'debug' });
+        Logger.info('Runtime', 'Initializing', { sid: config.sessionId, ver: config.version });
 
-        const resolveRef = (refId: string) => this.refs.get(refId);
+        this.bus = new Bus();
 
         this.transport = new Transport({
             endpoint: config.endpoint,
             sessionId: config.sessionId,
             version: config.version,
-            ack: config.seq,
-            location: config.location
+            lastAck: config.seq,
+            location: config.location,
+            bus: this.bus,
         });
 
-        this.scripts = new ScriptExecutor({
-            sessionId: config.sessionId,
-            onMessage: (msg) => this.transport.send(msg)
-        });
+        const resolveRef = (refId: string) => this.refs.get(refId);
 
         this.patcher = new Patcher(config.root, {
-            onEvent: (_event, handler, data) => this.handleEvent(handler, data),
-            onRef: (refId, el) => this.refs.set(refId, el),
-            onRefDelete: (refId) => this.refs.delete(refId),
-            onRouter: (meta) => this.handleRouterClick(meta),
+            onEvent: (handlerId, data) => this.handleEvent(handlerId, data),
+            onRef: (refId, el) => {
+                this.refs.set(refId, el);
+                Logger.debug('Runtime', 'Ref set', refId);
+            },
+            onRefDelete: (refId) => {
+                this.refs.delete(refId);
+                Logger.debug('Runtime', 'Ref deleted', refId);
+            },
             onScript: (meta, el) => this.handleScript(meta, el),
-            onScriptCleanup: (scriptId) => this.scripts.cleanup(scriptId)
+            onScriptCleanup: (scriptId) => this.handleScriptCleanup(scriptId),
         });
 
-        this.router = new Router((type, path, query, hash) => {
-            this.sendNav(type, path, query, hash);
-        });
-
-        this.effects = new EffectExecutor({
-            sessionId: config.sessionId,
+        this.executor = new Executor({
+            bus: this.bus,
+            transport: this.transport,
             resolveRef,
-            onDOMResponse: (res) => this.transport.send(res)
         });
 
-        this.transport.onMessage((msg) => this.handleMessage(msg));
+        this.scripts = new ScriptExecutor({ bus: this.bus });
+
+        this.bus.subscribe('frame', 'patch', (payload) => this.handlePatch(payload));
+
         this.transport.onStateChange((state) => this.handleStateChange(state));
+
+        window.__POND_RUNTIME__ = this;
     }
 
     connect(): void {
+        Logger.info('Runtime', 'Connecting');
         this.transport.connect();
-        Logger.info('Runtime', 'Connected');
     }
 
     disconnect(): void {
+        Logger.info('Runtime', 'Disconnecting');
         this.transport.disconnect();
-        Logger.info('Runtime', 'Disconnected');
+        this.executor.destroy();
+        this.scripts.destroy();
+        this.bus.clear();
+        this.refs.clear();
     }
 
     connected(): boolean {
         return this.connectedState;
     }
 
-    private handleMessage(msg: ServerMessage): void {
-        Logger.debug('Runtime', 'Received', msg.t);
-
-        switch (msg.t) {
-            case 'boot':
-                this.handleBoot(msg);
-                break;
-            case 'init':
-                this.handleInit(msg);
-                break;
-            case 'frame':
-                this.handleFrame(msg);
-                break;
-            case 'resume_ok':
-                this.handleResumeOK(msg);
-                break;
-            case 'dom_req':
-                this.handleDOMRequest(msg);
-                break;
-            case 'script:event':
-                this.handleScriptEvent(msg);
-                break;
-            case 'evt_ack':
-                break;
-            case 'error':
-                Logger.error('Runtime', 'Server error', msg.code, msg.message);
-                break;
-            case 'diagnostic':
-                Logger.warn('Runtime', 'Diagnostic', msg.code, msg.message);
-                break;
-        }
+    get seq(): number {
+        return this.lastSeq;
     }
 
     handleBoot(boot: Boot): void {
-        Logger.info('Runtime', 'Boot received', {ver: boot.ver, seq: boot.seq, patches: boot.patch?.length ?? 0});
+        Logger.info('Runtime', 'Boot received', { ver: boot.ver, seq: boot.seq, patches: boot.patch?.length ?? 0 });
+
         if (boot.patch && boot.patch.length > 0) {
-            this.patcher.apply(boot.patch);
+            this.applyPatches(boot.patch);
         }
 
-        this.sendAck(boot.seq);
+        this.lastSeq = boot.seq;
+        this.transport.sendAck(boot.seq);
     }
 
-    private handleInit(init: Init): void {
-        Logger.info('Runtime', 'Init received', {ver: init.ver, seq: init.seq});
-        this.sendAck(init.seq);
+    handleMessage(msg: unknown): void {
+        if (isServerError(msg)) {
+            const err = msg as { code: string; message: string };
+            Logger.error('Runtime', 'Server error', { code: err.code, message: err.message });
+            return;
+        }
+
+        if (isResumeOK(msg)) {
+            this.handleResumeOK(msg);
+            return;
+        }
     }
 
-    private handleFrame(frame: Frame): void {
-        Logger.debug('Runtime', 'Frame', {seq: frame.seq, ops: frame.patch?.length ?? 0});
+    private handlePatch(payload: FramePatchPayload): void {
+        Logger.debug('Runtime', 'Patch received', { seq: payload.seq, count: payload.patches?.length ?? 0 });
 
-        if (frame.patch && frame.patch.length > 0) {
-            this.patcher.apply(frame.patch);
+        if (payload.patches && payload.patches.length > 0) {
+            this.applyPatches(payload.patches);
         }
 
-        if (frame.effects && frame.effects.length > 0) {
-            this.effects.execute(frame.effects as Effect[]);
-        }
-
-        if (frame.nav) {
-            this.handleServerNav(frame.nav);
-        }
-
-        this.sendAck(frame.seq);
+        this.lastSeq = payload.seq;
+        this.transport.sendAck(payload.seq);
     }
 
     private handleResumeOK(resume: ResumeOK): void {
-        Logger.info('Runtime', 'Resume OK', {from: resume.from, to: resume.to});
+        Logger.info('Runtime', 'Resume OK', { from: resume.from, to: resume.to });
     }
 
-    private handleDOMRequest(req: DOMRequest): void {
-        this.effects.handleDOMRequest(req);
-    }
+    private handleEvent(handlerId: string, data: Record<string, unknown>): void {
+        this.cseq++;
+        Logger.debug('Runtime', 'Event', { handler: handlerId, cseq: this.cseq });
 
-    private handleServerNav(nav: { push?: string; replace?: string; back?: boolean }): void {
-        if (nav.push) {
-            window.history.pushState({}, '', nav.push);
-        } else if (nav.replace) {
-            window.history.replaceState({}, '', nav.replace);
-        } else if (nav.back) {
-            window.history.back();
-        }
-    }
-
-    private handleEvent(handler: string, data: unknown): void {
-        const event: ClientEvent = {
-            t: 'evt',
-            sid: this.sessionId,
-            hid: handler,
-            cseq: ++this.cseq,
-            payload: (data as Record<string, unknown>) ?? {}
+        const payload = {
+            ...data,
+            cseq: this.cseq,
         };
-        this.transport.send(event);
-        Logger.debug('Runtime', 'Event sent', handler);
-    }
 
-    private handleRouterClick(meta: RouterMeta): void {
-        this.router.navigate(meta);
+        this.transport.sendHandler(handlerId, payload);
     }
 
     private handleScript(meta: ScriptMeta, el: Element): void {
-        this.scripts.execute(meta, el);
+        Logger.debug('Runtime', 'Script execute', meta.scriptId);
+        this.scripts.execute(meta, el).catch((err) => {
+            Logger.error('Runtime', 'Script error', { scriptId: meta.scriptId, error: String(err) });
+        });
     }
 
-    private handleScriptEvent(msg: ScriptEvent): void {
-        this.scripts.handleEvent(msg.scriptId, msg.event, msg.data);
+    private handleScriptCleanup(scriptId: string): void {
+        Logger.debug('Runtime', 'Script cleanup', scriptId);
+        this.scripts.cleanup(scriptId);
     }
 
-    private sendNav(type: 'nav' | 'pop', path: string, query: string, hash: string): void {
-        const msg: NavMessage = {t: type, sid: this.sessionId, path, q: query, hash};
-        this.transport.send(msg);
-        Logger.debug('Runtime', 'Nav sent', type, path);
-    }
+    private handleStateChange(state: ConnectionState): void {
+        Logger.debug('Runtime', 'Connection state', state);
 
-    private sendAck(seq: number): void {
-        this.transport.send({t: 'ack', sid: this.sessionId, seq});
-    }
+        const wasConnected = this.connectedState;
+        this.connectedState = state === 'connected';
 
-    private handleStateChange(state: ChannelState): void {
-        Logger.debug('Runtime', 'Channel state', state);
-        if (state === ChannelState.STALLED || state === ChannelState.CLOSED) {
-            this.connectedState = false;
+        if (!wasConnected && this.connectedState) {
+            Logger.info('Runtime', 'Connected');
+        } else if (wasConnected && !this.connectedState) {
+            Logger.warn('Runtime', 'Disconnected');
         }
+    }
+
+    private applyPatches(patches: Patch[]): void {
+        this.patcher.apply(patches);
     }
 }
 
@@ -232,16 +217,16 @@ export function boot(): Runtime | null {
     if (script?.textContent) {
         try {
             bootData = JSON.parse(script.textContent);
-        } catch (e) {
-            Logger.error('Runtime', 'Failed to parse boot payload', e);
+        } catch {
+            Logger.error('Runtime', 'Failed to parse boot payload');
         }
     }
 
     if (!bootData) {
-        bootData = (window as unknown as { __LIVEUI_BOOT__?: Boot }).__LIVEUI_BOOT__ ?? null;
+        bootData = window.__LIVEUI_BOOT__ ?? null;
     }
 
-    if (!bootData) {
+    if (!bootData || !isBoot(bootData)) {
         Logger.error('Runtime', 'No boot payload found');
         return null;
     }
@@ -251,13 +236,14 @@ export function boot(): Runtime | null {
         sessionId: bootData.sid,
         version: bootData.ver,
         seq: bootData.seq,
-        endpoint: bootData.client?.endpoint ?? '/live',
+        endpoint: '/live',
         location: bootData.location,
-        debug: bootData.client?.debug
+        debug: bootData.client?.debug,
     };
 
     const runtime = new Runtime(config);
     runtime.handleBoot(bootData);
     runtime.connect();
+
     return runtime;
 }

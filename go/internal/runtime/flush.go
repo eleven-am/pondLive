@@ -125,6 +125,7 @@ func (s *Session) Flush() error {
 
 	s.PrevView = s.View
 	if s.Root.WorkTree != nil {
+		s.Root.NextHandlerIndex = 0
 		s.View = s.convertWorkToView(s.Root.WorkTree, s.Root)
 	}
 

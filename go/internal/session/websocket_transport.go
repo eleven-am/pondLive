@@ -93,6 +93,9 @@ func (t *WebSocketTransport) Send(topic, event string, data any) error {
 	t.mu.Unlock()
 
 	if err := t.sender.BroadcastTo(event, msg, t.userID); err != nil {
+		t.mu.Lock()
+		delete(t.pending, seq)
+		t.mu.Unlock()
 		return err
 	}
 
@@ -153,7 +156,7 @@ func (t *WebSocketTransport) PendingMessages() []Message {
 }
 
 // Resend retransmits all pending messages.
-// Useful after reconnection.
+// Useful after reconnection. Continues on error, returns first error encountered.
 func (t *WebSocketTransport) Resend() error {
 	if t == nil {
 		return nil
@@ -171,13 +174,14 @@ func (t *WebSocketTransport) Resend() error {
 	}
 	t.mu.Unlock()
 
+	var firstErr error
 	for _, msg := range msgs {
-		if err := t.sender.BroadcastTo(msg.Event, msg, t.userID); err != nil {
-			return err
+		if err := t.sender.BroadcastTo(msg.Event, msg, t.userID); err != nil && firstErr == nil {
+			firstErr = err
 		}
 	}
 
-	return nil
+	return firstErr
 }
 
 // SetSender replaces the underlying channel sender.
@@ -199,6 +203,51 @@ func (t *WebSocketTransport) LastSeq() uint64 {
 		return 0
 	}
 	return atomic.LoadUint64(&t.nextSeq)
+}
+
+// SendAck atomically allocates a sequence number and sends an acknowledgment.
+func (t *WebSocketTransport) SendAck(sid string) uint64 {
+	if t == nil {
+		return 0
+	}
+
+	t.mu.Lock()
+	if t.closed {
+		t.mu.Unlock()
+		return 0
+	}
+	t.mu.Unlock()
+
+	seq := atomic.AddUint64(&t.nextSeq, 1)
+
+	ack := struct {
+		T   string `json:"t"`
+		SID string `json:"sid"`
+		Seq uint64 `json:"seq"`
+	}{
+		T:   "ack",
+		SID: sid,
+		Seq: seq,
+	}
+
+	msg := Message{
+		Seq:   seq,
+		Topic: "ack",
+		Event: "ack",
+		Data:  ack,
+	}
+
+	t.mu.Lock()
+	t.pending[seq] = msg
+	t.mu.Unlock()
+
+	if err := t.sender.BroadcastTo("ack", msg, t.userID); err != nil {
+		t.mu.Lock()
+		delete(t.pending, seq)
+		t.mu.Unlock()
+	}
+
+	return seq
 }
 
 // IsLive returns true since WebSocket is a live connection.

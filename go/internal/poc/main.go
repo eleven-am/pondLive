@@ -1,14 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"net/http"
 
 	"github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
-	"github.com/eleven-am/pondlive/go/internal/server"
+	"github.com/eleven-am/pondlive/go/internal/server2"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -62,27 +60,13 @@ func App(ctx *runtime.Ctx) work.Node {
 }
 
 func main() {
-	ctx := context.Background()
-	app := server.NewApp(ctx)
-
-	registry := server.NewSessionRegistry()
-
-	stopSweeper := registry.StartSweeper(0)
-	defer stopSweeper()
-
-	_, err := server.Register(app.PondManager(), "/live", registry)
+	app, err := server2.New(server2.Config{
+		Component: App,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ssrHandler := server.NewSSRHandler(server.SSRConfig{
-		Registry:    registry,
-		Component:   App,
-		ClientAsset: "/static/pondlive.js",
-	})
-
-	app.Handle("/{path...}", ssrHandler)
-
 	fmt.Println("Server running at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", app.Handler()))
+	log.Fatal(app.Server(":8080").ListenAndServe())
 }

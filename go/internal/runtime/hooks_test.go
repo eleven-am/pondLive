@@ -445,9 +445,7 @@ func TestUseElement(t *testing.T) {
 		ID:        "test-comp",
 		HookFrame: []HookSlot{},
 	}
-	sess := &Session{
-		nextElementRefID: 0,
-	}
+	sess := &Session{}
 	ctx := &Ctx{
 		instance:  inst,
 		session:   sess,
@@ -458,14 +456,14 @@ func TestUseElement(t *testing.T) {
 	if ref == nil {
 		t.Fatal("expected ref to be non-nil")
 	}
-	if ref.RefID() != "ref-1" {
-		t.Errorf("expected ref ID 'ref-1', got %s", ref.RefID())
+	if ref.RefID() != "test-comp:r0" {
+		t.Errorf("expected ref ID 'test-comp:r0', got %s", ref.RefID())
 	}
 
 	ctx.hookIndex = 0
 	ref2 := UseElement(ctx)
-	if ref2.RefID() != "ref-1" {
-		t.Errorf("expected same ref ID 'ref-1', got %s", ref2.RefID())
+	if ref2.RefID() != "test-comp:r0" {
+		t.Errorf("expected same ref ID 'test-comp:r0', got %s", ref2.RefID())
 	}
 
 	if ref != ref2 {
@@ -478,9 +476,7 @@ func TestUseElementMultiple(t *testing.T) {
 		ID:        "test-comp",
 		HookFrame: []HookSlot{},
 	}
-	sess := &Session{
-		nextElementRefID: 0,
-	}
+	sess := &Session{}
 	ctx := &Ctx{
 		instance:  inst,
 		session:   sess,
@@ -491,14 +487,14 @@ func TestUseElementMultiple(t *testing.T) {
 	ref2 := UseElement(ctx)
 	ref3 := UseElement(ctx)
 
-	if ref1.RefID() != "ref-1" {
-		t.Errorf("expected ref1 ID 'ref-1', got %s", ref1.RefID())
+	if ref1.RefID() != "test-comp:r0" {
+		t.Errorf("expected ref1 ID 'test-comp:r0', got %s", ref1.RefID())
 	}
-	if ref2.RefID() != "ref-2" {
-		t.Errorf("expected ref2 ID 'ref-2', got %s", ref2.RefID())
+	if ref2.RefID() != "test-comp:r1" {
+		t.Errorf("expected ref2 ID 'test-comp:r1', got %s", ref2.RefID())
 	}
-	if ref3.RefID() != "ref-3" {
-		t.Errorf("expected ref3 ID 'ref-3', got %s", ref3.RefID())
+	if ref3.RefID() != "test-comp:r2" {
+		t.Errorf("expected ref3 ID 'test-comp:r2', got %s", ref3.RefID())
 	}
 
 	ctx.hookIndex = 0

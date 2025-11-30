@@ -274,6 +274,71 @@ func TestMinifyJS(t *testing.T) {
 			input:    "function\t\t\ntest() {\n\treturn\t42;\n}",
 			expected: "function test(){return 42;}",
 		},
+		{
+			name:     "removes single-line comments",
+			input:    "var x = 1; // this is a comment\nvar y = 2;",
+			expected: "var x=1;var y=2;",
+		},
+		{
+			name:     "removes multi-line comments",
+			input:    "var x = 1; /* comment */ var y = 2;",
+			expected: "var x=1;var y=2;",
+		},
+		{
+			name:     "removes multi-line comment spanning lines",
+			input:    "var x = 1;\n/* this\nis\na\ncomment */\nvar y = 2;",
+			expected: "var x=1;var y=2;",
+		},
+		{
+			name:     "preserves regex literals",
+			input:    "var re = /test/gi;",
+			expected: "var re=/test/gi;",
+		},
+		{
+			name:     "handles regex with escapes",
+			input:    "var re = /\\/path\\//;",
+			expected: "var re=/\\/path\\//;",
+		},
+		{
+			name:     "handles regex with character class",
+			input:    "var re = /[a-z]/;",
+			expected: "var re=/[a-z]/;",
+		},
+		{
+			name:     "distinguishes division from regex",
+			input:    "var x = a / b;",
+			expected: "var x=a/b;",
+		},
+		{
+			name:     "regex after assignment",
+			input:    "x = /pattern/;",
+			expected: "x=/pattern/;",
+		},
+		{
+			name:     "division after closing paren",
+			input:    "(a + b) / c",
+			expected: "(a+b)/c",
+		},
+		{
+			name:     "preserves slash in string",
+			input:    `var s = "a/b";`,
+			expected: `var s="a/b";`,
+		},
+		{
+			name:     "comment inside string preserved",
+			input:    `var s = "// not a comment";`,
+			expected: `var s="// not a comment";`,
+		},
+		{
+			name:     "template literal with expression",
+			input:    "var s = `hello ${name}`;",
+			expected: "var s=`hello ${name}`;",
+		},
+		{
+			name:     "regex with all flags",
+			input:    "var re = /test/gimsuy;",
+			expected: "var re=/test/gimsuy;",
+		},
 	}
 
 	for _, tt := range tests {
@@ -428,7 +493,6 @@ func TestScriptCleanupAccumulationFix(t *testing.T) {
 		t.Errorf("expected 1 cleanup registered, got %d", len(inst.cleanups))
 	}
 
-	// New protocol uses "script:{scriptID}" as topic
 	channelID := protocol.Topic("script:test:s0")
 	if sess.Bus.SubscriberCount(channelID) != 1 {
 		t.Errorf("expected 1 bus subscriber, got %d", sess.Bus.SubscriberCount(channelID))

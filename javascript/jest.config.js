@@ -5,7 +5,7 @@ module.exports = {
     moduleFileExtensions: ['ts', 'js', 'json', 'node', 'd.ts'],
     collectCoverage: true,
     collectCoverageFrom: [
-        "src-old/**/*.{js,jsx,ts,tsx}",
-        "!src-old/**/*.d.ts"
+        "src-old-old/**/*.{js,jsx,ts,tsx}",
+        "!src-old-old/**/*.d.ts"
     ],
 };

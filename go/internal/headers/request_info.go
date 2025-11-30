@@ -37,7 +37,10 @@ func NewRequestInfo(r *http.Request) *RequestInfo {
 
 	hash := ""
 	query := make(url.Values)
+	path := ""
+
 	if r.URL != nil {
+		path = r.URL.Path
 		for k, v := range r.URL.Query() {
 			if k == "_hash" && len(v) > 0 {
 				hash = v[0]
@@ -47,14 +50,19 @@ func NewRequestInfo(r *http.Request) *RequestInfo {
 		}
 	}
 
+	headers := make(http.Header)
+	if r.Header != nil {
+		headers = r.Header.Clone()
+	}
+
 	return &RequestInfo{
 		Method:     r.Method,
 		Host:       r.Host,
 		RemoteAddr: r.RemoteAddr,
-		Path:       r.URL.Path,
+		Path:       path,
 		Query:      query,
 		Hash:       hash,
-		Headers:    r.Header.Clone(),
+		Headers:    headers,
 	}
 }
 

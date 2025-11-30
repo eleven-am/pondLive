@@ -112,6 +112,7 @@ func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport 
 	entry.transport = transport
 	entry.connID = connID
 	r.connections[connID] = entry
+	entry.session.SetTransport(transport)
 	r.attachSessionLocked(entry.session)
 	r.mu.Unlock()
 
@@ -119,7 +120,6 @@ func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport 
 		rel.release()
 	}
 
-	entry.session.SetTransport(transport)
 	return entry.session, nil
 }
 

@@ -7,7 +7,7 @@ const __dirname = dirname(__filename);
 
 const isWatch = process.argv.includes('--watch');
 
-const outDir = resolve(__dirname, '../pkg/live/server/static');
+const outDir = resolve(__dirname, '../internal/server2/static');
 
 const baseConfig = {
     entryPoints: [resolve(__dirname, 'src/index.ts')],

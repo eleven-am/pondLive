@@ -18,15 +18,11 @@ type Session struct {
 	PrevView   view.Node            // Previous view tree for diffing
 	Components map[string]*Instance // ComponentNode ID -> Instance lookup
 
-	Handlers      map[string]work.Handler // Handler ID -> Handler
-	handlersMu    sync.RWMutex            // Protects Handlers map
-	DirtyQueue    []*Instance             // Components needing re-render (slice for ordering)
-	DirtySet      map[*Instance]struct{}  // Fast lookup for dirty components
-	dirtyMu       sync.Mutex              // Protects dirty tracking
-	nextHandlerID int                     // Counter for generating handler IDs
-
-	// Element refs
-	nextElementRefID int // Counter for generating element ref IDs
+	Handlers   map[string]work.Handler
+	handlersMu sync.RWMutex
+	DirtyQueue []*Instance
+	DirtySet   map[*Instance]struct{}
+	dirtyMu    sync.Mutex
 
 	// Scripts
 	Scripts   map[string]*scriptSlot // Script ID -> scriptSlot
@@ -96,12 +92,6 @@ type effectTask struct {
 type cleanupTask struct {
 	instance *Instance
 	fn       func()
-}
-
-// allocateElementRefID generates a unique element ref ID.
-func (s *Session) allocateElementRefID() string {
-	s.nextElementRefID++
-	return fmt.Sprintf("ref-%d", s.nextElementRefID)
 }
 
 // getDOMRequestManager returns the DOM request manager, creating it if needed.

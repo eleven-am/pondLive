@@ -24,8 +24,8 @@ func scope(parsed *parsedCSS, hash string) *Stylesheet {
 }
 
 func scopeRule(r rule, hash string) []SelectorBlock {
-	selectors := strings.Split(r.selector, ",")
-	props := parseDeclarations(r.declarations)
+	selectors := splitSelectors(r.selector)
+	props, decls := parseDeclarations(r.declarations)
 	blocks := make([]SelectorBlock, 0, len(selectors))
 	for _, sel := range selectors {
 		sel = strings.TrimSpace(sel)
@@ -35,19 +35,49 @@ func scopeRule(r rule, hash string) []SelectorBlock {
 		blocks = append(blocks, SelectorBlock{
 			Selector: scopeSelector(sel, hash),
 			Props:    props,
+			Decls:    decls,
 		})
 	}
 	return blocks
 }
 
-func parseDeclarations(decl string) PropertyMap {
-	props := PropertyMap{}
-	parts := strings.Split(decl, ";")
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
+func splitSelectors(selector string) []string {
+	var selectors []string
+	var current strings.Builder
+	depth := 0
+
+	for i := 0; i < len(selector); i++ {
+		ch := selector[i]
+		switch ch {
+		case '(':
+			depth++
+			current.WriteByte(ch)
+		case ')':
+			depth--
+			current.WriteByte(ch)
+		case ',':
+			if depth == 0 {
+				selectors = append(selectors, current.String())
+				current.Reset()
+			} else {
+				current.WriteByte(ch)
+			}
+		default:
+			current.WriteByte(ch)
 		}
+	}
+	if current.Len() > 0 {
+		selectors = append(selectors, current.String())
+	}
+	return selectors
+}
+
+func parseDeclarations(decl string) (PropertyMap, []Declaration) {
+	props := PropertyMap{}
+	var decls []Declaration
+
+	parts := splitDeclarations(decl)
+	for _, part := range parts {
 		kv := strings.SplitN(part, ":", 2)
 		if len(kv) != 2 {
 			continue
@@ -58,8 +88,61 @@ func parseDeclarations(decl string) PropertyMap {
 			continue
 		}
 		props[key] = value
+		decls = append(decls, Declaration{Property: key, Value: value})
 	}
-	return props
+	return props, decls
+}
+
+// splitDeclarations splits a declaration block on semicolons that are not inside
+// parentheses or quotes so values like data URLs remain intact.
+func splitDeclarations(decl string) []string {
+	var parts []string
+	var current strings.Builder
+	depth := 0
+	var quote byte
+
+	flush := func() {
+		if current.Len() > 0 {
+			parts = append(parts, current.String())
+			current.Reset()
+		}
+	}
+
+	for i := 0; i < len(decl); i++ {
+		ch := decl[i]
+		switch ch {
+		case '\\':
+			// skip escaped next char
+			if i+1 < len(decl) {
+				current.WriteByte(ch)
+				i++
+				current.WriteByte(decl[i])
+				continue
+			}
+		case '\'', '"':
+			if quote == 0 {
+				quote = ch
+			} else if quote == ch {
+				quote = 0
+			}
+		case '(':
+			if quote == 0 {
+				depth++
+			}
+		case ')':
+			if quote == 0 && depth > 0 {
+				depth--
+			}
+		case ';':
+			if quote == 0 && depth == 0 {
+				flush()
+				continue
+			}
+		}
+		current.WriteByte(ch)
+	}
+	flush()
+	return parts
 }
 
 func scopeSelector(selector, hash string) string {
@@ -70,12 +153,16 @@ func scopeSelector(selector, hash string) string {
 	if strings.HasPrefix(selector, ":root") || strings.HasPrefix(selector, "html") || strings.HasPrefix(selector, "body") {
 		return selector
 	}
+	if hash == "" {
+		return selector
+	}
 	parts := tokenize(selector)
 	for i, part := range parts {
 		trim := strings.TrimSpace(part)
-		if strings.HasPrefix(trim, ".") || strings.HasPrefix(trim, "#") {
-			parts[i] = scopeToken(trim, hash)
-			break
+		if strings.Contains(trim, "(") {
+			parts[i] = scopePseudoFunction(trim, hash)
+		} else if result, ok := scopeSimpleSelector(trim, hash); ok {
+			parts[i] = result
 		}
 	}
 	return strings.Join(parts, "")
@@ -84,42 +171,135 @@ func scopeSelector(selector, hash string) string {
 func tokenize(selector string) []string {
 	var tokens []string
 	var current strings.Builder
+	depth := 0
+
 	flush := func() {
 		if current.Len() > 0 {
 			tokens = append(tokens, current.String())
 			current.Reset()
 		}
 	}
-	for _, ch := range selector {
+
+	for i := 0; i < len(selector); i++ {
+		ch := selector[i]
 		switch ch {
+		case '(':
+			depth++
+			current.WriteByte(ch)
+		case ')':
+			depth--
+			current.WriteByte(ch)
 		case ' ', '>', '+', '~':
-			flush()
-			if ch == ' ' {
-				tokens = append(tokens, " ")
+			if depth == 0 {
+				flush()
+				if ch == ' ' {
+					tokens = append(tokens, " ")
+				} else {
+					tokens = append(tokens, " "+string(ch)+" ")
+				}
 			} else {
-				tokens = append(tokens, " "+string(ch)+" ")
+				current.WriteByte(ch)
 			}
-		case ':':
-			flush()
-			rest := selector[strings.IndexRune(selector, ch):]
-			tokens = append(tokens, rest)
-			return tokens
 		default:
-			current.WriteRune(ch)
+			current.WriteByte(ch)
 		}
 	}
 	flush()
 	return tokens
 }
 
-func scopeToken(token, hash string) string {
-	if strings.HasPrefix(token, ".") {
-		return "." + strings.TrimPrefix(token, ".") + "-" + hash
+func scopeSimpleSelector(sel, hash string) (string, bool) {
+	if sel == "" || hash == "" {
+		return sel, false
 	}
-	if strings.HasPrefix(token, "#") {
-		return "#" + strings.TrimPrefix(token, "#") + "-" + hash
+
+	var result strings.Builder
+	i := 0
+	scoped := false
+
+	for i < len(sel) {
+		ch := sel[i]
+
+		if ch == '[' {
+			end := strings.Index(sel[i:], "]")
+			if end == -1 {
+				result.WriteString(sel[i:])
+				break
+			}
+			result.WriteString(sel[i : i+end+1])
+			i += end + 1
+			continue
+		}
+
+		if ch == ':' {
+			result.WriteString(sel[i:])
+			break
+		}
+
+		if ch == '.' || ch == '#' {
+			j := i + 1
+			for j < len(sel) && sel[j] != '.' && sel[j] != '#' && sel[j] != '[' && sel[j] != ':' {
+				j++
+			}
+			name := sel[i+1 : j]
+			result.WriteByte(ch)
+			result.WriteString(name)
+			result.WriteByte('-')
+			result.WriteString(hash)
+			scoped = true
+			i = j
+			continue
+		}
+
+		result.WriteByte(ch)
+		i++
 	}
-	return token
+
+	return result.String(), scoped
+}
+
+func scopePseudoFunction(sel, hash string) string {
+	if hash == "" {
+		return sel
+	}
+
+	parenIdx := strings.Index(sel, "(")
+	if parenIdx == -1 {
+		return sel
+	}
+
+	colonIdx := strings.LastIndex(sel[:parenIdx], ":")
+	if colonIdx == -1 {
+		colonIdx = 0
+	}
+
+	base := sel[:colonIdx]
+	pseudoRest := sel[colonIdx:]
+
+	if result, ok := scopeSimpleSelector(base, hash); ok {
+		base = result
+	}
+
+	start := strings.Index(pseudoRest, "(")
+	end := strings.LastIndex(pseudoRest, ")")
+	if start == -1 || end == -1 || end <= start {
+		return base + pseudoRest
+	}
+
+	prefix := pseudoRest[:start+1]
+	inner := pseudoRest[start+1 : end]
+	suffix := pseudoRest[end:]
+
+	parts := strings.Split(inner, ",")
+	for i, p := range parts {
+		p = strings.TrimSpace(p)
+		if result, ok := scopeSimpleSelector(p, hash); ok {
+			parts[i] = result
+		} else {
+			parts[i] = p
+		}
+	}
+	return base + prefix + strings.Join(parts, ", ") + suffix
 }
 
 func hashComponent(componentID string) string {
@@ -136,7 +316,7 @@ func (ss *Stylesheet) Serialize() string {
 	for _, rule := range ss.Rules {
 		b.WriteString(rule.Selector)
 		b.WriteString(" { ")
-		b.WriteString(joinProps(rule.Props))
+		b.WriteString(joinProps(rule.Props, rule.Decls))
 		b.WriteString(" }\n")
 	}
 	for _, media := range ss.MediaRules {
@@ -147,7 +327,7 @@ func (ss *Stylesheet) Serialize() string {
 			b.WriteString("  ")
 			b.WriteString(rule.Selector)
 			b.WriteString(" { ")
-			b.WriteString(joinProps(rule.Props))
+			b.WriteString(joinProps(rule.Props, rule.Decls))
 			b.WriteString(" }\n")
 		}
 		b.WriteString("}\n")
@@ -155,13 +335,25 @@ func (ss *Stylesheet) Serialize() string {
 	return b.String()
 }
 
-func joinProps(props PropertyMap) string {
+func joinProps(props PropertyMap, decls []Declaration) string {
+	var b strings.Builder
+	if len(decls) > 0 {
+		for i, d := range decls {
+			if i > 0 {
+				b.WriteString("; ")
+			}
+			b.WriteString(d.Property)
+			b.WriteString(": ")
+			b.WriteString(d.Value)
+		}
+		return b.String()
+	}
+
 	keys := make([]string, 0, len(props))
 	for k := range props {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	var b strings.Builder
 	for i, k := range keys {
 		if i > 0 {
 			b.WriteString("; ")

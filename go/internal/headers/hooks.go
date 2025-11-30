@@ -2,35 +2,30 @@ package headers
 
 import (
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
-// CookieOptions configures cookie attributes.
 type CookieOptions struct {
 	Path     string
 	Domain   string
-	MaxAge   int       // MaxAge=0 means no Max-Age attribute. MaxAge<0 means delete cookie.
-	Expires  time.Time // Zero time means no Expires attribute.
+	MaxAge   int
+	Expires  time.Time
 	Secure   bool
 	HttpOnly bool
 	SameSite http.SameSite
 }
 
-// UseHeaders returns the request headers from context.
-// Returns nil if not within a RequestState provider.
 func UseHeaders(ctx *runtime.Ctx) http.Header {
 	state := UseRequestState(ctx)
 	if state == nil || state.info == nil {
 		return nil
 	}
-	return state.info.Headers
+	return state.info.Headers.Clone()
 }
 
-// UseCookie returns a cookie value and a setter function.
-// The getter respects optimistic mutations made during the current render.
-// The setter updates the cookie (via response header in SSR, or script in live mode).
 func UseCookie(ctx *runtime.Ctx, name string) (string, func(value string, opts *CookieOptions)) {
 	state := UseRequestState(ctx)
 	if state == nil {
@@ -40,7 +35,11 @@ func UseCookie(ctx *runtime.Ctx, name string) (string, func(value string, opts *
 	value, _ := state.GetCookie(name)
 
 	setter := func(newValue string, opts *CookieOptions) {
-		state.MutateCookie(name, newValue)
+		if opts != nil && opts.MaxAge < 0 {
+			state.DeleteCookieMutation(name)
+		} else {
+			state.MutateCookie(name, newValue)
+		}
 
 		cookie := &http.Cookie{
 			Name:  name,
@@ -67,9 +66,6 @@ func UseCookie(ctx *runtime.Ctx, name string) (string, func(value string, opts *
 	return value, setter
 }
 
-// UseRedirect returns a function to trigger a redirect.
-// In SSR mode, this sets the redirect response.
-// In live mode, this should trigger client-side navigation.
 func UseRedirect(ctx *runtime.Ctx) func(url string, code int) {
 	state := UseRequestState(ctx)
 	if state == nil {
@@ -84,7 +80,6 @@ func UseRedirect(ctx *runtime.Ctx) func(url string, code int) {
 	}
 }
 
-// UsePath returns the current request path.
 func UsePath(ctx *runtime.Ctx) string {
 	state := UseRequestState(ctx)
 	if state == nil {
@@ -93,7 +88,6 @@ func UsePath(ctx *runtime.Ctx) string {
 	return state.Path()
 }
 
-// UseQuery returns the current request query parameters.
 func UseQuery(ctx *runtime.Ctx) map[string]string {
 	state := UseRequestState(ctx)
 	if state == nil {
@@ -114,7 +108,14 @@ func UseQuery(ctx *runtime.Ctx) map[string]string {
 	return result
 }
 
-// UseIsLive returns whether the session is in live (WebSocket) mode.
+func UseQueryValues(ctx *runtime.Ctx) url.Values {
+	state := UseRequestState(ctx)
+	if state == nil {
+		return nil
+	}
+	return state.Query()
+}
+
 func UseIsLive(ctx *runtime.Ctx) bool {
 	state := UseRequestState(ctx)
 	if state == nil {

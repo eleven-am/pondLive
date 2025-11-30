@@ -131,7 +131,183 @@ func TestScopeMediaRuleMultipleSelectors(t *testing.T) {
 func TestSerializeOrdersProperties(t *testing.T) {
 	ss := ParseAndScope(`.foo { z-index: 1; color: blue; }`, "order-comp")
 	out := ss.Serialize()
-	if !strings.Contains(out, "color: blue; z-index: 1") {
-		t.Fatalf("expected properties sorted in serialization, got %q", out)
+	if !strings.Contains(out, "z-index: 1; color: blue") {
+		t.Fatalf("expected properties in declaration order, got %q", out)
+	}
+}
+
+func TestSerializePreservesDeclarationOrderAndDuplicates(t *testing.T) {
+	ss := ParseAndScope(`.foo { background: red; background: blue; color: green; }`, "order-dup")
+	out := ss.Serialize()
+	if !strings.Contains(out, "background: red; background: blue; color: green") {
+		t.Fatalf("expected declaration order and duplicates preserved, got %q", out)
+	}
+}
+
+func TestParseDeclarationsWithSemicolonsInValues(t *testing.T) {
+	ss := ParseAndScope(`.foo { background: url(data:image/svg+xml;utf8,<svg></svg>); color: black; }`, "semicolon")
+	if got := ss.Rules[0].Props["background"]; !strings.Contains(got, ";utf8,") {
+		t.Fatalf("expected semicolon inside value preserved, got %q", got)
+	}
+}
+
+func TestScopeTagClassSelector(t *testing.T) {
+	ss := ParseAndScope(`button.btn { color: red; }`, "comp")
+	hash := hashComponent("comp")
+	if !strings.Contains(ss.Rules[0].Selector, ".btn-"+hash) {
+		t.Fatalf("expected .btn to be scoped, got %q", ss.Rules[0].Selector)
+	}
+}
+
+func TestScopeTagIdSelector(t *testing.T) {
+	ss := ParseAndScope(`div#main { color: red; }`, "comp")
+	hash := hashComponent("comp")
+	if !strings.Contains(ss.Rules[0].Selector, "#main-"+hash) {
+		t.Fatalf("expected #main to be scoped, got %q", ss.Rules[0].Selector)
+	}
+}
+
+func TestScopePseudoFunctionSelectors(t *testing.T) {
+	ss := ParseAndScope(`:is(.foo, .bar) { color: red; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".foo-"+hash) || !strings.Contains(sel, ".bar-"+hash) {
+		t.Fatalf("expected classes inside :is() to be scoped, got %q", sel)
+	}
+}
+
+func TestScopeWherePseudo(t *testing.T) {
+	ss := ParseAndScope(`:where(.card) { padding: 1rem; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".card-"+hash) {
+		t.Fatalf("expected .card inside :where() to be scoped, got %q", sel)
+	}
+}
+
+func TestScopeNotPseudo(t *testing.T) {
+	ss := ParseAndScope(`.card:not(.active) { opacity: 0.5; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".card-"+hash) || !strings.Contains(sel, ".active-"+hash) {
+		t.Fatalf("expected both classes scoped, got %q", sel)
+	}
+}
+
+func TestMultilineComment(t *testing.T) {
+	css := "/* multi\nline\ncomment */ .foo { color: red; }"
+	ss := ParseAndScope(css, "comp")
+	if len(ss.Rules) != 1 {
+		t.Fatalf("expected 1 rule after stripping multiline comment, got %d", len(ss.Rules))
+	}
+	hash := hashComponent("comp")
+	if !strings.Contains(ss.Rules[0].Selector, ".foo-"+hash) {
+		t.Fatalf("expected .foo to be scoped, got %q", ss.Rules[0].Selector)
+	}
+}
+
+func TestScopeClassChain(t *testing.T) {
+	ss := ParseAndScope(`.foo.bar { color: red; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".foo-"+hash) {
+		t.Fatalf("expected .foo to be scoped, got %q", sel)
+	}
+	if !strings.Contains(sel, ".bar-"+hash) {
+		t.Fatalf("expected .bar to be scoped, got %q", sel)
+	}
+}
+
+func TestScopeTripleClassChain(t *testing.T) {
+	ss := ParseAndScope(`.a.b.c { color: red; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".a-"+hash) || !strings.Contains(sel, ".b-"+hash) || !strings.Contains(sel, ".c-"+hash) {
+		t.Fatalf("expected all classes scoped, got %q", sel)
+	}
+}
+
+func TestScopeAttributeWithClass(t *testing.T) {
+	ss := ParseAndScope(`[type=text].btn { color: red; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".btn-"+hash) {
+		t.Fatalf("expected .btn to be scoped, got %q", sel)
+	}
+	if !strings.Contains(sel, "[type=text]") {
+		t.Fatalf("expected attribute preserved, got %q", sel)
+	}
+}
+
+func TestScopeClassWithAttribute(t *testing.T) {
+	ss := ParseAndScope(`.input[type=text] { color: red; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".input-"+hash) {
+		t.Fatalf("expected .input to be scoped, got %q", sel)
+	}
+	if !strings.Contains(sel, "[type=text]") {
+		t.Fatalf("expected attribute preserved, got %q", sel)
+	}
+}
+
+func TestScopeMultipleClasses(t *testing.T) {
+	ss := ParseAndScope(`.a .b { color: red; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".a-"+hash) || !strings.Contains(sel, ".b-"+hash) {
+		t.Fatalf("expected both classes scoped, got %q", sel)
+	}
+}
+
+func TestScopeDescendantCombinator(t *testing.T) {
+	ss := ParseAndScope(`.parent > .child { margin: 0; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".parent-"+hash) || !strings.Contains(sel, ".child-"+hash) {
+		t.Fatalf("expected both classes scoped, got %q", sel)
+	}
+}
+
+func TestScopeSiblingCombinator(t *testing.T) {
+	ss := ParseAndScope(`.first + .second { padding: 0; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".first-"+hash) || !strings.Contains(sel, ".second-"+hash) {
+		t.Fatalf("expected both classes scoped, got %q", sel)
+	}
+}
+
+func TestScopeSlottedPseudo(t *testing.T) {
+	ss := ParseAndScope(`::slotted(.btn) { color: red; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".btn-"+hash) {
+		t.Fatalf("expected .btn inside ::slotted() to be scoped, got %q", sel)
+	}
+}
+
+func TestScopeCuePseudo(t *testing.T) {
+	ss := ParseAndScope(`::cue(.caption) { color: white; }`, "comp")
+	hash := hashComponent("comp")
+	sel := ss.Rules[0].Selector
+	if !strings.Contains(sel, ".caption-"+hash) {
+		t.Fatalf("expected .caption inside ::cue() to be scoped, got %q", sel)
+	}
+}
+
+func TestEmptyComponentID(t *testing.T) {
+	ss := ParseAndScope(`.btn { color: red; }`, "")
+	sel := ss.Rules[0].Selector
+	if sel != ".btn" {
+		t.Fatalf("expected .btn unchanged with empty componentID, got %q", sel)
+	}
+}
+
+func TestEmptyComponentIDNoTrailingDash(t *testing.T) {
+	ss := ParseAndScope(`.foo.bar { color: red; }`, "")
+	sel := ss.Rules[0].Selector
+	if strings.Contains(sel, "-") {
+		t.Fatalf("selector should not have any dashes with empty componentID, got %q", sel)
 	}
 }

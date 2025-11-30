@@ -7,63 +7,55 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// ComponentNode is a function that renders a node tree.
-// P is the props type, children are passed from the parent component.
 type ComponentNode[P any] func(*Ctx, P, []work.Node) work.Node
 
-// ComponentError captures error details for error boundaries.
 type ComponentError struct {
-	Message     string    // Error message
-	StackTrace  string    // Full stack trace
-	ComponentID string    // Which component failed
-	Phase       string    // "render", "effect", "memo", "handler"
-	HookIndex   int       // Which hook failed (if applicable, -1 otherwise)
-	Timestamp   time.Time // When the error occurred
+	Message     string
+	StackTrace  string
+	ComponentID string
+	Phase       string
+	HookIndex   int
+	Timestamp   time.Time
 }
 
-// Instance represents a component instance with identity and state.
 type Instance struct {
-	ID  string // Unique identity for reconciliation
-	Fn  any    // ComponentNode function
-	Key string // Optional user-provided key
+	ID  string
+	Fn  any
+	Key string
 
-	Props         any         // Current props
-	PrevProps     any         // Previous props for comparison
-	InputChildren []work.Node // Children passed from parent
+	Props         any
+	PrevProps     any
+	InputChildren []work.Node
 
-	HookFrame []HookSlot  // Hook state storage (indexed)
-	Parent    *Instance   // Parent component instance
-	Children  []*Instance // Child component instances
+	HookFrame []HookSlot
+	Parent    *Instance
+	Children  []*Instance
 
-	WorkTree work.Node // Last rendered work output
-	ViewNode any       // Last rendered view node (view.Element)
-	Wrapper  any       // Wrapper node for components (view.Element)
+	WorkTree work.Node
+	ViewNode any
+	Wrapper  any
 
-	Dirty             bool // Needs re-render
-	RenderedThisFlush bool // Rendered during current flush cycle
+	Dirty             bool
+	RenderedThisFlush bool
 
-	// Context management
-	Providers            map[any]any // Context providers at this level
-	ContextEpoch         int         // Incremented when context changes
-	ParentContextEpoch   int         // Parent's context epoch when mounted
-	CombinedContextEpoch int         // Sum of context epochs up the tree
-	ProviderSeq          int         // Provider sequence counter
+	Providers            map[any]any
+	ContextEpoch         int
+	ParentContextEpoch   int
+	CombinedContextEpoch int
+	ProviderSeq          int
 
-	// Child tracking during render
-	ChildRenderIndex   int             // Current child position for auto-keys
-	ReferencedChildren map[string]bool // Children referenced this render
+	ChildRenderIndex   int
+	ReferencedChildren map[string]bool
+	NextHandlerIndex   int
 
-	// Error boundary support
-	RenderError *ComponentError // Error from this component's render
+	RenderError *ComponentError
 
-	// Cleanup management
-	cleanups   []func() // Generic cleanup functions registered by hooks
+	cleanups   []func()
 	cleanupsMu sync.Mutex
 
-	mu sync.Mutex // Protects concurrent access
+	mu sync.Mutex
 }
 
-// HookType identifies the type of hook.
 type HookType int
 
 const (
@@ -78,15 +70,12 @@ const (
 	HookTypeErrorBoundary
 )
 
-// HookSlot stores state for a single hook call.
 type HookSlot struct {
-	Type  HookType // UseState, UseRef, UseMemo, UseEffect, UseElement, UseScript
-	Value any      // The hook's stored value
-	Deps  []any    // Dependencies for memo/effect
+	Type  HookType
+	Value any
+	Deps  []any
 }
 
-// RegisterCleanup registers a cleanup function to be called when the instance unmounts.
-// Hooks should use this to register their cleanup logic (e.g., unsubscribe, remove from registries).
 func (inst *Instance) RegisterCleanup(fn func()) {
 	if inst == nil || fn == nil {
 		return
@@ -97,8 +86,6 @@ func (inst *Instance) RegisterCleanup(fn func()) {
 	inst.cleanupsMu.Unlock()
 }
 
-// findChildError recursively checks this instance and all children for errors.
-// Returns the first error found in the tree.
 func (inst *Instance) findChildError() *ComponentError {
 	if inst == nil {
 		return nil
@@ -120,8 +107,6 @@ func (inst *Instance) findChildError() *ComponentError {
 	return nil
 }
 
-// clearChildErrors recursively clears all errors from this instance and its children.
-// Used by error boundaries to "consume" errors after catching them.
 func (inst *Instance) clearChildErrors() {
 	if inst == nil {
 		return

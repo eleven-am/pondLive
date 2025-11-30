@@ -1,18 +1,51 @@
-import {boot} from './runtime';
+export { Runtime, RuntimeConfig, boot } from './runtime';
+export { Logger, LogLevel, LoggerConfig } from './logger';
+export { Transport, TransportConfig, ConnectionState, JoinPayload } from './transport';
+export { Bus, Subscription } from './bus';
+export { Patcher, PatcherCallbacks } from './patcher';
+export { Executor, ExecutorConfig } from './executor';
+export { ScriptExecutor, ScriptExecutorConfig } from './scripts';
 
-if (typeof window !== 'undefined') {
-    window.addEventListener('DOMContentLoaded', () => {
-        const runtime = boot();
-        if (runtime) {
-            (window as any).__LIVEUI__ = runtime;
-        }
-    });
+export {
+    Topic,
+    StaticTopic,
+    ScriptTopic,
+    HandlerTopic,
+    Topics,
+    Boot,
+    Patch,
+    OpKind,
+    OpKinds,
+    Location,
+    Message,
+    ClientEvt,
+    ServerEvt,
+    ClientAck,
+    ServerAck,
+    ClientConfig,
+    EventOptions,
+    HandlerMeta,
+    ScriptMeta,
+    FramePatchPayload,
+    RouterNavPayload,
+    DOMCallPayload,
+    DOMSetPayload,
+    DOMQueryPayload,
+    DOMAsyncPayload,
+    DOMResponsePayload,
+    isBoot,
+    isServerError,
+    isServerEvt,
+    isServerAck,
+    isMessage,
+} from './protocol';
+
+import { boot } from './runtime';
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => boot());
+    } else {
+        boot();
+    }
 }
-
-export {Runtime, boot} from './runtime';
-export {Transport} from './transport';
-export {Patcher} from './patcher';
-export {Router} from './router';
-export {EffectExecutor} from './effects';
-export {ScriptExecutor} from './scripts';
-export {Logger} from './logger';

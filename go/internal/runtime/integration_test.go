@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/view"
+	"github.com/eleven-am/pondlive/go/internal/view/diff"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -96,8 +97,8 @@ func TestFlushRegistersHandlers(t *testing.T) {
 	if sess.Bus == nil {
 		t.Fatal("expected bus to be initialized")
 	}
-	if sess.Bus.SubscriberCount("h-1") != 1 {
-		t.Errorf("expected 1 handler in bus for 'h-1', got %d", sess.Bus.SubscriberCount("h-1"))
+	if sess.Bus.SubscriberCount("root:h0") != 1 {
+		t.Errorf("expected 1 handler in bus for 'root:h0', got %d", sess.Bus.SubscriberCount("root:h0"))
 	}
 
 	if sess.View == nil {
@@ -118,8 +119,8 @@ func TestFlushRegistersHandlers(t *testing.T) {
 		t.Errorf("expected click event, got %s", handlerMeta.Event)
 	}
 
-	if handlerMeta.Handler != "h-1" {
-		t.Errorf("expected handler ID 'h-1', got %s", handlerMeta.Handler)
+	if handlerMeta.Handler != "root:h0" {
+		t.Errorf("expected handler ID 'root:h0', got %s", handlerMeta.Handler)
 	}
 }
 
@@ -520,5 +521,188 @@ func TestPropsEqual(t *testing.T) {
 	}
 	if propsEqual(Props{Name: "Alice", Age: 30}, Props{Name: "Bob", Age: 30}) {
 		t.Error("expected different structs to not be equal")
+	}
+}
+
+func TestFlushRegistersHandlersViaHTMLHelpers(t *testing.T) {
+	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+		btn := work.BuildElement("button",
+			work.NewText("Click me"),
+		)
+		btn.Handlers = map[string]work.Handler{
+			"click": {
+				Fn: func(evt work.Event) work.Updates {
+					return nil
+				},
+			},
+		}
+		return work.BuildElement("div", btn)
+	}
+
+	root := &Instance{
+		ID:        "root",
+		Fn:        component,
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{},
+	}
+	sess := &Session{
+		Root:              root,
+		Components:        map[string]*Instance{"root": root},
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+		MountedComponents: make(map[*Instance]struct{}),
+	}
+
+	err := sess.Flush()
+	if err != nil {
+		t.Fatalf("Flush failed: %v", err)
+	}
+
+	if sess.View == nil {
+		t.Fatal("expected View to be created")
+	}
+
+	viewDiv, ok := sess.View.(*view.Element)
+	if !ok {
+		t.Fatalf("expected Element, got %T", sess.View)
+	}
+
+	if viewDiv.Tag != "div" {
+		t.Errorf("expected div tag, got %s", viewDiv.Tag)
+	}
+
+	if len(viewDiv.Children) != 1 {
+		t.Fatalf("expected 1 child (button), got %d", len(viewDiv.Children))
+	}
+
+	viewBtn, ok := viewDiv.Children[0].(*view.Element)
+	if !ok {
+		t.Fatalf("expected button Element, got %T", viewDiv.Children[0])
+	}
+
+	if viewBtn.Tag != "button" {
+		t.Errorf("expected button tag, got %s", viewBtn.Tag)
+	}
+
+	if len(viewBtn.Handlers) != 1 {
+		t.Errorf("expected 1 handler on button, got %d", len(viewBtn.Handlers))
+	}
+
+	if len(viewBtn.Handlers) > 0 && viewBtn.Handlers[0].Event != "click" {
+		t.Errorf("expected click event, got %s", viewBtn.Handlers[0].Event)
+	}
+}
+
+func TestExtractMetadataIncludesNestedHandlers(t *testing.T) {
+	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+		btn := work.BuildElement("button", work.NewText("Click"))
+		btn.Handlers = map[string]work.Handler{
+			"click": {Fn: func(evt work.Event) work.Updates { return nil }},
+		}
+		return work.BuildElement("div", btn)
+	}
+
+	root := &Instance{
+		ID:        "root",
+		Fn:        component,
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{},
+	}
+	sess := &Session{
+		Root:              root,
+		Components:        map[string]*Instance{"root": root},
+		MountedComponents: make(map[*Instance]struct{}),
+	}
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("Flush failed: %v", err)
+	}
+
+	viewDiv := sess.View.(*view.Element)
+	viewBtn := viewDiv.Children[0].(*view.Element)
+
+	if len(viewBtn.Handlers) != 1 {
+		t.Fatalf("expected button to have 1 handler, got %d", len(viewBtn.Handlers))
+	}
+
+	t.Logf("Button handlers: %+v", viewBtn.Handlers)
+	t.Logf("View tree: div -> button (handlers: %d)", len(viewBtn.Handlers))
+}
+
+func TestHtmlHelpersWithOnHandler(t *testing.T) {
+	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+		btn := work.BuildElement("button", work.NewText("Click"))
+		btn.Handlers["click"] = work.Handler{Fn: func(evt work.Event) work.Updates { return nil }}
+		return work.BuildElement("div", btn)
+	}
+
+	root := &Instance{
+		ID:        "root",
+		Fn:        component,
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{},
+	}
+	sess := &Session{
+		Root:              root,
+		Components:        map[string]*Instance{"root": root},
+		MountedComponents: make(map[*Instance]struct{}),
+	}
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("Flush failed: %v", err)
+	}
+
+	viewDiv := sess.View.(*view.Element)
+	if len(viewDiv.Children) != 1 {
+		t.Fatalf("expected 1 child, got %d", len(viewDiv.Children))
+	}
+
+	viewBtn := viewDiv.Children[0].(*view.Element)
+	if viewBtn.Tag != "button" {
+		t.Errorf("expected button, got %s", viewBtn.Tag)
+	}
+
+	if len(viewBtn.Handlers) != 1 {
+		t.Fatalf("expected 1 handler, got %d", len(viewBtn.Handlers))
+	}
+
+	t.Logf("Handler from html helpers: %+v", viewBtn.Handlers[0])
+}
+
+func TestExtractMetadataIncludesHandlerPatches(t *testing.T) {
+	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+		btn := work.BuildElement("button", work.NewText("Click"))
+		btn.Handlers["click"] = work.Handler{Fn: func(evt work.Event) work.Updates { return nil }}
+		return work.BuildElement("div", btn)
+	}
+
+	root := &Instance{
+		ID:        "root",
+		Fn:        component,
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{},
+	}
+	sess := &Session{
+		Root:              root,
+		Components:        map[string]*Instance{"root": root},
+		MountedComponents: make(map[*Instance]struct{}),
+	}
+
+	if err := sess.Flush(); err != nil {
+		t.Fatalf("Flush failed: %v", err)
+	}
+
+	patches := diff.ExtractMetadata(sess.View)
+
+	hasSetHandlers := false
+	for _, p := range patches {
+		if p.Op == "setHandlers" {
+			hasSetHandlers = true
+			t.Logf("Found setHandlers patch: path=%v value=%v", p.Path, p.Value)
+		}
+	}
+
+	if !hasSetHandlers {
+		t.Errorf("expected setHandlers patch in metadata, got patches: %+v", patches)
 	}
 }

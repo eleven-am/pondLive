@@ -10,8 +10,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// convertWorkToView converts a work tree to a view tree.
-// Handles components by rendering them, assigns handler IDs, and flattens fragments.
 func (s *Session) convertWorkToView(node work.Node, parent *Instance) view.Node {
 	if node == nil {
 		return nil
@@ -42,7 +40,6 @@ func (s *Session) convertWorkToView(node work.Node, parent *Instance) view.Node 
 	}
 }
 
-// convertElement converts a work.Element to a view.Element.
 func (s *Session) convertElement(elem *work.Element, parent *Instance) *view.Element {
 	if elem == nil {
 		return nil
@@ -62,7 +59,7 @@ func (s *Session) convertElement(elem *work.Element, parent *Instance) *view.Ele
 	if len(elem.Handlers) > 0 {
 		viewElem.Handlers = make([]metadata.HandlerMeta, 0, len(elem.Handlers))
 		for event, handler := range elem.Handlers {
-			handlerID := s.registerHandler(elem, event, handler)
+			handlerID := s.registerHandler(parent, elem, event, handler)
 			viewElem.Handlers = append(viewElem.Handlers, metadata.HandlerMeta{
 				Event:        event,
 				Handler:      handlerID,
@@ -83,9 +80,6 @@ func (s *Session) convertElement(elem *work.Element, parent *Instance) *view.Ele
 	return viewElem
 }
 
-// convertComponent converts a component instance's work tree to view tree.
-// Renders the component if it's new, props changed, or context changed.
-// Skips render if props are unchanged (memoization) and component already has output.
 func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) view.Node {
 	if comp == nil {
 		return nil
@@ -110,11 +104,10 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 		inst.Render(s)
 	}
 
+	inst.NextHandlerIndex = 0
 	return s.convertWorkToView(inst.WorkTree, inst)
 }
 
-// propsEqual compares two props values for equality.
-// Returns true if props are deeply equal.
 func propsEqual(a, b any) bool {
 	if a == nil && b == nil {
 		return true
@@ -125,7 +118,6 @@ func propsEqual(a, b any) bool {
 	return reflect.DeepEqual(a, b)
 }
 
-// convertFragment flattens a fragment's children into the parent's child list.
 func (s *Session) convertFragment(frag *work.Fragment, parent *Instance) view.Node {
 	if frag == nil || len(frag.Children) == 0 {
 		return nil
@@ -149,19 +141,14 @@ func (s *Session) convertFragment(frag *work.Fragment, parent *Instance) view.No
 	return viewFrag
 }
 
-// registerHandler registers a handler using the bus and returns its ID.
-// Uses stable IDs (refID:event) when RefID is available, otherwise auto-increments.
-func (s *Session) registerHandler(elem *work.Element, event string, handler work.Handler) string {
+func (s *Session) registerHandler(inst *Instance, elem *work.Element, event string, handler work.Handler) string {
 	var handlerID string
 
 	if elem.RefID != "" {
 		handlerID = fmt.Sprintf("%s:%s", elem.RefID, event)
 	} else {
-
-		s.handlersMu.Lock()
-		s.nextHandlerID++
-		handlerID = fmt.Sprintf("h-%d", s.nextHandlerID)
-		s.handlersMu.Unlock()
+		handlerID = fmt.Sprintf("%s:h%d", inst.ID, inst.NextHandlerIndex)
+		inst.NextHandlerIndex++
 	}
 
 	if s.Bus == nil {

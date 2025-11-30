@@ -236,8 +236,8 @@ func TestWebSocketTransportSendError(t *testing.T) {
 		t.Error("expected error on failed broadcast")
 	}
 
-	if transport.Pending() != 1 {
-		t.Errorf("expected 1 pending message, got %d", transport.Pending())
+	if transport.Pending() != 0 {
+		t.Errorf("expected 0 pending messages after failed send, got %d", transport.Pending())
 	}
 }
 
@@ -331,5 +331,99 @@ func TestWebSocketTransportRequestInfoNilHeaders(t *testing.T) {
 
 	if info.Headers == nil {
 		t.Error("expected Headers to be initialized")
+	}
+}
+
+func TestWebSocketTransportSendAck(t *testing.T) {
+	sender := &mockSender{}
+	transport := NewWebSocketTransport(sender, "user123", nil)
+
+	seq := transport.SendAck("session-1")
+	if seq != 1 {
+		t.Errorf("expected seq 1, got %d", seq)
+	}
+
+	if sender.MessageCount() != 1 {
+		t.Errorf("expected 1 message, got %d", sender.MessageCount())
+	}
+
+	msg, ok := sender.LastMessage().(Message)
+	if !ok {
+		t.Fatal("expected Message type")
+	}
+
+	if msg.Seq != 1 {
+		t.Errorf("expected msg seq 1, got %d", msg.Seq)
+	}
+	if msg.Topic != "ack" {
+		t.Errorf("expected topic 'ack', got '%s'", msg.Topic)
+	}
+	if msg.Event != "ack" {
+		t.Errorf("expected event 'ack', got '%s'", msg.Event)
+	}
+
+	if transport.Pending() != 1 {
+		t.Errorf("expected 1 pending, got %d", transport.Pending())
+	}
+}
+
+func TestWebSocketTransportSendAckSequenceAtomic(t *testing.T) {
+	sender := &mockSender{}
+	transport := NewWebSocketTransport(sender, "user123", nil)
+
+	_ = transport.Send("topic", "event", nil)
+	seq := transport.SendAck("session-1")
+	_ = transport.Send("topic", "event", nil)
+
+	if seq != 2 {
+		t.Errorf("expected ack seq 2, got %d", seq)
+	}
+
+	if transport.LastSeq() != 3 {
+		t.Errorf("expected last seq 3, got %d", transport.LastSeq())
+	}
+}
+
+func TestWebSocketTransportSendAckClosed(t *testing.T) {
+	sender := &mockSender{}
+	transport := NewWebSocketTransport(sender, "user123", nil)
+
+	_ = transport.Close()
+
+	seq := transport.SendAck("session-1")
+	if seq != 0 {
+		t.Errorf("expected seq 0 for closed transport, got %d", seq)
+	}
+
+	if sender.MessageCount() != 0 {
+		t.Errorf("expected no messages for closed transport, got %d", sender.MessageCount())
+	}
+}
+
+func TestWebSocketTransportSendFailureClearsPending(t *testing.T) {
+	sender := &mockSender{failNext: true}
+	transport := NewWebSocketTransport(sender, "user123", nil)
+
+	err := transport.Send("topic", "event", nil)
+	if err == nil {
+		t.Fatalf("expected send error")
+	}
+
+	if pending := transport.Pending(); pending != 0 {
+		t.Fatalf("expected pending cleared on send failure, got %d", pending)
+	}
+}
+
+func TestWebSocketTransportSendAckFailureClearsPending(t *testing.T) {
+	sender := &mockSender{failNext: true}
+	transport := NewWebSocketTransport(sender, "user123", nil)
+
+	seq := transport.SendAck("sid")
+	if seq == 0 {
+		t.Fatalf("expected seq allocated")
+	}
+
+	if pending := transport.Pending(); pending != 0 {
+		t.Fatalf("expected ack pending cleared on failure, got %d", pending)
 	}
 }

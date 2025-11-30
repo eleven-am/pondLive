@@ -38,8 +38,7 @@ func TestGenericCleanupSystem(t *testing.T) {
 // TestScriptCleanupOnUnmount verifies that scripts are removed from registry when component unmounts.
 func TestScriptCleanupOnUnmount(t *testing.T) {
 	sess := &Session{
-		Scripts:          make(map[string]*scriptSlot),
-		nextElementRefID: 0,
+		Scripts: make(map[string]*scriptSlot),
 	}
 
 	inst := &Instance{

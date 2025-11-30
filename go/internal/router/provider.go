@@ -4,6 +4,7 @@ import (
 	"net/url"
 
 	"github.com/eleven-am/pondlive/go/internal/headers"
+	"github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
@@ -16,7 +17,7 @@ import (
 // - outletSlotCtx (outlet slot distribution)
 //
 // And subscribes to Bus for navigation events (live mode only).
-func ProvideRouter(ctx *runtime.Ctx, children []work.Node) work.Node {
+var ProvideRouter = html.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
 	requestState := headers.UseRequestState(ctx)
 	bus := getBus(ctx)
 
@@ -56,7 +57,7 @@ func ProvideRouter(ctx *runtime.Ctx, children []work.Node) work.Node {
 	}, bus)
 
 	return outletSlotCtx.ProvideWithoutDefault(ctx, children)
-}
+})
 
 // parseNavPayload converts interface{} data from Bus to protocol.RouterNavPayload.
 func parseNavPayload(data interface{}) *protocol.RouterNavPayload {

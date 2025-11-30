@@ -177,13 +177,25 @@ func BestMatch(path string, rawQuery string, patterns []string) (Match, int, boo
 }
 
 func normalizePattern(pattern string) string {
-	if pattern == "" {
+	trimmed := strings.TrimSpace(pattern)
+	if trimmed == "" {
 		return "/"
 	}
-	if !strings.HasPrefix(pattern, "/") {
-		return "/" + pattern
+	if !strings.HasPrefix(trimmed, "/") {
+		trimmed = "/" + trimmed
 	}
-	return pattern
+	parts := strings.Split(trimmed, "/")
+	segs := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		segs = append(segs, part)
+	}
+	if len(segs) == 0 {
+		return "/"
+	}
+	return "/" + strings.Join(segs, "/")
 }
 
 type matchResult struct {

@@ -211,3 +211,100 @@ func TestNilSafety(t *testing.T) {
 	state.MutateCookie("a", "b")
 	state.DeleteCookieMutation("c")
 }
+
+func TestNewRequestInfo_NilURL(t *testing.T) {
+	r := &http.Request{
+		Method:     "GET",
+		Host:       "example.com",
+		RemoteAddr: "127.0.0.1:8080",
+		URL:        nil,
+		Header:     http.Header{"X-Test": {"value"}},
+	}
+
+	info := NewRequestInfo(r)
+
+	if info.Method != "GET" {
+		t.Errorf("Expected Method='GET', got %q", info.Method)
+	}
+	if info.Host != "example.com" {
+		t.Errorf("Expected Host='example.com', got %q", info.Host)
+	}
+	if info.Path != "" {
+		t.Errorf("Expected Path='', got %q", info.Path)
+	}
+	if info.Query == nil {
+		t.Error("Expected Query to be initialized, got nil")
+	}
+	if info.Hash != "" {
+		t.Errorf("Expected Hash='', got %q", info.Hash)
+	}
+	if info.Headers.Get("X-Test") != "value" {
+		t.Errorf("Expected header X-Test='value', got %q", info.Headers.Get("X-Test"))
+	}
+}
+
+func TestNewRequestInfo_NilHeader(t *testing.T) {
+	r := &http.Request{
+		Method: "POST",
+		Header: nil,
+	}
+
+	info := NewRequestInfo(r)
+
+	if info.Headers == nil {
+		t.Error("Expected Headers to be initialized, got nil")
+	}
+}
+
+func TestNewRequestInfo_NilRequest(t *testing.T) {
+	info := NewRequestInfo(nil)
+
+	if info == nil {
+		t.Fatal("Expected non-nil RequestInfo for nil request")
+	}
+	if info.Query == nil {
+		t.Error("Expected Query to be initialized")
+	}
+	if info.Headers == nil {
+		t.Error("Expected Headers to be initialized")
+	}
+}
+
+func TestRequestStateQuery_ReturnsClone(t *testing.T) {
+	info := &RequestInfo{
+		Query: map[string][]string{
+			"key": {"value1", "value2"},
+		},
+	}
+	state := NewRequestState(info)
+
+	query := state.Query()
+	query["key"] = []string{"modified"}
+	query["new"] = []string{"added"}
+
+	original := state.Query()
+	if len(original["key"]) != 2 || original["key"][0] != "value1" {
+		t.Error("Original query was modified")
+	}
+	if _, exists := original["new"]; exists {
+		t.Error("New key should not exist in original")
+	}
+}
+
+func TestRequestStateQuery_MultiValue(t *testing.T) {
+	info := &RequestInfo{
+		Query: map[string][]string{
+			"tags": {"go", "rust", "python"},
+		},
+	}
+	state := NewRequestState(info)
+
+	query := state.Query()
+
+	if len(query["tags"]) != 3 {
+		t.Errorf("Expected 3 values for tags, got %d", len(query["tags"]))
+	}
+	if query["tags"][0] != "go" || query["tags"][1] != "rust" || query["tags"][2] != "python" {
+		t.Errorf("Query values mismatch: %v", query["tags"])
+	}
+}

@@ -8,7 +8,7 @@ import (
 var (
 	ruleRegex    = regexp.MustCompile(`([^{}]+)\{([^{}]*)\}`)
 	mediaRegex   = regexp.MustCompile(`@media\s*([^\{]+)\{((?:[^{}]|\{[^{}]*\})*)\}`)
-	commentRegex = regexp.MustCompile(`/\*.*?\*/`)
+	commentRegex = regexp.MustCompile(`(?s)/\*.*?\*/`)
 )
 
 // ParseAndScope parses CSS, applies component scoping, and returns a structured stylesheet.

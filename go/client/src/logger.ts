@@ -1,10 +1,15 @@
-import {LogLevel, LoggerConfig} from './types';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+export interface LoggerConfig {
+    enabled: boolean;
+    level: LogLevel;
+}
 
 const levels: Record<LogLevel, number> = {
     debug: 0,
     info: 1,
     warn: 2,
-    error: 3
+    error: 3,
 };
 
 class LoggerImpl {
@@ -36,7 +41,7 @@ class LoggerImpl {
         if (!this.enabled) return;
         if (levels[level] < levels[this.level]) return;
 
-        const prefix = `[LiveUI:${tag}]`;
+        const prefix = `[Pond:${tag}]`;
         const fn = console[level] || console.log;
 
         if (args.length > 0) {

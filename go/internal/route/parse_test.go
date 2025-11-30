@@ -174,6 +174,46 @@ func TestNormalizePatternEnsuresLeadingSlash(t *testing.T) {
 	}
 }
 
+func TestNormalizePatternTrimsWhitespace(t *testing.T) {
+	if got := NormalizePattern("  /users/:id  "); got != "/users/:id" {
+		t.Fatalf("expected whitespace trimmed, got %q", got)
+	}
+	if got := NormalizePattern("   "); got != "/" {
+		t.Fatalf("expected whitespace-only to normalize to root, got %q", got)
+	}
+}
+
+func TestNormalizePatternCollapsesDuplicateSlashes(t *testing.T) {
+	if got := NormalizePattern("//users//:id"); got != "/users/:id" {
+		t.Fatalf("expected duplicate slashes collapsed, got %q", got)
+	}
+	if got := NormalizePattern("/users///profile"); got != "/users/profile" {
+		t.Fatalf("expected triple slashes collapsed, got %q", got)
+	}
+	if got := NormalizePattern("///"); got != "/" {
+		t.Fatalf("expected only slashes to normalize to root, got %q", got)
+	}
+}
+
+func TestNormalizePatternHandlesMixedIssues(t *testing.T) {
+	if got := NormalizePattern(" //users//:id "); got != "/users/:id" {
+		t.Fatalf("expected mixed issues normalized, got %q", got)
+	}
+}
+
+func TestParseMatchesNormalizedPatternToPath(t *testing.T) {
+	match, err := Parse("  //users//:id  ", "/users/42", "")
+	if err != nil {
+		t.Fatalf("expected match after normalization: %v", err)
+	}
+	if match.Pattern != "/users/:id" {
+		t.Fatalf("expected normalized pattern, got %q", match.Pattern)
+	}
+	if match.Params["id"] != "42" {
+		t.Fatalf("expected id=42, got %q", match.Params["id"])
+	}
+}
+
 func TestParseTreatsBlankPathAsRoot(t *testing.T) {
 	match, err := Parse("", "", "")
 	if err != nil {
