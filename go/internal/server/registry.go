@@ -3,6 +3,7 @@ package server
 import (
 	"embed"
 	"errors"
+	"io/fs"
 	"sync"
 	"time"
 
@@ -15,7 +16,9 @@ var (
 )
 
 //go:embed static/pondlive.js static/pondlive-dev.js static/pondlive-dev.js.map
-var Assets embed.FS
+var assetsEmbed embed.FS
+
+var Assets, _ = fs.Sub(assetsEmbed, "static")
 
 type sessionEntry struct {
 	session   *session.LiveSession

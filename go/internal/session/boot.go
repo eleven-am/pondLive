@@ -2,7 +2,6 @@ package session
 
 import (
 	"github.com/eleven-am/pondlive/go/internal/headers"
-	"github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/metatags"
 	"github.com/eleven-am/pondlive/go/internal/router"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
@@ -22,26 +21,38 @@ func wrapComponent(component Component) runtime.ComponentNode[struct{}] {
 	}
 }
 
-func bootComponent(ctx *html.Ctx, props bootProps, children []work.Node) work.Node {
+func bootComponent(ctx *runtime.Ctx, props bootProps, children []work.Node) work.Node {
 	app := wrapComponent(props.component)
 	headers.UseProvideRequestState(ctx, props.requestState)
 
 	return metatags.Provider(ctx,
 		router.ProvideRouter(ctx,
 			styles.Provider(ctx,
-				html.Html(
-					html.Head(
-						metatags.Render(ctx),
-						styles.Render(ctx),
-					),
-					html.Body(
-						app(ctx, struct{}{}, children),
-						html.ScriptEl(
-							html.Src(props.ClientAsset),
-							html.Attr("defer", ""),
-						),
-					),
-				),
+				&work.Element{
+					Tag: "html",
+					Children: []work.Node{
+						&work.Element{
+							Tag: "head",
+							Children: []work.Node{
+								metatags.Render(ctx),
+								styles.Render(ctx),
+							},
+						},
+						&work.Element{
+							Tag: "body",
+							Children: []work.Node{
+								app(ctx, struct{}{}, children),
+								&work.Element{
+									Tag: "script",
+									Attrs: map[string][]string{
+										"src":   {props.ClientAsset},
+										"defer": {""},
+									},
+								},
+							},
+						},
+					},
+				},
 			),
 		),
 	)
