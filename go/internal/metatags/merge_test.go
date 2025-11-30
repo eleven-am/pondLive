@@ -2,8 +2,6 @@ package metatags
 
 import (
 	"testing"
-
-	"github.com/eleven-am/pondlive/go/internal/html"
 )
 
 func TestControllerGetEmpty(t *testing.T) {
@@ -117,14 +115,14 @@ func TestControllerMergeMetaTags(t *testing.T) {
 	}
 
 	controller.Set("parent", 0, &Meta{
-		Meta: []html.MetaTag{
+		Meta: []MetaTag{
 			{Property: "og:title", Content: "Parent OG Title"},
 			{Name: "viewport", Content: "width=device-width"},
 		},
 	})
 
 	controller.Set("child", 1, &Meta{
-		Meta: []html.MetaTag{
+		Meta: []MetaTag{
 			{Property: "og:title", Content: "Child OG Title"},
 			{Property: "og:description", Content: "Child OG Description"},
 		},
@@ -159,14 +157,14 @@ func TestControllerMergeLinks(t *testing.T) {
 	}
 
 	controller.Set("parent", 0, &Meta{
-		Links: []html.LinkTag{
+		Links: []LinkTag{
 			{Rel: "stylesheet", Href: "/styles.css"},
 			{Rel: "icon", Href: "/favicon.ico"},
 		},
 	})
 
 	controller.Set("child", 1, &Meta{
-		Links: []html.LinkTag{
+		Links: []LinkTag{
 			{Rel: "stylesheet", Href: "/page.css"},
 		},
 	})
@@ -228,13 +226,13 @@ func TestControllerMergeScripts(t *testing.T) {
 	}
 
 	controller.Set("parent", 0, &Meta{
-		Scripts: []html.ScriptTag{
+		Scripts: []ScriptTag{
 			{Src: "/analytics.js", Async: true},
 		},
 	})
 
 	controller.Set("child", 1, &Meta{
-		Scripts: []html.ScriptTag{
+		Scripts: []ScriptTag{
 			{Src: "/analytics.js", Defer: true},
 		},
 	})
@@ -259,20 +257,20 @@ func TestControllerMergeInlineScripts(t *testing.T) {
 	}
 
 	controller.Set("comp1", 0, &Meta{
-		Scripts: []html.ScriptTag{
+		Scripts: []ScriptTag{
 			{Type: "text/javascript"},
 			{Type: "module"},
 		},
 	})
 
 	controller.Set("comp2", 0, &Meta{
-		Scripts: []html.ScriptTag{
+		Scripts: []ScriptTag{
 			{Async: true},
 		},
 	})
 
 	controller.Set("comp3", 1, &Meta{
-		Scripts: []html.ScriptTag{
+		Scripts: []ScriptTag{
 			{Defer: true},
 		},
 	})
@@ -293,13 +291,13 @@ func TestControllerMergeInlineScriptsDeepWins(t *testing.T) {
 	}
 
 	controller.Set("parent", 0, &Meta{
-		Scripts: []html.ScriptTag{
+		Scripts: []ScriptTag{
 			{Src: "/shared.js", Async: true},
 		},
 	})
 
 	controller.Set("child", 1, &Meta{
-		Scripts: []html.ScriptTag{
+		Scripts: []ScriptTag{
 			{Src: "/shared.js", Defer: true},
 		},
 	})

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/headers"
-	"github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/metatags"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/router"
@@ -17,12 +16,18 @@ import (
 
 func TestDirectSessionHandlerExtraction(t *testing.T) {
 	component := func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
-		return html.Div(
-			html.Button(
-				html.On("click", func(evt work.Event) work.Updates { return nil }),
-				html.Text("Click Me"),
-			),
-		)
+		return &work.Element{
+			Tag: "div",
+			Children: []work.Node{
+				&work.Element{
+					Tag: "button",
+					Handlers: map[string]work.Handler{
+						"click": {Fn: func(evt work.Event) work.Updates { return nil }},
+					},
+					Children: []work.Node{&work.Text{Value: "Click Me"}},
+				},
+			},
+		}
 	}
 
 	root := &runtime.Instance{
@@ -65,12 +70,18 @@ func TestDirectSessionHandlerExtraction(t *testing.T) {
 
 func TestLiveSessionHandlerExtraction(t *testing.T) {
 	component := func(ctx *runtime.Ctx) work.Node {
-		return html.Div(
-			html.Button(
-				html.On("click", func(evt work.Event) work.Updates { return nil }),
-				html.Text("Click Me"),
-			),
-		)
+		return &work.Element{
+			Tag: "div",
+			Children: []work.Node{
+				&work.Element{
+					Tag: "button",
+					Handlers: map[string]work.Handler{
+						"click": {Fn: func(evt work.Event) work.Updates { return nil }},
+					},
+					Children: []work.Node{&work.Text{Value: "Click Me"}},
+				},
+			},
+		}
 	}
 
 	sess := session.NewLiveSession("test-sid", 1, component, nil)
@@ -105,7 +116,10 @@ func TestMinimalProviderFlush(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
-				return html.Div(html.Text("Hello"))
+				return &work.Element{
+					Tag:      "div",
+					Children: []work.Node{&work.Text{Value: "Hello"}},
+				}
 			},
 			HookFrame: []runtime.HookSlot{},
 			Children:  []*runtime.Instance{},
@@ -129,7 +143,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
-				return metatags.Provider(ctx, html.Text("Hello"))
+				return metatags.Provider(ctx, &work.Text{Value: "Hello"})
 			},
 			HookFrame: []runtime.HookSlot{},
 			Children:  []*runtime.Instance{},
@@ -155,7 +169,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
 				return metatags.Provider(ctx,
 					styles.Provider(ctx,
-						html.Text("Hello"),
+						&work.Text{Value: "Hello"},
 					),
 				)
 			},
@@ -182,9 +196,10 @@ func TestMinimalProviderFlush(t *testing.T) {
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
 				return metatags.Provider(ctx,
-					html.Div(
-						metatags.Render(ctx),
-					),
+					&work.Element{
+						Tag:      "div",
+						Children: []work.Node{metatags.Render(ctx)},
+					},
 				)
 			},
 			HookFrame: []runtime.HookSlot{},
@@ -210,7 +225,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
 				return router.ProvideRouter(ctx,
-					html.Text("Hello"),
+					&work.Text{Value: "Hello"},
 				)
 			},
 			HookFrame: []runtime.HookSlot{},
@@ -238,7 +253,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 				return metatags.Provider(ctx,
 					router.ProvideRouter(ctx,
 						styles.Provider(ctx,
-							html.Text("Hello"),
+							&work.Text{Value: "Hello"},
 						),
 					),
 				)
@@ -270,18 +285,33 @@ func TestMinimalProviderFlush(t *testing.T) {
 				return metatags.Provider(ctx,
 					router.ProvideRouter(ctx,
 						styles.Provider(ctx,
-							html.Html(
-								html.Head(
-									metatags.Render(ctx),
-									styles.Render(ctx),
-								),
-								html.Body(
-									html.Div(html.Text("User App")),
-									html.ScriptEl(
-										html.Src("/static/pondlive.js"),
-									),
-								),
-							),
+							&work.Element{
+								Tag: "html",
+								Children: []work.Node{
+									&work.Element{
+										Tag: "head",
+										Children: []work.Node{
+											metatags.Render(ctx),
+											styles.Render(ctx),
+										},
+									},
+									&work.Element{
+										Tag: "body",
+										Children: []work.Node{
+											&work.Element{
+												Tag:      "div",
+												Children: []work.Node{&work.Text{Value: "User App"}},
+											},
+											&work.Element{
+												Tag: "script",
+												Attrs: map[string][]string{
+													"src": {"/static/pondlive.js"},
+												},
+											},
+										},
+									},
+								},
+							},
 						),
 					),
 				)
@@ -315,18 +345,30 @@ func TestBootMetadataExtraction(t *testing.T) {
 				return metatags.Provider(ctx,
 					router.ProvideRouter(ctx,
 						styles.Provider(ctx,
-							html.Html(
-								html.Head(
-									metatags.Render(ctx),
-									styles.Render(ctx),
-								),
-								html.Body(
-									html.Button(
-										html.On("click", func(evt work.Event) work.Updates { return nil }),
-										html.Text("Click"),
-									),
-								),
-							),
+							&work.Element{
+								Tag: "html",
+								Children: []work.Node{
+									&work.Element{
+										Tag: "head",
+										Children: []work.Node{
+											metatags.Render(ctx),
+											styles.Render(ctx),
+										},
+									},
+									&work.Element{
+										Tag: "body",
+										Children: []work.Node{
+											&work.Element{
+												Tag: "button",
+												Handlers: map[string]work.Handler{
+													"click": {Fn: func(evt work.Event) work.Updates { return nil }},
+												},
+												Children: []work.Node{&work.Text{Value: "Click"}},
+											},
+										},
+									},
+								},
+							},
 						),
 					),
 				)
@@ -372,18 +414,28 @@ func TestBootMetadataExtraction(t *testing.T) {
 				return metatags.Provider(ctx,
 					router.ProvideRouter(ctx,
 						styles.Provider(ctx,
-							html.Html(
-								html.Head(
-									metatags.Render(ctx),
-									styles.Render(ctx),
-								),
-								html.Body(
-									html.Div(
-										html.Attach(ref),
-										html.Text("With Ref"),
-									),
-								),
-							),
+							&work.Element{
+								Tag: "html",
+								Children: []work.Node{
+									&work.Element{
+										Tag: "head",
+										Children: []work.Node{
+											metatags.Render(ctx),
+											styles.Render(ctx),
+										},
+									},
+									&work.Element{
+										Tag: "body",
+										Children: []work.Node{
+											&work.Element{
+												Tag:      "div",
+												RefID:    ref.RefID(),
+												Children: []work.Node{&work.Text{Value: "With Ref"}},
+											},
+										},
+									},
+								},
+							},
 						),
 					),
 				)
@@ -433,13 +485,22 @@ func TestBootMetadataExtraction(t *testing.T) {
 				return metatags.Provider(ctx,
 					router.ProvideRouter(ctx,
 						styles.Provider(ctx,
-							html.Html(
-								html.Head(
-									metatags.Render(ctx),
-									styles.Render(ctx),
-								),
-								html.Body(scriptDiv),
-							),
+							&work.Element{
+								Tag: "html",
+								Children: []work.Node{
+									&work.Element{
+										Tag: "head",
+										Children: []work.Node{
+											metatags.Render(ctx),
+											styles.Render(ctx),
+										},
+									},
+									&work.Element{
+										Tag:      "body",
+										Children: []work.Node{scriptDiv},
+									},
+								},
+							},
 						),
 					),
 				)
@@ -494,13 +555,22 @@ func TestBootMetadataExtraction(t *testing.T) {
 				return metatags.Provider(ctx,
 					router.ProvideRouter(ctx,
 						styles.Provider(ctx,
-							html.Html(
-								html.Head(
-									metatags.Render(ctx),
-									styles.Render(ctx),
-								),
-								html.Body(btn),
-							),
+							&work.Element{
+								Tag: "html",
+								Children: []work.Node{
+									&work.Element{
+										Tag: "head",
+										Children: []work.Node{
+											metatags.Render(ctx),
+											styles.Render(ctx),
+										},
+									},
+									&work.Element{
+										Tag:      "body",
+										Children: []work.Node{btn},
+									},
+								},
+							},
 						),
 					),
 				)

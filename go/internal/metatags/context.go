@@ -3,7 +3,6 @@ package metatags
 import (
 	"maps"
 
-	"github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
@@ -18,7 +17,7 @@ var noopController = &Controller{
 
 var metaCtx = runtime.CreateContext[*Controller](noopController)
 
-var Provider = html.Component(func(ctx *Ctx, children []work.Node) work.Node {
+var Provider = runtime.Component(func(ctx *Ctx, children []work.Node) work.Node {
 	entries, setEntries := runtime.UseState(ctx, map[string]metaEntry{})
 
 	entriesRef := runtime.UseRef(ctx, entries)

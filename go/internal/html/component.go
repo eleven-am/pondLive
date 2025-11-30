@@ -8,7 +8,9 @@ type ComponentNode = runtime.ComponentWrapper
 
 type PropsComponentNode[P any] = runtime.PropsComponentWrapper[P]
 
-var Component = runtime.Component
+func Component(fn func(ctx *Ctx, children []Node) Node) ComponentNode {
+	return runtime.Component(fn)
+}
 
 func PropsComponent[P any](fn func(ctx *Ctx, props P, children []Node) Node) PropsComponentNode[P] {
 	return runtime.PropsComponent(fn)

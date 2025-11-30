@@ -4,13 +4,12 @@ import (
 	"net/url"
 
 	"github.com/eleven-am/pondlive/go/internal/headers"
-	"github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-var ProvideRouter = html.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
+var ProvideRouter = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
 	requestState := headers.UseRequestState(ctx)
 	bus := getBus(ctx)
 

@@ -3,16 +3,14 @@ package metatags
 import (
 	"crypto/sha256"
 	"fmt"
-
-	"github.com/eleven-am/pondlive/go/internal/html"
 )
 
 type Meta struct {
 	Title       string
 	Description string
-	Meta        []html.MetaTag
-	Links       []html.LinkTag
-	Scripts     []html.ScriptTag
+	Meta        []MetaTag
+	Links       []LinkTag
+	Scripts     []ScriptTag
 }
 
 type metaEntry struct {
@@ -22,7 +20,7 @@ type metaEntry struct {
 }
 
 type scriptEntry struct {
-	script html.ScriptTag
+	script ScriptTag
 	depth  int
 }
 
@@ -137,7 +135,7 @@ func (c *Controller) Get() *Meta {
 	return result
 }
 
-func inlineScriptKey(componentID string, depth, idx int, script html.ScriptTag) string {
+func inlineScriptKey(componentID string, depth, idx int, script ScriptTag) string {
 	data := script.Inner + "|" + script.Nonce + "|" + script.Type + "|" + script.Src
 	return fmt.Sprintf("inline:%s:%d:%d:%x", componentID, depth, idx, sha256.Sum256([]byte(data)))
 }

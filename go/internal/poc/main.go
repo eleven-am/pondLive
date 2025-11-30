@@ -11,6 +11,8 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
+var global = runtime.CreateContext(0)
+
 type CounterProps struct {
 	InitialValue int
 	Label        string
@@ -41,7 +43,35 @@ var Counter = html.PropsComponent(func(ctx *runtime.Ctx, props CounterProps, chi
 	)
 })
 
+var ContextCounter = html.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
+	count, setCount := global.UseContext(ctx)
+
+	decrement := func(evt work.Event) work.Updates {
+		setCount(count - 1)
+		return nil
+	}
+
+	increment := func(evt work.Event) work.Updates {
+		setCount(count + 1)
+		return nil
+	}
+
+	return html.Div(
+		html.H1(html.Text(fmt.Sprintf("Context Counter: %d", count))),
+		html.Button(
+			html.On("click", decrement),
+			html.Text("-"),
+		),
+		html.Button(
+			html.On("click", increment),
+			html.Text("+"),
+		),
+	)
+})
+
 func App(ctx *runtime.Ctx) work.Node {
+	global.UseProvider(ctx, 0)
+
 	return html.Div(
 		html.H1(html.Text("Counter Demo with Props")),
 		Counter(ctx, CounterProps{
@@ -53,6 +83,9 @@ func App(ctx *runtime.Ctx) work.Node {
 			InitialValue: 100,
 			Label:        "Second Counter",
 		}),
+		html.Hr(),
+		html.H1(html.Text("Counter Demo with Context")),
+		ContextCounter(ctx),
 	)
 }
 
