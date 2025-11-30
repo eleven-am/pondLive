@@ -129,8 +129,13 @@ func (s *LiveSession) SetTransport(t Transport) {
 		return
 	}
 	s.transportMu.Lock()
+	old := s.transport
 	s.transport = t
 	s.transportMu.Unlock()
+
+	if old != nil && old != t {
+		_ = old.Close()
+	}
 }
 
 // Receive handles inbound messages from the transport.

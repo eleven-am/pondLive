@@ -129,7 +129,10 @@ func (e eventItem) ApplyTo(el *Element) {
 			if newFn != nil {
 				newResult = newFn(evt)
 			}
-			return mergeUpdates(oldResult, newResult)
+			if newResult != nil {
+				return newResult
+			}
+			return oldResult
 		},
 	}
 }
