@@ -1,4 +1,4 @@
-package server2
+package server
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/route"
-	"github.com/eleven-am/pondlive/go/internal/server2/static"
+	"github.com/eleven-am/pondlive/go/internal/server/static"
 	"github.com/eleven-am/pondlive/go/internal/session"
 	"github.com/eleven-am/pondlive/go/internal/view"
 	"github.com/eleven-am/pondlive/go/internal/view/diff"
@@ -127,7 +127,7 @@ func (a *App) Mux() *http.ServeMux {
 //
 // Usage with Echo:
 //
-//	app := server2.New(server2.Config{...})
+//	app := server.New(server.Config{...})
 //	echo.Any("*", echo.WrapHandler(app.Handler()))
 func (a *App) Handler() http.Handler {
 	return a.mux
@@ -137,7 +137,7 @@ func (a *App) Handler() http.Handler {
 //
 // Usage with Echo:
 //
-//	app := server2.New(server2.Config{...})
+//	app := server.New(server.Config{...})
 //	echo.Any("*", app.HandlerFunc())
 func (a *App) HandlerFunc() http.HandlerFunc {
 	return a.mux.ServeHTTP
@@ -147,7 +147,7 @@ func (a *App) HandlerFunc() http.HandlerFunc {
 //
 // Usage:
 //
-//	app := server2.New(server2.Config{...})
+//	app := server.New(server.Config{...})
 //	server := app.Server(":3000")
 //	server.ListenAndServe()
 func (a *App) Server(addr string) *http.Server {

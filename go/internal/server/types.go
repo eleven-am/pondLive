@@ -1,4 +1,4 @@
-package server2
+package server
 
 type Event struct {
 	Handler string      `json:"handler"`

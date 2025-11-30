@@ -6,7 +6,7 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
-	"github.com/eleven-am/pondlive/go/internal/server2"
+	"github.com/eleven-am/pondlive/go/internal/server"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -60,7 +60,7 @@ func App(ctx *runtime.Ctx) work.Node {
 }
 
 func main() {
-	app, err := server2.New(server2.Config{
+	app, err := server.New(server.Config{
 		Component: App,
 	})
 	if err != nil {

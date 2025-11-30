@@ -1,11 +1,11 @@
-package server2
+package server
 
 import (
 	"errors"
 	"sync"
 	"time"
 
-	"github.com/eleven-am/pondlive/go/internal/server2/store"
+	"github.com/eleven-am/pondlive/go/internal/server/store"
 	"github.com/eleven-am/pondlive/go/internal/session"
 )
 
