@@ -541,6 +541,16 @@ func TestCN_EdgeCases(t *testing.T) {
 			input:  []string{"!px-4", "px-2"},
 			expect: "!px-4 px-2",
 		},
+		{
+			name:   "important beats later non-important",
+			input:  []string{"!px-4", "px-2"},
+			expect: "!px-4 px-2",
+		},
+		{
+			name:   "later important overrides earlier important",
+			input:  []string{"!px-4", "!px-2"},
+			expect: "!px-2",
+		},
 	}
 
 	for _, tt := range tests {

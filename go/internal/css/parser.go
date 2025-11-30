@@ -9,7 +9,7 @@ var (
 	ruleRegex    = regexp.MustCompile(`([^{}]+)\{([^{}]*)\}`)
 	mediaRegex   = regexp.MustCompile(`@media\s*([^\{]+)\{((?:[^{}]|\{[^{}]*\})*)\}`)
 	commentRegex = regexp.MustCompile(`(?s)/\*.*?\*/`)
-	otherAtRegex = regexp.MustCompile(`@(?:(?!media)[a-zA-Z-]+)[^{]*\{(?:[^{}]|\{[^{}]*\})*\}`)
+	otherAtRegex = regexp.MustCompile(`@(?:[a-zA-Z-]+)\s*[^{]*\{(?:[^{}]|\{[^{}]*\})*\}`)
 )
 
 func ParseAndScope(css string, componentID string) *Stylesheet {

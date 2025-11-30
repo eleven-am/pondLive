@@ -33,12 +33,16 @@ func CN(classes ...string) string {
 		conflictGroup string
 		conflictKey   string
 		index         int
+		important     bool
 	}
 
 	classInfos := make([]classInfo, len(allClasses))
 
 	for i, class := range allClasses {
-		variant, baseClass := splitVariantAndClass(class)
+		important := strings.HasPrefix(class, "!")
+		classForParse := strings.TrimPrefix(class, "!")
+
+		variant, baseClass := splitVariantAndClass(classForParse)
 		conflictGroup := getConflictGroup(baseClass)
 
 		info := classInfo{
@@ -47,6 +51,7 @@ func CN(classes ...string) string {
 			baseClass:     baseClass,
 			conflictGroup: conflictGroup,
 			index:         i,
+			important:     important,
 		}
 
 		if conflictGroup != "" {
@@ -60,6 +65,12 @@ func CN(classes ...string) string {
 		classInfos[i] = info
 
 		if info.conflictKey != "" {
+			if prevIdx, ok := conflictMap[info.conflictKey]; ok {
+				prev := classInfos[prevIdx]
+				if prev.important && !info.important {
+					continue
+				}
+			}
 			conflictMap[info.conflictKey] = i
 		}
 	}
@@ -71,7 +82,10 @@ func CN(classes ...string) string {
 
 		if info.conflictKey != "" {
 
-			if conflictMap[info.conflictKey] == i {
+			winnerIdx := conflictMap[info.conflictKey]
+			winner := classInfos[winnerIdx]
+
+			if winnerIdx == i || (winner.important && !info.important) {
 				result = append(result, info.original)
 				seen[info.conflictKey] = true
 			}
