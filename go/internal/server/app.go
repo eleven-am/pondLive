@@ -13,7 +13,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/route"
-	"github.com/eleven-am/pondlive/go/internal/server/static"
 	"github.com/eleven-am/pondlive/go/internal/session"
 	"github.com/eleven-am/pondlive/go/internal/view"
 	"github.com/eleven-am/pondlive/go/internal/view/diff"
@@ -103,7 +102,7 @@ func New(cfg Config) (*App, error) {
 }
 
 func (a *App) registerRoutes() {
-	a.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(static.Assets))))
+	a.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(Assets))))
 	a.mux.HandleFunc("/live", a.pondManager.HTTPHandler())
 	a.mux.HandleFunc("/", a.serveSSR)
 }

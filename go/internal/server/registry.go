@@ -1,6 +1,7 @@
 package server
 
 import (
+	"embed"
 	"errors"
 	"sync"
 	"time"
@@ -12,6 +13,9 @@ import (
 var (
 	ErrSessionNotFound = errors.New("server: session not found")
 )
+
+//go:embed static/pondlive.js static/pondlive-dev.js static/pondlive-dev.js.map
+var Assets embed.FS
 
 type sessionEntry struct {
 	session   *session.LiveSession
