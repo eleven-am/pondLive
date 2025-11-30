@@ -17,10 +17,22 @@ type Stylesheet struct {
 	Rules        []SelectorBlock
 	MediaRules   []MediaRule
 	OtherBlocks  []string
+	Keyframes    []KeyframesBlock
 	SelectorHash string
 }
 
 type MediaRule struct {
 	Query string
 	Rules []SelectorBlock
+}
+
+type KeyframesBlock struct {
+	Name  string
+	Steps []KeyframesStep
+}
+
+type KeyframesStep struct {
+	Selector string
+	Props    PropertyMap
+	Decls    []Declaration
 }

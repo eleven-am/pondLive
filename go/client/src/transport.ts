@@ -12,6 +12,7 @@ import {
     handlerTopic,
 } from './protocol';
 import { Bus } from './bus';
+import {Logger} from "./logger";
 
 export interface TransportConfig {
     endpoint: string;
@@ -129,6 +130,7 @@ export class Transport {
     }
 
     private handleMessage(payload: unknown): void {
+        Logger.debug('TRANSPORT','Transport received message:', payload);
         if (!isMessage(payload)) {
             return;
         }

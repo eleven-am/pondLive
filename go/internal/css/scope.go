@@ -20,6 +20,9 @@ func scope(parsed *parsedCSS, hash string) *Stylesheet {
 		}
 		ss.MediaRules = append(ss.MediaRules, media)
 	}
+	for _, kf := range parsed.keyframes {
+		ss.Keyframes = append(ss.Keyframes, scopeKeyframes(kf, hash))
+	}
 	ss.OtherBlocks = append(ss.OtherBlocks, parsed.other...)
 	return ss
 }
@@ -207,6 +210,23 @@ func tokenize(selector string) []string {
 	return tokens
 }
 
+func scopeKeyframes(kf keyframesBlock, hash string) KeyframesBlock {
+	name := kf.name
+	if hash != "" && name != "" {
+		name = name + "-" + hash
+	}
+	blocks := make([]KeyframesStep, 0, len(kf.blocks))
+	for _, step := range kf.blocks {
+		props, decls := parseDeclarations(step.declarations)
+		blocks = append(blocks, KeyframesStep{
+			Selector: step.selector,
+			Props:    props,
+			Decls:    decls,
+		})
+	}
+	return KeyframesBlock{Name: name, Steps: blocks}
+}
+
 func scopeSimpleSelector(sel, hash string) (string, bool) {
 	if sel == "" || hash == "" {
 		return sel, false
@@ -326,6 +346,19 @@ func (ss *Stylesheet) Serialize() string {
 			b.WriteString(rule.Selector)
 			b.WriteString(" { ")
 			b.WriteString(joinProps(rule.Props, rule.Decls))
+			b.WriteString(" }\n")
+		}
+		b.WriteString("}\n")
+	}
+	for _, kf := range ss.Keyframes {
+		b.WriteString("@keyframes ")
+		b.WriteString(kf.Name)
+		b.WriteString(" {\n")
+		for _, step := range kf.Steps {
+			b.WriteString("  ")
+			b.WriteString(step.Selector)
+			b.WriteString(" { ")
+			b.WriteString(joinProps(step.Props, step.Decls))
 			b.WriteString(" }\n")
 		}
 		b.WriteString("}\n")

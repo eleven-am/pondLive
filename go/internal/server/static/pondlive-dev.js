@@ -1355,6 +1355,50 @@ var LiveUIModule = (() => {
 
   // src/transport.ts
   var import_pondsocket_client = __toESM(require_pondsocket_client(), 1);
+
+  // src/logger.ts
+  var levels = {
+    debug: 0,
+    info: 1,
+    warn: 2,
+    error: 3
+  };
+  var LoggerImpl = class {
+    constructor() {
+      this.enabled = false;
+      this.level = "info";
+    }
+    configure(config) {
+      if (config.enabled !== void 0) this.enabled = config.enabled;
+      if (config.level !== void 0) this.level = config.level;
+    }
+    debug(tag, message, ...args) {
+      this.log("debug", tag, message, args);
+    }
+    info(tag, message, ...args) {
+      this.log("info", tag, message, args);
+    }
+    warn(tag, message, ...args) {
+      this.log("warn", tag, message, args);
+    }
+    error(tag, message, ...args) {
+      this.log("error", tag, message, args);
+    }
+    log(level, tag, message, args) {
+      if (!this.enabled) return;
+      if (levels[level] < levels[this.level]) return;
+      const prefix = `[Pond:${tag}]`;
+      const fn = console[level] || console.log;
+      if (args.length > 0) {
+        fn(prefix, message, ...args);
+      } else {
+        fn(prefix, message);
+      }
+    }
+  };
+  var Logger = new LoggerImpl();
+
+  // src/transport.ts
   var Transport = class {
     constructor(config) {
       this.state = "disconnected";
@@ -1430,6 +1474,7 @@ var LiveUIModule = (() => {
       this.channel.sendMessage("evt", evt);
     }
     handleMessage(payload) {
+      Logger.debug("TRANSPORT", "Transport received message:", payload);
       if (!isMessage(payload)) {
         return;
       }
@@ -2207,48 +2252,6 @@ var LiveUIModule = (() => {
       }
     }
   };
-
-  // src/logger.ts
-  var levels = {
-    debug: 0,
-    info: 1,
-    warn: 2,
-    error: 3
-  };
-  var LoggerImpl = class {
-    constructor() {
-      this.enabled = false;
-      this.level = "info";
-    }
-    configure(config) {
-      if (config.enabled !== void 0) this.enabled = config.enabled;
-      if (config.level !== void 0) this.level = config.level;
-    }
-    debug(tag, message, ...args) {
-      this.log("debug", tag, message, args);
-    }
-    info(tag, message, ...args) {
-      this.log("info", tag, message, args);
-    }
-    warn(tag, message, ...args) {
-      this.log("warn", tag, message, args);
-    }
-    error(tag, message, ...args) {
-      this.log("error", tag, message, args);
-    }
-    log(level, tag, message, args) {
-      if (!this.enabled) return;
-      if (levels[level] < levels[this.level]) return;
-      const prefix = `[Pond:${tag}]`;
-      const fn = console[level] || console.log;
-      if (args.length > 0) {
-        fn(prefix, message, ...args);
-      } else {
-        fn(prefix, message);
-      }
-    }
-  };
-  var Logger = new LoggerImpl();
 
   // src/runtime.ts
   function isResumeOK(msg) {

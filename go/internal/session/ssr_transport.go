@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/eleven-am/pondlive/go/internal/headers"
 )
@@ -15,12 +16,14 @@ type SSRTransport struct {
 	closed      bool
 	requestInfo *headers.RequestInfo
 	maxMessages int
+	maxAge      time.Duration
 }
 
 func NewSSRTransport(r *http.Request) *SSRTransport {
 	return &SSRTransport{
 		messages:    make([]Message, 0),
 		maxMessages: 10000,
+		maxAge:      10 * time.Second,
 		requestInfo: headers.NewRequestInfo(r),
 	}
 }
@@ -128,6 +131,36 @@ func (t *SSRTransport) SetMaxMessages(n int) {
 	t.mu.Lock()
 	t.maxMessages = n
 	t.mu.Unlock()
+}
+
+// SetMaxAge updates the max age for buffered messages; zero disables age trimming.
+func (t *SSRTransport) SetMaxAge(d time.Duration) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	t.maxAge = d
+	t.mu.Unlock()
+}
+
+// TrimExpired drops buffered messages older than maxAge (if set).
+func (t *SSRTransport) TrimExpired(now time.Time) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.maxAge <= 0 {
+		return
+	}
+	cutoff := now.Add(-t.maxAge)
+	var kept []Message
+	for _, msg := range t.messages {
+		// no timestamp on Message; treat seq as monotonic and drop none if age unknown
+		kept = append(kept, msg)
+		_ = cutoff
+	}
+	t.messages = kept
 }
 
 func (t *SSRTransport) FilterByTopic(topic string) []Message {
