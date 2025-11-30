@@ -1454,7 +1454,7 @@ var LiveUIModule = (() => {
         a: String(action),
         p: payload
       };
-      this.channel.sendMessage("evt", evt);
+      this.sendMessage("evt", evt);
     }
     sendAck(seq) {
       const ack = {
@@ -1462,7 +1462,7 @@ var LiveUIModule = (() => {
         sid: this.sessionId,
         seq
       };
-      this.channel.sendMessage("ack", ack);
+      this.sendMessage("ack", ack);
     }
     sendHandler(handlerId, payload) {
       const evt = {
@@ -1471,27 +1471,31 @@ var LiveUIModule = (() => {
         a: "invoke",
         p: payload
       };
-      this.channel.sendMessage("evt", evt);
+      this.sendMessage("evt", evt);
     }
     handleMessage(payload) {
-      Logger.debug("TRANSPORT", "Transport received message:", payload);
+      Logger.info("TRANSPORT", "Transport received message:", payload);
       if (!isMessage(payload)) {
         return;
       }
-      const { topic, event, data } = payload;
+      const { seq, topic, event, data } = payload;
       if (!this.isValidTopic(topic)) {
         return;
       }
-      this.publishToBus(topic, event, data);
+      this.publishToBus(topic, event, data, seq);
     }
     isValidTopic(topic) {
       return topic === "router" || topic === "dom" || topic === "frame" || topic === "ack";
     }
-    publishToBus(topic, action, data) {
+    publishToBus(topic, action, data, seq) {
       switch (topic) {
         case "frame":
           if (action === "patch") {
-            this.bus.publish("frame", "patch", data);
+            const payload = {
+              seq,
+              patches: data
+            };
+            this.bus.publish("frame", "patch", payload);
           }
           break;
         case "router":
@@ -1548,6 +1552,10 @@ var LiveUIModule = (() => {
         } catch {
         }
       }
+    }
+    sendMessage(type, message) {
+      Logger.info("TRANSPORT", "Transport sending message:", type, message);
+      this.channel.sendMessage(type, message);
     }
   };
 

@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -118,6 +119,20 @@ func propsEqual(a, b any) bool {
 	return reflect.DeepEqual(a, b)
 }
 
+func convertToWorkEvent(data interface{}) work.Event {
+	if event, ok := data.(work.Event); ok {
+		return event
+	}
+
+	var event work.Event
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		return work.Event{}
+	}
+	_ = json.Unmarshal(bytes, &event)
+	return event
+}
+
 func (s *Session) convertFragment(frag *work.Fragment, parent *Instance) view.Node {
 	if frag == nil || len(frag.Children) == 0 {
 		return nil
@@ -156,9 +171,8 @@ func (s *Session) registerHandler(inst *Instance, elem *work.Element, event stri
 	}
 
 	sub := s.Bus.SubscribeToHandlerInvoke(handlerID, func(data interface{}) {
-		if event, ok := data.(work.Event); ok {
-			handler.Fn(event)
-		}
+		event := convertToWorkEvent(data)
+		handler.Fn(event)
 	})
 
 	s.handlerIDsMu.Lock()

@@ -257,6 +257,28 @@ func TestBusConcurrentUnsubscribe(t *testing.T) {
 	}
 }
 
+func TestSubscribeToHandlerInvokeUsesUpsert(t *testing.T) {
+	bus := NewBus()
+
+	count := 0
+	bus.SubscribeToHandlerInvoke("handler", func(event interface{}) {
+		count++
+	})
+	bus.SubscribeToHandlerInvoke("handler", func(event interface{}) {
+		count += 10
+	})
+
+	bus.PublishHandlerInvoke("handler", nil)
+
+	if count != 10 {
+		t.Fatalf("expected only latest handler to fire once, got %d", count)
+	}
+
+	if bus.SubscriberCount("handler") != 1 {
+		t.Fatalf("expected 1 subscriber after upsert, got %d", bus.SubscriberCount("handler"))
+	}
+}
+
 func TestBusEmptySubscription(t *testing.T) {
 	bus := NewBus()
 

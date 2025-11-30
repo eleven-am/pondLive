@@ -34,7 +34,7 @@ var ProvideRouter = html.Component(func(ctx *runtime.Ctx, children []work.Node) 
 			return nil
 		}
 
-		sub := bus.Subscribe(protocol.RouteHandler, func(event string, data interface{}) {
+		sub := bus.Upsert(protocol.RouteHandler, func(event string, data interface{}) {
 			switch event {
 			case "popstate":
 				nav := parseNavPayload(data)

@@ -79,6 +79,9 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 	sess.session = rtSession
 
 	sess.outboundSub = rtSession.Bus.SubscribeAll(func(topic protocol.Topic, event string, data interface{}) {
+		if !isClientTopic(topic) {
+			return
+		}
 		sess.transportMu.RLock()
 		t := sess.transport
 		if t != nil {
@@ -279,4 +282,13 @@ func (s *LiveSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Touch()
 	s.session.ServeHTTP(w, r)
+}
+
+func isClientTopic(topic protocol.Topic) bool {
+	switch topic {
+	case protocol.TopicFrame, protocol.RouteHandler, protocol.DOMHandler, protocol.AckTopic:
+		return true
+	default:
+		return false
+	}
 }

@@ -61,7 +61,7 @@ func (b *Bus) PublishDOMAsync(payload DOMAsyncPayload) {
 }
 
 func (b *Bus) SubscribeToDOMActions(callback func(action DOMServerAction, data interface{})) *Subscription {
-	return b.Subscribe(DOMHandler, func(event string, data interface{}) {
+	return b.Upsert(DOMHandler, func(event string, data interface{}) {
 		switch DOMServerAction(event) {
 		case DOMCallAction, DOMSetAction, DOMQueryAction, DOMAsyncAction:
 			callback(DOMServerAction(event), data)
@@ -70,7 +70,7 @@ func (b *Bus) SubscribeToDOMActions(callback func(action DOMServerAction, data i
 }
 
 func (b *Bus) SubscribeToDOMResponses(callback func(response DOMResponsePayload)) *Subscription {
-	return b.Subscribe(DOMHandler, func(event string, data interface{}) {
+	return b.Upsert(DOMHandler, func(event string, data interface{}) {
 		if event == string(DOMResponseAction) {
 			if resp, ok := data.(DOMResponsePayload); ok {
 				callback(resp)

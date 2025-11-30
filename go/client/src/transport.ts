@@ -10,6 +10,9 @@ import {
     isMessage,
     HandlerEventPayload,
     handlerTopic,
+    FramePatchPayload,
+    Patch,
+    Event,
 } from './protocol';
 import { Bus } from './bus';
 import {Logger} from "./logger";
@@ -107,7 +110,7 @@ export class Transport {
             a: String(action),
             p: payload,
         };
-        this.channel.sendMessage('evt', evt);
+        this.sendMessage('evt', evt);
     }
 
     sendAck(seq: number): void {
@@ -116,7 +119,7 @@ export class Transport {
             sid: this.sessionId,
             seq,
         };
-        this.channel.sendMessage('ack', ack);
+        this.sendMessage('ack', ack);
     }
 
     sendHandler(handlerId: string, payload: HandlerEventPayload): void {
@@ -126,33 +129,37 @@ export class Transport {
             a: 'invoke',
             p: payload,
         };
-        this.channel.sendMessage('evt', evt);
+        this.sendMessage('evt', evt);
     }
 
     private handleMessage(payload: unknown): void {
-        Logger.debug('TRANSPORT','Transport received message:', payload);
+        Logger.info('TRANSPORT','Transport received message:', payload);
         if (!isMessage(payload)) {
             return;
         }
 
-        const { topic, event, data } = payload;
+        const { seq, topic, event, data } = payload;
 
         if (!this.isValidTopic(topic)) {
             return;
         }
 
-        this.publishToBus(topic, event, data);
+        this.publishToBus(topic, event, data, seq);
     }
 
     private isValidTopic(topic: string): topic is Topic {
         return topic === 'router' || topic === 'dom' || topic === 'frame' || topic === 'ack';
     }
 
-    private publishToBus(topic: Topic, action: string, data: unknown): void {
+    private publishToBus(topic: Topic, action: string, data: unknown, seq: number): void {
         switch (topic) {
             case 'frame':
                 if (action === 'patch') {
-                    this.bus.publish('frame', 'patch', data as PayloadFor<'frame', 'patch'>);
+                    const payload: FramePatchPayload = {
+                        seq,
+                        patches: data as Patch[],
+                    };
+                    this.bus.publish('frame', 'patch', payload);
                 }
                 break;
             case 'router':
@@ -212,5 +219,10 @@ export class Transport {
                 // swallow
             }
         }
+    }
+
+    private sendMessage<T extends Event>(type: string, message: T): void {
+        Logger.info('TRANSPORT','Transport sending message:', type, message);
+        this.channel.sendMessage(type, message);
     }
 }

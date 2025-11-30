@@ -11,7 +11,7 @@ func (b *Bus) PublishFramePatch(patches interface{}) {
 }
 
 func (b *Bus) SubscribeToFramePatches(callback func(patches interface{})) *Subscription {
-	return b.Subscribe(TopicFrame, func(event string, data interface{}) {
+	return b.Upsert(TopicFrame, func(event string, data interface{}) {
 		if event == string(FramePatchAction) {
 			callback(data)
 		}

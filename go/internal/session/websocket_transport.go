@@ -92,16 +92,6 @@ func (t *WebSocketTransport) Send(topic, event string, data any) error {
 	return nil
 }
 
-func (t *WebSocketTransport) Ack(seq uint64) {
-	if t == nil {
-		return
-	}
-
-	t.mu.Lock()
-	delete(t.pending, seq)
-	t.mu.Unlock()
-}
-
 func (t *WebSocketTransport) AckThrough(seq uint64) {
 	if t == nil {
 		return
@@ -217,15 +207,7 @@ func (t *WebSocketTransport) SendAck(sid string) uint64 {
 		Data:  ack,
 	}
 
-	t.mu.Lock()
-	t.pending[seq] = msg
-	t.mu.Unlock()
-
-	if err := t.sender.BroadcastTo("ack", msg, t.userID); err != nil {
-		t.mu.Lock()
-		delete(t.pending, seq)
-		t.mu.Unlock()
-	}
+	_ = t.sender.BroadcastTo("ack", msg, t.userID)
 
 	return seq
 }

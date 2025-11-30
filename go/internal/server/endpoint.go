@@ -167,19 +167,10 @@ func (e *Endpoint) onEvt(ctx *pond.EventContext) error {
 	}
 
 	if transport != nil {
-		wsTransport, isWS := transport.(*session.WebSocketTransport)
-		if isWS {
-			seq := wsTransport.SendAck(evt.SID)
-			_ = seq
+		if wsTransport, isWS := transport.(*session.WebSocketTransport); isWS {
+			wsTransport.SendAck(evt.SID)
 		}
 	}
-
-	go func() {
-		if err := sess.Flush(); err != nil && transport != nil {
-			errPayload := serverError(session.SessionID(evt.SID), "flush_failed", err)
-			_ = transport.Send("error", "error", errPayload)
-		}
-	}()
 
 	return nil
 }

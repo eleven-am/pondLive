@@ -17,6 +17,19 @@ func main() {
 	root := flag.String("root", ".", "root directory to process")
 	flag.Parse()
 
+	hasDirective := func(cg *ast.CommentGroup) bool {
+		if cg == nil {
+			return false
+		}
+		for _, c := range cg.List {
+			text := strings.TrimSpace(c.Text)
+			if strings.HasPrefix(text, "//go:") || strings.HasPrefix(text, "/*go:") || strings.HasPrefix(text, "// +build") {
+				return true
+			}
+		}
+		return false
+	}
+
 	var files []string
 	filepath.WalkDir(*root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -46,27 +59,63 @@ func main() {
 			continue
 		}
 
-		// Strip all comments (doc and inline) from the file AST so the printer omits them.
+		// Strip all comments except Go directives (//go:*, // +build) to keep build/embed/generate hints.
 		ast.Inspect(file, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.File:
-				v.Doc = nil
-				v.Comments = nil
+				if !hasDirective(v.Doc) {
+					v.Doc = nil
+				}
 			case *ast.GenDecl:
-				v.Doc = nil
+				if !hasDirective(v.Doc) {
+					v.Doc = nil
+				}
 			case *ast.FuncDecl:
-				v.Doc = nil
+				if !hasDirective(v.Doc) {
+					v.Doc = nil
+				}
 			case *ast.ImportSpec:
-				v.Doc, v.Comment = nil, nil
+				if !hasDirective(v.Doc) {
+					v.Doc = nil
+				}
+				if !hasDirective(v.Comment) {
+					v.Comment = nil
+				}
 			case *ast.ValueSpec:
-				v.Doc, v.Comment = nil, nil
+				if !hasDirective(v.Doc) {
+					v.Doc = nil
+				}
+				if !hasDirective(v.Comment) {
+					v.Comment = nil
+				}
 			case *ast.TypeSpec:
-				v.Doc, v.Comment = nil, nil
+				if !hasDirective(v.Doc) {
+					v.Doc = nil
+				}
+				if !hasDirective(v.Comment) {
+					v.Comment = nil
+				}
 			case *ast.Field:
-				v.Doc, v.Comment = nil, nil
+				if !hasDirective(v.Doc) {
+					v.Doc = nil
+				}
+				if !hasDirective(v.Comment) {
+					v.Comment = nil
+				}
 			}
 			return true
 		})
+
+		// Keep only directive comment groups; drop everything else.
+		if len(file.Comments) > 0 {
+			var kept []*ast.CommentGroup
+			for _, cg := range file.Comments {
+				if hasDirective(cg) {
+					kept = append(kept, cg)
+				}
+			}
+			file.Comments = kept
+		}
 
 		var out strings.Builder
 		cfg := &printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}

@@ -104,7 +104,7 @@ func New(cfg Config) (*App, error) {
 
 func (a *App) registerRoutes() {
 	a.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(static.Assets))))
-	a.mux.HandleFunc("/live/", a.pondManager.HTTPHandler())
+	a.mux.HandleFunc("/live", a.pondManager.HTTPHandler())
 	a.mux.HandleFunc("/", a.serveSSR)
 }
 

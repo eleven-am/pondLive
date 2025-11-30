@@ -229,7 +229,7 @@ describe('Transport', () => {
                 seq: 1,
                 topic: 'frame',
                 event: 'patch',
-                data: { seq: 1, patches: [] },
+                data: [],
             });
 
             expect(callback).toHaveBeenCalledWith({ seq: 1, patches: [] });

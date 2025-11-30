@@ -104,24 +104,6 @@ func TestWebSocketTransportSequenceIncrement(t *testing.T) {
 	}
 }
 
-func TestWebSocketTransportAck(t *testing.T) {
-	sender := &mockSender{}
-	transport := NewWebSocketTransport(sender, "user123", nil)
-
-	_ = transport.Send("topic", "event", nil)
-	_ = transport.Send("topic", "event", nil)
-
-	if transport.Pending() != 2 {
-		t.Errorf("expected 2 pending, got %d", transport.Pending())
-	}
-
-	transport.Ack(1)
-
-	if transport.Pending() != 1 {
-		t.Errorf("expected 1 pending after ack, got %d", transport.Pending())
-	}
-}
-
 func TestWebSocketTransportAckThrough(t *testing.T) {
 	sender := &mockSender{}
 	transport := NewWebSocketTransport(sender, "user123", nil)
@@ -214,7 +196,6 @@ func TestWebSocketTransportNilSafety(t *testing.T) {
 	var transport *WebSocketTransport
 
 	_ = transport.Send("topic", "event", nil)
-	transport.Ack(1)
 	transport.AckThrough(1)
 	_ = transport.Pending()
 	_ = transport.PendingMessages()
@@ -361,8 +342,8 @@ func TestWebSocketTransportSendAck(t *testing.T) {
 		t.Errorf("expected event 'ack', got '%s'", msg.Event)
 	}
 
-	if transport.Pending() != 1 {
-		t.Errorf("expected 1 pending, got %d", transport.Pending())
+	if transport.Pending() != 0 {
+		t.Errorf("expected 0 pending (SendAck is fire-and-forget), got %d", transport.Pending())
 	}
 }
 

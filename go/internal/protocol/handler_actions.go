@@ -13,7 +13,7 @@ func (b *Bus) PublishHandlerInvoke(handlerID string, event interface{}) {
 
 func (b *Bus) SubscribeToHandlerInvoke(handlerID string, callback func(event interface{})) *Subscription {
 	topic := Topic(handlerID)
-	return b.Subscribe(topic, func(action string, data interface{}) {
+	return b.Upsert(topic, func(action string, data interface{}) {
 		if action == string(HandlerInvokeAction) {
 			callback(data)
 		}

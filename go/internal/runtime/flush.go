@@ -41,7 +41,6 @@ func (s *Session) RequestFlush() {
 	if autoFlush != nil {
 		autoFlush()
 	} else {
-
 		_ = s.Flush()
 	}
 }
@@ -71,7 +70,6 @@ func (s *Session) Flush() error {
 
 	s.flushMu.Lock()
 	if s.flushing {
-
 		s.pendingFlush = true
 		s.flushMu.Unlock()
 		return nil

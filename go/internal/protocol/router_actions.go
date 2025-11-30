@@ -36,7 +36,7 @@ func (b *Bus) PublishRouterForward() {
 }
 
 func (b *Bus) SubscribeToRouterCommands(callback func(action RouterServerAction, data interface{})) *Subscription {
-	return b.Subscribe(RouteHandler, func(event string, data interface{}) {
+	return b.Upsert(RouteHandler, func(event string, data interface{}) {
 		switch RouterServerAction(event) {
 		case RouterPushAction, RouterReplaceAction, RouterBackAction, RouterForwardAction:
 			callback(RouterServerAction(event), data)
@@ -45,7 +45,7 @@ func (b *Bus) SubscribeToRouterCommands(callback func(action RouterServerAction,
 }
 
 func (b *Bus) SubscribeToRouterPopstate(callback func(payload RouterNavPayload)) *Subscription {
-	return b.Subscribe(RouteHandler, func(event string, data interface{}) {
+	return b.Upsert(RouteHandler, func(event string, data interface{}) {
 		if event == string(RouterPopstateAction) {
 			if payload, ok := data.(RouterNavPayload); ok {
 				callback(payload)
