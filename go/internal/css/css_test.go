@@ -151,6 +151,17 @@ func TestParseDeclarationsWithSemicolonsInValues(t *testing.T) {
 	}
 }
 
+func TestParsePreservesUnknownAtRules(t *testing.T) {
+	ss := ParseAndScope(`@supports (display: grid) { .a { color: red; } } .b { color: blue; }`, "atrule")
+	out := ss.Serialize()
+	if !strings.Contains(out, "@supports (display: grid)") {
+		t.Fatalf("expected @supports block preserved, got %q", out)
+	}
+	if !strings.Contains(out, ".b") {
+		t.Fatalf("expected regular rule preserved, got %q", out)
+	}
+}
+
 func TestScopeTagClassSelector(t *testing.T) {
 	ss := ParseAndScope(`button.btn { color: red; }`, "comp")
 	hash := hashComponent("comp")

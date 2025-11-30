@@ -9,7 +9,6 @@ import (
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 )
 
-// Endpoint wires LiveSession instances to a PondSocket server endpoint.
 type Endpoint struct {
 	registry *SessionRegistry
 	endpoint *pond.Endpoint
@@ -20,7 +19,6 @@ const (
 	headersAssignKey = "live.headers"
 )
 
-// Register attaches a LiveSession-aware endpoint to the provided PondSocket server.
 func Register(srv *pond.Manager, path string, registry *SessionRegistry) (*Endpoint, error) {
 	if srv == nil {
 		return nil, errors.New("server: pondsocket server is nil")
@@ -176,7 +174,6 @@ func (e *Endpoint) onEvt(ctx *pond.EventContext) error {
 		}
 	}
 
-	// Flush asynchronously
 	go func() {
 		if err := sess.Flush(); err != nil && transport != nil {
 			errPayload := serverError(session.SessionID(evt.SID), "flush_failed", err)

@@ -231,3 +231,15 @@ func TestSSRTransportRequestInfoNilRequest(t *testing.T) {
 		t.Error("expected Query to be initialized")
 	}
 }
+
+func TestSSRTransportBufferLimit(t *testing.T) {
+	transport := NewSSRTransport(nil)
+	transport.SetMaxMessages(1)
+
+	if err := transport.Send("t1", "e1", nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := transport.Send("t2", "e2", nil); err == nil {
+		t.Fatalf("expected buffer limit error")
+	}
+}

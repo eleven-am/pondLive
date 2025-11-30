@@ -6,56 +6,26 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// ValueActions provides value-related DOM property setters for form elements.
-// Embedded in refs for input, textarea, select, and other form controls.
-//
-// Example:
-//
-//	inputRef := ui.UseRef(ctx)
-//	actions := html.Input(ctx, inputRef)
-//	actions.SetValue("New value")
-//
-//	return html.El("input", html.Attach(inputRef), html.Type("text"))
 type ValueActions struct {
 	*ElementActions
 }
 
-// Input creates a ValueActions for the given ref.
 func NewValueActions(ctx *runtime.Ctx, ref work.Attachment) *ValueActions {
 	return &ValueActions{ElementActions: NewElementActions(ctx, ref)}
 }
 
-// SetValue sets the value property of the element.
-//
-// Example:
-//
-//	actions := html.Input(ctx, inputRef)
-//	actions.SetValue("New value")
 func (a *ValueActions) SetValue(value string) {
 	a.Set("value", value)
 }
 
-// SetChecked sets the checked property of the element (for checkboxes and radio buttons).
-//
-// Example:
-//
-//	actions := html.Input(ctx, checkboxRef)
-//	actions.SetChecked(true)
 func (a *ValueActions) SetChecked(checked bool) {
 	a.Set("checked", checked)
 }
 
-// SetSelectedIndex sets the selectedIndex property of a select element.
-//
-// Example:
-//
-//	actions := html.Input(ctx, selectRef)
-//	actions.SetSelectedIndex(2)  // Select the third option (0-indexed)
 func (a *ValueActions) SetSelectedIndex(index int) {
 	a.Set("selectedIndex", index)
 }
 
-// GetValue retrieves the current value of the element.
 func (a *ValueActions) GetValue() (string, error) {
 	values, err := a.Query("value")
 	if err != nil {
@@ -67,7 +37,6 @@ func (a *ValueActions) GetValue() (string, error) {
 	return "", nil
 }
 
-// GetChecked retrieves the checked state of the element.
 func (a *ValueActions) GetChecked() (bool, error) {
 	values, err := a.Query("checked")
 	if err != nil {
@@ -79,7 +48,6 @@ func (a *ValueActions) GetChecked() (bool, error) {
 	return false, nil
 }
 
-// GetSelectedIndex retrieves the selected index of a select element.
 func (a *ValueActions) GetSelectedIndex() (int, error) {
 	values, err := a.Query("selectedIndex")
 	if err != nil {

@@ -14,7 +14,6 @@ func init() {
 	PanicOnDuplicateKey = false
 }
 
-// Helper functions for building view nodes
 func textNode(text string) *view.Text {
 	return &view.Text{Text: text}
 }
@@ -525,10 +524,6 @@ func TestDiffStylesheetNilMaps(t *testing.T) {
 	}
 }
 
-// ============================================================
-// KEYED DIFFING EDGE CASE TESTS
-// ============================================================
-
 func TestDiffKeyedSwap(t *testing.T) {
 	prev := withChildren(elementNode("ul"),
 		withChildren(withKey(elementNode("li"), "a"), textNode("Item A")),
@@ -744,10 +739,6 @@ func TestDiffKeyedComplexReorder(t *testing.T) {
 	}
 }
 
-// ============================================================
-// SCRIPT DIFFING TESTS
-// ============================================================
-
 func TestDiffScript(t *testing.T) {
 	prev := elementNode("div")
 	next := elementNode("div")
@@ -871,10 +862,6 @@ func TestDiffScriptUnchanged(t *testing.T) {
 	}
 }
 
-// ============================================================
-// DUPLICATE KEY DETECTION TESTS
-// ============================================================
-
 func TestDiffDuplicateKeyDetection(t *testing.T) {
 
 	origPanic := PanicOnDuplicateKey
@@ -930,10 +917,6 @@ func TestDiffDuplicateKeyCallback(t *testing.T) {
 		t.Fatalf("expected OnDuplicateKey callback to be called")
 	}
 }
-
-// ============================================================
-// UNSAFEHTML BEHAVIOR TESTS
-// ============================================================
 
 func TestDiffUnsafeHTMLReplacesEntireNode(t *testing.T) {
 	prev := elementNode("div")

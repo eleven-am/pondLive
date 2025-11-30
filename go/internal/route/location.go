@@ -6,17 +6,14 @@ import (
 	"strings"
 )
 
-// Location represents a router location with path, query parameters, and hash fragment.
 type Location struct {
 	Path  string
 	Query url.Values
 	Hash  string
 }
 
-// ErrMissingRouter is returned when router operations are attempted without an active router.
 var ErrMissingRouter = errors.New("router: missing router context")
 
-// ParseHref parses a URL string into a Location.
 func ParseHref(href string) Location {
 	u, err := url.Parse(href)
 	if err != nil {
@@ -29,7 +26,6 @@ func ParseHref(href string) Location {
 	}
 }
 
-// BuildHref constructs a URL string from a Location.
 func BuildHref(loc Location) string {
 	path := loc.Path
 	if path == "" {
@@ -52,13 +48,11 @@ func BuildHref(loc Location) string {
 	return href
 }
 
-// SetSearch replaces all query parameters with the provided values.
 func SetSearch(loc Location, values url.Values) Location {
 	loc.Query = cloneValues(values)
 	return loc
 }
 
-// AddSearch adds or updates query parameters.
 func AddSearch(loc Location, key string, values ...string) Location {
 	if loc.Query == nil {
 		loc.Query = url.Values{}
@@ -69,7 +63,6 @@ func AddSearch(loc Location, key string, values ...string) Location {
 	return loc
 }
 
-// DelSearch removes a query parameter.
 func DelSearch(loc Location, key string) Location {
 	if loc.Query != nil {
 		loc.Query.Del(key)
@@ -77,7 +70,6 @@ func DelSearch(loc Location, key string) Location {
 	return loc
 }
 
-// MergeSearch merges query parameters into the location.
 func MergeSearch(loc Location, values url.Values) Location {
 	if loc.Query == nil {
 		loc.Query = url.Values{}
@@ -90,13 +82,11 @@ func MergeSearch(loc Location, values url.Values) Location {
 	return loc
 }
 
-// ClearSearch removes all query parameters.
 func ClearSearch(loc Location) Location {
 	loc.Query = url.Values{}
 	return loc
 }
 
-// Clone returns a deep copy of the location.
 func (loc Location) Clone() Location {
 	return Location{
 		Path:  loc.Path,
@@ -105,7 +95,6 @@ func (loc Location) Clone() Location {
 	}
 }
 
-// LocEqual compares two Location values for equality.
 func LocEqual(a, b Location) bool {
 	if a.Path != b.Path || a.Hash != b.Hash {
 		return false

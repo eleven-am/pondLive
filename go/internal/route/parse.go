@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// Match represents the parsed route information passed to components.
 type Match struct {
 	Pattern  string
 	Path     string
@@ -17,16 +16,10 @@ type Match struct {
 	Score    int
 }
 
-// NormalizePattern canonicalizes a route pattern ensuring it begins with a slash
-// and collapses redundant separators. It mirrors the normalization applied by
-// Parse, allowing callers to persist canonical patterns for matching.
 func NormalizePattern(pattern string) string {
 	return normalizePattern(pattern)
 }
 
-// Parse extracts params and query values from the provided request path using
-// the supplied pattern. Patterns support segments such as ":id" or optional
-// ":id?" parameters as well as "*rest" wildcards.
 func Parse(pattern string, path string, rawQuery string) (Match, error) {
 	normalizedPattern := normalizePattern(pattern)
 	parts := NormalizeParts(path)
@@ -139,9 +132,6 @@ func matchPath(path, pattern string) matchResult {
 	return res
 }
 
-// Prefer reports whether the candidate match should supersede the current one
-// when considering specificity. Higher scores take precedence, followed by the
-// shortest unmatched remainder to break ties.
 func Prefer(candidate, current Match) bool {
 	if current.Pattern == "" {
 		return true
@@ -154,9 +144,6 @@ func Prefer(candidate, current Match) bool {
 	return nlen < clen
 }
 
-// BestMatch selects the most specific pattern from the provided list that
-// matches the supplied path. It returns the corresponding Match, the index of
-// the winning pattern, and a boolean indicating whether a match was found.
 func BestMatch(path string, rawQuery string, patterns []string) (Match, int, bool) {
 	bestIdx := -1
 	var best Match

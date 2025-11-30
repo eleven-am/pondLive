@@ -10,12 +10,10 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// ScriptHandle exposes lifecycle controls for the script hook.
 type ScriptHandle struct {
 	slot *scriptSlot
 }
 
-// ID returns the unique identifier for this script handle.
 func (h ScriptHandle) ID() string {
 	if h.slot != nil {
 		return h.slot.id
@@ -23,21 +21,18 @@ func (h ScriptHandle) ID() string {
 	return ""
 }
 
-// On registers a callback invoked when the client sends a named event via transport.send.
 func (h ScriptHandle) On(event string, fn func(interface{})) {
 	if h.slot != nil {
 		h.slot.setEventHandler(event, fn)
 	}
 }
 
-// Send sends an event to the client script via transport.on.
 func (h ScriptHandle) Send(event string, data interface{}) {
 	if h.slot != nil {
 		h.slot.send(event, data)
 	}
 }
 
-// AttachTo attaches the script to a work element.
 func (h ScriptHandle) AttachTo(elem *work.Element) {
 	if h.slot == nil || elem == nil {
 		return
@@ -50,7 +45,6 @@ type scriptCell struct {
 	slot *scriptSlot
 }
 
-// scriptSlot tracks a single script instance.
 type scriptSlot struct {
 	id        string
 	sess      *Session
@@ -60,8 +54,8 @@ type scriptSlot struct {
 	script   string
 	scriptMu sync.RWMutex
 
-	subs              map[string]*protocol.Subscription // event -> bus subscription
-	cleanupRegistered bool                              // ensure cleanup is added once
+	subs              map[string]*protocol.Subscription
+	cleanupRegistered bool
 }
 
 func (slot *scriptSlot) attachTo(elem *work.Element) {
@@ -151,8 +145,6 @@ func (slot *scriptSlot) handleMessage(event string, data interface{}) {
 	}
 }
 
-// UseScript registers a script slot for the current component.
-// Returns a handle for bidirectional communication with client-side JavaScript.
 func UseScript(ctx *Ctx, script string) ScriptHandle {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
@@ -232,8 +224,6 @@ func (s *Session) unregisterScriptSlot(id string) {
 
 }
 
-// HandleScriptMessage handles a message from the client script.
-// Recovers from panics in user callbacks to prevent session crashes.
 func (s *Session) HandleScriptMessage(id string, event string, data interface{}) {
 	slot := s.findScriptSlot(id)
 	if slot == nil {
@@ -412,12 +402,10 @@ func canPrecedeDivision(ch byte) bool {
 	return false
 }
 
-// isWhitespace returns true if the character is whitespace.
 func isWhitespace(ch byte) bool {
 	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
 }
 
-// isIdentifierChar returns true if the character can be part of a JS identifier or keyword.
 func isIdentifierChar(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '$'
 }

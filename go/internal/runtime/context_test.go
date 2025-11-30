@@ -7,7 +7,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// TestCreateContext verifies that CreateContext creates a context with unique ID and default value.
 func TestCreateContext(t *testing.T) {
 	ctx1 := CreateContext("default1")
 	ctx2 := CreateContext("default2")
@@ -21,7 +20,6 @@ func TestCreateContext(t *testing.T) {
 	}
 }
 
-// TestUseContextReturnsDefault verifies that UseContext returns default when no provider exists.
 func TestUseContextReturnsDefault(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -42,7 +40,6 @@ func TestUseContextReturnsDefault(t *testing.T) {
 	}
 }
 
-// TestUseProviderStoresValue verifies that UseProvider stores value on instance.
 func TestUseProviderStoresValue(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -68,7 +65,6 @@ func TestUseProviderStoresValue(t *testing.T) {
 	}
 }
 
-// TestUseProviderReturnsSameValueOnRerender verifies that subsequent renders return stored value.
 func TestUseProviderReturnsSameValueOnRerender(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -92,7 +88,6 @@ func TestUseProviderReturnsSameValueOnRerender(t *testing.T) {
 	}
 }
 
-// TestSetterUpdatesValue verifies that the setter updates the context value.
 func TestSetterUpdatesValue(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -127,7 +122,6 @@ func TestSetterUpdatesValue(t *testing.T) {
 	}
 }
 
-// TestSetterNoOpWhenEqual verifies that setter doesn't trigger re-render when value unchanged.
 func TestSetterNoOpWhenEqual(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -158,7 +152,6 @@ func TestSetterNoOpWhenEqual(t *testing.T) {
 	}
 }
 
-// TestUseContextFindsAncestorProvider verifies that UseContext walks up the tree.
 func TestUseContextFindsAncestorProvider(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -194,7 +187,6 @@ func TestUseContextFindsAncestorProvider(t *testing.T) {
 	}
 }
 
-// TestNestedProviders verifies that closer provider shadows ancestor.
 func TestNestedProviders(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -228,7 +220,6 @@ func TestNestedProviders(t *testing.T) {
 	}
 }
 
-// TestWithEqual verifies custom equality function is used.
 func TestWithEqual(t *testing.T) {
 	type Config struct {
 		Theme string
@@ -272,7 +263,6 @@ func TestWithEqual(t *testing.T) {
 	}
 }
 
-// TestProviderCleanupOnUnmount verifies providers are cleared on unmount.
 func TestProviderCleanupOnUnmount(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -291,7 +281,6 @@ func TestProviderCleanupOnUnmount(t *testing.T) {
 	}
 }
 
-// TestContextEpochPropagationNoExtraRenders verifies epoch update prevents extra renders.
 func TestContextEpochPropagationNoExtraRenders(t *testing.T) {
 
 	root := &Instance{
@@ -355,7 +344,6 @@ func TestContextEpochPropagationNoExtraRenders(t *testing.T) {
 	}
 }
 
-// TestContextEqualityPanicRecovery verifies panic in equality check is handled.
 func TestContextEqualityPanicRecovery(t *testing.T) {
 	type Uncomparable struct {
 		Fn func()
@@ -396,7 +384,6 @@ func TestContextEqualityPanicRecovery(t *testing.T) {
 	}
 }
 
-// TestUseContextReturnsValueAndSetter verifies UseContext returns both value and setter.
 func TestUseContextReturnsValueAndSetter(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -438,7 +425,6 @@ func TestUseContextReturnsValueAndSetter(t *testing.T) {
 	}
 }
 
-// TestUseContextValueReturnsOnlyValue verifies UseContextValue returns just the value.
 func TestUseContextValueReturnsOnlyValue(t *testing.T) {
 	themeCtx := CreateContext("light")
 
@@ -464,7 +450,6 @@ func TestUseContextValueReturnsOnlyValue(t *testing.T) {
 	}
 }
 
-// TestTypeMismatchPanicsWithClearMessage verifies type mismatches produce clear panic messages.
 func TestTypeMismatchPanicsWithClearMessage(t *testing.T) {
 	themeCtx := CreateContext("light")
 

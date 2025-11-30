@@ -43,12 +43,10 @@ type ServerAck struct {
 	Seq uint64 `json:"seq"`
 }
 
-// ClientConfig configures client-side behavior.
 type ClientConfig struct {
 	Debug *bool `json:"debug,omitempty"`
 }
 
-// Boot is the initial payload sent during SSR to bootstrap the client.
 type Boot struct {
 	T        string         `json:"t"`
 	SID      string         `json:"sid"`
@@ -59,7 +57,6 @@ type Boot struct {
 	Client   *ClientConfig  `json:"client,omitempty"`
 }
 
-// ServerError represents an error response from the server.
 type ServerError struct {
 	T       string `json:"t"`
 	SID     string `json:"sid"`

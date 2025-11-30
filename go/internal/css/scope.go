@@ -20,6 +20,7 @@ func scope(parsed *parsedCSS, hash string) *Stylesheet {
 		}
 		ss.MediaRules = append(ss.MediaRules, media)
 	}
+	ss.OtherBlocks = append(ss.OtherBlocks, parsed.other...)
 	return ss
 }
 
@@ -93,8 +94,6 @@ func parseDeclarations(decl string) (PropertyMap, []Declaration) {
 	return props, decls
 }
 
-// splitDeclarations splits a declaration block on semicolons that are not inside
-// parentheses or quotes so values like data URLs remain intact.
 func splitDeclarations(decl string) []string {
 	var parts []string
 	var current strings.Builder
@@ -112,7 +111,7 @@ func splitDeclarations(decl string) []string {
 		ch := decl[i]
 		switch ch {
 		case '\\':
-			// skip escaped next char
+
 			if i+1 < len(decl) {
 				current.WriteByte(ch)
 				i++
@@ -310,7 +309,6 @@ func hashComponent(componentID string) string {
 	return hex.EncodeToString(h[:])[:8]
 }
 
-// Serialize converts the structured stylesheet back into CSS text (for SSR).
 func (ss *Stylesheet) Serialize() string {
 	var b strings.Builder
 	for _, rule := range ss.Rules {
@@ -331,6 +329,15 @@ func (ss *Stylesheet) Serialize() string {
 			b.WriteString(" }\n")
 		}
 		b.WriteString("}\n")
+	}
+	for _, raw := range ss.OtherBlocks {
+		if strings.TrimSpace(raw) == "" {
+			continue
+		}
+		b.WriteString(raw)
+		if !strings.HasSuffix(raw, "\n") {
+			b.WriteString("\n")
+		}
 	}
 	return b.String()
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/metadata"
 )
 
-// Mock attachment for testing
 type mockAttachment struct {
 	id string
 }
@@ -387,7 +386,6 @@ func TestEventHandlerProxy_DebounceThrottle(t *testing.T) {
 	}
 }
 
-// Mock ref that implements HandlerProvider
 type mockHandlerRef struct {
 	id       string
 	handlers map[string][]Handler

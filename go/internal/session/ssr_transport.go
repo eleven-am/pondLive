@@ -1,32 +1,30 @@
 package session
 
 import (
+	"errors"
 	"net/http"
 	"sync"
 
 	"github.com/eleven-am/pondlive/go/internal/headers"
 )
 
-// SSRTransport buffers messages during server-side rendering.
-// It collects all messages sent during the render cycle for embedding in HTML.
 type SSRTransport struct {
 	mu          sync.Mutex
 	messages    []Message
 	seq         uint64
 	closed      bool
 	requestInfo *headers.RequestInfo
+	maxMessages int
 }
 
-// NewSSRTransport creates a transport for server-side rendering.
-// The request is captured at creation time and made available via RequestInfo().
 func NewSSRTransport(r *http.Request) *SSRTransport {
 	return &SSRTransport{
 		messages:    make([]Message, 0),
+		maxMessages: 10000,
 		requestInfo: headers.NewRequestInfo(r),
 	}
 }
 
-// RequestInfo returns the HTTP request information captured at transport creation.
 func (t *SSRTransport) RequestInfo() *headers.RequestInfo {
 	if t == nil {
 		return nil
@@ -34,7 +32,6 @@ func (t *SSRTransport) RequestInfo() *headers.RequestInfo {
 	return t.requestInfo
 }
 
-// Send buffers a message for later retrieval.
 func (t *SSRTransport) Send(topic, event string, data any) error {
 	if t == nil {
 		return nil
@@ -45,6 +42,9 @@ func (t *SSRTransport) Send(topic, event string, data any) error {
 
 	if t.closed {
 		return nil
+	}
+	if t.maxMessages > 0 && len(t.messages) >= t.maxMessages {
+		return errors.New("ssr: buffer limit exceeded")
 	}
 
 	t.seq++
@@ -58,12 +58,10 @@ func (t *SSRTransport) Send(topic, event string, data any) error {
 	return nil
 }
 
-// IsLive returns false since SSR is not a live connection.
 func (t *SSRTransport) IsLive() bool {
 	return false
 }
 
-// Close marks the transport as closed.
 func (t *SSRTransport) Close() error {
 	if t == nil {
 		return nil
@@ -76,7 +74,6 @@ func (t *SSRTransport) Close() error {
 	return nil
 }
 
-// Messages returns all buffered messages.
 func (t *SSRTransport) Messages() []Message {
 	if t == nil {
 		return nil
@@ -90,7 +87,6 @@ func (t *SSRTransport) Messages() []Message {
 	return result
 }
 
-// LastSeq returns the last sequence number used.
 func (t *SSRTransport) LastSeq() uint64 {
 	if t == nil {
 		return 0
@@ -101,7 +97,6 @@ func (t *SSRTransport) LastSeq() uint64 {
 	return t.seq
 }
 
-// Clear removes all buffered messages.
 func (t *SSRTransport) Clear() {
 	if t == nil {
 		return
@@ -112,7 +107,6 @@ func (t *SSRTransport) Clear() {
 	t.mu.Unlock()
 }
 
-// Drain returns all buffered messages and clears the buffer.
 func (t *SSRTransport) Drain() []Message {
 	if t == nil {
 		return nil
@@ -127,7 +121,15 @@ func (t *SSRTransport) Drain() []Message {
 	return result
 }
 
-// FilterByTopic returns messages matching the given topic.
+func (t *SSRTransport) SetMaxMessages(n int) {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	t.maxMessages = n
+	t.mu.Unlock()
+}
+
 func (t *SSRTransport) FilterByTopic(topic string) []Message {
 	if t == nil {
 		return nil
@@ -145,7 +147,6 @@ func (t *SSRTransport) FilterByTopic(topic string) []Message {
 	return result
 }
 
-// FilterByEvent returns messages matching the given event.
 func (t *SSRTransport) FilterByEvent(event string) []Message {
 	if t == nil {
 		return nil

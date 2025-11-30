@@ -7,7 +7,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// TestGenericCleanupSystem verifies that RegisterCleanup works and cleanups run on unmount.
 func TestGenericCleanupSystem(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -35,7 +34,6 @@ func TestGenericCleanupSystem(t *testing.T) {
 	}
 }
 
-// TestScriptCleanupOnUnmount verifies that scripts are removed from registry when component unmounts.
 func TestScriptCleanupOnUnmount(t *testing.T) {
 	sess := &Session{
 		Scripts: make(map[string]*scriptSlot),
@@ -66,7 +64,6 @@ func TestScriptCleanupOnUnmount(t *testing.T) {
 	}
 }
 
-// TestMultipleCleanups verifies that multiple cleanups can be registered and all run.
 func TestMultipleCleanups(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -90,7 +87,6 @@ func TestMultipleCleanups(t *testing.T) {
 	}
 }
 
-// TestCleanupWithEffects verifies that both effect cleanups and generic cleanups run.
 func TestCleanupWithEffects(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -138,7 +134,6 @@ func TestCleanupWithEffects(t *testing.T) {
 	}
 }
 
-// TestPruneUnreferencedChildrenRunsCleanup verifies cleanup runs when children are pruned.
 func TestPruneUnreferencedChildrenRunsCleanup(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
@@ -186,7 +181,6 @@ func TestPruneUnreferencedChildrenRunsCleanup(t *testing.T) {
 	}
 }
 
-// TestSessionClose verifies that Close cleans up all resources.
 func TestSessionClose(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -261,7 +255,6 @@ func TestSessionClose(t *testing.T) {
 	}
 }
 
-// TestSessionCloseWithPanicingCleanup verifies that panics in cleanups don't prevent other cleanups.
 func TestSessionCloseWithPanicingCleanup(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
@@ -302,7 +295,6 @@ func TestSessionCloseWithPanicingCleanup(t *testing.T) {
 	}
 }
 
-// TestSessionCloseNil verifies that Close handles nil session.
 func TestSessionCloseNil(t *testing.T) {
 	var sess *Session
 

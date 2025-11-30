@@ -511,7 +511,6 @@ func TestPropsEqual(t *testing.T) {
 		t.Error("expected 'hello' != 'world'")
 	}
 
-	// Test structs
 	type Props struct {
 		Name string
 		Age  int

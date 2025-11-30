@@ -515,8 +515,6 @@ func TestUseScopedSlots_Fallback(t *testing.T) {
 	}
 }
 
-// SlotContext tests
-
 func TestSlotContext_ProvideAndRender(t *testing.T) {
 	slotCtx := CreateSlotContext()
 

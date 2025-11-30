@@ -9,9 +9,9 @@ var (
 	ruleRegex    = regexp.MustCompile(`([^{}]+)\{([^{}]*)\}`)
 	mediaRegex   = regexp.MustCompile(`@media\s*([^\{]+)\{((?:[^{}]|\{[^{}]*\})*)\}`)
 	commentRegex = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	otherAtRegex = regexp.MustCompile(`@(?:(?!media)[a-zA-Z-]+)[^{]*\{(?:[^{}]|\{[^{}]*\})*\}`)
 )
 
-// ParseAndScope parses CSS, applies component scoping, and returns a structured stylesheet.
 func ParseAndScope(css string, componentID string) *Stylesheet {
 	parsed := parse(css)
 	hash := hashComponent(componentID)
@@ -21,6 +21,7 @@ func ParseAndScope(css string, componentID string) *Stylesheet {
 type parsedCSS struct {
 	rules      []rule
 	mediaRules []mediaRule
+	other      []string
 }
 
 type rule struct {
@@ -45,6 +46,12 @@ func parse(css string) *parsedCSS {
 		result.mediaRules = append(result.mediaRules, mediaRule{query: strings.TrimSpace(match[1]), rules: inner})
 	}
 	css = mediaRegex.ReplaceAllString(css, "")
+
+	otherMatches := otherAtRegex.FindAllString(css, -1)
+	if len(otherMatches) > 0 {
+		result.other = append(result.other, otherMatches...)
+		css = otherAtRegex.ReplaceAllString(css, "")
+	}
 	result.rules = parseRules(css)
 	return result
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// Ensure Navigate handles nil RequestState when a bus is present (no panic).
 func TestNavigate_NoRequestState_NoPanic(t *testing.T) {
 	session := &runtime.Session{
 		Components: make(map[string]*runtime.Instance),

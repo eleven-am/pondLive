@@ -10,15 +10,10 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// Component is a function that renders a component tree.
 type Component = func(*runtime.Ctx) work.Node
 
-// TouchObserver is called when the session is touched (activity detected).
 type TouchObserver func(time.Time)
 
-// LiveSession is a thin naive bridge between WebSocket/transport and the Bus.
-// It owns transport/HTTP/TTL but has no knowledge of frames, events, navigation, or DOM.
-// It just forwards messages between the transport and the Bus.
 type LiveSession struct {
 	id      SessionID
 	version int
@@ -27,12 +22,10 @@ type LiveSession struct {
 	transport Transport
 	lifecycle *Lifecycle
 
-	// Touch observers for activity notifications
 	touchObservers   map[int]TouchObserver
 	nextObserverID   int
 	touchObserversMu sync.Mutex
 
-	// Client asset path for cache busting
 	clientAsset string
 
 	mu          sync.Mutex
@@ -40,8 +33,6 @@ type LiveSession struct {
 	outboundSub *protocol.Subscription
 }
 
-// NewLiveSession creates a new session with the given root component.
-// The session wires the Bus to the transport for bidirectional messaging.
 func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *LiveSession {
 	effectiveCfg := DefaultConfig()
 	if cfg != nil {
@@ -99,7 +90,6 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 	return sess
 }
 
-// ID returns the session identifier.
 func (s *LiveSession) ID() SessionID {
 	if s == nil {
 		return ""
@@ -107,7 +97,6 @@ func (s *LiveSession) ID() SessionID {
 	return s.id
 }
 
-// Version returns the session version number.
 func (s *LiveSession) Version() int {
 	if s == nil {
 		return 0
@@ -115,7 +104,6 @@ func (s *LiveSession) Version() int {
 	return s.version
 }
 
-// Session returns the underlying runtime.Session.
 func (s *LiveSession) Session() *runtime.Session {
 	if s == nil {
 		return nil
@@ -123,7 +111,6 @@ func (s *LiveSession) Session() *runtime.Session {
 	return s.session
 }
 
-// SetTransport updates the transport for this session.
 func (s *LiveSession) SetTransport(t Transport) {
 	if s == nil {
 		return
@@ -138,8 +125,6 @@ func (s *LiveSession) SetTransport(t Transport) {
 	}
 }
 
-// Receive handles inbound messages from the transport.
-// It publishes the message to the Bus for subscribers (handlers, router, etc.) to process.
 func (s *LiveSession) Receive(topic, event string, data any) {
 	if s == nil || s.session == nil || s.session.Bus == nil {
 		return
@@ -148,7 +133,6 @@ func (s *LiveSession) Receive(topic, event string, data any) {
 	s.session.Bus.Publish(protocol.Topic(topic), event, data)
 }
 
-// Flush triggers a render/flush cycle on the runtime session.
 func (s *LiveSession) Flush() error {
 	if s == nil || s.session == nil {
 		return nil
@@ -156,7 +140,6 @@ func (s *LiveSession) Flush() error {
 	return s.session.Flush()
 }
 
-// Touch updates the last activity timestamp and notifies observers.
 func (s *LiveSession) Touch() {
 	if s == nil || s.lifecycle == nil {
 		return
@@ -181,7 +164,6 @@ func (s *LiveSession) Touch() {
 	}
 }
 
-// IsExpired returns true if the session has exceeded its TTL.
 func (s *LiveSession) IsExpired() bool {
 	if s == nil || s.lifecycle == nil {
 		return true
@@ -189,7 +171,6 @@ func (s *LiveSession) IsExpired() bool {
 	return s.lifecycle.IsExpired()
 }
 
-// TTL returns the configured session TTL.
 func (s *LiveSession) TTL() time.Duration {
 	if s == nil || s.lifecycle == nil {
 		return 0
@@ -197,7 +178,6 @@ func (s *LiveSession) TTL() time.Duration {
 	return s.lifecycle.TTL()
 }
 
-// Close releases session resources.
 func (s *LiveSession) Close() error {
 	if s == nil {
 		return nil
@@ -223,8 +203,6 @@ func (s *LiveSession) Close() error {
 	return nil
 }
 
-// SetDevMode enables or disables development mode.
-// Delegates to the underlying runtime.Session.
 func (s *LiveSession) SetDevMode(enabled bool) {
 	if s == nil || s.session == nil {
 		return
@@ -232,8 +210,6 @@ func (s *LiveSession) SetDevMode(enabled bool) {
 	s.session.SetDevMode(enabled)
 }
 
-// SetDiagnosticReporter installs a diagnostic reporter.
-// Delegates to the underlying runtime.Session.
 func (s *LiveSession) SetDiagnosticReporter(reporter runtime.DiagnosticReporter) {
 	if s == nil || s.session == nil {
 		return
@@ -241,8 +217,6 @@ func (s *LiveSession) SetDiagnosticReporter(reporter runtime.DiagnosticReporter)
 	s.session.SetDiagnosticReporter(reporter)
 }
 
-// OnTouch registers an observer to be called when the session is touched.
-// Returns an unsubscribe function.
 func (s *LiveSession) OnTouch(observer TouchObserver) func() {
 	if s == nil || observer == nil {
 		return func() {}
@@ -261,7 +235,6 @@ func (s *LiveSession) OnTouch(observer TouchObserver) func() {
 	}
 }
 
-// ClientAsset returns the versioned client JS bundle path.
 func (s *LiveSession) ClientAsset() string {
 	if s == nil {
 		return ""
@@ -269,7 +242,6 @@ func (s *LiveSession) ClientAsset() string {
 	return s.clientAsset
 }
 
-// SetClientAsset updates the client asset path.
 func (s *LiveSession) SetClientAsset(path string) {
 	if s == nil {
 		return
@@ -279,7 +251,6 @@ func (s *LiveSession) SetClientAsset(path string) {
 	s.mu.Unlock()
 }
 
-// Bus returns the session's message bus.
 func (s *LiveSession) Bus() *protocol.Bus {
 	if s == nil || s.session == nil {
 		return nil
@@ -287,8 +258,6 @@ func (s *LiveSession) Bus() *protocol.Bus {
 	return s.session.Bus
 }
 
-// SetAutoFlush sets the callback for automatic flush scheduling.
-// Delegates to the underlying runtime.Session.
 func (s *LiveSession) SetAutoFlush(fn func()) {
 	if s == nil || s.session == nil {
 		return
@@ -296,8 +265,6 @@ func (s *LiveSession) SetAutoFlush(fn func()) {
 	s.session.SetAutoFlush(fn)
 }
 
-// SetDOMTimeout sets the timeout for blocking DOM operations.
-// Delegates to the underlying runtime.Session.
 func (s *LiveSession) SetDOMTimeout(timeout time.Duration) {
 	if s == nil || s.session == nil {
 		return
@@ -305,9 +272,6 @@ func (s *LiveSession) SetDOMTimeout(timeout time.Duration) {
 	s.session.SetDOMTimeout(timeout)
 }
 
-// ServeHTTP dispatches HTTP requests to registered handlers.
-// Routes /_handlers/{sessionID}/{handlerID} to the appropriate handler.
-// Delegates to the underlying runtime.Session.ServeHTTP.
 func (s *LiveSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s == nil || s.session == nil {
 		http.NotFound(w, r)

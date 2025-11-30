@@ -8,7 +8,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/metadata"
 )
 
-// voidElements are HTML elements that cannot have children.
 var voidElements = map[string]bool{
 	"area": true, "base": true, "br": true, "col": true,
 	"embed": true, "hr": true, "img": true, "input": true,
@@ -16,7 +15,6 @@ var voidElements = map[string]bool{
 	"track": true, "wbr": true,
 }
 
-// RenderHTML converts a view.Node tree to an HTML string.
 func RenderHTML(n Node) string {
 	if n == nil {
 		return ""

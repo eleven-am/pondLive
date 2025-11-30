@@ -6,7 +6,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/metadata"
 )
 
-// attrItem sets an HTML attribute.
 type attrItem struct {
 	name  string
 	value string
@@ -19,12 +18,10 @@ func (a attrItem) ApplyTo(el *Element) {
 	el.Attrs[a.name] = []string{a.value}
 }
 
-// Attr sets an arbitrary attribute on the element.
 func Attr(name, value string) Item {
 	return attrItem{name: name, value: value}
 }
 
-// Common attribute helpers
 func ID(id string) Item         { return Attr("id", id) }
 func Href(url string) Item      { return Attr("href", url) }
 func Src(path string) Item      { return Attr("src", path) }
@@ -39,7 +36,6 @@ func Placeholder(v string) Item { return Attr("placeholder", v) }
 func Data(k, v string) Item     { return Attr("data-"+k, v) }
 func Aria(k, v string) Item     { return Attr("aria-"+k, v) }
 
-// classItem adds CSS classes.
 type classItem struct {
 	vals []string
 }
@@ -54,7 +50,6 @@ func (c classItem) ApplyTo(el *Element) {
 	el.Attrs["class"] = append(el.Attrs["class"], c.vals...)
 }
 
-// Class appends CSS class tokens to the element.
 func Class(classes ...string) Item {
 	filtered := make([]string, 0, len(classes))
 	for _, c := range classes {
@@ -67,7 +62,6 @@ func Class(classes ...string) Item {
 	return classItem{vals: filtered}
 }
 
-// styleItem sets an inline style property.
 type styleItem struct {
 	property string
 	value    string
@@ -80,12 +74,10 @@ func (s styleItem) ApplyTo(el *Element) {
 	el.Style[s.property] = s.value
 }
 
-// Style sets an inline CSS property.
 func Style(property, value string) Item {
 	return styleItem{property: property, value: value}
 }
 
-// keyItem sets the reconciliation key.
 type keyItem struct {
 	value string
 }
@@ -94,12 +86,10 @@ func (k keyItem) ApplyTo(el *Element) {
 	el.Key = k.value
 }
 
-// Key sets the key for stable diffing in lists.
 func Key(key string) Item {
 	return keyItem{value: key}
 }
 
-// eventItem attaches an event handler.
 type eventItem struct {
 	event   string
 	handler Handler
@@ -137,12 +127,10 @@ func (e eventItem) ApplyTo(el *Element) {
 	}
 }
 
-// On attaches an event handler.
 func On(event string, fn func(Event) Updates) Item {
 	return OnWith(event, metadata.EventOptions{}, fn)
 }
 
-// OnWith attaches an event handler with custom options.
 func OnWith(event string, options metadata.EventOptions, fn func(Event) Updates) Item {
 	return eventItem{
 		event: event,
@@ -153,7 +141,6 @@ func OnWith(event string, options metadata.EventOptions, fn func(Event) Updates)
 	}
 }
 
-// attachItem attaches a ref to the element.
 type attachItem struct {
 	ref Attachment
 }
@@ -170,7 +157,6 @@ func (a attachItem) ApplyTo(el *Element) {
 	}
 }
 
-// Attach binds an element ref to the element.
 func Attach(ref Attachment) Item {
 	if ref == nil {
 		return noopItem{}
@@ -178,7 +164,6 @@ func Attach(ref Attachment) Item {
 	return attachItem{ref: ref}
 }
 
-// Boolean attribute helpers
 type boolAttrItem struct {
 	name string
 }
@@ -202,7 +187,6 @@ func Muted() Item     { return boolAttrItem{name: "muted"} }
 func Selected() Item  { return boolAttrItem{name: "selected"} }
 func Multiple() Item  { return boolAttrItem{name: "multiple"} }
 
-// unsafeHTMLItem sets raw HTML content (mutually exclusive with children)
 type unsafeHTMLItem struct {
 	html string
 }
@@ -211,15 +195,10 @@ func (u unsafeHTMLItem) ApplyTo(el *Element) {
 	el.UnsafeHTML = u.html
 }
 
-// UnsafeHTML sets raw HTML content on the element.
-// WARNING: This is mutually exclusive with children and bypasses XSS protection.
 func UnsafeHTML(html string) Item {
 	return unsafeHTMLItem{html: html}
 }
 
-// MergeEventOptions merges two EventOptions, combining their properties.
-// Boolean flags use OR logic, Debounce/Throttle use minimum non-zero value,
-// Props and Listen slices are combined and deduplicated.
 func MergeEventOptions(a, b metadata.EventOptions) metadata.EventOptions {
 	merged := metadata.EventOptions{
 		Prevent: a.Prevent || b.Prevent,

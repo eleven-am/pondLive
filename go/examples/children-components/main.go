@@ -16,7 +16,6 @@ type CardProps struct {
 	Color string
 }
 
-// Card component that accepts children
 var Card = ui.PropsComponent(func(ctx ui.Ctx, props CardProps, children []h.Item) h.Node {
 	return h.Div(
 		h.Class("card"),
@@ -32,7 +31,6 @@ var Card = ui.PropsComponent(func(ctx ui.Ctx, props CardProps, children []h.Item
 	)
 })
 
-// Container component that accepts children
 var Container = ui.Component(func(ctx ui.Ctx, children []h.Item) h.Node {
 	return h.Div(
 		h.Class("container"),

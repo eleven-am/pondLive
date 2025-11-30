@@ -1,7 +1,3 @@
-// Package main hosts a LiveUI countdown timer application that demonstrates
-// time-based updates using UseScript for client-side interval management.
-// It can be started with `go run .` and will serve SSR HTML plus a websocket
-// endpoint for interactive updates.
 package main
 
 import (
@@ -16,7 +12,6 @@ import (
 	liveserver "github.com/eleven-am/pondlive/go/pkg/live/server"
 )
 
-//go:embed public/*
 var publicFS embed.FS
 
 func main() {

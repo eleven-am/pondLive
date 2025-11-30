@@ -7,16 +7,15 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/html"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/server"
+	"github.com/eleven-am/pondlive/go/internal/session"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// CounterProps defines props for the Counter component
 type CounterProps struct {
 	InitialValue int
 	Label        string
 }
 
-// Counter is a component with props
 var Counter = html.PropsComponent(func(ctx *runtime.Ctx, props CounterProps, children []work.Node) work.Node {
 	count, setCount := runtime.UseState(ctx, props.InitialValue)
 	decrement := func(evt work.Event) work.Updates {
@@ -42,8 +41,6 @@ var Counter = html.PropsComponent(func(ctx *runtime.Ctx, props CounterProps, chi
 	)
 })
 
-// App renders the application body content
-// The HTML document structure (<html>, <head>, <body>) is added by the boot infrastructure
 func App(ctx *runtime.Ctx) work.Node {
 	return html.Div(
 		html.H1(html.Text("Counter Demo with Props")),
@@ -62,7 +59,11 @@ func App(ctx *runtime.Ctx) work.Node {
 func main() {
 	app, err := server.New(server.Config{
 		Component: App,
+		SessionConfig: &session.Config{
+			DevMode: true,
+		},
 	})
+
 	if err != nil {
 		log.Fatal(err)
 	}

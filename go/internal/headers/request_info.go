@@ -6,27 +6,17 @@ import (
 	"sync"
 )
 
-// RequestInfo captures HTTP request information from the originating request.
-// For SSR, this is the request being served.
-// For WebSocket, this is the handshake request (updated on reconnect).
-//
-// This struct is immutable after creation - create a new one on reconnect.
 type RequestInfo struct {
-	// Request metadata
 	Method     string
 	Host       string
 	RemoteAddr string
 
-	// URL components
-	Path  string
-	Query url.Values
-	Hash  string // Fragment (typically from client, not in server request)
-
-	// Headers from the request
+	Path    string
+	Query   url.Values
+	Hash    string
 	Headers http.Header
 }
 
-// NewRequestInfo creates a RequestInfo from an http.Request.
 func NewRequestInfo(r *http.Request) *RequestInfo {
 	if r == nil {
 		return &RequestInfo{
@@ -66,9 +56,6 @@ func NewRequestInfo(r *http.Request) *RequestInfo {
 	}
 }
 
-// NewRequestInfoFromHeaders creates a RequestInfo from headers.
-// This is useful for pondsocket and other WebSocket libraries that provide
-// headers (including cookies) rather than an *http.Request.
 func NewRequestInfoFromHeaders(headers http.Header) *RequestInfo {
 	h := make(http.Header)
 	if headers != nil {
@@ -83,8 +70,6 @@ func NewRequestInfoFromHeaders(headers http.Header) *RequestInfo {
 	}
 }
 
-// Get retrieves a header value by name.
-// Returns the value and true if found, empty string and false otherwise.
 func (r *RequestInfo) Get(name string) (string, bool) {
 	if r == nil || r.Headers == nil {
 		return "", false
@@ -93,8 +78,6 @@ func (r *RequestInfo) Get(name string) (string, bool) {
 	return val, val != ""
 }
 
-// GetCookie retrieves a cookie value by name from the request headers.
-// Returns the value and true if found, empty string and false otherwise.
 func (r *RequestInfo) GetCookie(name string) (string, bool) {
 	if r == nil || r.Headers == nil {
 		return "", false
@@ -117,7 +100,6 @@ func (r *RequestInfo) GetCookie(name string) (string, bool) {
 	return cookie.Value, true
 }
 
-// Cookies returns all cookies from the request.
 func (r *RequestInfo) Cookies() []*http.Cookie {
 	if r == nil || r.Headers == nil {
 		return nil
@@ -135,7 +117,6 @@ func (r *RequestInfo) Cookies() []*http.Cookie {
 	return req.Cookies()
 }
 
-// Clone creates a deep copy of the RequestInfo.
 func (r *RequestInfo) Clone() *RequestInfo {
 	if r == nil {
 		return nil
@@ -157,23 +138,17 @@ func (r *RequestInfo) Clone() *RequestInfo {
 	}
 }
 
-// RequestState extends RequestInfo with mutable response state.
-// Used during rendering to collect response headers and redirects.
 type RequestState struct {
 	mu sync.RWMutex
 
-	// Immutable request info
 	info *RequestInfo
 
-	// Connection state
 	isLive bool
 
-	// Response state (written during render, read by SSR handler after)
 	responseHeaders http.Header
 	redirectURL     string
 	redirectCode    int
 
-	// Cookie mutations (for optimistic updates)
 	cookieMutations map[string]*cookieMutation
 }
 
@@ -182,7 +157,6 @@ type cookieMutation struct {
 	deleted bool
 }
 
-// NewRequestState creates a RequestState from a RequestInfo.
 func NewRequestState(info *RequestInfo) *RequestState {
 	if info == nil {
 		info = &RequestInfo{
@@ -197,7 +171,6 @@ func NewRequestState(info *RequestInfo) *RequestState {
 	}
 }
 
-// Info returns the underlying RequestInfo.
 func (s *RequestState) Info() *RequestInfo {
 	if s == nil {
 		return nil
@@ -205,7 +178,6 @@ func (s *RequestState) Info() *RequestInfo {
 	return s.info
 }
 
-// Get retrieves a request header value.
 func (s *RequestState) Get(name string) (string, bool) {
 	if s == nil || s.info == nil {
 		return "", false
@@ -213,7 +185,6 @@ func (s *RequestState) Get(name string) (string, bool) {
 	return s.info.Get(name)
 }
 
-// GetCookie retrieves a cookie value, respecting any mutations made during render.
 func (s *RequestState) GetCookie(name string) (string, bool) {
 	if s == nil {
 		return "", false
@@ -235,7 +206,6 @@ func (s *RequestState) GetCookie(name string) (string, bool) {
 	return s.info.GetCookie(name)
 }
 
-// Path returns the request path.
 func (s *RequestState) Path() string {
 	if s == nil || s.info == nil {
 		return ""
@@ -243,7 +213,6 @@ func (s *RequestState) Path() string {
 	return s.info.Path
 }
 
-// Query returns the request query parameters.
 func (s *RequestState) Query() url.Values {
 	if s == nil || s.info == nil {
 		return nil
@@ -256,7 +225,6 @@ func (s *RequestState) Query() url.Values {
 	return query
 }
 
-// Hash returns the URL hash/fragment.
 func (s *RequestState) Hash() string {
 	if s == nil || s.info == nil {
 		return ""
@@ -264,7 +232,6 @@ func (s *RequestState) Hash() string {
 	return s.info.Hash
 }
 
-// IsLive returns whether the session is in live (WebSocket) mode.
 func (s *RequestState) IsLive() bool {
 	if s == nil {
 		return false
@@ -274,7 +241,6 @@ func (s *RequestState) IsLive() bool {
 	return s.isLive
 }
 
-// SetIsLive sets the live status.
 func (s *RequestState) SetIsLive(live bool) {
 	if s == nil {
 		return
@@ -284,7 +250,6 @@ func (s *RequestState) SetIsLive(live bool) {
 	s.isLive = live
 }
 
-// SetResponseHeader sets a response header (for SSR).
 func (s *RequestState) SetResponseHeader(name, value string) {
 	if s == nil {
 		return
@@ -294,7 +259,6 @@ func (s *RequestState) SetResponseHeader(name, value string) {
 	s.responseHeaders.Set(name, value)
 }
 
-// AddResponseHeader adds a response header value (for SSR).
 func (s *RequestState) AddResponseHeader(name, value string) {
 	if s == nil {
 		return
@@ -304,8 +268,6 @@ func (s *RequestState) AddResponseHeader(name, value string) {
 	s.responseHeaders.Add(name, value)
 }
 
-// ResponseHeaders returns all response headers set during render.
-// Returns a copy to prevent mutation.
 func (s *RequestState) ResponseHeaders() http.Header {
 	if s == nil {
 		return nil
@@ -320,7 +282,6 @@ func (s *RequestState) ResponseHeaders() http.Header {
 	return headers
 }
 
-// SetRedirect sets a redirect for SSR mode.
 func (s *RequestState) SetRedirect(url string, code int) {
 	if s == nil {
 		return
@@ -331,8 +292,6 @@ func (s *RequestState) SetRedirect(url string, code int) {
 	s.redirectCode = code
 }
 
-// Redirect returns the redirect URL and status code if set.
-// Returns ("", 0, false) if no redirect is set.
 func (s *RequestState) Redirect() (url string, code int, hasRedirect bool) {
 	if s == nil {
 		return "", 0, false
@@ -345,8 +304,6 @@ func (s *RequestState) Redirect() (url string, code int, hasRedirect bool) {
 	return "", 0, false
 }
 
-// MutateCookie records a cookie mutation (for optimistic updates).
-// This affects subsequent GetCookie calls but doesn't actually set the cookie.
 func (s *RequestState) MutateCookie(name, value string) {
 	if s == nil {
 		return
@@ -356,7 +313,6 @@ func (s *RequestState) MutateCookie(name, value string) {
 	s.cookieMutations[name] = &cookieMutation{value: value, deleted: false}
 }
 
-// DeleteCookieMutation records a cookie deletion (for optimistic updates).
 func (s *RequestState) DeleteCookieMutation(name string) {
 	if s == nil {
 		return
@@ -366,8 +322,6 @@ func (s *RequestState) DeleteCookieMutation(name string) {
 	s.cookieMutations[name] = &cookieMutation{deleted: true}
 }
 
-// CookieMutations returns all cookie mutations made during render.
-// Used by cookie manager to know what to actually set.
 func (s *RequestState) CookieMutations() map[string]*cookieMutation {
 	if s == nil {
 		return nil

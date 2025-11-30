@@ -11,12 +11,11 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// Session manages the entire component tree and view.
 type Session struct {
-	Root       *Instance            // Root component instance
-	View       view.Node            // Current view tree
-	PrevView   view.Node            // Previous view tree for diffing
-	Components map[string]*Instance // ComponentNode ID -> Instance lookup
+	Root       *Instance
+	View       view.Node
+	PrevView   view.Node
+	Components map[string]*Instance
 
 	Handlers   map[string]work.Handler
 	handlersMu sync.RWMutex
@@ -24,78 +23,62 @@ type Session struct {
 	DirtySet   map[*Instance]struct{}
 	dirtyMu    sync.Mutex
 
-	// Scripts
-	Scripts   map[string]*scriptSlot // Script ID -> scriptSlot
+	Scripts   map[string]*scriptSlot
 	scriptsMu sync.RWMutex
 
-	// Message bus
-	Bus *protocol.Bus // Pubsub message router for bidirectional messaging
+	Bus *protocol.Bus
 
-	// DOM request manager for blocking queries
 	domReqMgr   *domRequestManager
 	domReqMgrMu sync.Mutex
-	domTimeout  time.Duration // Configurable timeout for DOM operations
+	domTimeout  time.Duration
 
-	// Handler tracking for cleanup
-	currentHandlerIDs map[string]bool                   // Handler IDs active in current flush
-	allHandlerSubs    map[string]*protocol.Subscription // All handler subscriptions (for cleanup)
+	currentHandlerIDs map[string]bool
+	allHandlerSubs    map[string]*protocol.Subscription
 	handlerIDsMu      sync.Mutex
 
-	// HTTP handlers (UseHandler hook)
 	httpHandlers  map[string]*handlerEntry
 	httpHandlerMu sync.RWMutex
 
-	// Effects
-	PendingEffects  []effectTask  // Effects to run after flush
-	PendingCleanups []cleanupTask // Cleanup functions to run
+	PendingEffects  []effectTask
+	PendingCleanups []cleanupTask
 
-	// ComponentNode lifecycle tracking
-	MountedComponents map[*Instance]struct{} // Track mounted components
+	MountedComponents map[*Instance]struct{}
 
-	// Session metadata
-	SessionID string // Unique session identifier
+	SessionID string
 
-	// Development mode and diagnostics
-	devMode  bool               // Enable panic recovery and diagnostic reporting
-	reporter DiagnosticReporter // Optional error reporter
+	devMode  bool
+	reporter DiagnosticReporter
 
-	// Flush batching and control
-	pendingFlush bool       // True if a flush has been requested but not yet started
-	flushing     bool       // True if a flush is currently in progress
-	autoFlush    func()     // Callback to trigger auto-flush (e.g., schedule on event loop)
-	flushMu      sync.Mutex // Protects flush state (separate from mu to avoid deadlocks)
+	pendingFlush bool
+	flushing     bool
+	autoFlush    func()
+	flushMu      sync.Mutex
 
-	mu sync.Mutex // General session lock
+	mu sync.Mutex
 }
 
-// DiagnosticReporter receives structured diagnostics captured during panic recovery.
 type DiagnosticReporter interface {
 	ReportDiagnostic(Diagnostic)
 }
 
-// Diagnostic captures error context for debugging.
 type Diagnostic struct {
-	Phase      string         // Where the panic occurred (e.g., "script:message", "event:h-1")
-	Message    string         // Error message
-	StackTrace string         // Stack trace
-	Metadata   map[string]any // Additional context
+	Phase      string
+	Message    string
+	StackTrace string
+	Metadata   map[string]any
 }
 
-// effectTask represents an effect to run after render.
 type effectTask struct {
 	instance  *Instance
-	hookIndex int // Hook index to locate the effectCell for storing cleanup
+	hookIndex int
 	fn        func() func()
 }
 
-// cleanupTask represents a cleanup function to run.
 type cleanupTask struct {
 	instance *Instance
 	fn       func()
 }
 
-// getDOMRequestManager returns the DOM request manager, creating it if needed.
-// Uses lazy initialization to avoid creating manager for sessions that don't use DOM queries.
 func (s *Session) getDOMRequestManager() *domRequestManager {
 	if s == nil || s.Bus == nil {
 		return nil
@@ -115,9 +98,6 @@ func (s *Session) getDOMRequestManager() *domRequestManager {
 	return s.domReqMgr
 }
 
-// SetDOMTimeout sets the timeout for blocking DOM operations (Query, AsyncCall).
-// Must be called before any DOM operations are performed.
-// If timeout is 0, the default (5 seconds) is used.
 func (s *Session) SetDOMTimeout(timeout time.Duration) {
 	if s == nil {
 		return
@@ -134,8 +114,6 @@ func (s *Session) SetDOMTimeout(timeout time.Duration) {
 	s.domReqMgrMu.Unlock()
 }
 
-// Close tears down the session and cleans up all resources.
-// Runs all effect cleanups, unsubscribes handlers, and clears state.
 func (s *Session) Close() {
 	if s == nil {
 		return
@@ -188,7 +166,6 @@ func (s *Session) Close() {
 	s.MountedComponents = nil
 }
 
-// SetDevMode enables or disables development mode features.
 func (s *Session) SetDevMode(enabled bool) {
 	if s == nil {
 		return
@@ -198,7 +175,6 @@ func (s *Session) SetDevMode(enabled bool) {
 	s.mu.Unlock()
 }
 
-// SetDiagnosticReporter installs the error reporter.
 func (s *Session) SetDiagnosticReporter(r DiagnosticReporter) {
 	if s == nil {
 		return
@@ -208,10 +184,6 @@ func (s *Session) SetDiagnosticReporter(r DiagnosticReporter) {
 	s.mu.Unlock()
 }
 
-// withRecovery wraps a function with panic recovery.
-// Always recovers, logs, and reports diagnostics; devMode controls verbosity.
-// Note: devMode and reporter are read without locking as they are
-// configuration fields set during initialization and rarely change.
 func (s *Session) withRecovery(phase string, fn func() error) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -237,7 +209,6 @@ func (s *Session) withRecovery(phase string, fn func() error) error {
 	return fn()
 }
 
-// cleanupInstanceTree recursively cleans up an instance and all its children.
 func (s *Session) cleanupInstanceTree(inst *Instance) {
 	if inst == nil {
 		return

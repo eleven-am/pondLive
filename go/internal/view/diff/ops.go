@@ -1,6 +1,5 @@
 package diff
 
-// OpKind identifies the type of DOM operation.
 type OpKind string
 
 const (
@@ -23,7 +22,6 @@ const (
 	OpMoveChild    OpKind = "moveChild"
 )
 
-// Patch represents a single DOM operation.
 type Patch struct {
 	Seq      int         `json:"seq"`
 	Path     []int       `json:"path"`

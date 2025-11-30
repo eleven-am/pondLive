@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	// ErrSessionNotFound reports attempts to fetch sessions that don't exist.
 	ErrSessionNotFound = errors.New("server: session not found")
 )
 
@@ -34,7 +33,6 @@ func (rel transportRelease) release() {
 	}
 }
 
-// SessionRegistry manages LiveSession instances.
 type SessionRegistry struct {
 	mu             sync.RWMutex
 	sessions       map[session.SessionID]*sessionEntry
@@ -43,12 +41,10 @@ type SessionRegistry struct {
 	touchObservers map[*session.LiveSession]func()
 }
 
-// NewSessionRegistry constructs an in-memory registry.
 func NewSessionRegistry() *SessionRegistry {
 	return NewSessionRegistryWithTTL(store.NewInMemoryTTLStore())
 }
 
-// NewSessionRegistryWithTTL constructs a registry backed by the provided TTL store.
 func NewSessionRegistryWithTTL(ttl store.TTLStore) *SessionRegistry {
 	return &SessionRegistry{
 		sessions:       make(map[session.SessionID]*sessionEntry),
@@ -58,7 +54,6 @@ func NewSessionRegistryWithTTL(ttl store.TTLStore) *SessionRegistry {
 	}
 }
 
-// Put registers the provided session.
 func (r *SessionRegistry) Put(sess *session.LiveSession) {
 	if sess == nil {
 		return
@@ -74,7 +69,6 @@ func (r *SessionRegistry) Put(sess *session.LiveSession) {
 	r.attachSessionLocked(entry.session)
 }
 
-// Remove deletes a session from the registry.
 func (r *SessionRegistry) Remove(id session.SessionID) {
 	r.mu.Lock()
 	release := r.removeSessionLocked(id, true)
@@ -82,7 +76,6 @@ func (r *SessionRegistry) Remove(id session.SessionID) {
 	release.release()
 }
 
-// Attach binds transport to the given session and connection id.
 func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport session.Transport) (*session.LiveSession, error) {
 	if connID == "" || transport == nil {
 		return nil, errors.New("server: missing connection or transport")
@@ -123,7 +116,6 @@ func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport 
 	return entry.session, nil
 }
 
-// Detach clears the connection binding.
 func (r *SessionRegistry) Detach(connID string) {
 	if connID == "" {
 		return
@@ -140,7 +132,6 @@ func (r *SessionRegistry) Detach(connID string) {
 	release.release()
 }
 
-// Lookup finds a session by id.
 func (r *SessionRegistry) Lookup(id session.SessionID) (*session.LiveSession, bool) {
 	r.mu.RLock()
 	entry, ok := r.sessions[id]
@@ -151,7 +142,6 @@ func (r *SessionRegistry) Lookup(id session.SessionID) (*session.LiveSession, bo
 	return entry.session, true
 }
 
-// LookupWithConnection verifies the binding for a connection id.
 func (r *SessionRegistry) LookupWithConnection(id session.SessionID, connID string) (*session.LiveSession, session.Transport, bool) {
 	r.mu.RLock()
 	entry, ok := r.sessions[id]
@@ -165,7 +155,6 @@ func (r *SessionRegistry) LookupWithConnection(id session.SessionID, connID stri
 	return entry.session, entry.transport, entry.transport != nil
 }
 
-// LookupByConnection returns the session currently bound to a connection id.
 func (r *SessionRegistry) LookupByConnection(connID string) (*session.LiveSession, session.Transport, bool) {
 	if connID == "" {
 		return nil, nil, false
@@ -179,7 +168,6 @@ func (r *SessionRegistry) LookupByConnection(connID string) (*session.LiveSessio
 	return entry.session, entry.transport, entry.transport != nil
 }
 
-// ConnectionForSession returns the connection ID and transport for a session.
 func (r *SessionRegistry) ConnectionForSession(id session.SessionID) (string, session.Transport, bool) {
 	r.mu.RLock()
 	entry, ok := r.sessions[id]
@@ -190,7 +178,6 @@ func (r *SessionRegistry) ConnectionForSession(id session.SessionID) (string, se
 	return entry.connID, entry.transport, entry.connID != "" && entry.transport != nil
 }
 
-// SweepExpired prunes expired sessions.
 func (r *SessionRegistry) SweepExpired() []session.SessionID {
 	var expired []session.SessionID
 	var releases []transportRelease
@@ -222,7 +209,6 @@ func (r *SessionRegistry) SweepExpired() []session.SessionID {
 	return expired
 }
 
-// StartSweeper periodically sweeps expired sessions.
 func (r *SessionRegistry) StartSweeper(interval time.Duration) func() {
 	if interval <= 0 {
 		interval = 30 * time.Second

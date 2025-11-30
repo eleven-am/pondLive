@@ -8,12 +8,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// Link renders a simple anchor element with server-side navigation.
-// Click events are handled server-side via the Bus - client stays naive.
-//
-// Usage:
-//
-//	router.Link(ctx, router.LinkProps{To: "/about"}, h.Text("About"))
 func Link(ctx *runtime.Ctx, props LinkProps, children []work.Node) work.Node {
 	location := LocationContext.UseContextValue(ctx)
 	base := &Location{Path: "/", Query: url.Values{}}
@@ -50,14 +44,6 @@ func Link(ctx *runtime.Ctx, props LinkProps, children []work.Node) work.Node {
 	}
 }
 
-// NavLink is like Link but adds an "active" class when the link matches the current path.
-//
-// Usage:
-//
-//	router.NavLink(ctx, router.NavLinkProps{
-//	    To:          "/about",
-//	    ActiveClass: "nav-active",
-//	}, h.Text("About"))
 func NavLink(ctx *runtime.Ctx, props NavLinkProps, children []work.Node) work.Node {
 	location := LocationContext.UseContextValue(ctx)
 	base := &Location{Path: "/", Query: url.Values{}}
@@ -119,7 +105,6 @@ func NavLink(ctx *runtime.Ctx, props NavLinkProps, children []work.Node) work.No
 	}
 }
 
-// NavLinkProps extends LinkProps with styling options for active state.
 type NavLinkProps struct {
 	To          string
 	Replace     bool
@@ -128,8 +113,6 @@ type NavLinkProps struct {
 	End         bool
 }
 
-// matchesPrefix checks if the current path starts with the target path.
-// Used for NavLink active state detection.
 func matchesPrefix(currentPath, targetPath string) bool {
 	if targetPath == "/" {
 		return currentPath == "/"

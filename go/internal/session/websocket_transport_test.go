@@ -7,7 +7,6 @@ import (
 	"testing"
 )
 
-// mockSender is a test double for ChannelSender.
 type mockSender struct {
 	mu       sync.Mutex
 	messages []any

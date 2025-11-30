@@ -8,7 +8,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 )
 
-// mockRef implements work.Attachment for testing
 type mockRef struct {
 	id string
 }

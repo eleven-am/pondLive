@@ -16,14 +16,12 @@ type bootProps struct {
 	ClientAsset  string
 }
 
-// wrapComponent wraps a session.Component into a runtime.ComponentNode.
 func wrapComponent(component Component) runtime.ComponentNode[struct{}] {
 	return func(ctx *runtime.Ctx, props struct{}, children []work.Node) work.Node {
 		return component(ctx)
 	}
 }
 
-// bootComponent is the root component that sets up all providers:
 func bootComponent(ctx *html.Ctx, props bootProps, children []work.Node) work.Node {
 	app := wrapComponent(props.component)
 	headers.UseProvideRequestState(ctx, props.requestState)
@@ -49,7 +47,6 @@ func bootComponent(ctx *html.Ctx, props bootProps, children []work.Node) work.No
 	)
 }
 
-// loadBootComponent loads the boot component with the given props.
 func loadBootComponent(liveSession *LiveSession, component Component, clientAsset string) func(*runtime.Ctx, any, []work.Node) work.Node {
 	var requestInfo *headers.RequestInfo
 	if liveSession != nil {

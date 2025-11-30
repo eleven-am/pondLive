@@ -46,31 +46,27 @@ func main() {
 			continue
 		}
 
-		var ranges [][2]token.Pos
+		// Strip all comments (doc and inline) from the file AST so the printer omits them.
 		ast.Inspect(file, func(n ast.Node) bool {
-			if fn, ok := n.(*ast.FuncDecl); ok && fn.Body != nil {
-				ranges = append(ranges, [2]token.Pos{fn.Body.Pos(), fn.Body.End()})
+			switch v := n.(type) {
+			case *ast.File:
+				v.Doc = nil
+				v.Comments = nil
+			case *ast.GenDecl:
+				v.Doc = nil
+			case *ast.FuncDecl:
+				v.Doc = nil
+			case *ast.ImportSpec:
+				v.Doc, v.Comment = nil, nil
+			case *ast.ValueSpec:
+				v.Doc, v.Comment = nil, nil
+			case *ast.TypeSpec:
+				v.Doc, v.Comment = nil, nil
+			case *ast.Field:
+				v.Doc, v.Comment = nil, nil
 			}
 			return true
 		})
-
-		if len(file.Comments) > 0 && len(ranges) > 0 {
-			var kept []*ast.CommentGroup
-			for _, cg := range file.Comments {
-				pos := cg.Pos()
-				inBody := false
-				for _, r := range ranges {
-					if pos >= r[0] && pos <= r[1] {
-						inBody = true
-						break
-					}
-				}
-				if !inBody {
-					kept = append(kept, cg)
-				}
-			}
-			file.Comments = kept
-		}
 
 		var out strings.Builder
 		cfg := &printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}

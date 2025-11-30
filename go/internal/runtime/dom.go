@@ -11,17 +11,14 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// Errors
 var (
 	ErrNilRef       = errors.New("runtime: ref is nil")
 	ErrNilSession   = errors.New("runtime: session is nil")
 	ErrQueryTimeout = errors.New("runtime: query timeout")
 )
 
-// Default timeout for blocking DOM operations
 const defaultDOMTimeout = 5 * time.Second
 
-// domRequestManager manages pending DOM requests that expect responses.
 type domRequestManager struct {
 	pending   map[string]chan protocol.DOMResponsePayload
 	mu        sync.Mutex
@@ -30,7 +27,6 @@ type domRequestManager struct {
 	closedSub *protocol.Subscription
 }
 
-// newDOMRequestManager creates a new request manager and wires it to the bus.
 func newDOMRequestManager(bus *protocol.Bus, timeout time.Duration) *domRequestManager {
 	if timeout == 0 {
 		timeout = defaultDOMTimeout
@@ -48,7 +44,6 @@ func newDOMRequestManager(bus *protocol.Bus, timeout time.Duration) *domRequestM
 	return mgr
 }
 
-// allocateRequest creates a new request ID and registers the response channel.
 func (m *domRequestManager) allocateRequest() (string, chan protocol.DOMResponsePayload) {
 	id := fmt.Sprintf("dom-%d", m.nextID.Add(1))
 	ch := make(chan protocol.DOMResponsePayload, 1)
@@ -60,14 +55,12 @@ func (m *domRequestManager) allocateRequest() (string, chan protocol.DOMResponse
 	return id, ch
 }
 
-// releaseRequest removes the pending request.
 func (m *domRequestManager) releaseRequest(id string) {
 	m.mu.Lock()
 	delete(m.pending, id)
 	m.mu.Unlock()
 }
 
-// handleResponse routes a response to the waiting caller.
 func (m *domRequestManager) handleResponse(resp protocol.DOMResponsePayload) {
 	m.mu.Lock()
 	ch, ok := m.pending[resp.RequestID]
@@ -81,7 +74,6 @@ func (m *domRequestManager) handleResponse(resp protocol.DOMResponsePayload) {
 	}
 }
 
-// wait blocks until response or timeout.
 func (m *domRequestManager) wait(ch chan protocol.DOMResponsePayload) (protocol.DOMResponsePayload, error) {
 	select {
 	case resp := <-ch:
@@ -98,7 +90,6 @@ func (m *domRequestManager) setTimeout(timeout time.Duration) {
 	m.timeout.Store(int64(timeout))
 }
 
-// close cleans up the manager.
 func (m *domRequestManager) close() {
 	if m.closedSub != nil {
 		m.closedSub.Unsubscribe()
@@ -108,8 +99,6 @@ func (m *domRequestManager) close() {
 	m.mu.Unlock()
 }
 
-// Call invokes a method on the referenced element.
-// This is fire-and-forget - it publishes to the bus and returns immediately.
 func (c *Ctx) Call(ref work.Attachment, method string, args ...any) {
 	if ref == nil || ref.RefID() == "" {
 		return
@@ -125,8 +114,6 @@ func (c *Ctx) Call(ref work.Attachment, method string, args ...any) {
 	})
 }
 
-// Set assigns a value to a property on the referenced element.
-// This is fire-and-forget - it publishes to the bus and returns immediately.
 func (c *Ctx) Set(ref work.Attachment, prop string, value any) {
 	if ref == nil || ref.RefID() == "" {
 		return
@@ -142,9 +129,6 @@ func (c *Ctx) Set(ref work.Attachment, prop string, value any) {
 	})
 }
 
-// Query retrieves property values from the referenced element.
-// This blocks until the client responds or timeout occurs.
-// Returns a map of selector -> value.
 func (c *Ctx) Query(ref work.Attachment, selectors ...string) (map[string]any, error) {
 	if ref == nil || ref.RefID() == "" {
 		return nil, ErrNilRef
@@ -182,8 +166,6 @@ func (c *Ctx) Query(ref work.Attachment, selectors ...string) (map[string]any, e
 	return resp.Values, nil
 }
 
-// AsyncCall invokes a method on the referenced element and waits for the result.
-// This blocks until the client responds or timeout occurs.
 func (c *Ctx) AsyncCall(ref work.Attachment, method string, args ...any) (any, error) {
 	if ref == nil || ref.RefID() == "" {
 		return nil, ErrNilRef

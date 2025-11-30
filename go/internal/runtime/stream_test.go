@@ -19,7 +19,6 @@ func makeStreamCtx() (*Ctx, *Instance, *Session) {
 	return ctx, inst, sess
 }
 
-// TestUseStreamBasic verifies basic UseStream functionality.
 func TestUseStreamBasic(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -45,7 +44,6 @@ func TestUseStreamBasic(t *testing.T) {
 	}
 }
 
-// TestUseStreamAppend verifies Append adds items to end.
 func TestUseStreamAppend(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -67,7 +65,6 @@ func TestUseStreamAppend(t *testing.T) {
 	}
 }
 
-// TestUseStreamPrepend verifies Prepend adds items to beginning.
 func TestUseStreamPrepend(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -87,7 +84,6 @@ func TestUseStreamPrepend(t *testing.T) {
 	}
 }
 
-// TestUseStreamDelete verifies Delete removes items by key.
 func TestUseStreamDelete(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -114,7 +110,6 @@ func TestUseStreamDelete(t *testing.T) {
 	}
 }
 
-// TestUseStreamDeleteNonexistent verifies Delete returns false for missing keys.
 func TestUseStreamDeleteNonexistent(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -128,7 +123,6 @@ func TestUseStreamDeleteNonexistent(t *testing.T) {
 	}
 }
 
-// TestUseStreamReplace verifies Replace updates existing items.
 func TestUseStreamReplace(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -148,7 +142,6 @@ func TestUseStreamReplace(t *testing.T) {
 	}
 }
 
-// TestUseStreamReplaceNonexistent verifies Replace returns false for missing keys.
 func TestUseStreamReplaceNonexistent(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -162,7 +155,6 @@ func TestUseStreamReplaceNonexistent(t *testing.T) {
 	}
 }
 
-// TestUseStreamUpsert verifies Upsert inserts or updates items.
 func TestUseStreamUpsert(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -183,7 +175,6 @@ func TestUseStreamUpsert(t *testing.T) {
 	}
 }
 
-// TestUseStreamClear verifies Clear removes all items.
 func TestUseStreamClear(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -203,7 +194,6 @@ func TestUseStreamClear(t *testing.T) {
 	}
 }
 
-// TestUseStreamClearEmpty verifies Clear returns false when already empty.
 func TestUseStreamClearEmpty(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -217,7 +207,6 @@ func TestUseStreamClearEmpty(t *testing.T) {
 	}
 }
 
-// TestUseStreamReset verifies Reset replaces all items.
 func TestUseStreamReset(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -244,7 +233,6 @@ func TestUseStreamReset(t *testing.T) {
 	}
 }
 
-// TestUseStreamResetSame verifies Reset returns false when items unchanged.
 func TestUseStreamResetSame(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -259,7 +247,6 @@ func TestUseStreamResetSame(t *testing.T) {
 	}
 }
 
-// TestUseStreamInsertBefore verifies InsertBefore inserts at correct position.
 func TestUseStreamInsertBefore(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -282,7 +269,6 @@ func TestUseStreamInsertBefore(t *testing.T) {
 	}
 }
 
-// TestUseStreamInsertAfter verifies InsertAfter inserts at correct position.
 func TestUseStreamInsertAfter(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -305,7 +291,6 @@ func TestUseStreamInsertAfter(t *testing.T) {
 	}
 }
 
-// TestUseStreamKeyAutoAssign verifies keys are applied to rendered elements.
 func TestUseStreamKeyAutoAssign(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -330,7 +315,6 @@ func TestUseStreamKeyAutoAssign(t *testing.T) {
 	}
 }
 
-// TestUseStreamEmptyFragment verifies empty stream returns empty fragment.
 func TestUseStreamEmptyFragment(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -347,7 +331,6 @@ func TestUseStreamEmptyFragment(t *testing.T) {
 	}
 }
 
-// TestUseStreamPanicNilRenderer verifies panic when renderer is nil.
 func TestUseStreamPanicNilRenderer(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -360,7 +343,6 @@ func TestUseStreamPanicNilRenderer(t *testing.T) {
 	UseStream[string](ctx, nil)
 }
 
-// TestUseStreamPanicEmptyKey verifies panic when item has empty key.
 func TestUseStreamPanicEmptyKey(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -376,7 +358,6 @@ func TestUseStreamPanicEmptyKey(t *testing.T) {
 	}, items...)
 }
 
-// TestUseStreamPanicDuplicateKey verifies panic when items have duplicate keys.
 func TestUseStreamPanicDuplicateKey(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -395,7 +376,6 @@ func TestUseStreamPanicDuplicateKey(t *testing.T) {
 	}, items...)
 }
 
-// TestUseStreamPanicNilRendererResult verifies panic when renderer returns nil.
 func TestUseStreamPanicNilRendererResult(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -411,7 +391,6 @@ func TestUseStreamPanicNilRendererResult(t *testing.T) {
 	}, items...)
 }
 
-// TestUseStreamPanicConflictingKey verifies panic when renderer sets conflicting key.
 func TestUseStreamPanicConflictingKey(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 
@@ -427,7 +406,6 @@ func TestUseStreamPanicConflictingKey(t *testing.T) {
 	}, items...)
 }
 
-// TestUseStreamPanicOutsideRender verifies panic when called with nil ctx.
 func TestUseStreamPanicOutsideRender(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
@@ -440,7 +418,6 @@ func TestUseStreamPanicOutsideRender(t *testing.T) {
 	})
 }
 
-// TestUseStreamMoveExistingKey verifies inserting existing key moves it.
 func TestUseStreamMoveExistingKey(t *testing.T) {
 	ctx, _, _ := makeStreamCtx()
 

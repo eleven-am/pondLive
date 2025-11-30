@@ -9,16 +9,12 @@ import (
 	"strings"
 )
 
-// HandlerFunc handles an HTTP request and returns an error.
-// If an error is returned and no response has been written, a 500 is sent.
 type HandlerFunc func(w http.ResponseWriter, r *http.Request) error
 
-// HandlerHandle exposes the URL for a registered HTTP handler.
 type HandlerHandle struct {
 	entry *handlerEntry
 }
 
-// URL returns the HTTP endpoint path for this handler.
 func (h HandlerHandle) URL() string {
 	if h.entry == nil {
 		return ""
@@ -26,8 +22,6 @@ func (h HandlerHandle) URL() string {
 	return fmt.Sprintf("/_handlers/%s/%s", h.entry.sessionID, h.entry.id)
 }
 
-// GenerateToken returns a random capability token (hex).
-// Caller can append it to the URL or use it as needed.
 func (h HandlerHandle) GenerateToken() string {
 	var buf [16]byte
 	if _, err := rand.Read(buf[:]); err != nil {
@@ -36,8 +30,6 @@ func (h HandlerHandle) GenerateToken() string {
 	return hex.EncodeToString(buf[:])
 }
 
-// Destroy explicitly removes the handler, if still registered.
-// Safe to call multiple times.
 func (h HandlerHandle) Destroy() {
 	if h.entry == nil || h.entry.sess == nil {
 		return
@@ -46,8 +38,6 @@ func (h HandlerHandle) Destroy() {
 	h.entry = nil
 }
 
-// UseHandler registers or updates an HTTP handler for the current component.
-// The handler uses stable ID/component hook index; rerenders update the callback.
 func UseHandler(ctx *Ctx, method string, chain ...HandlerFunc) HandlerHandle {
 	if ctx == nil || ctx.instance == nil {
 		panic("runtime: UseHandler called outside component render")
@@ -87,7 +77,6 @@ type handlerCell struct {
 	entry *handlerEntry
 }
 
-// handlerEntry tracks a single HTTP handler registration.
 type handlerEntry struct {
 	id        string
 	sessionID string
@@ -133,7 +122,6 @@ func (s *Session) updateHTTPHandler(entry *handlerEntry, method string, chain []
 	s.httpHandlerMu.Unlock()
 }
 
-// removeHTTPHandler removes a handler by ID.
 func (s *Session) removeHTTPHandler(id string) {
 	if s == nil || id == "" {
 		return
@@ -143,7 +131,6 @@ func (s *Session) removeHTTPHandler(id string) {
 	s.httpHandlerMu.Unlock()
 }
 
-// findHTTPHandler looks up a handler by ID.
 func (s *Session) findHTTPHandler(id string) *handlerEntry {
 	if s == nil || id == "" {
 		return nil
@@ -154,8 +141,6 @@ func (s *Session) findHTTPHandler(id string) *handlerEntry {
 	return entry
 }
 
-// ServeHTTP dispatches to a registered handler by ID and session.
-// Callers should wire this into their HTTP mux: e.g., mux.Handle("/_handlers/", session).
 func (s *Session) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		http.NotFound(w, r)
@@ -224,7 +209,6 @@ func (s *Session) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	exec()
 }
 
-// responseWriterTracker tracks if a response was written.
 type responseWriterTracker struct {
 	http.ResponseWriter
 	wrote *bool

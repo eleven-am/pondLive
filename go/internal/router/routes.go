@@ -7,15 +7,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// Route defines a single route with a pattern and component.
-// Returns a fragment node with route metadata for collection by Routes.
-//
-// Usage:
-//
-//	router.Route(ctx, router.RouteProps{
-//	    Path: "/users/:id",
-//	    ComponentNode: UserDetailPage,
-//	})
 func Route(ctx *runtime.Ctx, props RouteProps) work.Node {
 	pattern := strings.TrimSpace(props.Path)
 	if pattern == "" {
@@ -32,15 +23,6 @@ func Route(ctx *runtime.Ctx, props RouteProps) work.Node {
 	}
 }
 
-// Routes collects route definitions, matches against current location,
-// and provides the matched component as slot content for the specified outlet.
-//
-// Usage:
-//
-//	router.Routes(ctx, router.RoutesProps{Outlet: "main"},
-//	    router.Route(ctx, router.RouteProps{Path: "/", ComponentNode: HomePage}),
-//	    router.Route(ctx, router.RouteProps{Path: "/about", ComponentNode: AboutPage}),
-//	)
 func Routes(ctx *runtime.Ctx, props RoutesProps, children []work.Node) work.Node {
 	outlet := props.Outlet
 	if outlet == "" {
@@ -107,8 +89,6 @@ func Routes(ctx *runtime.Ctx, props RoutesProps, children []work.Node) work.Node
 	return &work.Fragment{}
 }
 
-// collectRouteEntries scans children nodes for route metadata.
-// Returns a flat list of all route entries found.
 func collectRouteEntries(nodes []work.Node) []routeEntry {
 	if len(nodes) == 0 {
 		return nil
@@ -140,7 +120,6 @@ func collectRouteEntries(nodes []work.Node) []routeEntry {
 	return entries
 }
 
-// fingerprintChildren creates a stable fingerprint of children for memoization.
 func fingerprintChildren(children []work.Node) string {
 	var parts []string
 	for _, child := range children {

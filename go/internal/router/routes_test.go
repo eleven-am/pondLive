@@ -7,7 +7,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// mockComponent is a simple component for testing
 func mockComponent(ctx *runtime.Ctx, match Match, children []work.Node) work.Node {
 	return &work.Element{Tag: "div"}
 }

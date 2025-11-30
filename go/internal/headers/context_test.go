@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// TestRequestStateGetCookieWithMutation tests that mutations are reflected in GetCookie.
 func TestRequestStateGetCookieWithMutation(t *testing.T) {
 	headers := http.Header{}
 	headers.Set("Cookie", "session=original")
@@ -26,7 +25,6 @@ func TestRequestStateGetCookieWithMutation(t *testing.T) {
 	}
 }
 
-// TestRequestStateDeleteCookieMutation tests cookie deletion mutation.
 func TestRequestStateDeleteCookieMutation(t *testing.T) {
 	headers := http.Header{}
 	headers.Set("Cookie", "session=value")
@@ -42,7 +40,6 @@ func TestRequestStateDeleteCookieMutation(t *testing.T) {
 	}
 }
 
-// TestRequestStateResponseHeaders tests response header accumulation.
 func TestRequestStateResponseHeaders(t *testing.T) {
 	state := NewRequestState(nil)
 
@@ -62,7 +59,6 @@ func TestRequestStateResponseHeaders(t *testing.T) {
 	}
 }
 
-// TestRequestStateRedirect tests redirect functionality.
 func TestRequestStateRedirect(t *testing.T) {
 	state := NewRequestState(nil)
 
@@ -85,7 +81,6 @@ func TestRequestStateRedirect(t *testing.T) {
 	}
 }
 
-// TestRequestStateIsLive tests live mode flag.
 func TestRequestStateIsLive(t *testing.T) {
 	state := NewRequestState(nil)
 
@@ -100,7 +95,6 @@ func TestRequestStateIsLive(t *testing.T) {
 	}
 }
 
-// TestRequestStateCookieMutations tests CookieMutations returns correct data.
 func TestRequestStateCookieMutations(t *testing.T) {
 	state := NewRequestState(nil)
 
@@ -127,7 +121,6 @@ func TestRequestStateCookieMutations(t *testing.T) {
 	}
 }
 
-// TestRequestInfoClone tests that Clone creates an independent copy.
 func TestRequestInfoClone(t *testing.T) {
 	info := &RequestInfo{
 		Method: "GET",
@@ -155,7 +148,6 @@ func TestRequestInfoClone(t *testing.T) {
 	}
 }
 
-// TestNilSafety tests that nil receivers don't panic.
 func TestNilSafety(t *testing.T) {
 	var info *RequestInfo
 	var state *RequestState

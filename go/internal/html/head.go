@@ -2,7 +2,6 @@ package html
 
 import "sort"
 
-// MetaTag describes a <meta> element.
 type MetaTag struct {
 	Name      string
 	Content   string
@@ -13,7 +12,6 @@ type MetaTag struct {
 	Attrs     map[string]string
 }
 
-// ToNode converts a MetaTag to a work.Node.
 func (m MetaTag) ToNode() Node {
 	items := make([]Item, 0, 6+len(m.Attrs))
 	if m.Name != "" {
@@ -47,7 +45,6 @@ func (m MetaTag) ToNode() Node {
 	return Meta(items...)
 }
 
-// MetaTags converts multiple MetaTag to work.Node slice.
 func MetaTags(tags ...MetaTag) []Node {
 	if len(tags) == 0 {
 		return nil
@@ -59,7 +56,6 @@ func MetaTags(tags ...MetaTag) []Node {
 	return nodes
 }
 
-// LinkTag describes a <link> element.
 type LinkTag struct {
 	Rel            string
 	Href           string
@@ -75,7 +71,6 @@ type LinkTag struct {
 	Attrs          map[string]string
 }
 
-// ToNode converts a LinkTag to a work.Node.
 func (l LinkTag) ToNode() Node {
 	items := make([]Item, 0, 11+len(l.Attrs))
 	if l.Rel != "" {
@@ -124,7 +119,6 @@ func (l LinkTag) ToNode() Node {
 	return Link(items...)
 }
 
-// LinkTags converts multiple LinkTag to work.Node slice.
 func LinkTags(tags ...LinkTag) []Node {
 	if len(tags) == 0 {
 		return nil
@@ -136,7 +130,6 @@ func LinkTags(tags ...LinkTag) []Node {
 	return nodes
 }
 
-// ScriptTag describes a <script> element.
 type ScriptTag struct {
 	Src            string
 	Type           string
@@ -152,7 +145,6 @@ type ScriptTag struct {
 	Inner          string
 }
 
-// ToNode converts a ScriptTag to a work.Node.
 func (s ScriptTag) ToNode() Node {
 	items := make([]Item, 0, 10+len(s.Attrs))
 	if s.Src != "" {
@@ -201,7 +193,6 @@ func (s ScriptTag) ToNode() Node {
 	return ScriptEl(items...)
 }
 
-// ScriptTags converts multiple ScriptTag to work.Node slice.
 func ScriptTags(tags ...ScriptTag) []Node {
 	if len(tags) == 0 {
 		return nil

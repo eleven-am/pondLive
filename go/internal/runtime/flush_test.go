@@ -10,9 +10,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// TestMemoizedParentNotUnmounted verifies that a memoized parent that didn't render
-// is NOT treated as unmounted. This tests the fix for the unmount detection bug where
-// only RenderedThisFlush components were considered mounted.
 func TestMemoizedParentNotUnmounted(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -81,7 +78,6 @@ func TestMemoizedParentNotUnmounted(t *testing.T) {
 	}
 }
 
-// TestActualUnmountStillWorks verifies that actual unmounts still trigger cleanup.
 func TestActualUnmountStillWorks(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -133,8 +129,6 @@ func TestActualUnmountStillWorks(t *testing.T) {
 	}
 }
 
-// TestEffectRunsOutsideLock verifies that effects run outside the session lock,
-// preventing deadlocks when effects call back into session methods.
 func TestEffectRunsOutsideLock(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -195,7 +189,6 @@ func TestEffectRunsOutsideLock(t *testing.T) {
 	}
 }
 
-// TestEffectCleanupRunsOutsideLock verifies that effect cleanups run outside the lock.
 func TestEffectCleanupRunsOutsideLock(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -249,8 +242,6 @@ func TestEffectCleanupRunsOutsideLock(t *testing.T) {
 	}
 }
 
-// TestConcurrentFlushAndMarkDirty verifies that MarkDirty can be called from
-// another goroutine while Flush is running effects.
 func TestConcurrentFlushAndMarkDirty(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -323,7 +314,6 @@ func TestConcurrentFlushAndMarkDirty(t *testing.T) {
 	}
 }
 
-// TestSetAutoFlush verifies that SetAutoFlush sets the callback correctly.
 func TestSetAutoFlush(t *testing.T) {
 	sess := &Session{}
 
@@ -347,14 +337,12 @@ func TestSetAutoFlush(t *testing.T) {
 	}
 }
 
-// TestSetAutoFlushNilSession verifies nil safety.
 func TestSetAutoFlushNilSession(t *testing.T) {
 	var sess *Session
 
 	sess.SetAutoFlush(func() {})
 }
 
-// TestRequestFlushWithoutCallback verifies RequestFlush calls Flush directly when no callback.
 func TestRequestFlushWithoutCallback(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -381,7 +369,6 @@ func TestRequestFlushWithoutCallback(t *testing.T) {
 	}
 }
 
-// TestRequestFlushBatching verifies multiple RequestFlush calls batch into one flush.
 func TestRequestFlushBatching(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -420,7 +407,6 @@ func TestRequestFlushBatching(t *testing.T) {
 	}
 }
 
-// TestFlushGuardPreventsReentrant verifies that re-entrant Flush calls are queued, not deadlocked.
 func TestFlushGuardPreventsReentrant(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -482,7 +468,6 @@ func TestFlushGuardPreventsReentrant(t *testing.T) {
 	}
 }
 
-// TestIsFlushing verifies IsFlushing returns correct state.
 func TestIsFlushing(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -529,7 +514,6 @@ func TestIsFlushing(t *testing.T) {
 	}
 }
 
-// TestIsFlushPending verifies IsFlushPending returns correct state.
 func TestIsFlushPending(t *testing.T) {
 	sess := &Session{}
 
@@ -573,7 +557,6 @@ func TestIsFlushPending(t *testing.T) {
 	}
 }
 
-// TestFlushNilSession verifies nil safety for flush methods.
 func TestFlushNilSession(t *testing.T) {
 	var sess *Session
 
@@ -586,8 +569,6 @@ func TestFlushNilSession(t *testing.T) {
 	}
 }
 
-// TestRequestFlushDuringFlushTriggersReflush verifies that RequestFlush during Flush
-// schedules another flush after the current one completes.
 func TestRequestFlushDuringFlushTriggersReflush(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -634,7 +615,6 @@ func TestRequestFlushDuringFlushTriggersReflush(t *testing.T) {
 	}
 }
 
-// TestConcurrentRequestFlush verifies thread safety of RequestFlush.
 func TestConcurrentRequestFlush(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
@@ -679,8 +659,6 @@ func TestConcurrentRequestFlush(t *testing.T) {
 	}
 }
 
-// TestCollectRenderedComponentsIncludesAllTreeNodes verifies that
-// collectRenderedComponents includes ALL nodes in the tree, not just rendered ones.
 func TestCollectRenderedComponentsIncludesAllTreeNodes(t *testing.T) {
 	sess := &Session{}
 

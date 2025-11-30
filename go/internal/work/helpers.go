@@ -4,13 +4,10 @@ import "reflect"
 
 var OnMapNonNodeDrop func(itemType string, index int)
 
-// Conditional rendering helpers
-
 type noopItem struct{}
 
 func (noopItem) ApplyTo(*Element) {}
 
-// If includes the node when cond is true; otherwise it contributes nothing.
 func If(cond bool, node Item) Item {
 	if cond {
 		return node
@@ -18,8 +15,6 @@ func If(cond bool, node Item) Item {
 	return noopItem{}
 }
 
-// IfFn evaluates fn when cond is true.
-// Note: fn returns Node, but nodes implement Item via ApplyTo
 func IfFn(cond bool, fn func() Item) Item {
 	if cond && fn != nil {
 		return fn()
@@ -27,7 +22,6 @@ func IfFn(cond bool, fn func() Item) Item {
 	return noopItem{}
 }
 
-// Ternary returns whenTrue when cond is true, otherwise whenFalse.
 func Ternary(cond bool, whenTrue, whenFalse Item) Item {
 	if cond && whenTrue != nil {
 		return whenTrue
@@ -37,7 +31,6 @@ func Ternary(cond bool, whenTrue, whenFalse Item) Item {
 	return noopItem{}
 }
 
-// TernaryFn evaluates the matching branch when cond is true or false.
 func TernaryFn(cond bool, whenTrue, whenFalse func() Item) Item {
 	if cond && whenTrue != nil {
 		return whenTrue()
@@ -47,9 +40,6 @@ func TernaryFn(cond bool, whenTrue, whenFalse func() Item) Item {
 	return noopItem{}
 }
 
-// List rendering helpers
-
-// Map renders a slice into a fragment using render.
 func Map[T any](xs []T, render func(T) Item) *Fragment {
 	if len(xs) == 0 || render == nil {
 		return NewFragment()
@@ -70,7 +60,6 @@ func Map[T any](xs []T, render func(T) Item) *Fragment {
 	return &Fragment{Children: children}
 }
 
-// MapIdx renders a slice with index-aware render function.
 func MapIdx[T any](xs []T, render func(int, T) Item) *Fragment {
 	if len(xs) == 0 || render == nil {
 		return NewFragment()

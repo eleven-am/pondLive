@@ -7,13 +7,11 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// StreamItem represents a keyed value managed by UseStream.
 type StreamItem[T any] struct {
 	Key   string
 	Value T
 }
 
-// StreamHandle exposes mutation helpers for a keyed list managed by UseStream.
 type StreamHandle[T any] interface {
 	Append(StreamItem[T]) bool
 	Prepend(StreamItem[T]) bool
@@ -33,9 +31,6 @@ type streamHandle[T any] struct {
 	index *Ref[map[string]int]
 }
 
-// UseStream manages a keyed collection and renders it as a fragment of nodes.
-// The renderRow function receives each item and must return a work.Node.
-// Keys are automatically applied to enable efficient diffing.
 func UseStream[T any](
 	ctx *Ctx,
 	renderRow func(StreamItem[T]) work.Node,

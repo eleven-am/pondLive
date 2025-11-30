@@ -9,7 +9,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/headers"
 )
 
-// Message represents a transport message with sequence tracking.
 type Message struct {
 	Seq   uint64 `json:"seq"`
 	Topic string `json:"topic"`
@@ -17,13 +16,10 @@ type Message struct {
 	Data  any    `json:"data"`
 }
 
-// ChannelSender abstracts the pondsocket channel for sending messages to clients.
 type ChannelSender interface {
 	BroadcastTo(event string, payload any, userIDs ...string) error
 }
 
-// WebSocketTransport provides reliable message delivery over WebSocket.
-// It tracks sequence numbers and pending messages for acknowledgement.
 type WebSocketTransport struct {
 	sender  ChannelSender
 	userID  string
@@ -35,8 +31,6 @@ type WebSocketTransport struct {
 	requestInfo *headers.RequestInfo
 }
 
-// NewWebSocketTransport creates a transport with reliable delivery.
-// The sender is the pondsocket channel, userID identifies this session's client.
 func NewWebSocketTransport(sender ChannelSender, userID string, h http.Header) *WebSocketTransport {
 	return &WebSocketTransport{
 		sender:      sender,
@@ -46,8 +40,6 @@ func NewWebSocketTransport(sender ChannelSender, userID string, h http.Header) *
 	}
 }
 
-// RequestInfo returns the HTTP request information captured at transport creation.
-// For WebSocket, this is from the handshake request (may be updated on reconnect).
 func (t *WebSocketTransport) RequestInfo() *headers.RequestInfo {
 	if t == nil {
 		return nil
@@ -57,7 +49,6 @@ func (t *WebSocketTransport) RequestInfo() *headers.RequestInfo {
 	return t.requestInfo
 }
 
-// UpdateRequestInfo updates the request info from headers (used on reconnection).
 func (t *WebSocketTransport) UpdateRequestInfo(h http.Header) {
 	if t == nil {
 		return
@@ -67,7 +58,6 @@ func (t *WebSocketTransport) UpdateRequestInfo(h http.Header) {
 	t.mu.Unlock()
 }
 
-// Send transmits a message with sequence tracking.
 func (t *WebSocketTransport) Send(topic, event string, data any) error {
 	if t == nil {
 		return nil
@@ -102,7 +92,6 @@ func (t *WebSocketTransport) Send(topic, event string, data any) error {
 	return nil
 }
 
-// Ack acknowledges receipt of a message, removing it from pending.
 func (t *WebSocketTransport) Ack(seq uint64) {
 	if t == nil {
 		return
@@ -113,7 +102,6 @@ func (t *WebSocketTransport) Ack(seq uint64) {
 	t.mu.Unlock()
 }
 
-// AckThrough acknowledges all messages up to and including the given sequence.
 func (t *WebSocketTransport) AckThrough(seq uint64) {
 	if t == nil {
 		return
@@ -128,7 +116,6 @@ func (t *WebSocketTransport) AckThrough(seq uint64) {
 	t.mu.Unlock()
 }
 
-// Pending returns the number of unacknowledged messages.
 func (t *WebSocketTransport) Pending() int {
 	if t == nil {
 		return 0
@@ -139,7 +126,6 @@ func (t *WebSocketTransport) Pending() int {
 	return len(t.pending)
 }
 
-// PendingMessages returns a copy of all unacknowledged messages.
 func (t *WebSocketTransport) PendingMessages() []Message {
 	if t == nil {
 		return nil
@@ -155,8 +141,6 @@ func (t *WebSocketTransport) PendingMessages() []Message {
 	return msgs
 }
 
-// Resend retransmits all pending messages.
-// Useful after reconnection. Continues on error, returns first error encountered.
 func (t *WebSocketTransport) Resend() error {
 	if t == nil {
 		return nil
@@ -184,8 +168,6 @@ func (t *WebSocketTransport) Resend() error {
 	return firstErr
 }
 
-// SetSender replaces the underlying channel sender.
-// Useful for reconnection scenarios.
 func (t *WebSocketTransport) SetSender(sender ChannelSender) {
 	if t == nil {
 		return
@@ -197,7 +179,6 @@ func (t *WebSocketTransport) SetSender(sender ChannelSender) {
 	t.mu.Unlock()
 }
 
-// LastSeq returns the last sequence number used.
 func (t *WebSocketTransport) LastSeq() uint64 {
 	if t == nil {
 		return 0
@@ -205,7 +186,6 @@ func (t *WebSocketTransport) LastSeq() uint64 {
 	return atomic.LoadUint64(&t.nextSeq)
 }
 
-// SendAck atomically allocates a sequence number and sends an acknowledgment.
 func (t *WebSocketTransport) SendAck(sid string) uint64 {
 	if t == nil {
 		return 0
@@ -250,13 +230,10 @@ func (t *WebSocketTransport) SendAck(sid string) uint64 {
 	return seq
 }
 
-// IsLive returns true since WebSocket is a live connection.
 func (t *WebSocketTransport) IsLive() bool {
 	return true
 }
 
-// Close marks the transport as closed.
-// Note: The sender is not closed as it's typically a shared resource.
 func (t *WebSocketTransport) Close() error {
 	if t == nil {
 		return nil
@@ -269,12 +246,10 @@ func (t *WebSocketTransport) Close() error {
 	return nil
 }
 
-// MarshalMessage serializes a message to JSON bytes.
 func MarshalMessage(msg Message) ([]byte, error) {
 	return json.Marshal(msg)
 }
 
-// UnmarshalMessage deserializes JSON bytes to a message.
 func UnmarshalMessage(data []byte) (Message, error) {
 	var msg Message
 	err := json.Unmarshal(data, &msg)

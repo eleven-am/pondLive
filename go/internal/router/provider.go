@@ -10,13 +10,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// ProvideRouter sets up the router context hierarchy.
-// It provides:
-// - LocationContext (mutable URL state)
-// - MatchContext (current route match)
-// - outletSlotCtx (outlet slot distribution)
-//
-// And subscribes to Bus for navigation events (live mode only).
 var ProvideRouter = html.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
 	requestState := headers.UseRequestState(ctx)
 	bus := getBus(ctx)
@@ -27,11 +20,11 @@ var ProvideRouter = html.Component(func(ctx *runtime.Ctx, children []work.Node) 
 	}
 
 	if requestState != nil {
-		initialLocation = &Location{
+		initialLocation = canonicalizeLocation(&Location{
 			Path:  requestState.Path(),
 			Query: requestState.Query(),
 			Hash:  requestState.Hash(),
-		}
+		})
 	}
 
 	_, setLocation := LocationContext.UseProvider(ctx, initialLocation)
@@ -59,7 +52,6 @@ var ProvideRouter = html.Component(func(ctx *runtime.Ctx, children []work.Node) 
 	return outletSlotCtx.ProvideWithoutDefault(ctx, children)
 })
 
-// parseNavPayload converts interface{} data from Bus to protocol.RouterNavPayload.
 func parseNavPayload(data interface{}) *protocol.RouterNavPayload {
 	if data == nil {
 		return nil
@@ -90,7 +82,6 @@ func parseNavPayload(data interface{}) *protocol.RouterNavPayload {
 	}
 }
 
-// navPayloadToLocation converts protocol.RouterNavPayload to Location.
 func navPayloadToLocation(nav *protocol.RouterNavPayload) *Location {
 	if nav == nil {
 		return nil

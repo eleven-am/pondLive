@@ -5,8 +5,6 @@ import (
 	"sync/atomic"
 )
 
-// Bus is a simple pubsub message router that maps IDs to callbacks.
-// It doesn't track components or lifecycle - hooks are responsible for cleanup.
 type Bus struct {
 	subscribers         map[Topic][]*subscriber
 	wildcardSubscribers []*wildcardSubscriber
@@ -14,40 +12,32 @@ type Bus struct {
 	nextSubID           atomic.Uint64
 }
 
-// wildcardSubscriber receives all messages on the bus.
 type wildcardSubscriber struct {
 	id       uint64
 	callback func(topic Topic, event string, data interface{})
 }
 
-// subscriber represents a single subscription.
 type subscriber struct {
 	id       uint64
 	callback func(event string, data interface{})
 }
 
-// Subscription represents an active subscription that can be cancelled.
 type Subscription struct {
 	unsubscribe func()
 }
 
-// Unsubscribe removes the subscription and stops receiving messages.
 func (s *Subscription) Unsubscribe() {
 	if s.unsubscribe != nil {
 		s.unsubscribe()
 	}
 }
 
-// NewBus creates a new message bus.
 func NewBus() *Bus {
 	return &Bus{
 		subscribers: make(map[Topic][]*subscriber),
 	}
 }
 
-// Subscribe registers a callback for messages with the given ID.
-// Returns a Subscription that can be used to unsubscribe.
-// Multiple subscribers can subscribe to the same ID (broadcast).
 func (b *Bus) Subscribe(id Topic, callback func(event string, data interface{})) *Subscription {
 	if b == nil || id == "" || callback == nil {
 		return &Subscription{}
@@ -70,18 +60,6 @@ func (b *Bus) Subscribe(id Topic, callback func(event string, data interface{}))
 	}
 }
 
-// Upsert updates an existing subscription or creates a new one.
-// IMPORTANT: Upsert enforces single-subscriber semantics per ID.
-// - First call: creates a new subscriber
-// - Subsequent calls: updates the callback of the existing subscriber (does NOT create a new one)
-// - All returned Subscription handles point to the same underlying subscriber
-// - Calling Unsubscribe on ANY handle removes the subscriber
-//
-// Use Upsert for single-subscriber channels (handlers, scripts) where you want to update
-// the callback on each render without unsubscribe/resubscribe churn.
-// Use Subscribe for multi-subscriber broadcast channels (events, notifications).
-//
-// Returns a Subscription that can be used to unsubscribe.
 func (b *Bus) Upsert(id Topic, callback func(event string, data interface{})) *Subscription {
 	if b == nil || id == "" || callback == nil {
 		return &Subscription{}
@@ -122,9 +100,6 @@ func (b *Bus) Upsert(id Topic, callback func(event string, data interface{})) *S
 	}
 }
 
-// SubscribeAll registers a callback that receives ALL messages on the bus.
-// The callback receives the topic ID, event, and data for every publish.
-// Returns a Subscription that can be used to unsubscribe.
 func (b *Bus) SubscribeAll(callback func(topic Topic, event string, data interface{})) *Subscription {
 	if b == nil || callback == nil {
 		return &Subscription{}
@@ -147,10 +122,6 @@ func (b *Bus) SubscribeAll(callback func(topic Topic, event string, data interfa
 	}
 }
 
-// Publish sends a message to all subscribers of the given ID and all wildcard subscribers.
-// Broadcasts to all subscribers (if multiple are registered).
-// Callback panics are recovered to prevent cascading failures - the panic is silently swallowed
-// and remaining subscribers continue to receive the message.
 func (b *Bus) Publish(id Topic, event string, data interface{}) {
 	if b == nil || id == "" {
 		return
@@ -192,8 +163,6 @@ func (b *Bus) Publish(id Topic, event string, data interface{}) {
 	}
 }
 
-// SubscriberCount returns the number of subscribers for a given ID.
-// Useful for testing.
 func (b *Bus) SubscriberCount(id Topic) int {
 	if b == nil {
 		return 0
@@ -205,7 +174,6 @@ func (b *Bus) SubscriberCount(id Topic) int {
 	return count
 }
 
-// unsubscribeWildcard removes a wildcard subscriber.
 func (b *Bus) unsubscribeWildcard(subID uint64) {
 	if b == nil {
 		return
@@ -224,7 +192,6 @@ func (b *Bus) unsubscribeWildcard(subID uint64) {
 	}
 }
 
-// unsubscribe removes a specific subscriber from an ID.
 func (b *Bus) unsubscribe(id Topic, subID uint64) {
 	if b == nil {
 		return

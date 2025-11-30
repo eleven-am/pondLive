@@ -11,7 +11,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-//go:embed upload.js
 var uploadScript string
 
 type UploadProgress struct {
@@ -32,7 +31,6 @@ type UploadEvent struct {
 	Path string
 }
 
-// UploadHandle coordinates client script and server handler.
 type UploadHandle struct {
 	script         *ScriptHandle
 	handler        HandlerHandle
@@ -140,7 +138,6 @@ func (h *UploadHandle) OnComplete(fn func(file multipart.File, header *multipart
 	h.onComplete = fn
 }
 
-// UseUpload wires client script + server handler for file uploads.
 func UseUpload(ctx *Ctx) UploadHandle {
 	getProgress, setProgress := UseState(ctx, UploadProgress{Loaded: 0, Total: 0})
 	_ = getProgress

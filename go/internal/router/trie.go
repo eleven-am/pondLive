@@ -5,32 +5,27 @@ import (
 	"strings"
 )
 
-// nodeType defines the type of a trie node.
 type nodeType int
 
 const (
-	nodeStatic   nodeType = iota // Static segment (exact match)
-	nodeParam                    // Parameter segment (e.g., :id)
-	nodeWildcard                 // Wildcard segment (e.g., *rest)
+	nodeStatic nodeType = iota
+	nodeParam
+	nodeWildcard
 )
 
-// node represents a single node in the route trie.
 type node struct {
 	typ      nodeType
-	label    string // The segment label (without prefix like : or *)
-	prefix   string // The original prefix (e.g., ":", "*", or the static segment)
+	label    string
+	prefix   string
 	parent   *node
 	children []*node
-	entry    *routeEntry // Route entry if this node is a terminal
+	entry    *routeEntry
 }
 
-// RouterTrie implements a prefix tree for efficient route matching.
-// Supports static segments, parameters (:id), and wildcards (*rest).
 type RouterTrie struct {
 	root *node
 }
 
-// NewRouterTrie creates a new empty router trie.
 func NewRouterTrie() *RouterTrie {
 	return &RouterTrie{
 		root: &node{
@@ -39,9 +34,6 @@ func NewRouterTrie() *RouterTrie {
 	}
 }
 
-// Insert adds a route pattern and its entry to the trie.
-// Patterns are split into segments and inserted as a path from root to leaf.
-// Priority: static > param > wildcard (ensured by sorting children).
 func (t *RouterTrie) Insert(pattern string, entry routeEntry) {
 	if pattern == "" {
 		pattern = "/"
@@ -102,18 +94,14 @@ func (t *RouterTrie) Insert(pattern string, entry routeEntry) {
 	curr.entry = &entry
 }
 
-// MatchResult contains the result of a successful route match.
 type MatchResult struct {
-	Entry   *routeEntry       // The matched route entry
-	Params  map[string]string // Extracted route parameters
-	Pattern string            // The matched pattern
-	Path    string            // The matched path
-	Rest    string            // Remaining path for wildcard matches
+	Entry   *routeEntry
+	Params  map[string]string
+	Pattern string
+	Path    string
+	Rest    string
 }
 
-// Match attempts to match a path against the trie.
-// Returns MatchResult if a route matches, nil otherwise.
-// Priority: static > param > wildcard (first match wins).
 func (t *RouterTrie) Match(path string) *MatchResult {
 
 	if path == "" {
@@ -214,8 +202,6 @@ func (t *RouterTrie) Match(path string) *MatchResult {
 	return bestMatch
 }
 
-// copyParams creates a shallow copy of a params map.
-// Used during recursive matching to avoid mutation.
 func copyParams(src map[string]string) map[string]string {
 	if len(src) == 0 {
 		return map[string]string{}

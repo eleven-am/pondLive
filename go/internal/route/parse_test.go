@@ -174,6 +174,12 @@ func TestNormalizePatternEnsuresLeadingSlash(t *testing.T) {
 	}
 }
 
+func TestNormalizePatternCollapsesSeparatorsAndWhitespace(t *testing.T) {
+	if got := NormalizePattern("  //users//:id  "); got != "/users/:id" {
+		t.Fatalf("expected collapsed pattern, got %q", got)
+	}
+}
+
 func TestNormalizePatternTrimsWhitespace(t *testing.T) {
 	if got := NormalizePattern("  /users/:id  "); got != "/users/:id" {
 		t.Fatalf("expected whitespace trimmed, got %q", got)

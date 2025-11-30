@@ -99,9 +99,8 @@ func TestLiveSessionHandlerExtraction(t *testing.T) {
 	}
 }
 
-// TestMinimalProviderFlush tests providers in isolation to find the loop.
 func TestMinimalProviderFlush(t *testing.T) {
-	// Test 0: Simple element with no providers
+
 	t.Run("simple element", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
@@ -126,7 +125,6 @@ func TestMinimalProviderFlush(t *testing.T) {
 		t.Log("simple element: OK")
 	})
 
-	// Test 1: Just metatags.Provider
 	t.Run("metatags.Provider only", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
@@ -151,7 +149,6 @@ func TestMinimalProviderFlush(t *testing.T) {
 		t.Log("metatags.Provider only: OK")
 	})
 
-	// Test 2: Nested providers
 	t.Run("nested providers", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
@@ -180,7 +177,6 @@ func TestMinimalProviderFlush(t *testing.T) {
 		t.Log("nested providers: OK")
 	})
 
-	// Test 3: Provider + Render
 	t.Run("provider + render", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
@@ -209,7 +205,6 @@ func TestMinimalProviderFlush(t *testing.T) {
 		t.Log("provider + render: OK")
 	})
 
-	// Test 4: Router provider
 	t.Run("router.ProvideRouter", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
@@ -236,7 +231,6 @@ func TestMinimalProviderFlush(t *testing.T) {
 		t.Log("router.ProvideRouter: OK")
 	})
 
-	// Test 5: All three providers nested
 	t.Run("all three providers", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
@@ -267,7 +261,6 @@ func TestMinimalProviderFlush(t *testing.T) {
 		t.Log("all three providers: OK")
 	})
 
-	// Test 6: Full boot-like structure
 	t.Run("boot-like structure", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
@@ -312,8 +305,6 @@ func TestMinimalProviderFlush(t *testing.T) {
 	})
 }
 
-// TestBootMetadataExtraction tests that all metadata types (handlers, refs, scripts)
-// are correctly extracted from a boot-like component structure.
 func TestBootMetadataExtraction(t *testing.T) {
 	t.Run("handlers in boot structure", func(t *testing.T) {
 		root := &runtime.Instance{
@@ -435,7 +426,6 @@ func TestBootMetadataExtraction(t *testing.T) {
 				headers.UseProvideRequestState(ctx, nil)
 				script := runtime.UseScript(ctx, "console.log('hello')")
 
-				// Create element manually and attach script
 				scriptDiv := &work.Element{Tag: "div"}
 				script.AttachTo(scriptDiv)
 				scriptDiv.Children = []work.Node{&work.Text{Value: "With Script"}}
@@ -493,7 +483,6 @@ func TestBootMetadataExtraction(t *testing.T) {
 				ref := runtime.UseElement(ctx)
 				script := runtime.UseScript(ctx, "console.log('combined')")
 
-				// Create button with all metadata types attached
 				btn := &work.Element{Tag: "button"}
 				btn.Handlers = map[string]work.Handler{
 					"click": {Fn: func(evt work.Event) work.Updates { return nil }},

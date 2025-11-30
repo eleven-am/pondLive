@@ -10,8 +10,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// Render executes the component function and produces a work tree.
-// Returns the work tree node output from the component.
 func (inst *Instance) Render(sess *Session) work.Node {
 	if inst == nil || inst.Fn == nil {
 		return nil
@@ -93,8 +91,6 @@ func (inst *Instance) Render(sess *Session) work.Node {
 	return node
 }
 
-// callComponent invokes the component function.
-// All components must have signature: func(*Ctx, P, []work.Node) work.Node
 func callComponent(fn any, ctx *Ctx, props any, children []work.Node) work.Node {
 	f, ok := fn.(func(*Ctx, any, []work.Node) work.Node)
 	if !ok {
@@ -103,7 +99,6 @@ func callComponent(fn any, ctx *Ctx, props any, children []work.Node) work.Node 
 	return f(ctx, props, children)
 }
 
-// BeginRender prepares the instance for rendering.
 func (inst *Instance) BeginRender() {
 	if inst == nil {
 		return
@@ -117,12 +112,10 @@ func (inst *Instance) BeginRender() {
 	inst.ReferencedChildren = make(map[string]bool)
 }
 
-// EndRender completes the render cycle for this instance.
 func (inst *Instance) EndRender() {
 
 }
 
-// SetDirty marks the instance as needing re-render.
 func (inst *Instance) SetDirty(dirty bool) {
 	if inst == nil {
 		return
@@ -130,7 +123,6 @@ func (inst *Instance) SetDirty(dirty bool) {
 	inst.Dirty = dirty
 }
 
-// NotifyContextChange increments the context epoch and marks children dirty.
 func (inst *Instance) NotifyContextChange(sess *Session) {
 	if inst == nil {
 		return
@@ -147,8 +139,6 @@ func (inst *Instance) NotifyContextChange(sess *Session) {
 	}
 }
 
-// EnsureChild gets or creates a child component instance.
-// Returns the child instance for the given component function and key.
 func (inst *Instance) EnsureChild(sess *Session, fn any, key string, props any, children []work.Node) *Instance {
 	if inst == nil {
 		return nil
@@ -196,8 +186,6 @@ func (inst *Instance) EnsureChild(sess *Session, fn any, key string, props any, 
 	return child
 }
 
-// buildComponentID generates a unique ID for a component instance.
-// Includes function pointer hash to prevent instance reuse when component type changes.
 func buildComponentID(parent *Instance, fn any, key string) string {
 	if parent == nil {
 		return "root"

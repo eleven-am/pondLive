@@ -285,8 +285,6 @@ func TestErrorBoundary_ClearsOnSuccessfulRender(t *testing.T) {
 	}
 }
 
-// Layered Error Boundary Tests
-
 func TestErrorBoundary_LayeredInnerCatches(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),

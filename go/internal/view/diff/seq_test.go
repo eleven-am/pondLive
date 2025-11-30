@@ -155,7 +155,6 @@ func TestSeqWithAddsAfterDeletes(t *testing.T) {
 
 	patches := Diff(prev, next)
 
-	// Find operations
 	var delSeq, add1Seq, add2Seq int
 	for _, p := range patches {
 		switch p.Op {

@@ -5,20 +5,11 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// RedirectProps configures the Redirect component.
 type RedirectProps struct {
-	To      string // Target href
-	Replace bool   // Use replaceState instead of pushState
+	To      string
+	Replace bool
 }
 
-// Redirect triggers navigation when rendered.
-// Use for programmatic redirects within the component tree.
-//
-// Usage:
-//
-//	if !isAuthenticated {
-//	    return router.Redirect(ctx, router.RedirectProps{To: "/login"})
-//	}
 func Redirect(ctx *runtime.Ctx, props RedirectProps) work.Node {
 
 	runtime.UseEffect(ctx, func() func() {
@@ -33,13 +24,6 @@ func Redirect(ctx *runtime.Ctx, props RedirectProps) work.Node {
 	return &work.Fragment{}
 }
 
-// RedirectIf conditionally redirects based on a condition.
-// If the condition is true, redirects to the target.
-// Otherwise, renders the children.
-//
-// Usage:
-//
-//	return router.RedirectIf(ctx, !isAuthenticated, "/login", content)
 func RedirectIf(ctx *runtime.Ctx, condition bool, to string, otherwise work.Node) work.Node {
 	if condition {
 		return Redirect(ctx, RedirectProps{To: to})
@@ -47,13 +31,6 @@ func RedirectIf(ctx *runtime.Ctx, condition bool, to string, otherwise work.Node
 	return otherwise
 }
 
-// RedirectIfNot conditionally redirects based on a condition.
-// If the condition is false, redirects to the target.
-// Otherwise, renders the children.
-//
-// Usage:
-//
-//	return router.RedirectIfNot(ctx, isAuthenticated, "/login", content)
 func RedirectIfNot(ctx *runtime.Ctx, condition bool, to string, otherwise work.Node) work.Node {
 	return RedirectIf(ctx, !condition, to, otherwise)
 }

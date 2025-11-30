@@ -18,7 +18,6 @@ func cloneHeader(h http.Header) http.Header {
 	return clone
 }
 
-// serverError creates a standardized error response.
 func serverError(sid session.SessionID, code string, err error) protocol.ServerError {
 	msg := ""
 	if err != nil {

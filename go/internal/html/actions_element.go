@@ -6,57 +6,35 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// DOMRect represents the size and position of an element's bounding box.
 type DOMRect struct {
-	X      float64 // X coordinate of the element
-	Y      float64 // Y coordinate of the element
-	Width  float64 // Width of the element
-	Height float64 // Height of the element
-	Top    float64 // Top position relative to viewport
-	Right  float64 // Right position relative to viewport
-	Bottom float64 // Bottom position relative to viewport
-	Left   float64 // Left position relative to viewport
+	X      float64
+	Y      float64
+	Width  float64
+	Height float64
+	Top    float64
+	Right  float64
+	Bottom float64
+	Left   float64
 }
 
-// ScrollMetrics represents detailed scroll information for an element.
 type ScrollMetrics struct {
-	ScrollTop    float64 // Current vertical scroll position
-	ScrollLeft   float64 // Current horizontal scroll position
-	ScrollHeight float64 // Total scrollable height
-	ScrollWidth  float64 // Total scrollable width
-	ClientHeight float64 // Visible height (excluding scrollbar)
-	ClientWidth  float64 // Visible width (excluding scrollbar)
+	ScrollTop    float64
+	ScrollLeft   float64
+	ScrollHeight float64
+	ScrollWidth  float64
+	ClientHeight float64
+	ClientWidth  float64
 }
 
-// ElementActions provides common DOM actions and queries available on all HTML elements.
-// This is the base action mixin embedded in all element action types.
-//
-// Example:
-//
-//	divRef := ui.UseRef(ctx)
-//	actions := html.Element(ctx, divRef)
-//
-//	rect, _ := actions.GetBoundingClientRect()
-//	fmt.Printf("Element at (%f, %f)\n", rect.X, rect.Y)
-//
-//	return html.El("div", html.Attach(divRef), html.Text("Container"))
 type ElementActions struct {
 	ctx *runtime.Ctx
 	ref work.Attachment
 }
 
-// NewElementActions creates an ElementActions for the given ref.
 func NewElementActions(ctx *runtime.Ctx, ref work.Attachment) *ElementActions {
 	return &ElementActions{ctx: ctx, ref: ref}
 }
 
-// Call invokes an arbitrary method on the DOM element with the provided arguments.
-// This is a low-level escape hatch for calling any DOM method not exposed through typed APIs.
-//
-// Example:
-//
-//	actions := html.Element(ctx, ref)
-//	actions.Call("scrollTo", 0, 100)
 func (a *ElementActions) Call(method string, args ...any) {
 	if a.ctx == nil || a.ref == nil {
 		return
@@ -64,7 +42,6 @@ func (a *ElementActions) Call(method string, args ...any) {
 	a.ctx.Call(a.ref, method, args...)
 }
 
-// Set assigns a value to a property on the element.
 func (a *ElementActions) Set(prop string, value any) {
 	if a.ctx == nil || a.ref == nil {
 		return
@@ -72,7 +49,6 @@ func (a *ElementActions) Set(prop string, value any) {
 	a.ctx.Set(a.ref, prop, value)
 }
 
-// Query retrieves property values from the element.
 func (a *ElementActions) Query(selectors ...string) (map[string]any, error) {
 	if a.ctx == nil || a.ref == nil {
 		return nil, runtime.ErrNilRef
@@ -80,7 +56,6 @@ func (a *ElementActions) Query(selectors ...string) (map[string]any, error) {
 	return a.ctx.Query(a.ref, selectors...)
 }
 
-// AsyncCall invokes a method and waits for the result.
 func (a *ElementActions) AsyncCall(method string, args ...any) (any, error) {
 	if a.ctx == nil || a.ref == nil {
 		return nil, runtime.ErrNilRef
@@ -88,32 +63,18 @@ func (a *ElementActions) AsyncCall(method string, args ...any) (any, error) {
 	return a.ctx.AsyncCall(a.ref, method, args...)
 }
 
-// Focus sets focus on the element.
 func (a *ElementActions) Focus() {
 	a.Call("focus")
 }
 
-// Blur removes focus from the element.
 func (a *ElementActions) Blur() {
 	a.Call("blur")
 }
 
-// Click simulates a click on the element.
 func (a *ElementActions) Click() {
 	a.Call("click")
 }
 
-// GetBoundingClientRect returns the size and position of the element relative to the viewport.
-// This makes a synchronous call to the client and waits for the response.
-//
-// Example:
-//
-//	actions := html.Element(ctx, ref)
-//	rect, err := actions.GetBoundingClientRect()
-//	if err == nil {
-//	    tooltipX := rect.Right + 10
-//	    tooltipY := rect.Top
-//	}
 func (a *ElementActions) GetBoundingClientRect() (*DOMRect, error) {
 	result, err := a.AsyncCall("getBoundingClientRect")
 	if err != nil {
@@ -140,16 +101,6 @@ func (a *ElementActions) GetBoundingClientRect() (*DOMRect, error) {
 	}, nil
 }
 
-// GetScrollMetrics returns detailed scroll information for scrollable elements.
-// This makes a synchronous call to the client and waits for the response.
-//
-// Example:
-//
-//	actions := html.Element(ctx, ref)
-//	metrics, err := actions.GetScrollMetrics()
-//	if err == nil {
-//	    atBottom := metrics.ScrollTop + metrics.ClientHeight >= metrics.ScrollHeight - 10
-//	}
 func (a *ElementActions) GetScrollMetrics() (*ScrollMetrics, error) {
 	values, err := a.Query("scrollTop", "scrollLeft", "scrollHeight", "scrollWidth", "clientHeight", "clientWidth")
 	if err != nil {
@@ -165,16 +116,6 @@ func (a *ElementActions) GetScrollMetrics() (*ScrollMetrics, error) {
 	}, nil
 }
 
-// GetComputedStyle returns the computed CSS styles for the element.
-// If properties are specified, returns only those properties.
-//
-// Example:
-//
-//	actions := html.Element(ctx, ref)
-//	styles, err := actions.GetComputedStyle("color", "backgroundColor")
-//	if err == nil {
-//	    textColor := styles["color"]
-//	}
 func (a *ElementActions) GetComputedStyle(properties ...string) (map[string]string, error) {
 	result, err := a.AsyncCall("getComputedStyle", properties)
 	if err != nil {
@@ -198,16 +139,6 @@ func (a *ElementActions) GetComputedStyle(properties ...string) (map[string]stri
 	return styles, nil
 }
 
-// CheckVisibility checks if the element is currently visible according to CSS visibility rules.
-// This considers opacity, visibility, display, and content-visibility properties.
-//
-// Example:
-//
-//	actions := html.Element(ctx, ref)
-//	visible, err := actions.CheckVisibility()
-//	if err == nil && !visible {
-//	    showNotification()
-//	}
 func (a *ElementActions) CheckVisibility() (bool, error) {
 	result, err := a.AsyncCall("checkVisibility")
 	if err != nil {
@@ -219,13 +150,6 @@ func (a *ElementActions) CheckVisibility() (bool, error) {
 	return false, nil
 }
 
-// Matches checks if the element matches the given CSS selector.
-//
-// Example:
-//
-//	actions := html.Element(ctx, ref)
-//	isActive, _ := actions.Matches(".active")
-//	isFirst, _ := actions.Matches(":first-child")
 func (a *ElementActions) Matches(selector string) (bool, error) {
 	result, err := a.AsyncCall("matches", selector)
 	if err != nil {
@@ -236,8 +160,6 @@ func (a *ElementActions) Matches(selector string) (bool, error) {
 	}
 	return false, nil
 }
-
-// Helper functions for type conversion
 
 func toFloat64(v any) float64 {
 	if v == nil {
@@ -273,11 +195,6 @@ func toInt(v any) int {
 	return 0
 }
 
-// ============================================================================
-// Event Handler Methods
-// ============================================================================
-
-// addHandler registers an event handler on the ref if it supports adding handlers.
 func (a *ElementActions) addHandler(event string, handler work.Handler) {
 	if a.ref == nil {
 		return
@@ -287,11 +204,6 @@ func (a *ElementActions) addHandler(event string, handler work.Handler) {
 	}
 }
 
-// ============================================================================
-// Click Events
-// ============================================================================
-
-// OnClick registers a handler for click events.
 func (a *ElementActions) OnClick(handler func(ClickEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -303,7 +215,6 @@ func (a *ElementActions) OnClick(handler func(ClickEvent) work.Updates) *Element
 	return a
 }
 
-// OnDoubleClick registers a handler for double-click events.
 func (a *ElementActions) OnDoubleClick(handler func(ClickEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -315,7 +226,6 @@ func (a *ElementActions) OnDoubleClick(handler func(ClickEvent) work.Updates) *E
 	return a
 }
 
-// OnContextMenu registers a handler for right-click/context menu events.
 func (a *ElementActions) OnContextMenu(handler func(ClickEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -327,11 +237,6 @@ func (a *ElementActions) OnContextMenu(handler func(ClickEvent) work.Updates) *E
 	return a
 }
 
-// ============================================================================
-// Mouse Events
-// ============================================================================
-
-// OnMouseDown registers a handler for mousedown events.
 func (a *ElementActions) OnMouseDown(handler func(MouseEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -343,7 +248,6 @@ func (a *ElementActions) OnMouseDown(handler func(MouseEvent) work.Updates) *Ele
 	return a
 }
 
-// OnMouseUp registers a handler for mouseup events.
 func (a *ElementActions) OnMouseUp(handler func(MouseEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -355,7 +259,6 @@ func (a *ElementActions) OnMouseUp(handler func(MouseEvent) work.Updates) *Eleme
 	return a
 }
 
-// OnMouseMove registers a handler for mousemove events.
 func (a *ElementActions) OnMouseMove(handler func(MouseEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -367,7 +270,6 @@ func (a *ElementActions) OnMouseMove(handler func(MouseEvent) work.Updates) *Ele
 	return a
 }
 
-// OnMouseEnter registers a handler for mouseenter events.
 func (a *ElementActions) OnMouseEnter(handler func(MouseEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -379,7 +281,6 @@ func (a *ElementActions) OnMouseEnter(handler func(MouseEvent) work.Updates) *El
 	return a
 }
 
-// OnMouseLeave registers a handler for mouseleave events.
 func (a *ElementActions) OnMouseLeave(handler func(MouseEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -391,7 +292,6 @@ func (a *ElementActions) OnMouseLeave(handler func(MouseEvent) work.Updates) *El
 	return a
 }
 
-// OnMouseOver registers a handler for mouseover events.
 func (a *ElementActions) OnMouseOver(handler func(MouseEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -403,7 +303,6 @@ func (a *ElementActions) OnMouseOver(handler func(MouseEvent) work.Updates) *Ele
 	return a
 }
 
-// OnMouseOut registers a handler for mouseout events.
 func (a *ElementActions) OnMouseOut(handler func(MouseEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -415,11 +314,6 @@ func (a *ElementActions) OnMouseOut(handler func(MouseEvent) work.Updates) *Elem
 	return a
 }
 
-// ============================================================================
-// Focus Events
-// ============================================================================
-
-// OnFocus registers a handler for focus events.
 func (a *ElementActions) OnFocus(handler func(FocusEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -431,7 +325,6 @@ func (a *ElementActions) OnFocus(handler func(FocusEvent) work.Updates) *Element
 	return a
 }
 
-// OnBlur registers a handler for blur events.
 func (a *ElementActions) OnBlur(handler func(FocusEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -443,11 +336,6 @@ func (a *ElementActions) OnBlur(handler func(FocusEvent) work.Updates) *ElementA
 	return a
 }
 
-// ============================================================================
-// Keyboard Events
-// ============================================================================
-
-// OnKeyDown registers a handler for keydown events.
 func (a *ElementActions) OnKeyDown(handler func(KeyboardEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -459,7 +347,6 @@ func (a *ElementActions) OnKeyDown(handler func(KeyboardEvent) work.Updates) *El
 	return a
 }
 
-// OnKeyUp registers a handler for keyup events.
 func (a *ElementActions) OnKeyUp(handler func(KeyboardEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -471,7 +358,6 @@ func (a *ElementActions) OnKeyUp(handler func(KeyboardEvent) work.Updates) *Elem
 	return a
 }
 
-// OnKeyPress registers a handler for keypress events.
 func (a *ElementActions) OnKeyPress(handler func(KeyboardEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -483,11 +369,6 @@ func (a *ElementActions) OnKeyPress(handler func(KeyboardEvent) work.Updates) *E
 	return a
 }
 
-// ============================================================================
-// Pointer Events
-// ============================================================================
-
-// OnPointerDown registers a handler for pointerdown events.
 func (a *ElementActions) OnPointerDown(handler func(PointerEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -499,7 +380,6 @@ func (a *ElementActions) OnPointerDown(handler func(PointerEvent) work.Updates) 
 	return a
 }
 
-// OnPointerUp registers a handler for pointerup events.
 func (a *ElementActions) OnPointerUp(handler func(PointerEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -511,7 +391,6 @@ func (a *ElementActions) OnPointerUp(handler func(PointerEvent) work.Updates) *E
 	return a
 }
 
-// OnPointerMove registers a handler for pointermove events.
 func (a *ElementActions) OnPointerMove(handler func(PointerEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -523,7 +402,6 @@ func (a *ElementActions) OnPointerMove(handler func(PointerEvent) work.Updates) 
 	return a
 }
 
-// OnPointerEnter registers a handler for pointerenter events.
 func (a *ElementActions) OnPointerEnter(handler func(PointerEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -535,7 +413,6 @@ func (a *ElementActions) OnPointerEnter(handler func(PointerEvent) work.Updates)
 	return a
 }
 
-// OnPointerLeave registers a handler for pointerleave events.
 func (a *ElementActions) OnPointerLeave(handler func(PointerEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -547,7 +424,6 @@ func (a *ElementActions) OnPointerLeave(handler func(PointerEvent) work.Updates)
 	return a
 }
 
-// OnPointerCancel registers a handler for pointercancel events.
 func (a *ElementActions) OnPointerCancel(handler func(PointerEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -559,11 +435,6 @@ func (a *ElementActions) OnPointerCancel(handler func(PointerEvent) work.Updates
 	return a
 }
 
-// ============================================================================
-// Touch Events
-// ============================================================================
-
-// OnTouchStart registers a handler for touchstart events.
 func (a *ElementActions) OnTouchStart(handler func(TouchEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -575,7 +446,6 @@ func (a *ElementActions) OnTouchStart(handler func(TouchEvent) work.Updates) *El
 	return a
 }
 
-// OnTouchEnd registers a handler for touchend events.
 func (a *ElementActions) OnTouchEnd(handler func(TouchEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -587,7 +457,6 @@ func (a *ElementActions) OnTouchEnd(handler func(TouchEvent) work.Updates) *Elem
 	return a
 }
 
-// OnTouchMove registers a handler for touchmove events.
 func (a *ElementActions) OnTouchMove(handler func(TouchEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -599,7 +468,6 @@ func (a *ElementActions) OnTouchMove(handler func(TouchEvent) work.Updates) *Ele
 	return a
 }
 
-// OnTouchCancel registers a handler for touchcancel events.
 func (a *ElementActions) OnTouchCancel(handler func(TouchEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -611,11 +479,6 @@ func (a *ElementActions) OnTouchCancel(handler func(TouchEvent) work.Updates) *E
 	return a
 }
 
-// ============================================================================
-// Drag Events
-// ============================================================================
-
-// OnDrag registers a handler for drag events.
 func (a *ElementActions) OnDrag(handler func(DragEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -627,7 +490,6 @@ func (a *ElementActions) OnDrag(handler func(DragEvent) work.Updates) *ElementAc
 	return a
 }
 
-// OnDragStart registers a handler for dragstart events.
 func (a *ElementActions) OnDragStart(handler func(DragEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -639,7 +501,6 @@ func (a *ElementActions) OnDragStart(handler func(DragEvent) work.Updates) *Elem
 	return a
 }
 
-// OnDragEnd registers a handler for dragend events.
 func (a *ElementActions) OnDragEnd(handler func(DragEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -651,7 +512,6 @@ func (a *ElementActions) OnDragEnd(handler func(DragEvent) work.Updates) *Elemen
 	return a
 }
 
-// OnDragEnter registers a handler for dragenter events.
 func (a *ElementActions) OnDragEnter(handler func(DragEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -663,7 +523,6 @@ func (a *ElementActions) OnDragEnter(handler func(DragEvent) work.Updates) *Elem
 	return a
 }
 
-// OnDragLeave registers a handler for dragleave events.
 func (a *ElementActions) OnDragLeave(handler func(DragEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -675,7 +534,6 @@ func (a *ElementActions) OnDragLeave(handler func(DragEvent) work.Updates) *Elem
 	return a
 }
 
-// OnDragOver registers a handler for dragover events.
 func (a *ElementActions) OnDragOver(handler func(DragEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -687,7 +545,6 @@ func (a *ElementActions) OnDragOver(handler func(DragEvent) work.Updates) *Eleme
 	return a
 }
 
-// OnDrop registers a handler for drop events.
 func (a *ElementActions) OnDrop(handler func(DragEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -699,11 +556,6 @@ func (a *ElementActions) OnDrop(handler func(DragEvent) work.Updates) *ElementAc
 	return a
 }
 
-// ============================================================================
-// Wheel Events
-// ============================================================================
-
-// OnWheel registers a handler for wheel events.
 func (a *ElementActions) OnWheel(handler func(WheelEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -715,11 +567,6 @@ func (a *ElementActions) OnWheel(handler func(WheelEvent) work.Updates) *Element
 	return a
 }
 
-// ============================================================================
-// Animation & Transition Events
-// ============================================================================
-
-// OnAnimationStart registers a handler for animationstart events.
 func (a *ElementActions) OnAnimationStart(handler func(AnimationEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -731,7 +578,6 @@ func (a *ElementActions) OnAnimationStart(handler func(AnimationEvent) work.Upda
 	return a
 }
 
-// OnAnimationEnd registers a handler for animationend events.
 func (a *ElementActions) OnAnimationEnd(handler func(AnimationEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -743,7 +589,6 @@ func (a *ElementActions) OnAnimationEnd(handler func(AnimationEvent) work.Update
 	return a
 }
 
-// OnAnimationIteration registers a handler for animationiteration events.
 func (a *ElementActions) OnAnimationIteration(handler func(AnimationEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -755,7 +600,6 @@ func (a *ElementActions) OnAnimationIteration(handler func(AnimationEvent) work.
 	return a
 }
 
-// OnAnimationCancel registers a handler for animationcancel events.
 func (a *ElementActions) OnAnimationCancel(handler func(AnimationEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -767,7 +611,6 @@ func (a *ElementActions) OnAnimationCancel(handler func(AnimationEvent) work.Upd
 	return a
 }
 
-// OnTransitionStart registers a handler for transitionstart events.
 func (a *ElementActions) OnTransitionStart(handler func(TransitionEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -779,7 +622,6 @@ func (a *ElementActions) OnTransitionStart(handler func(TransitionEvent) work.Up
 	return a
 }
 
-// OnTransitionEnd registers a handler for transitionend events.
 func (a *ElementActions) OnTransitionEnd(handler func(TransitionEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -791,7 +633,6 @@ func (a *ElementActions) OnTransitionEnd(handler func(TransitionEvent) work.Upda
 	return a
 }
 
-// OnTransitionRun registers a handler for transitionrun events.
 func (a *ElementActions) OnTransitionRun(handler func(TransitionEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -803,7 +644,6 @@ func (a *ElementActions) OnTransitionRun(handler func(TransitionEvent) work.Upda
 	return a
 }
 
-// OnTransitionCancel registers a handler for transitioncancel events.
 func (a *ElementActions) OnTransitionCancel(handler func(TransitionEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -815,11 +655,6 @@ func (a *ElementActions) OnTransitionCancel(handler func(TransitionEvent) work.U
 	return a
 }
 
-// ============================================================================
-// Clipboard Events
-// ============================================================================
-
-// OnCopy registers a handler for copy events.
 func (a *ElementActions) OnCopy(handler func(ClipboardEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -831,7 +666,6 @@ func (a *ElementActions) OnCopy(handler func(ClipboardEvent) work.Updates) *Elem
 	return a
 }
 
-// OnCut registers a handler for cut events.
 func (a *ElementActions) OnCut(handler func(ClipboardEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -843,7 +677,6 @@ func (a *ElementActions) OnCut(handler func(ClipboardEvent) work.Updates) *Eleme
 	return a
 }
 
-// OnPaste registers a handler for paste events.
 func (a *ElementActions) OnPaste(handler func(ClipboardEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -855,11 +688,6 @@ func (a *ElementActions) OnPaste(handler func(ClipboardEvent) work.Updates) *Ele
 	return a
 }
 
-// ============================================================================
-// Composition Events
-// ============================================================================
-
-// OnCompositionStart registers a handler for compositionstart events.
 func (a *ElementActions) OnCompositionStart(handler func(CompositionEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -871,7 +699,6 @@ func (a *ElementActions) OnCompositionStart(handler func(CompositionEvent) work.
 	return a
 }
 
-// OnCompositionUpdate registers a handler for compositionupdate events.
 func (a *ElementActions) OnCompositionUpdate(handler func(CompositionEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a
@@ -883,7 +710,6 @@ func (a *ElementActions) OnCompositionUpdate(handler func(CompositionEvent) work
 	return a
 }
 
-// OnCompositionEnd registers a handler for compositionend events.
 func (a *ElementActions) OnCompositionEnd(handler func(CompositionEvent) work.Updates) *ElementActions {
 	if handler == nil {
 		return a

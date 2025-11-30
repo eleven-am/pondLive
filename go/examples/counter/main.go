@@ -1,7 +1,3 @@
-// Package main hosts a full LiveUI application that renders a TailwindCSS-styled
-// counter and wires both the HTTP boot route and PondSocket transport. It can be
-// started with `go run .` and will serve SSR HTML plus a websocket endpoint for
-// interactive updates.
 package main
 
 import (
@@ -17,7 +13,6 @@ import (
 	liveserver "github.com/eleven-am/pondlive/go/pkg/live/server"
 )
 
-//go:embed public/*
 var publicFS embed.FS
 
 func main() {

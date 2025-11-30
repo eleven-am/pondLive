@@ -7,9 +7,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/view/diff"
 )
 
-// SetAutoFlush sets the callback that will be invoked when a flush is requested.
-// This allows external code (e.g., event loop) to schedule flushes appropriately.
-// The callback should eventually call Flush() to execute the render cycle.
 func (s *Session) SetAutoFlush(fn func()) {
 	if s == nil {
 		return
@@ -19,10 +16,6 @@ func (s *Session) SetAutoFlush(fn func()) {
 	s.flushMu.Unlock()
 }
 
-// RequestFlush requests a flush to be scheduled.
-// Multiple requests are batched - only one flush will execute.
-// If an autoFlush callback is set, it will be invoked.
-// If no callback is set, Flush() is called directly.
 func (s *Session) RequestFlush() {
 	if s == nil {
 		return
@@ -53,7 +46,6 @@ func (s *Session) RequestFlush() {
 	}
 }
 
-// IsFlushing returns true if a flush is currently in progress.
 func (s *Session) IsFlushing() bool {
 	if s == nil {
 		return false
@@ -63,7 +55,6 @@ func (s *Session) IsFlushing() bool {
 	return s.flushing
 }
 
-// IsFlushPending returns true if a flush has been requested but not yet started.
 func (s *Session) IsFlushPending() bool {
 	if s == nil {
 		return false
@@ -73,10 +64,6 @@ func (s *Session) IsFlushPending() bool {
 	return s.pendingFlush
 }
 
-// Flush executes the render/flush cycle.
-// Renders dirty components, converts work tree to view tree, and runs effects.
-// IMPORTANT: User code (effects/cleanups) runs OUTSIDE the session lock to prevent
-// deadlocks when effects call back into session methods.
 func (s *Session) Flush() error {
 	if s == nil || s.Root == nil {
 		return errors.New("runtime: session not initialized")
@@ -153,8 +140,6 @@ func (s *Session) Flush() error {
 	return nil
 }
 
-// MarkDirty marks an instance as dirty and adds it to the dirty queue.
-// Automatically requests a flush to schedule re-rendering.
 func (s *Session) MarkDirty(inst *Instance) {
 	if s == nil || inst == nil {
 		return
@@ -179,9 +164,6 @@ func (s *Session) MarkDirty(inst *Instance) {
 	s.RequestFlush()
 }
 
-// collectDirtyComponentsLocked collects all dirty components with ancestor pruning.
-// If both a parent and child are dirty, only the parent is returned.
-// Must be called with s.mu held.
 func (s *Session) collectDirtyComponentsLocked() []*Instance {
 	if s == nil {
 		return nil
@@ -210,9 +192,6 @@ func (s *Session) collectDirtyComponentsLocked() []*Instance {
 	return pruned
 }
 
-// clearRenderedFlags clears the RenderedThisFlush flag and resets child tracking for all components.
-// This must be called at the start of each flush to ensure ChildRenderIndex is consistent
-// when convertWorkToView walks cached work trees.
 func (s *Session) clearRenderedFlags(inst *Instance) {
 	if inst == nil {
 		return
@@ -227,7 +206,6 @@ func (s *Session) clearRenderedFlags(inst *Instance) {
 	}
 }
 
-// resetRefsForComponent calls ResetAttachment on all element refs for a component.
 func (s *Session) resetRefsForComponent(inst *Instance) {
 	if inst == nil {
 		return
@@ -242,7 +220,6 @@ func (s *Session) resetRefsForComponent(inst *Instance) {
 	}
 }
 
-// detectAndCleanupUnmounted detects unmounted components and runs cleanup.
 func (s *Session) detectAndCleanupUnmounted() {
 	if s == nil {
 		return
@@ -270,10 +247,6 @@ func (s *Session) detectAndCleanupUnmounted() {
 	s.MountedComponents = rendered
 }
 
-// collectRenderedComponents collects all components in the component tree.
-// This includes both components that rendered this flush AND memoized components
-// that skipped rendering but are still mounted. This is critical for correct
-// unmount detection - a memoized parent that didn't render is still mounted.
 func (s *Session) collectRenderedComponents(inst *Instance, result map[*Instance]struct{}) {
 	if inst == nil {
 		return
@@ -286,7 +259,6 @@ func (s *Session) collectRenderedComponents(inst *Instance, result map[*Instance
 	}
 }
 
-// cleanupInstance runs cleanup for an instance (effects, refs, providers, etc).
 func (s *Session) cleanupInstance(inst *Instance) {
 	if inst == nil {
 		return
@@ -324,7 +296,6 @@ func (s *Session) cleanupInstance(inst *Instance) {
 	}
 }
 
-// pruneUnreferencedChildren removes children that weren't referenced during render.
 func (s *Session) pruneUnreferencedChildren(inst *Instance) {
 	if inst == nil {
 		return
@@ -350,14 +321,12 @@ func (s *Session) pruneUnreferencedChildren(inst *Instance) {
 	inst.Children = kept
 }
 
-// clearCurrentHandlers clears the tracking of current handlers before convert.
 func (s *Session) clearCurrentHandlers() {
 	s.handlerIDsMu.Lock()
 	s.currentHandlerIDs = make(map[string]bool)
 	s.handlerIDsMu.Unlock()
 }
 
-// cleanupStaleHandlers unsubscribes handlers that are no longer in the view tree.
 func (s *Session) cleanupStaleHandlers() {
 	s.handlerIDsMu.Lock()
 	defer s.handlerIDsMu.Unlock()
@@ -373,9 +342,6 @@ func (s *Session) cleanupStaleHandlers() {
 	}
 }
 
-// runPendingEffects executes pending effects from the session.
-// This is a convenience wrapper for tests and external callers.
-// It collects pending effects under the lock, then runs them outside the lock.
 func (s *Session) runPendingEffects() {
 	if s == nil {
 		return
@@ -391,9 +357,6 @@ func (s *Session) runPendingEffects() {
 	s.runEffectsOutsideLock(effects, cleanups)
 }
 
-// runEffectsOutsideLock executes all pending effects/cleanups outside the session lock.
-// This prevents deadlocks when effects call back into session methods like MarkDirty or Flush.
-// MUST be called without holding s.mu.
 func (s *Session) runEffectsOutsideLock(effects []effectTask, cleanups []cleanupTask) {
 	if s == nil {
 		return

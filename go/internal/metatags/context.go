@@ -10,9 +10,6 @@ import (
 
 type Ctx = runtime.Ctx
 
-// noopController is the default controller when no Provider exists.
-// It silently drops meta changes - this is intentional for SSR or when
-// meta is not needed.
 var noopController = &Controller{
 	get:    func() map[string]metaEntry { return make(map[string]metaEntry) },
 	set:    func(string, metaEntry) {},

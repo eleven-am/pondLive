@@ -9,8 +9,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/route"
 )
 
-// canonicalizeLocation normalizes a location's path, query, and hash.
-// This ensures consistent location comparison and matching.
 func canonicalizeLocation(loc *Location) *Location {
 	if loc == nil {
 		return &Location{Path: "/", Query: url.Values{}}
@@ -38,7 +36,6 @@ func canonicalizeLocation(loc *Location) *Location {
 	return canon
 }
 
-// cloneLocation creates a deep copy of a location.
 func cloneLocation(loc *Location) *Location {
 	if loc == nil {
 		return &Location{Path: "/", Query: url.Values{}}
@@ -50,7 +47,6 @@ func cloneLocation(loc *Location) *Location {
 	}
 }
 
-// locationEqual compares two locations for equality.
 func locationEqual(a, b *Location) bool {
 	if a == nil && b == nil {
 		return true
@@ -67,12 +63,10 @@ func locationEqual(a, b *Location) bool {
 	return valuesEqual(a.Query, b.Query)
 }
 
-// normalizeHash removes leading # prefix from hash.
 func normalizeHash(hash string) string {
 	return route.NormalizeHash(hash)
 }
 
-// cloneValues creates a deep copy of url.Values.
 func cloneValues(q url.Values) url.Values {
 	if len(q) == 0 {
 		return url.Values{}
@@ -86,7 +80,6 @@ func cloneValues(q url.Values) url.Values {
 	return out
 }
 
-// canonicalizeValues sorts and normalizes url.Values for consistent comparison.
 func canonicalizeValues(q url.Values) url.Values {
 	if len(q) == 0 {
 		return url.Values{}
@@ -103,7 +96,6 @@ func canonicalizeValues(q url.Values) url.Values {
 	return out
 }
 
-// canonicalizeList sorts and trims string values.
 func canonicalizeList(values []string) []string {
 	if len(values) == 0 {
 		return []string{}
@@ -116,8 +108,6 @@ func canonicalizeList(values []string) []string {
 	return cleaned
 }
 
-// valuesEqual compares two url.Values for equality.
-// Uses encoded representation for efficient comparison.
 func valuesEqual(a, b url.Values) bool {
 	if len(a) != len(b) {
 		return false
@@ -128,7 +118,6 @@ func valuesEqual(a, b url.Values) bool {
 	return encodeQuery(a) == encodeQuery(b)
 }
 
-// encodeQuery creates a canonical encoded representation of url.Values.
 func encodeQuery(q url.Values) string {
 	if len(q) == 0 {
 		return ""
@@ -164,7 +153,6 @@ func encodeQuery(q url.Values) string {
 	return builder.String()
 }
 
-// buildHref constructs a URL string from path, query, and hash.
 func buildHref(path string, query url.Values, hash string) string {
 	if path == "" {
 		path = "/"
@@ -190,8 +178,6 @@ func buildHref(path string, query url.Values, hash string) string {
 	return href
 }
 
-// resolveHref resolves an href relative to the current location.
-// Supports absolute paths ("/about"), hash-only ("#section"), and relative ("./edit").
 func resolveHref(current *Location, href string) *Location {
 	if href == "" {
 		return cloneLocation(current)

@@ -19,7 +19,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/view/diff"
 )
 
-// App is a PondLive application that handles SSR, WebSocket, and static assets.
 type App struct {
 	component     session.Component
 	registry      *SessionRegistry
@@ -33,28 +32,20 @@ type App struct {
 	mux           *http.ServeMux
 }
 
-// Config configures a PondLive application.
 type Config struct {
-	// Component is the root UI component (required)
 	Component session.Component
 
-	// ClientAsset is the URL path where the JS will be served (default: "/pondlive.js")
 	ClientAsset string
 
-	// SessionConfig configures session behavior
 	SessionConfig *session.Config
 
-	// ClientConfig configures client-side behavior
 	ClientConfig *protocol.ClientConfig
 
-	// IDGenerator generates session IDs (optional, uses random by default)
 	IDGenerator func(*http.Request) (session.SessionID, error)
 
-	// Context for the PondSocket manager (optional, uses Background if nil)
 	Context context.Context
 }
 
-// New creates a new PondLive application.
 func New(cfg Config) (*App, error) {
 	if cfg.Component == nil {
 		return nil, &AppError{Code: "missing_component", Message: "component is required"}
@@ -117,39 +108,18 @@ func (a *App) registerRoutes() {
 	a.mux.HandleFunc("/", a.serveSSR)
 }
 
-// Mux returns the internal ServeMux with all routes registered.
-// Use this if you want direct access to the mux.
 func (a *App) Mux() *http.ServeMux {
 	return a.mux
 }
 
-// Handler returns the app as an http.Handler.
-//
-// Usage with Echo:
-//
-//	app := server.New(server.Config{...})
-//	echo.Any("*", echo.WrapHandler(app.Handler()))
 func (a *App) Handler() http.Handler {
 	return a.mux
 }
 
-// HandlerFunc returns the app as an http.HandlerFunc.
-//
-// Usage with Echo:
-//
-//	app := server.New(server.Config{...})
-//	echo.Any("*", app.HandlerFunc())
 func (a *App) HandlerFunc() http.HandlerFunc {
 	return a.mux.ServeHTTP
 }
 
-// Server returns a configured http.Server ready to listen.
-//
-// Usage:
-//
-//	app := server.New(server.Config{...})
-//	server := app.Server(":3000")
-//	server.ListenAndServe()
 func (a *App) Server(addr string) *http.Server {
 	return &http.Server{
 		Addr:    addr,
@@ -157,12 +127,10 @@ func (a *App) Server(addr string) *http.Server {
 	}
 }
 
-// Registry returns the session registry for advanced use cases.
 func (a *App) Registry() *SessionRegistry {
 	return a.registry
 }
 
-// serveSSR handles server-side rendering.
 func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {
 	sid, err := a.idGenerator(r)
 	if err != nil || sid == "" {
@@ -243,8 +211,6 @@ func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(document))
 }
 
-// Helper functions
-
 func defaultSessionID(*http.Request) (session.SessionID, error) {
 	var buf [16]byte
 	if _, err := rand.Read(buf[:]); err != nil {
@@ -307,7 +273,6 @@ func lastIndexFold(haystack, needle string) int {
 	return -1
 }
 
-// bootCaptureTransport captures the last sequence number during initial render.
 type bootCaptureTransport struct {
 	lastSeq     int
 	requestInfo *headers.RequestInfo

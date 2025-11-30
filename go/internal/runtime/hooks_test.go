@@ -670,7 +670,6 @@ func TestDefaultEqual(t *testing.T) {
 		t.Error("expected 'hello' != 'world'")
 	}
 
-	// Test with slices (uses DeepEqual)
 	type Data struct {
 		Values []int
 	}

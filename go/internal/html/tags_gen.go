@@ -13,11 +13,10 @@ import (
 type tagSpec struct {
 	Name   string
 	Tag    string
-	Kind   string // "html" or "svg"
+	Kind   string
 	Mixins []string
 }
 
-// Action specs define which action structs exist
 type actionSpec struct {
 	Type        string
 	Constructor string
@@ -58,7 +57,7 @@ func actionsForTag(spec tagSpec) []actionSpec {
 }
 
 var tags = []tagSpec{
-	// HTML elements
+
 	{"A", "a", "html", nil},
 	{"Abbr", "abbr", "html", nil},
 	{"Address", "address", "html", nil},
@@ -176,7 +175,6 @@ var tags = []tagSpec{
 	{"Video", "video", "html", []string{"media"}},
 	{"Wbr", "wbr", "html", nil},
 
-	// SVG elements
 	{"Svg", "svg", "svg", nil},
 	{"Circle", "circle", "svg", nil},
 	{"ClipPath", "clipPath", "svg", nil},

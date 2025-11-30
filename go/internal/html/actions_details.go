@@ -6,39 +6,18 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// DetailsActions provides details element actions.
-//
-// Example:
-//
-//	detailsRef := ui.UseRef(ctx)
-//	actions := html.Details(ctx, detailsRef)
-//	actions.SetOpen(true)  // Expand the details
-//
-//	return html.El("details", html.Attach(detailsRef),
-//	    html.El("summary", html.Text("Click to expand")),
-//	    html.El("p", html.Text("Hidden content")),
-//	)
 type DetailsActions struct {
 	*ElementActions
 }
 
-// Details creates a DetailsActions for the given ref.
 func NewDetailsActions(ctx *runtime.Ctx, ref work.Attachment) *DetailsActions {
 	return &DetailsActions{ElementActions: NewElementActions(ctx, ref)}
 }
 
-// SetOpen sets the open state of the details element.
-//
-// Example:
-//
-//	actions := html.Details(ctx, detailsRef)
-//	actions.SetOpen(true)  // Expand
-//	actions.SetOpen(false)  // Collapse
 func (a *DetailsActions) SetOpen(open bool) {
 	a.Set("open", open)
 }
 
-// GetOpen retrieves whether the details element is currently open.
 func (a *DetailsActions) GetOpen() (bool, error) {
 	values, err := a.Query("open")
 	if err != nil {
@@ -50,7 +29,6 @@ func (a *DetailsActions) GetOpen() (bool, error) {
 	return false, nil
 }
 
-// Toggle toggles the open state of the details element.
 func (a *DetailsActions) Toggle() error {
 	open, err := a.GetOpen()
 	if err != nil {

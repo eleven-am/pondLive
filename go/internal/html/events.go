@@ -4,37 +4,27 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// ============================================================================
-// Base Event
-// ============================================================================
-
-// BaseEvent contains common event properties.
 type BaseEvent struct {
 	work.Event
 }
 
-// ============================================================================
-// Click Events
-// ============================================================================
-
-// ClickEvent represents mouse click events (click, dblclick, contextmenu).
 type ClickEvent struct {
 	BaseEvent
-	Detail   int     // Number of clicks
-	Button   int     // Which mouse button (0=left, 1=middle, 2=right)
-	Buttons  int     // Which buttons are pressed (bitmask)
-	ClientX  float64 // X coordinate relative to viewport
-	ClientY  float64 // Y coordinate relative to viewport
-	OffsetX  float64 // X coordinate relative to target
-	OffsetY  float64 // Y coordinate relative to target
-	PageX    float64 // X coordinate relative to page
-	PageY    float64 // Y coordinate relative to page
-	ScreenX  float64 // X coordinate relative to screen
-	ScreenY  float64 // Y coordinate relative to screen
-	AltKey   bool    // Alt key pressed
-	CtrlKey  bool    // Control key pressed
-	ShiftKey bool    // Shift key pressed
-	MetaKey  bool    // Meta key pressed
+	Detail   int
+	Button   int
+	Buttons  int
+	ClientX  float64
+	ClientY  float64
+	OffsetX  float64
+	OffsetY  float64
+	PageX    float64
+	PageY    float64
+	ScreenX  float64
+	ScreenY  float64
+	AltKey   bool
+	CtrlKey  bool
+	ShiftKey bool
+	MetaKey  bool
 }
 
 func (ClickEvent) props() []string {
@@ -70,29 +60,24 @@ func buildClickEvent(evt work.Event) ClickEvent {
 	}
 }
 
-// ============================================================================
-// Mouse Events
-// ============================================================================
-
-// MouseEvent represents mouse events (mousedown, mouseup, mousemove, etc).
 type MouseEvent struct {
 	BaseEvent
-	Button    int     // Which mouse button
-	Buttons   int     // Which buttons are pressed
-	ClientX   float64 // X coordinate relative to viewport
-	ClientY   float64 // Y coordinate relative to viewport
-	ScreenX   float64 // X coordinate relative to screen
-	ScreenY   float64 // Y coordinate relative to screen
-	MovementX float64 // X movement since last event
-	MovementY float64 // Y movement since last event
-	OffsetX   float64 // X coordinate relative to target
-	OffsetY   float64 // Y coordinate relative to target
-	PageX     float64 // X coordinate relative to page
-	PageY     float64 // Y coordinate relative to page
-	AltKey    bool    // Alt key pressed
-	CtrlKey   bool    // Control key pressed
-	ShiftKey  bool    // Shift key pressed
-	MetaKey   bool    // Meta key pressed
+	Button    int
+	Buttons   int
+	ClientX   float64
+	ClientY   float64
+	ScreenX   float64
+	ScreenY   float64
+	MovementX float64
+	MovementY float64
+	OffsetX   float64
+	OffsetY   float64
+	PageX     float64
+	PageY     float64
+	AltKey    bool
+	CtrlKey   bool
+	ShiftKey  bool
+	MetaKey   bool
 }
 
 func (MouseEvent) props() []string {
@@ -129,22 +114,17 @@ func buildMouseEvent(evt work.Event) MouseEvent {
 	}
 }
 
-// ============================================================================
-// Keyboard Events
-// ============================================================================
-
-// KeyboardEvent represents keyboard events (keydown, keyup, keypress).
 type KeyboardEvent struct {
 	BaseEvent
-	Key         string // The key value (e.g., "Enter", "a", "Escape")
-	Code        string // Physical key code (e.g., "KeyA", "Enter")
-	Location    int    // Location of the key on keyboard
-	Repeat      bool   // Is key being held down
-	AltKey      bool   // Alt key pressed
-	CtrlKey     bool   // Control key pressed
-	ShiftKey    bool   // Shift key pressed
-	MetaKey     bool   // Meta key pressed
-	IsComposing bool   // Is part of composition
+	Key         string
+	Code        string
+	Location    int
+	Repeat      bool
+	AltKey      bool
+	CtrlKey     bool
+	ShiftKey    bool
+	MetaKey     bool
+	IsComposing bool
 }
 
 func (KeyboardEvent) props() []string {
@@ -170,11 +150,6 @@ func buildKeyboardEvent(evt work.Event) KeyboardEvent {
 	}
 }
 
-// ============================================================================
-// Focus Events
-// ============================================================================
-
-// FocusEvent represents focus and blur events.
 type FocusEvent struct {
 	BaseEvent
 }
@@ -187,37 +162,32 @@ func buildFocusEvent(evt work.Event) FocusEvent {
 	return FocusEvent{BaseEvent: BaseEvent{Event: evt}}
 }
 
-// ============================================================================
-// Pointer Events
-// ============================================================================
-
-// PointerEvent represents pointer events (pointerdown, pointerup, pointermove, etc).
 type PointerEvent struct {
 	BaseEvent
-	PointerType string  // Type of pointer (mouse, pen, touch)
-	PointerID   int     // Unique pointer identifier
-	Button      int     // Which button
-	Buttons     int     // Which buttons are pressed
-	ClientX     float64 // X coordinate relative to viewport
-	ClientY     float64 // Y coordinate relative to viewport
-	MovementX   float64 // X movement since last event
-	MovementY   float64 // Y movement since last event
-	OffsetX     float64 // X coordinate relative to target
-	OffsetY     float64 // Y coordinate relative to target
-	PageX       float64 // X coordinate relative to page
-	PageY       float64 // Y coordinate relative to page
-	ScreenX     float64 // X coordinate relative to screen
-	ScreenY     float64 // Y coordinate relative to screen
-	Width       float64 // Width of contact geometry
-	Height      float64 // Height of contact geometry
-	Pressure    float64 // Pressure of the pointer (0-1)
-	TiltX       float64 // Tilt angle X (-90 to 90)
-	TiltY       float64 // Tilt angle Y (-90 to 90)
-	IsPrimary   bool    // Is primary pointer
-	AltKey      bool    // Alt key pressed
-	CtrlKey     bool    // Control key pressed
-	ShiftKey    bool    // Shift key pressed
-	MetaKey     bool    // Meta key pressed
+	PointerType string
+	PointerID   int
+	Button      int
+	Buttons     int
+	ClientX     float64
+	ClientY     float64
+	MovementX   float64
+	MovementY   float64
+	OffsetX     float64
+	OffsetY     float64
+	PageX       float64
+	PageY       float64
+	ScreenX     float64
+	ScreenY     float64
+	Width       float64
+	Height      float64
+	Pressure    float64
+	TiltX       float64
+	TiltY       float64
+	IsPrimary   bool
+	AltKey      bool
+	CtrlKey     bool
+	ShiftKey    bool
+	MetaKey     bool
 }
 
 func (PointerEvent) props() []string {
@@ -266,17 +236,12 @@ func buildPointerEvent(evt work.Event) PointerEvent {
 	}
 }
 
-// ============================================================================
-// Touch Events
-// ============================================================================
-
-// TouchEvent represents touch events (touchstart, touchend, touchmove, touchcancel).
 type TouchEvent struct {
 	BaseEvent
-	AltKey   bool // Alt key pressed
-	CtrlKey  bool // Control key pressed
-	ShiftKey bool // Shift key pressed
-	MetaKey  bool // Meta key pressed
+	AltKey   bool
+	CtrlKey  bool
+	ShiftKey bool
+	MetaKey  bool
 }
 
 func (TouchEvent) props() []string {
@@ -295,25 +260,20 @@ func buildTouchEvent(evt work.Event) TouchEvent {
 	}
 }
 
-// ============================================================================
-// Drag Events
-// ============================================================================
-
-// DragEvent represents drag and drop events.
 type DragEvent struct {
 	BaseEvent
-	ClientX  float64 // X coordinate relative to viewport
-	ClientY  float64 // Y coordinate relative to viewport
-	ScreenX  float64 // X coordinate relative to screen
-	ScreenY  float64 // Y coordinate relative to screen
-	OffsetX  float64 // X coordinate relative to target
-	OffsetY  float64 // Y coordinate relative to target
-	PageX    float64 // X coordinate relative to page
-	PageY    float64 // Y coordinate relative to page
-	AltKey   bool    // Alt key pressed
-	CtrlKey  bool    // Control key pressed
-	ShiftKey bool    // Shift key pressed
-	MetaKey  bool    // Meta key pressed
+	ClientX  float64
+	ClientY  float64
+	ScreenX  float64
+	ScreenY  float64
+	OffsetX  float64
+	OffsetY  float64
+	PageX    float64
+	PageY    float64
+	AltKey   bool
+	CtrlKey  bool
+	ShiftKey bool
+	MetaKey  bool
 }
 
 func (DragEvent) props() []string {
@@ -344,19 +304,14 @@ func buildDragEvent(evt work.Event) DragEvent {
 	}
 }
 
-// ============================================================================
-// Scroll Events
-// ============================================================================
-
-// ScrollEvent represents scroll events.
 type ScrollEvent struct {
 	BaseEvent
-	ScrollTop    float64 // Current vertical scroll position
-	ScrollLeft   float64 // Current horizontal scroll position
-	ScrollHeight float64 // Total scrollable height
-	ScrollWidth  float64 // Total scrollable width
-	ClientHeight float64 // Visible height
-	ClientWidth  float64 // Visible width
+	ScrollTop    float64
+	ScrollLeft   float64
+	ScrollHeight float64
+	ScrollWidth  float64
+	ClientHeight float64
+	ClientWidth  float64
 }
 
 func (ScrollEvent) props() []string {
@@ -379,16 +334,11 @@ func buildScrollEvent(evt work.Event) ScrollEvent {
 	}
 }
 
-// ============================================================================
-// Input Events
-// ============================================================================
-
-// InputEvent represents input events (input, change, beforeinput).
 type InputEvent struct {
 	BaseEvent
-	InputType   string // Type of input (insertText, deleteContentBackward, etc.)
-	Data        string // The inserted characters (if any)
-	IsComposing bool   // Is part of composition
+	InputType   string
+	Data        string
+	IsComposing bool
 }
 
 func (InputEvent) props() []string {
@@ -406,7 +356,6 @@ func buildInputEvent(evt work.Event) InputEvent {
 	}
 }
 
-// ChangeEvent represents change events on form elements.
 type ChangeEvent struct {
 	BaseEvent
 }
@@ -419,11 +368,6 @@ func buildChangeEvent(evt work.Event) ChangeEvent {
 	return ChangeEvent{BaseEvent: BaseEvent{Event: evt}}
 }
 
-// ============================================================================
-// Form Events
-// ============================================================================
-
-// FormEvent represents form events (submit, reset, invalid).
 type FormEvent struct {
 	BaseEvent
 }
@@ -436,20 +380,15 @@ func buildFormEvent(evt work.Event) FormEvent {
 	return FormEvent{BaseEvent: BaseEvent{Event: evt}}
 }
 
-// ============================================================================
-// Media Events
-// ============================================================================
-
-// MediaEvent represents media events (play, pause, ended, etc.).
 type MediaEvent struct {
 	BaseEvent
-	CurrentTime float64 // Current playback position in seconds
-	Duration    float64 // Total duration in seconds
-	Paused      bool    // Is playback paused
-	Ended       bool    // Has playback ended
-	Volume      float64 // Current volume (0-1)
-	Muted       bool    // Is audio muted
-	Playback    float64 // Playback rate
+	CurrentTime float64
+	Duration    float64
+	Paused      bool
+	Ended       bool
+	Volume      float64
+	Muted       bool
+	Playback    float64
 }
 
 func (MediaEvent) props() []string {
@@ -474,23 +413,18 @@ func buildMediaEvent(evt work.Event) MediaEvent {
 	}
 }
 
-// ============================================================================
-// Wheel Events
-// ============================================================================
-
-// WheelEvent represents wheel events (wheel, mousewheel).
 type WheelEvent struct {
 	BaseEvent
-	DeltaX    float64 // Horizontal scroll amount
-	DeltaY    float64 // Vertical scroll amount
-	DeltaZ    float64 // Z-axis scroll amount
-	DeltaMode int     // Unit of delta values (0=pixels, 1=lines, 2=pages)
-	ClientX   float64 // X coordinate relative to viewport
-	ClientY   float64 // Y coordinate relative to viewport
-	AltKey    bool    // Alt key pressed
-	CtrlKey   bool    // Control key pressed
-	ShiftKey  bool    // Shift key pressed
-	MetaKey   bool    // Meta key pressed
+	DeltaX    float64
+	DeltaY    float64
+	DeltaZ    float64
+	DeltaMode int
+	ClientX   float64
+	ClientY   float64
+	AltKey    bool
+	CtrlKey   bool
+	ShiftKey  bool
+	MetaKey   bool
 }
 
 func (WheelEvent) props() []string {
@@ -517,16 +451,11 @@ func buildWheelEvent(evt work.Event) WheelEvent {
 	}
 }
 
-// ============================================================================
-// Animation & Transition Events
-// ============================================================================
-
-// AnimationEvent represents CSS animation events.
 type AnimationEvent struct {
 	BaseEvent
-	AnimationName string  // Name of the animation
-	ElapsedTime   float64 // Time the animation has been running
-	PseudoElement string  // Pseudo-element the animation runs on
+	AnimationName string
+	ElapsedTime   float64
+	PseudoElement string
 }
 
 func (AnimationEvent) props() []string {
@@ -544,12 +473,11 @@ func buildAnimationEvent(evt work.Event) AnimationEvent {
 	}
 }
 
-// TransitionEvent represents CSS transition events.
 type TransitionEvent struct {
 	BaseEvent
-	PropertyName  string  // Name of the CSS property
-	ElapsedTime   float64 // Time the transition has been running
-	PseudoElement string  // Pseudo-element the transition runs on
+	PropertyName  string
+	ElapsedTime   float64
+	PseudoElement string
 }
 
 func (TransitionEvent) props() []string {
@@ -567,14 +495,9 @@ func buildTransitionEvent(evt work.Event) TransitionEvent {
 	}
 }
 
-// ============================================================================
-// Clipboard Events
-// ============================================================================
-
-// ClipboardEvent represents clipboard events (copy, cut, paste).
 type ClipboardEvent struct {
 	BaseEvent
-	ClipboardData string // Text data from clipboard (if accessible)
+	ClipboardData string
 }
 
 func (ClipboardEvent) props() []string {
@@ -588,14 +511,9 @@ func buildClipboardEvent(evt work.Event) ClipboardEvent {
 	}
 }
 
-// ============================================================================
-// Composition Events
-// ============================================================================
-
-// CompositionEvent represents IME composition events.
 type CompositionEvent struct {
 	BaseEvent
-	Data string // The characters being composed
+	Data string
 }
 
 func (CompositionEvent) props() []string {
@@ -609,15 +527,10 @@ func buildCompositionEvent(evt work.Event) CompositionEvent {
 	}
 }
 
-// ============================================================================
-// Selection Events
-// ============================================================================
-
-// SelectionEvent represents text selection events.
 type SelectionEvent struct {
 	BaseEvent
-	SelectionStart int // Start position of selection
-	SelectionEnd   int // End position of selection
+	SelectionStart int
+	SelectionEnd   int
 }
 
 func (SelectionEvent) props() []string {
@@ -634,15 +547,10 @@ func buildSelectionEvent(evt work.Event) SelectionEvent {
 	}
 }
 
-// ============================================================================
-// Resize Events
-// ============================================================================
-
-// ResizeEvent represents resize events.
 type ResizeEvent struct {
 	BaseEvent
-	Width  float64 // New width
-	Height float64 // New height
+	Width  float64
+	Height float64
 }
 
 func (ResizeEvent) props() []string {
@@ -659,14 +567,9 @@ func buildResizeEvent(evt work.Event) ResizeEvent {
 	}
 }
 
-// ============================================================================
-// Toggle Events
-// ============================================================================
-
-// ToggleEvent represents toggle events (for details element).
 type ToggleEvent struct {
 	BaseEvent
-	Open bool // Whether the element is open
+	Open bool
 }
 
 func (ToggleEvent) props() []string {
@@ -680,11 +583,6 @@ func buildToggleEvent(evt work.Event) ToggleEvent {
 	}
 }
 
-// ============================================================================
-// Load Events
-// ============================================================================
-
-// LoadEvent represents load/error events (for images, scripts, iframes).
 type LoadEvent struct {
 	BaseEvent
 }
@@ -697,13 +595,12 @@ func buildLoadEvent(evt work.Event) LoadEvent {
 	return LoadEvent{BaseEvent: BaseEvent{Event: evt}}
 }
 
-// ErrorEvent represents error events.
 type ErrorEvent struct {
 	BaseEvent
-	Message  string // Error message
-	Filename string // Source file where error occurred
-	Lineno   int    // Line number
-	Colno    int    // Column number
+	Message  string
+	Filename string
+	Lineno   int
+	Colno    int
 }
 
 func (ErrorEvent) props() []string {
@@ -722,16 +619,11 @@ func buildErrorEvent(evt work.Event) ErrorEvent {
 	}
 }
 
-// ============================================================================
-// Progress Events
-// ============================================================================
-
-// ProgressEvent represents progress events (for uploads, downloads).
 type ProgressEvent struct {
 	BaseEvent
-	LengthComputable bool    // Whether total size is known
-	Loaded           float64 // Bytes loaded so far
-	Total            float64 // Total bytes to load
+	LengthComputable bool
+	Loaded           float64
+	Total            float64
 }
 
 func (ProgressEvent) props() []string {
@@ -749,14 +641,9 @@ func buildProgressEvent(evt work.Event) ProgressEvent {
 	}
 }
 
-// ============================================================================
-// Fullscreen Events
-// ============================================================================
-
-// FullscreenEvent represents fullscreen change events.
 type FullscreenEvent struct {
 	BaseEvent
-	IsFullscreen bool // Whether currently in fullscreen
+	IsFullscreen bool
 }
 
 func (FullscreenEvent) props() []string {
@@ -771,15 +658,10 @@ func buildFullscreenEvent(evt work.Event) FullscreenEvent {
 	}
 }
 
-// ============================================================================
-// Hash/PopState Events (Navigation)
-// ============================================================================
-
-// HashChangeEvent represents hashchange events.
 type HashChangeEvent struct {
 	BaseEvent
-	OldURL string // Previous URL
-	NewURL string // New URL
+	OldURL string
+	NewURL string
 }
 
 func (HashChangeEvent) props() []string {
@@ -794,10 +676,8 @@ func buildHashChangeEvent(evt work.Event) HashChangeEvent {
 	}
 }
 
-// PopStateEvent represents popstate events (browser back/forward).
 type PopStateEvent struct {
 	BaseEvent
-	// State is not easily serializable, so we don't include it
 }
 
 func (PopStateEvent) props() []string {
@@ -807,10 +687,6 @@ func (PopStateEvent) props() []string {
 func buildPopStateEvent(evt work.Event) PopStateEvent {
 	return PopStateEvent{BaseEvent: BaseEvent{Event: evt}}
 }
-
-// ============================================================================
-// Payload Helpers
-// ============================================================================
 
 func payloadString(payload map[string]any, key string) string {
 	if payload == nil {

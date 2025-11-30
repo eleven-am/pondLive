@@ -241,7 +241,6 @@ func TestBusConcurrentUnsubscribe(t *testing.T) {
 		subs[i] = bus.Subscribe("test-id", func(event string, data interface{}) {})
 	}
 
-	// Concurrent unsubscribes
 	var wg sync.WaitGroup
 	for i := 0; i < numSubscribers; i++ {
 		wg.Add(1)

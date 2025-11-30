@@ -7,25 +7,14 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/view"
 )
 
-// OnDuplicateKey is called when duplicate keys are detected during diffing.
-// Set this to a custom function to handle warnings (e.g., log in development).
-// By default, duplicates are silently ignored.
-// Parameters: tree ("old"/"new"), key string, path []int
 var OnDuplicateKey func(tree, key string, path []int)
 
-// PanicOnDuplicateKey controls whether to panic on duplicate keys.
-// When true, duplicate keys cause a panic with details.
-// When false (default), OnDuplicateKey is called if set.
 var PanicOnDuplicateKey = false
 
 func intPtr(i int) *int {
 	return &i
 }
 
-// Diff compares two view node trees and returns a list of patches.
-// Both trees are flattened first, removing fragment boundaries,
-// so patches operate directly on DOM-equivalent nodes.
-// Each patch has a Seq number indicating execution order.
 func Diff(prev, next view.Node) []Patch {
 	var flatPrev, flatNext view.Node
 	if prev != nil {
@@ -41,14 +30,6 @@ func Diff(prev, next view.Node) []Patch {
 	return patches
 }
 
-// DiffRaw diffs without flattening. INTERNAL USE ONLY.
-//
-// This function is intended for testing and internal use cases where trees
-// are already flattened. Production code should always use Diff() which
-// flattens both trees before comparison to ensure consistent behavior.
-//
-// WARNING: Using DiffRaw on trees containing Fragment nodes will produce
-// different results than Diff, as fragment boundaries won't be dissolved.
 func DiffRaw(prev, next view.Node) []Patch {
 	seq := 0
 	patches := make([]Patch, 0)
@@ -62,7 +43,6 @@ func emit(patches *[]Patch, seq *int, p Patch) {
 	*patches = append(*patches, p)
 }
 
-// nodeType identifies the kind of view node
 type nodeType int
 
 const (
@@ -135,17 +115,6 @@ func diffNode(patches *[]Patch, seq *int, path []int, a, b view.Node) {
 	}
 }
 
-// diffElement compares two elements and emits patches for their differences.
-//
-// IMPORTANT: UnsafeHTML handling
-// When UnsafeHTML changes, the entire node is replaced (OpReplaceNode) rather
-// than patching individual attrs/styles. This is intentional because:
-// 1. UnsafeHTML content may conflict with programmatic children
-// 2. The client needs to completely re-render the inner HTML
-// 3. Any attr/style changes alongside UnsafeHTML changes are included in the replacement
-//
-// Consequence: If you change both attrs AND UnsafeHTML in the same render,
-// only the OpReplaceNode patch is emitted (attrs are part of the new node).
 func diffElement(patches *[]Patch, seq *int, path []int, a, b *view.Element) {
 
 	if a.UnsafeHTML != b.UnsafeHTML {
@@ -230,16 +199,6 @@ func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []vi
 	}
 }
 
-// diffChildrenKeyed handles keyed child reconciliation.
-//
-// Key uniqueness: Keys MUST be unique within siblings. Duplicate keys cause
-// undefined behavior - the last occurrence wins in the key map, potentially
-// causing incorrect moves/deletes. Set PanicOnDuplicateKey=true or provide
-// an OnDuplicateKey callback to detect duplicates during development.
-//
-// Mixed keyed/unkeyed: When some children have keys and others don't,
-// unkeyed children are matched by position among other unkeyed siblings.
-// This can lead to unexpected results - prefer all-keyed or all-unkeyed.
 func diffChildrenKeyed(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
 	oldKeys := make(map[string]int)
 	newKeys := make(map[string]int)
@@ -388,9 +347,6 @@ func getKey(n view.Node) string {
 	return ""
 }
 
-// handleDuplicateKey reports duplicate key issues.
-// If PanicOnDuplicateKey is true, panics with details.
-// Otherwise, calls OnDuplicateKey callback if set.
 func handleDuplicateKey(tree, key string, path []int) {
 	if PanicOnDuplicateKey {
 		panic("view/diff: duplicate key '" + key + "' in " + tree + " tree at path " + formatPath(path))
@@ -550,8 +506,6 @@ func diffStylesheet(patches *[]Patch, seq *int, path []int, a, b *view.Element) 
 	}
 }
 
-// stylesheetToMap converts a Stylesheet to a selector->props map for diffing.
-// Media block rules are prefixed with their query for unique identification.
 func stylesheetToMap(ss *metadata.Stylesheet) map[string]map[string]string {
 	if ss == nil {
 		return map[string]map[string]string{}
@@ -594,9 +548,6 @@ func sliceEqual(a, b []string) bool {
 	return true
 }
 
-// handlersEqual compares two handler slices for equality.
-// Comparison is order-independent - handlers are sorted by Event+Handler
-// before comparison to avoid spurious patches when handlers are reordered.
 func handlersEqual(a, b []metadata.HandlerMeta) bool {
 	if len(a) != len(b) {
 		return false
@@ -655,8 +606,6 @@ func scriptEqual(a, b *metadata.ScriptMeta) bool {
 		a.Script == b.Script
 }
 
-// Flatten removes Fragment wrappers, promoting children to parent level.
-// Returns a single Element, Text, Comment, or nil (fragments dissolved).
 func Flatten(n view.Node) view.Node {
 	if n == nil {
 		return nil
@@ -720,9 +669,6 @@ func Flatten(n view.Node) view.Node {
 	}
 }
 
-// ExtractMetadata recursively walks the tree and extracts metadata patches
-// (setHandlers, setRef, setScript) for initial client setup.
-// Returns patches in sequence order for applying to existing SSR'd DOM.
 func ExtractMetadata(n view.Node) []Patch {
 	if n == nil {
 		return nil

@@ -9,20 +9,16 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-// Ref represents a mutable reference that persists across renders.
 type Ref[T any] struct {
 	Current T
 }
 
-// StateOpt configures a state cell.
 type StateOpt[T any] interface{ applyStateOpt(*stateCell[T]) }
 
 type stateOptFunc[T any] func(*stateCell[T])
 
 func (f stateOptFunc[T]) applyStateOpt(c *stateCell[T]) { f(c) }
 
-// WithEqual overrides the equality comparer for a state cell.
-// When the equality function returns true, the setter will skip marking the component dirty.
 func WithEqual[T any](eq func(a, b T) bool) StateOpt[T] {
 	return stateOptFunc[T](func(cell *stateCell[T]) {
 		if eq == nil {
@@ -39,7 +35,6 @@ type stateCell[T any] struct {
 	owner *Instance
 }
 
-// defaultEqual returns a default equality function using reflect.DeepEqual.
 func defaultEqual[T any]() func(a, b T) bool {
 	return func(a, b T) bool {
 		va := reflect.ValueOf(a)
@@ -54,9 +49,6 @@ func defaultEqual[T any]() func(a, b T) bool {
 	}
 }
 
-// UseState provides component-local state with equality checks to avoid redundant renders.
-// Returns the current value and a setter function.
-// Options can be passed to customize behavior (e.g., WithEqual for custom equality).
 func UseState[T any](ctx *Ctx, initial T, opts ...StateOpt[T]) (T, func(T)) {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
@@ -99,7 +91,6 @@ func UseState[T any](ctx *Ctx, initial T, opts ...StateOpt[T]) (T, func(T)) {
 	return cell.val, set
 }
 
-// UseRef returns a stable mutable reference that does not trigger renders when mutated.
 func UseRef[T any](ctx *Ctx, initial T) *Ref[T] {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
@@ -119,11 +110,6 @@ func UseRef[T any](ctx *Ctx, initial T) *Ref[T] {
 	return ref
 }
 
-// UseElement creates and returns a stable element reference.
-// The ref persists across renders and provides a stable ID for element attachment.
-//
-// Use this base hook in runtime. The html package will provide typed wrappers
-// like UseButton, UseDiv, etc. that embed this and add APIs.
 func UseElement(ctx *Ctx) *ElementRef {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
@@ -155,8 +141,6 @@ type memoCell[T any] struct {
 	deps []any
 }
 
-// UseMemo recomputes a value only when dependencies change.
-// Dependencies are compared using smart equality that handles functions, channels, and maps.
 func UseMemo[T any](ctx *Ctx, compute func() T, deps ...any) T {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
@@ -234,9 +218,6 @@ type effectCell struct {
 	deps    []any
 }
 
-// UseEffect runs side effects with optional cleanup.
-// Dependencies are compared using smart equality that handles functions, channels, and maps.
-// Effects are deferred and run after the flush completes.
 func UseEffect(ctx *Ctx, fn func() func(), deps ...any) {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
@@ -315,10 +296,6 @@ func cloneDeps(deps []any) []any {
 	return out
 }
 
-// depsEqual compares dependency arrays with support for functions, channels, and maps.
-// Functions and channels are compared by pointer identity (same function instance).
-// Maps are compared by pointer (same map instance, not deep map equality).
-// Other types use reflect.DeepEqual.
 func depsEqual(a, b []any) bool {
 	if len(a) != len(b) {
 		return false
@@ -371,10 +348,6 @@ func depsValueEqual(a, b any) bool {
 	}
 }
 
-// UseErrorBoundary returns any error from child components.
-// Returns nil if no child has errored.
-// Components can use this to render custom error UI when children fail.
-// When an error is caught, it is cleared from children to prevent propagation to parent boundaries.
 func UseErrorBoundary(ctx *Ctx) *ComponentError {
 	idx := ctx.hookIndex
 	ctx.hookIndex++

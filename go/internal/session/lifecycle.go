@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// Lifecycle manages session TTL and touch tracking.
 type Lifecycle struct {
 	mu    sync.RWMutex
 	clock func() time.Time
@@ -16,7 +15,6 @@ type Lifecycle struct {
 	nextObserverID int
 }
 
-// NewLifecycle creates a lifecycle manager with the given clock and TTL.
 func NewLifecycle(clock func() time.Time, ttl time.Duration) *Lifecycle {
 	return &Lifecycle{
 		clock:     clock,
@@ -26,7 +24,6 @@ func NewLifecycle(clock func() time.Time, ttl time.Duration) *Lifecycle {
 	}
 }
 
-// Touch updates the last activity timestamp.
 func (l *Lifecycle) Touch() {
 	if l == nil {
 		return
@@ -37,8 +34,6 @@ func (l *Lifecycle) Touch() {
 	l.notifyObservers()
 }
 
-// IsExpired returns true if the session has exceeded its TTL.
-// A zero or negative TTL means the session never expires.
 func (l *Lifecycle) IsExpired() bool {
 	if l == nil {
 		return true
@@ -51,7 +46,6 @@ func (l *Lifecycle) IsExpired() bool {
 	return l.clock().Sub(l.lastTouch) > l.ttl
 }
 
-// TTL returns the configured time-to-live.
 func (l *Lifecycle) TTL() time.Duration {
 	if l == nil {
 		return 0
@@ -61,7 +55,6 @@ func (l *Lifecycle) TTL() time.Duration {
 	return l.ttl
 }
 
-// SetTTL updates the time-to-live.
 func (l *Lifecycle) SetTTL(ttl time.Duration) {
 	if l == nil {
 		return
@@ -71,7 +64,6 @@ func (l *Lifecycle) SetTTL(ttl time.Duration) {
 	l.mu.Unlock()
 }
 
-// SetClock updates the clock function.
 func (l *Lifecycle) SetClock(clock func() time.Time) {
 	if l == nil {
 		return
@@ -81,7 +73,6 @@ func (l *Lifecycle) SetClock(clock func() time.Time) {
 	l.mu.Unlock()
 }
 
-// LastTouch returns the timestamp of the last activity.
 func (l *Lifecycle) LastTouch() time.Time {
 	if l == nil {
 		return time.Time{}
@@ -91,8 +82,6 @@ func (l *Lifecycle) LastTouch() time.Time {
 	return l.lastTouch
 }
 
-// OnTouch registers a channel that receives a signal on each touch.
-// Returns an unsubscribe function to remove the observer.
 func (l *Lifecycle) OnTouch(ch chan struct{}) func() {
 	if l == nil || ch == nil {
 		return func() {}

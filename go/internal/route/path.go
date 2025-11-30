@@ -2,19 +2,12 @@ package route
 
 import "strings"
 
-// PathParts represents the normalized components of a location-oriented path
-// string, exposing the canonical path along with any stripped query or hash
-// fragments.
 type PathParts struct {
 	Path     string
 	RawQuery string
 	Hash     string
 }
 
-// NormalizeParts canonicalizes a URL path by trimming whitespace, removing
-// query and hash fragments, ensuring a single leading slash, and collapsing
-// redundant separators. The removed query and hash fragments are returned for
-// callers that need to retain them separately.
 func NormalizeParts(path string) PathParts {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
@@ -40,8 +33,6 @@ func NormalizeParts(path string) PathParts {
 	}
 }
 
-// NormalizeHash removes any leading hash prefix from the provided fragment,
-// returning the canonical value suitable for Location usage.
 func NormalizeHash(hash string) string {
 	if hash == "" {
 		return ""

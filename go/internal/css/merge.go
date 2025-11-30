@@ -4,26 +4,6 @@ import (
 	"strings"
 )
 
-// CN (class name) merges multiple class name strings intelligently,
-// resolving Tailwind CSS conflicts by keeping only the last occurrence
-// of conflicting utilities.
-//
-// Similar to shadcn/ui's cn function, it combines clsx-like merging
-// with tailwind-merge conflict resolution.
-//
-// Example:
-//
-//	CN("px-4 py-2", "bg-blue-500")
-//	// → "px-4 py-2 bg-blue-500"
-//
-//	CN("px-4", "px-2")  // Conflict: both are padding-x
-//	// → "px-2"
-//
-//	CN("hover:bg-blue-500", "hover:bg-red-500")  // Same variant
-//	// → "hover:bg-red-500"
-//
-//	CN("rounded-md px-3", "px-4 text-base")  // px-4 overrides px-3
-//	// → "rounded-md px-4 text-base"
 func CN(classes ...string) string {
 	if len(classes) == 0 {
 		return ""
