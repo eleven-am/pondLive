@@ -26,7 +26,7 @@ interface UploadType {
 }
 
 const mimeTypes: Record<string, string> = {
-    '.html': 'text/html',
+    '.html': 'text/pkg',
     '.js': 'text/javascript',
     '.css': 'text/css',
     '.json': 'application/json',
@@ -42,7 +42,7 @@ const serverDir = path.join(__dirname, '..', 'public');
 export function getMimeType (filePath: string) {
     const extname = path.extname(filePath);
 
-    return mimeTypes[extname] || 'text/html';
+    return mimeTypes[extname] || 'text/pkg';
 }
 
 export class Router {

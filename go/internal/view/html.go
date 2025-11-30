@@ -46,6 +46,9 @@ func renderNode(b *strings.Builder, n Node) {
 }
 
 func renderElement(b *strings.Builder, el *Element) {
+	if el.Tag == "html" {
+		b.WriteString("<!DOCTYPE html>")
+	}
 	b.WriteByte('<')
 	b.WriteString(el.Tag)
 

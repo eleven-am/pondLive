@@ -270,11 +270,11 @@ func TestNewFragmentHelper(t *testing.T) {
 
 func TestUnsafeHTML(t *testing.T) {
 	el := BuildElement("div",
-		UnsafeHTML("<span>raw html</span>"),
+		UnsafeHTML("<span>raw pkg</span>"),
 	)
 
-	if el.UnsafeHTML != "<span>raw html</span>" {
-		t.Errorf("expected unsafe html to be set, got %s", el.UnsafeHTML)
+	if el.UnsafeHTML != "<span>raw pkg</span>" {
+		t.Errorf("expected unsafe pkg to be set, got %s", el.UnsafeHTML)
 	}
 }
 

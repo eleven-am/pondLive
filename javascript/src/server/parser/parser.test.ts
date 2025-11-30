@@ -2,8 +2,8 @@ import { mergeObjects } from './differ';
 import { makeStyles } from './makeStyles';
 import { html } from './parser';
 
-describe('html parser', () => {
-    it('should parse a simple html string', () => {
+describe('pkg parser', () => {
+    it('should parse a simple pkg string', () => {
         const className = 'test';
         const message = 'Hello World';
         const string = html`<div class="${className}">${message}</div>`;
@@ -15,7 +15,7 @@ describe('html parser', () => {
         });
     });
 
-    it('should parse a html string with multiple dynamic values', () => {
+    it('should parse a pkg string with multiple dynamic values', () => {
         const className = 'test';
         const message = 'Hello World';
         const secondClassName = 'test2';
@@ -31,7 +31,7 @@ describe('html parser', () => {
         });
     });
 
-    it('should parse a html string with nested dynamic values', () => {
+    it('should parse a pkg string with nested dynamic values', () => {
         const firsName = 'John';
         const lastName = 'Doe';
         const age = 42;
@@ -55,7 +55,7 @@ describe('html parser', () => {
         });
     });
 
-    it('should parse a html string with nested dynamic values and multiple dynamic values', () => {
+    it('should parse a pkg string with nested dynamic values and multiple dynamic values', () => {
         const list = (name: string, age: number) => html`<li>${name} is ${age} years old</li>`;
         const users = [
             { name: 'John',
@@ -122,7 +122,7 @@ describe('html parser', () => {
         });
     });
 
-    it('should return parsed html to string', () => {
+    it('should return parsed pkg to string', () => {
         const parsed = {
             0: {
                 0: {
@@ -150,7 +150,7 @@ describe('html parser', () => {
         expect(htmlString.parsedHtmlToString(parsed)).toEqual('<ul><li>John is 42 years old</li><li>Jane is 43 years old</li><li>Jack is 44 years old</li></ul>');
     });
 
-    it('should return parsed html to string with nested dynamic values', () => {
+    it('should return parsed pkg to string with nested dynamic values', () => {
         const parsed = {
             0: 'test',
             1: {
@@ -169,7 +169,7 @@ describe('html parser', () => {
         expect(htmlString.parsedHtmlToString(parsed)).toEqual('<div class="test"><div class="test2">John Doe is 42 years old and lives at 1 Park Avenue</div></div>');
     });
 
-    it('should return parsed html to string with nested dynamic values and multiple dynamic values', () => {
+    it('should return parsed pkg to string with nested dynamic values and multiple dynamic values', () => {
         const parsed = {
             0: {
                 0: {
@@ -202,7 +202,7 @@ describe('html parser', () => {
         expect(htmlString.parsedHtmlToString(parsed)).toEqual('<ul><li>John is 42 years old</li><li>Jane is 43 years old</li><li>Jack is 44 years old</li><li>Jill is 45 years old</li></ul>');
     });
 
-    it('should parse a html string to plain string', () => {
+    it('should parse a pkg string to plain string', () => {
         const className = 'test';
         const message = 'Hello World';
         const string = html`<div class="${className}">${message}</div>`;
@@ -210,7 +210,7 @@ describe('html parser', () => {
         expect(string.toString()).toEqual('<div class="test">Hello World</div>');
     });
 
-    it('should parse a html string with nested dynamic values to plain string', () => {
+    it('should parse a pkg string with nested dynamic values to plain string', () => {
         const firsName = 'John';
         const lastName = 'Doe';
         const age = 42;
@@ -223,7 +223,7 @@ describe('html parser', () => {
         expect(string.toString()).toEqual('<div class="test"><div class="test2">John Doe is 42 years old and lives at 1 Park Avenue</div></div>');
     });
 
-    it('should parse a html string with nested dynamic values and multiple dynamic values to plain string', () => {
+    it('should parse a pkg string with nested dynamic values and multiple dynamic values to plain string', () => {
         const list = (name: string, age: number) => html`<li>${name} is ${age} years old</li>`;
         const users = [
             { name: 'John',
@@ -237,7 +237,7 @@ describe('html parser', () => {
         expect(string.toString()).toEqual('<ul><li>John is 42 years old</li><li>Jane is 43 years old</li><li>Jack is 44 years old</li></ul>');
     });
 
-    it('should be able to tell the difference between two html strings', () => {
+    it('should be able to tell the difference between two pkg strings', () => {
         const className = 'test';
         const message = 'Hello World';
         const message2 = 'Hello World 2';
@@ -250,7 +250,7 @@ describe('html parser', () => {
         });
     });
 
-    it('should be able to tell the difference between two html strings with nested dynamic values', () => {
+    it('should be able to tell the difference between two pkg strings with nested dynamic values', () => {
         const firsName = 'John';
         const lastName = 'Doe';
         const age = 42;
@@ -269,7 +269,7 @@ describe('html parser', () => {
         });
     });
 
-    it('should be able to tell the difference between two html strings with nested dynamic values and multiple dynamic values', () => {
+    it('should be able to tell the difference between two pkg strings with nested dynamic values and multiple dynamic values', () => {
         const list = (name: string, age: number) => html`<li>${name} is ${age} years old</li>`;
         const users = [
             { name: 'John',
@@ -296,7 +296,7 @@ describe('html parser', () => {
         });
     });
 
-    it('should parse a html string with array dynamic values  to plain string', () => {
+    it('should parse a pkg string with array dynamic values  to plain string', () => {
         const className = 'test';
         const users = [
             { name: 'John',
@@ -318,7 +318,7 @@ describe('html parser', () => {
         expect(string.getParts()).toEqual({ 0: '',
             s: ['<div>', '</div>'] });
 
-        // it should be able to tell the difference between two html strings with empty dynamic values
+        // it should be able to tell the difference between two pkg strings with empty dynamic values
         const string2 = html`<div>${'hello'}</div>`;
 
         expect(string2.toString()).toEqual('<div>hello</div>');
@@ -431,7 +431,7 @@ describe('html parser', () => {
         });
     });
 
-    it('should be able to reconstruct the html string from the parsed html object', () => {
+    it('should be able to reconstruct the pkg string from the parsed pkg object', () => {
         const htmlString = html`<div class="${'test'}">${'Hello World'}</div>`;
         const htmlString2 = html``;
 

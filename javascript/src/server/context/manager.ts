@@ -415,7 +415,7 @@ export class Manager {
                 </script>
             `;
 
-        const promises = publicDir.map((dir) => fileExists(path.join(dir, 'index.html')));
+        const promises = publicDir.map((dir) => fileExists(path.join(dir, 'index.pkg')));
         const folder = (await Promise.all(promises))
             .map((exists, index) => ({
                 exists,
@@ -444,7 +444,7 @@ export class Manager {
             return;
         }
 
-        this.#serveFile(path.join(folder, 'index.html'), res.response, (data) => data
+        this.#serveFile(path.join(folder, 'index.pkg'), res.response, (data) => data
             .replace(/<head>/, `<head>${store}`)
             .replace(/<body>/, `<body><div id="app">${html.toString()
                 .trim()}</div><script src="/pondLive.js" defer></script>`)

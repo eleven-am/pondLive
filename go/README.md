@@ -21,7 +21,7 @@ import (
     "net/http"
 
     ui "github.com/eleven-am/pondlive/go/pkg/live"
-    h "github.com/eleven-am/pondlive/go/pkg/live/html"
+    h "github.com/eleven-am/pondlive/go/pkg/live/pkg"
     "github.com/eleven-am/pondlive/go/pkg/live/router"
     "github.com/eleven-am/pondlive/go/pkg/live/server"
 )

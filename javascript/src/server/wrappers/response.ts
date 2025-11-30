@@ -110,7 +110,7 @@ export class Response {
     }
 
     html (html: string): void {
-        this.setHeader('content-type', 'text/html');
+        this.setHeader('content-type', 'text/pkg');
         this.#response.writeHead(this.#statusCode, this.#headers);
         this.#response.end(html);
         this.#responseSent = true;

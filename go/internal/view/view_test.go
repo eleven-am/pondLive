@@ -118,10 +118,10 @@ func TestElementWithStylesheet(t *testing.T) {
 func TestElementWithUnsafeHTML(t *testing.T) {
 	el := &Element{
 		Tag:        "div",
-		UnsafeHTML: "<span>raw html</span>",
+		UnsafeHTML: "<span>raw pkg</span>",
 	}
 
-	if el.UnsafeHTML != "<span>raw html</span>" {
+	if el.UnsafeHTML != "<span>raw pkg</span>" {
 		t.Error("unsafe HTML not set correctly")
 	}
 }

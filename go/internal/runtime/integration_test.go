@@ -665,7 +665,7 @@ func TestHtmlHelpersWithOnHandler(t *testing.T) {
 		t.Fatalf("expected 1 handler, got %d", len(viewBtn.Handlers))
 	}
 
-	t.Logf("Handler from html helpers: %+v", viewBtn.Handlers[0])
+	t.Logf("Handler from pkg helpers: %+v", viewBtn.Handlers[0])
 }
 
 func TestExtractMetadataIncludesHandlerPatches(t *testing.T) {
