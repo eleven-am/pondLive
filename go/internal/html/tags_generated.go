@@ -69,7 +69,7 @@ func Legend(items ...Item) Node         { return El("legend", items...) }
 func Li(items ...Item) Node             { return El("li", items...) }
 func Line(items ...Item) Node           { return El("line", items...) }
 func LinearGradient(items ...Item) Node { return El("linearGradient", items...) }
-func Link(items ...Item) Node           { return El("link", items...) }
+func LinkEl(items ...Item) Node         { return El("link", items...) }
 func Main(items ...Item) Node           { return El("main", items...) }
 func MapEl(items ...Item) Node          { return El("map", items...) }
 func Mark(items ...Item) Node           { return El("mark", items...) }
@@ -77,7 +77,7 @@ func Marker(items ...Item) Node         { return El("marker", items...) }
 func Mask(items ...Item) Node           { return El("mask", items...) }
 func Menu(items ...Item) Node           { return El("menu", items...) }
 func MenuItem(items ...Item) Node       { return El("menuitem", items...) }
-func Meta(items ...Item) Node           { return El("meta", items...) }
+func MetaEl(items ...Item) Node         { return El("meta", items...) }
 func Meter(items ...Item) Node          { return El("meter", items...) }
 func Nav(items ...Item) Node            { return El("nav", items...) }
 func Noscript(items ...Item) Node       { return El("noscript", items...) }

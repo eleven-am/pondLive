@@ -26,7 +26,6 @@ type App struct {
 	idGenerator   func(*http.Request) (session.SessionID, error)
 	sessionConfig *session.Config
 	clientAsset   string
-	clientConfig  *protocol.ClientConfig
 	pondManager   *pond.Manager
 	mux           *http.ServeMux
 }
@@ -37,8 +36,6 @@ type Config struct {
 	ClientAsset string
 
 	SessionConfig *session.Config
-
-	ClientConfig *protocol.ClientConfig
 
 	IDGenerator func(*http.Request) (session.SessionID, error)
 
@@ -81,11 +78,6 @@ func New(cfg Config) (*App, error) {
 
 	if strings.TrimSpace(cfg.ClientAsset) != "" {
 		app.clientAsset = cfg.ClientAsset
-	}
-
-	if cfg.ClientConfig != nil {
-		clone := *cfg.ClientConfig
-		app.clientConfig = &clone
 	}
 
 	app.sessionConfig.ClientAsset = app.clientAsset
@@ -173,15 +165,11 @@ func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {
 		Hash:  route.NormalizeHash(r.URL.Fragment),
 	}
 
-	clientCfg := cloneOptionalClientConfig(a.clientConfig)
+	var clientCfg *protocol.ClientConfig
 	if cfg.DevMode {
-		if clientCfg == nil {
-			clientCfg = &protocol.ClientConfig{}
-		}
-		if clientCfg.Debug == nil {
-			value := true
-			clientCfg.Debug = &value
-		}
+		clientCfg = &protocol.ClientConfig{}
+		value := true
+		clientCfg.Debug = &value
 	}
 
 	boot := protocol.Boot{
@@ -224,18 +212,6 @@ func cloneSessionConfig(cfg *session.Config) session.Config {
 		return session.Config{}
 	}
 	return *cfg
-}
-
-func cloneOptionalClientConfig(cfg *protocol.ClientConfig) *protocol.ClientConfig {
-	if cfg == nil {
-		return nil
-	}
-	clone := *cfg
-	if cfg.Debug != nil {
-		value := *cfg.Debug
-		clone.Debug = &value
-	}
-	return &clone
 }
 
 func decorateDocument(document string, bootJSON []byte) string {

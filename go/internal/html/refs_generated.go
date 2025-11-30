@@ -414,7 +414,7 @@ type LinearGradientRef struct {
 	*ScrollActions
 }
 
-type LinkRef struct {
+type LinkElRef struct {
 	*ElementRef
 	*ElementActions
 	*ScrollActions
@@ -462,7 +462,7 @@ type MenuItemRef struct {
 	*ScrollActions
 }
 
-type MetaRef struct {
+type MetaElRef struct {
 	*ElementRef
 	*ElementActions
 	*ScrollActions
@@ -1461,9 +1461,9 @@ func UseLinearGradient(ctx *Ctx) *LinearGradientRef {
 	}
 }
 
-func UseLink(ctx *Ctx) *LinkRef {
+func UseLinkEl(ctx *Ctx) *LinkElRef {
 	ref := UseElement(ctx)
-	return &LinkRef{
+	return &LinkElRef{
 		ElementRef:     ref,
 		ElementActions: NewElementActions(ctx, ref),
 		ScrollActions:  NewScrollActions(ctx, ref),
@@ -1533,9 +1533,9 @@ func UseMenuItem(ctx *Ctx) *MenuItemRef {
 	}
 }
 
-func UseMeta(ctx *Ctx) *MetaRef {
+func UseMetaEl(ctx *Ctx) *MetaElRef {
 	ref := UseElement(ctx)
-	return &MetaRef{
+	return &MetaElRef{
 		ElementRef:     ref,
 		ElementActions: NewElementActions(ctx, ref),
 		ScrollActions:  NewScrollActions(ctx, ref),

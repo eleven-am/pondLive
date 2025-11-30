@@ -11,6 +11,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
+//go:embed upload.js
 var uploadScript string
 
 type UploadProgress struct {
@@ -176,6 +177,7 @@ func UseUpload(ctx *Ctx) UploadHandle {
 				http.Error(w, "failed to read multipart", http.StatusBadRequest)
 				return errPart
 			}
+
 			if part.FormName() != "file" {
 				_ = part.Close()
 				continue
@@ -208,6 +210,7 @@ func UseUpload(ctx *Ctx) UploadHandle {
 					http.Error(w, "failed to read file", http.StatusBadRequest)
 					return err
 				}
+
 				if written > handle.config.MaxSize {
 					cleanup()
 					_ = part.Close()

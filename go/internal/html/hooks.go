@@ -1,6 +1,10 @@
 package html
 
 import (
+	"net/http"
+
+	"github.com/eleven-am/pondlive/go/internal/headers"
+	"github.com/eleven-am/pondlive/go/internal/metatags"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
@@ -21,6 +25,7 @@ type (
 	Styles                    = runtime.Styles
 	StreamItem[T any]         = runtime.StreamItem[T]
 	StreamHandle[T any]       = runtime.StreamHandle[T]
+	Meta                      = metatags.Meta
 )
 
 func CreateContext[T any](defaultValue T) *Context[T] {
@@ -93,4 +98,12 @@ func UseStream[T any](ctx *Ctx, renderRow func(StreamItem[T]) Node, initial ...S
 
 func UseStyles(ctx *Ctx, rawCSS string) *Styles {
 	return runtime.UseStyles(ctx, rawCSS)
+}
+
+func UseHeaders(ctx *Ctx) http.Header {
+	return headers.UseHeaders(ctx)
+}
+
+func UseMetaTags(ctx *Ctx, meta *Meta) {
+	metatags.UseMetaTags(ctx, meta)
 }
