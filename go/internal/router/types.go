@@ -3,22 +3,26 @@ package router
 import (
 	"net/url"
 
+	"github.com/eleven-am/pondlive/go/internal/route"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-type Location struct {
-	Path  string
-	Query url.Values
-	Hash  string
-}
+type Location = route.Location
 
 type MatchState struct {
 	Matched bool
 	Pattern string
-	Params  map[string]string
 	Path    string
+	Params  map[string]string
 	Rest    string
+}
+
+type outletRenderer func(*runtime.Ctx) work.Node
+
+type RouteProps struct {
+	Path      string
+	Component func(*runtime.Ctx, Match) work.Node
 }
 
 type Match struct {
@@ -31,13 +35,24 @@ type Match struct {
 	Rest     string
 }
 
-type RouteProps struct {
-	Path      string
-	Component func(*runtime.Ctx, Match) work.Node
+type routeEntry struct {
+	pattern   string
+	component func(*runtime.Ctx, Match) work.Node
+	children  []work.Node
 }
 
-type RoutesProps struct {
-	Outlet string
+const routeMetadataKey = "router:entry"
+const slotMetadataKey = "router:slot"
+
+type SlotProps struct {
+	Name     string
+	Fallback func(*runtime.Ctx) work.Node
+}
+
+type slotEntry struct {
+	name     string
+	fallback func(*runtime.Ctx) work.Node
+	routes   []routeEntry
 }
 
 type LinkProps struct {
@@ -45,12 +60,15 @@ type LinkProps struct {
 	Replace bool
 }
 
-type routeEntry struct {
-	pattern   string
-	component func(*runtime.Ctx, Match) work.Node
-	children  []work.Node
+type NavLinkProps struct {
+	To          string
+	Replace     bool
+	ClassName   string
+	ActiveClass string
+	End         bool
 }
 
-const (
-	routeMetadataKey = "router:entry"
-)
+type RedirectProps struct {
+	To      string
+	Replace bool
+}

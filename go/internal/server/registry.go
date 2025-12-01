@@ -152,14 +152,19 @@ func (r *SessionRegistry) Lookup(id session.SessionID) (*session.LiveSession, bo
 func (r *SessionRegistry) LookupWithConnection(id session.SessionID, connID string) (*session.LiveSession, session.Transport, bool) {
 	r.mu.RLock()
 	entry, ok := r.sessions[id]
-	r.mu.RUnlock()
 	if !ok || entry == nil {
+		r.mu.RUnlock()
 		return nil, nil, false
 	}
-	if connID == "" || entry.connID != connID {
-		return entry.session, nil, false
+	sess := entry.session
+	entryConnID := entry.connID
+	transport := entry.transport
+	r.mu.RUnlock()
+
+	if connID == "" || entryConnID != connID {
+		return sess, nil, false
 	}
-	return entry.session, entry.transport, entry.transport != nil
+	return sess, transport, transport != nil
 }
 
 func (r *SessionRegistry) LookupByConnection(connID string) (*session.LiveSession, session.Transport, bool) {
@@ -168,21 +173,29 @@ func (r *SessionRegistry) LookupByConnection(connID string) (*session.LiveSessio
 	}
 	r.mu.RLock()
 	entry, ok := r.connections[connID]
-	r.mu.RUnlock()
 	if !ok || entry == nil {
+		r.mu.RUnlock()
 		return nil, nil, false
 	}
-	return entry.session, entry.transport, entry.transport != nil
+	sess := entry.session
+	transport := entry.transport
+	r.mu.RUnlock()
+
+	return sess, transport, transport != nil
 }
 
 func (r *SessionRegistry) ConnectionForSession(id session.SessionID) (string, session.Transport, bool) {
 	r.mu.RLock()
 	entry, ok := r.sessions[id]
-	r.mu.RUnlock()
 	if !ok || entry == nil {
+		r.mu.RUnlock()
 		return "", nil, false
 	}
-	return entry.connID, entry.transport, entry.connID != "" && entry.transport != nil
+	connID := entry.connID
+	transport := entry.transport
+	r.mu.RUnlock()
+
+	return connID, transport, connID != "" && transport != nil
 }
 
 func (r *SessionRegistry) SweepExpired() []session.SessionID {

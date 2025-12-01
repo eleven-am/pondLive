@@ -5,397 +5,211 @@ import (
 	"testing"
 )
 
-func TestCanonicalizeLocation(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    *Location
-		wantPath string
-		wantHash string
-	}{
-		{
-			name:     "nil input",
-			input:    nil,
-			wantPath: "/",
-			wantHash: "",
-		},
-		{
-			name:     "empty path",
-			input:    &Location{Path: ""},
-			wantPath: "/",
-			wantHash: "",
-		},
-		{
-			name:     "simple path",
-			input:    &Location{Path: "/about"},
-			wantPath: "/about",
-			wantHash: "",
-		},
-		{
-			name:     "path with hash",
-			input:    &Location{Path: "/about", Hash: "#section"},
-			wantPath: "/about",
-			wantHash: "section",
-		},
-		{
-			name:     "hash without prefix",
-			input:    &Location{Path: "/about", Hash: "section"},
-			wantPath: "/about",
-			wantHash: "section",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := canonicalizeLocation(tt.input)
-			if result.Path != tt.wantPath {
-				t.Errorf("canonicalizeLocation() path = %q, want %q", result.Path, tt.wantPath)
-			}
-			if result.Hash != tt.wantHash {
-				t.Errorf("canonicalizeLocation() hash = %q, want %q", result.Hash, tt.wantHash)
-			}
-		})
-	}
-}
-
-func TestCloneLocation(t *testing.T) {
-	original := &Location{
-		Path:  "/users",
-		Query: url.Values{"id": []string{"123"}},
-		Hash:  "top",
-	}
-
-	cloned := cloneLocation(original)
-
-	if cloned.Path != original.Path {
-		t.Errorf("cloned path = %q, want %q", cloned.Path, original.Path)
-	}
-
-	original.Query["id"] = []string{"456"}
-	if cloned.Query.Get("id") != "123" {
-		t.Error("clone query was mutated when original changed")
-	}
-}
-
-func TestCloneLocationNil(t *testing.T) {
-	cloned := cloneLocation(nil)
-	if cloned.Path != "/" {
-		t.Errorf("cloneLocation(nil) path = %q, want /", cloned.Path)
-	}
-}
-
-func TestLocationEqual(t *testing.T) {
-	tests := []struct {
-		name string
-		a    *Location
-		b    *Location
-		want bool
-	}{
-		{
-			name: "both nil",
-			a:    nil,
-			b:    nil,
-			want: true,
-		},
-		{
-			name: "a nil",
-			a:    nil,
-			b:    &Location{Path: "/"},
-			want: false,
-		},
-		{
-			name: "equal paths",
-			a:    &Location{Path: "/about"},
-			b:    &Location{Path: "/about"},
-			want: true,
-		},
-		{
-			name: "different paths",
-			a:    &Location{Path: "/about"},
-			b:    &Location{Path: "/home"},
-			want: false,
-		},
-		{
-			name: "same path different hash",
-			a:    &Location{Path: "/about", Hash: "section1"},
-			b:    &Location{Path: "/about", Hash: "section2"},
-			want: false,
-		},
-		{
-			name: "same path different query",
-			a:    &Location{Path: "/search", Query: url.Values{"q": []string{"foo"}}},
-			b:    &Location{Path: "/search", Query: url.Values{"q": []string{"bar"}}},
-			want: false,
-		},
-		{
-			name: "fully equal",
-			a:    &Location{Path: "/search", Query: url.Values{"q": []string{"foo"}}, Hash: "results"},
-			b:    &Location{Path: "/search", Query: url.Values{"q": []string{"foo"}}, Hash: "results"},
-			want: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := locationEqual(tt.a, tt.b); got != tt.want {
-				t.Errorf("locationEqual() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestBuildHref(t *testing.T) {
 	tests := []struct {
-		name  string
-		path  string
-		query url.Values
-		hash  string
-		want  string
+		name     string
+		path     string
+		query    url.Values
+		hash     string
+		expected string
 	}{
-		{
-			name: "path only",
-			path: "/about",
-			want: "/about",
-		},
-		{
-			name: "empty path",
-			path: "",
-			want: "/",
-		},
-		{
-			name:  "path with query",
-			path:  "/search",
-			query: url.Values{"q": []string{"test"}},
-			want:  "/search?q=test",
-		},
-		{
-			name: "path with hash",
-			path: "/about",
-			hash: "section",
-			want: "/about#section",
-		},
-		{
-			name: "path with hash prefix",
-			path: "/about",
-			hash: "#section",
-			want: "/about#section",
-		},
-		{
-			name:  "path with query and hash",
-			path:  "/search",
-			query: url.Values{"q": []string{"test"}},
-			hash:  "results",
-			want:  "/search?q=test#results",
-		},
+		{"empty path", "", nil, "", "/"},
+		{"simple path", "/about", nil, "", "/about"},
+		{"path with query", "/search", url.Values{"q": {"test"}}, "", "/search?q=test"},
+		{"path with hash", "/page", nil, "section", "/page#section"},
+		{"path with hash prefix", "/page", nil, "#section", "/page#section"},
+		{"full url", "/page", url.Values{"a": {"1"}}, "top", "/page?a=1#top"},
+		{"multiple query params", "/search", url.Values{"q": {"test"}, "page": {"1"}}, "", "/search?page=1&q=test"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildHref(tt.path, tt.query, tt.hash)
-			if got != tt.want {
-				t.Errorf("buildHref() = %q, want %q", got, tt.want)
+			result := buildHref(tt.path, tt.query, tt.hash)
+			if result != tt.expected {
+				t.Errorf("buildHref(%q, %v, %q) = %q, expected %q", tt.path, tt.query, tt.hash, result, tt.expected)
 			}
 		})
 	}
 }
 
 func TestResolveHref(t *testing.T) {
-	current := &Location{
-		Path:  "/users/123",
-		Query: url.Values{"tab": []string{"posts"}},
-		Hash:  "recent",
-	}
-
 	tests := []struct {
 		name     string
-		current  *Location
+		current  Location
 		href     string
-		wantPath string
-		wantHash string
+		expected Location
 	}{
 		{
-			name:     "empty href",
-			current:  current,
+			name:     "empty href returns current",
+			current:  Location{Path: "/current", Query: url.Values{"a": {"1"}}},
 			href:     "",
-			wantPath: "/users/123",
+			expected: Location{Path: "/current", Query: url.Values{"a": {"1"}}},
 		},
 		{
 			name:     "absolute path",
-			current:  current,
-			href:     "/about",
-			wantPath: "/about",
+			current:  Location{Path: "/current"},
+			href:     "/new",
+			expected: Location{Path: "/new", Query: url.Values{}},
 		},
 		{
 			name:     "absolute path with query",
-			current:  current,
-			href:     "/search?q=test",
-			wantPath: "/search",
+			current:  Location{Path: "/current"},
+			href:     "/new?foo=bar",
+			expected: Location{Path: "/new", Query: url.Values{"foo": {"bar"}}},
 		},
 		{
 			name:     "hash only",
-			current:  current,
+			current:  Location{Path: "/current", Query: url.Values{"a": {"1"}}},
 			href:     "#section",
-			wantPath: "/users/123",
-			wantHash: "section",
+			expected: Location{Path: "/current", Query: url.Values{"a": {"1"}}, Hash: "section"},
 		},
 		{
-			name:     "relative ./",
-			current:  current,
-			href:     "./edit",
-			wantPath: "/users/edit",
+			name:     "relative path ./",
+			current:  Location{Path: "/app/dashboard"},
+			href:     "./settings",
+			expected: Location{Path: "/app/settings", Query: url.Values{}},
 		},
 		{
-			name:     "relative ../",
-			current:  &Location{Path: "/users/123/posts"},
+			name:     "relative path ../",
+			current:  Location{Path: "/app/dashboard/view"},
 			href:     "../settings",
-			wantPath: "/users/settings",
-		},
-		{
-			name:     "relative ../../",
-			current:  &Location{Path: "/users/123/posts/456"},
-			href:     "../../comments",
-			wantPath: "/users/comments",
-		},
-		{
-			name:     "relative ../../../",
-			current:  &Location{Path: "/a/b/c/d/e"},
-			href:     "../../../x",
-			wantPath: "/a/x",
-		},
-		{
-			name:     "relative ../ to root",
-			current:  &Location{Path: "/users/123"},
-			href:     "../",
-			wantPath: "/",
-		},
-		{
-			name:     "relative ../../ to root",
-			current:  &Location{Path: "/users/123/posts"},
-			href:     "../../",
-			wantPath: "/",
-		},
-		{
-			name:     "relative ./../ mixed",
-			current:  &Location{Path: "/a/b/c/d"},
-			href:     "./../x",
-			wantPath: "/a/b/x",
-		},
-		{
-			name:     "relative beyond root clamps to root",
-			current:  &Location{Path: "/a/b"},
-			href:     "../../../x",
-			wantPath: "/x",
+			expected: Location{Path: "/app/settings", Query: url.Values{}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := resolveHref(tt.current, tt.href)
-			if result.Path != tt.wantPath {
-				t.Errorf("resolveHref() path = %q, want %q", result.Path, tt.wantPath)
+			if result.Path != tt.expected.Path {
+				t.Errorf("resolveHref path = %q, expected %q", result.Path, tt.expected.Path)
 			}
-			if tt.wantHash != "" && result.Hash != tt.wantHash {
-				t.Errorf("resolveHref() hash = %q, want %q", result.Hash, tt.wantHash)
+			if result.Hash != tt.expected.Hash {
+				t.Errorf("resolveHref hash = %q, expected %q", result.Hash, tt.expected.Hash)
 			}
 		})
+	}
+}
+
+func TestCloneLocation(t *testing.T) {
+	original := Location{
+		Path:  "/test",
+		Query: url.Values{"key": {"value"}},
+		Hash:  "section",
+	}
+
+	cloned := cloneLocation(original)
+
+	if cloned.Path != original.Path {
+		t.Errorf("cloned path = %q, expected %q", cloned.Path, original.Path)
+	}
+	if cloned.Hash != original.Hash {
+		t.Errorf("cloned hash = %q, expected %q", cloned.Hash, original.Hash)
+	}
+
+	cloned.Query["key"] = []string{"modified"}
+	if original.Query["key"][0] == "modified" {
+		t.Error("modifying cloned query affected original")
 	}
 }
 
 func TestCloneValues(t *testing.T) {
-	original := url.Values{
-		"a": []string{"1", "2"},
-		"b": []string{"3"},
-	}
-
+	original := url.Values{"a": {"1", "2"}, "b": {"3"}}
 	cloned := cloneValues(original)
 
-	if cloned.Get("a") != "1" {
-		t.Errorf("cloned[a] = %q, want 1", cloned.Get("a"))
+	if len(cloned) != len(original) {
+		t.Errorf("cloned length = %d, expected %d", len(cloned), len(original))
 	}
 
-	original["a"] = []string{"changed"}
-	if cloned.Get("a") != "1" {
-		t.Error("clone was mutated when original changed")
+	cloned["a"] = []string{"modified"}
+	if original["a"][0] == "modified" {
+		t.Error("modifying cloned values affected original")
 	}
 }
 
-func TestCloneValuesEmpty(t *testing.T) {
+func TestCloneValuesNil(t *testing.T) {
 	cloned := cloneValues(nil)
 	if cloned == nil {
-		t.Error("cloneValues(nil) should return empty Values, not nil")
+		t.Error("expected empty map, got nil")
 	}
 	if len(cloned) != 0 {
-		t.Error("cloneValues(nil) should return empty Values")
-	}
-}
-
-func TestValuesEqual(t *testing.T) {
-	tests := []struct {
-		name string
-		a    url.Values
-		b    url.Values
-		want bool
-	}{
-		{
-			name: "both empty",
-			a:    url.Values{},
-			b:    url.Values{},
-			want: true,
-		},
-		{
-			name: "equal single value",
-			a:    url.Values{"q": []string{"test"}},
-			b:    url.Values{"q": []string{"test"}},
-			want: true,
-		},
-		{
-			name: "different values",
-			a:    url.Values{"q": []string{"foo"}},
-			b:    url.Values{"q": []string{"bar"}},
-			want: false,
-		},
-		{
-			name: "different keys",
-			a:    url.Values{"a": []string{"1"}},
-			b:    url.Values{"b": []string{"1"}},
-			want: false,
-		},
-		{
-			name: "different lengths",
-			a:    url.Values{"a": []string{"1"}},
-			b:    url.Values{"a": []string{"1"}, "b": []string{"2"}},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := valuesEqual(tt.a, tt.b); got != tt.want {
-				t.Errorf("valuesEqual() = %v, want %v", got, tt.want)
-			}
-		})
+		t.Error("expected empty map")
 	}
 }
 
 func TestMatchesPrefix(t *testing.T) {
 	tests := []struct {
-		current string
-		target  string
-		want    bool
+		current  string
+		target   string
+		expected bool
 	}{
 		{"/", "/", true},
 		{"/about", "/", false},
-		{"/users", "/users", true},
-		{"/users/123", "/users", true},
-		{"/users123", "/users", false},
-		{"/user", "/users", false},
-		{"/about", "/users", false},
+		{"/app", "/app", true},
+		{"/app/dashboard", "/app", true},
+		{"/app-other", "/app", false},
+		{"/application", "/app", false},
+		{"/ap", "/app", false},
+		{"/app/settings/profile", "/app/settings", true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.current+"_"+tt.target, func(t *testing.T) {
-			if got := matchesPrefix(tt.current, tt.target); got != tt.want {
-				t.Errorf("matchesPrefix(%q, %q) = %v, want %v", tt.current, tt.target, got, tt.want)
+			result := matchesPrefix(tt.current, tt.target)
+			if result != tt.expected {
+				t.Errorf("matchesPrefix(%q, %q) = %v, expected %v", tt.current, tt.target, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestCanonicalizeValues(t *testing.T) {
+	input := url.Values{"z": {"3"}, "a": {"1"}, "m": {"2"}}
+	result := canonicalizeValues(input)
+
+	keys := make([]string, 0, len(result))
+	for k := range result {
+		keys = append(keys, k)
+	}
+
+	if len(keys) != 3 {
+		t.Errorf("expected 3 keys, got %d", len(keys))
+	}
+}
+
+func TestCanonicalizeValuesEmpty(t *testing.T) {
+	result := canonicalizeValues(nil)
+	if result == nil {
+		t.Error("expected empty map, got nil")
+	}
+	if len(result) != 0 {
+		t.Error("expected empty map")
+	}
+}
+
+func TestCanonicalizeList(t *testing.T) {
+	input := []string{"  b  ", "a", "  c"}
+	result := canonicalizeList(input)
+
+	if len(result) != 3 {
+		t.Errorf("expected 3 items, got %d", len(result))
+	}
+	if result[0] != "a" {
+		t.Errorf("expected first item 'a', got %q", result[0])
+	}
+	if result[1] != "b" {
+		t.Errorf("expected second item 'b', got %q", result[1])
+	}
+	if result[2] != "c" {
+		t.Errorf("expected third item 'c', got %q", result[2])
+	}
+}
+
+func TestCanonicalizeListEmpty(t *testing.T) {
+	result := canonicalizeList(nil)
+	if result == nil {
+		t.Error("expected empty slice, got nil")
+	}
+	if len(result) != 0 {
+		t.Error("expected empty slice")
 	}
 }

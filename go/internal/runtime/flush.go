@@ -199,7 +199,12 @@ func (s *Session) clearRenderedFlags(inst *Instance) {
 	inst.ChildRenderIndex = 0
 	inst.ReferencedChildren = make(map[string]bool)
 
-	for _, child := range inst.Children {
+	inst.mu.Lock()
+	children := make([]*Instance, len(inst.Children))
+	copy(children, inst.Children)
+	inst.mu.Unlock()
+
+	for _, child := range children {
 		s.clearRenderedFlags(child)
 	}
 }
@@ -252,7 +257,12 @@ func (s *Session) collectRenderedComponents(inst *Instance, result map[*Instance
 
 	result[inst] = struct{}{}
 
-	for _, child := range inst.Children {
+	inst.mu.Lock()
+	children := make([]*Instance, len(inst.Children))
+	copy(children, inst.Children)
+	inst.mu.Unlock()
+
+	for _, child := range children {
 		s.collectRenderedComponents(child, result)
 	}
 }
@@ -301,10 +311,12 @@ func (s *Session) pruneUnreferencedChildren(inst *Instance) {
 
 	inst.mu.Lock()
 	referencedChildren := inst.ReferencedChildren
+	currentChildren := make([]*Instance, len(inst.Children))
+	copy(currentChildren, inst.Children)
 	inst.mu.Unlock()
 
 	var kept []*Instance
-	for _, child := range inst.Children {
+	for _, child := range currentChildren {
 		if referencedChildren != nil && referencedChildren[child.ID] {
 			kept = append(kept, child)
 			s.pruneUnreferencedChildren(child)
@@ -316,7 +328,9 @@ func (s *Session) pruneUnreferencedChildren(inst *Instance) {
 		}
 	}
 
+	inst.mu.Lock()
 	inst.Children = kept
+	inst.mu.Unlock()
 }
 
 func (s *Session) clearCurrentHandlers() {

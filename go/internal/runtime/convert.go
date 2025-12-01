@@ -157,6 +157,18 @@ func (s *Session) registerHandler(inst *Instance, elem *work.Element, event stri
 		s.Bus = protocol.NewBus()
 	}
 
+	s.handlerIDsMu.Lock()
+	if s.currentHandlerIDs == nil {
+		s.currentHandlerIDs = make(map[string]bool)
+	}
+	if s.allHandlerSubs == nil {
+		s.allHandlerSubs = make(map[string]*protocol.Subscription)
+	}
+
+	if oldSub := s.allHandlerSubs[handlerID]; oldSub != nil {
+		oldSub.Unsubscribe()
+	}
+
 	sub := s.Bus.SubscribeToHandlerInvoke(handlerID, func(data interface{}) {
 		var event work.Event
 		if payload, ok := data.(map[string]any); ok {
@@ -170,13 +182,6 @@ func (s *Session) registerHandler(inst *Instance, elem *work.Element, event stri
 		handler.Fn(event)
 	})
 
-	s.handlerIDsMu.Lock()
-	if s.currentHandlerIDs == nil {
-		s.currentHandlerIDs = make(map[string]bool)
-	}
-	if s.allHandlerSubs == nil {
-		s.allHandlerSubs = make(map[string]*protocol.Subscription)
-	}
 	s.currentHandlerIDs[handlerID] = true
 	s.allHandlerSubs[handlerID] = sub
 	s.handlerIDsMu.Unlock()

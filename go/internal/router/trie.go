@@ -22,19 +22,25 @@ type node struct {
 	entry    *routeEntry
 }
 
-type RouterTrie struct {
+type routerTrie struct {
 	root *node
 }
 
-func NewRouterTrie() *RouterTrie {
-	return &RouterTrie{
+type matchResult struct {
+	Entry  *routeEntry
+	Params map[string]string
+	Rest   string
+}
+
+func newRouterTrie() *routerTrie {
+	return &routerTrie{
 		root: &node{
 			typ: nodeStatic,
 		},
 	}
 }
 
-func (t *RouterTrie) Insert(pattern string, entry routeEntry) {
+func (t *routerTrie) Insert(pattern string, entry routeEntry) {
 	if pattern == "" {
 		pattern = "/"
 	}
@@ -94,16 +100,7 @@ func (t *RouterTrie) Insert(pattern string, entry routeEntry) {
 	curr.entry = &entry
 }
 
-type MatchResult struct {
-	Entry   *routeEntry
-	Params  map[string]string
-	Pattern string
-	Path    string
-	Rest    string
-}
-
-func (t *RouterTrie) Match(path string) *MatchResult {
-
+func (t *routerTrie) Match(path string) *matchResult {
 	if path == "" {
 		path = "/"
 	}
@@ -111,22 +108,30 @@ func (t *RouterTrie) Match(path string) *MatchResult {
 		path = "/" + path
 	}
 
-	var bestMatch *MatchResult
+	var bestMatch *matchResult
 
 	var search func(n *node, pathIdx int, params map[string]string)
 	search = func(n *node, pathIdx int, params map[string]string) {
-
 		if bestMatch != nil {
 			return
 		}
 
 		if pathIdx >= len(path) {
 			if n.entry != nil {
-				bestMatch = &MatchResult{
-					Entry:   n.entry,
-					Params:  params,
-					Pattern: n.entry.pattern,
-					Path:    path,
+				bestMatch = &matchResult{
+					Entry:  n.entry,
+					Params: params,
+				}
+				return
+			}
+			for _, child := range n.children {
+				if child.typ == nodeWildcard && child.entry != nil {
+					bestMatch = &matchResult{
+						Entry:  child.entry,
+						Params: params,
+						Rest:   "/",
+					}
+					return
 				}
 			}
 			return
@@ -138,11 +143,20 @@ func (t *RouterTrie) Match(path string) *MatchResult {
 
 		if pathIdx >= len(path) {
 			if n.entry != nil {
-				bestMatch = &MatchResult{
-					Entry:   n.entry,
-					Params:  params,
-					Pattern: n.entry.pattern,
-					Path:    path,
+				bestMatch = &matchResult{
+					Entry:  n.entry,
+					Params: params,
+				}
+				return
+			}
+			for _, child := range n.children {
+				if child.typ == nodeWildcard && child.entry != nil {
+					bestMatch = &matchResult{
+						Entry:  child.entry,
+						Params: params,
+						Rest:   "/",
+					}
+					return
 				}
 			}
 			return
@@ -160,37 +174,30 @@ func (t *RouterTrie) Match(path string) *MatchResult {
 		for _, child := range n.children {
 			switch child.typ {
 			case nodeStatic:
-
 				if child.label == seg {
 					search(child, nextPathIdx, copyParams(params))
 					if bestMatch != nil {
 						return
 					}
 				}
-
 			case nodeParam:
-
 				newParams := copyParams(params)
 				newParams[child.label] = seg
 				search(child, nextPathIdx, newParams)
 				if bestMatch != nil {
 					return
 				}
-
 			case nodeWildcard:
-
 				newParams := copyParams(params)
 				rest := path[pathIdx:]
 				if child.label != "" {
 					newParams[child.label] = rest
 				}
 				if child.entry != nil {
-					bestMatch = &MatchResult{
-						Entry:   child.entry,
-						Params:  newParams,
-						Pattern: child.entry.pattern,
-						Path:    path,
-						Rest:    "/" + rest,
+					bestMatch = &matchResult{
+						Entry:  child.entry,
+						Params: newParams,
+						Rest:   "/" + rest,
 					}
 					return
 				}

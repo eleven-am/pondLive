@@ -32,7 +32,7 @@ func NavigateToHash(ctx *runtime.Ctx, hash string) {
 }
 
 func Back(ctx *runtime.Ctx) {
-	bus := getBus(ctx)
+	bus := runtime.GetBus(ctx)
 	if bus == nil {
 		return
 	}
@@ -40,7 +40,7 @@ func Back(ctx *runtime.Ctx) {
 }
 
 func Forward(ctx *runtime.Ctx) {
-	bus := getBus(ctx)
+	bus := runtime.GetBus(ctx)
 	if bus == nil {
 		return
 	}
@@ -49,18 +49,18 @@ func Forward(ctx *runtime.Ctx) {
 
 func navigate(ctx *runtime.Ctx, href string, replace bool) {
 	requestState := headers.UseRequestState(ctx)
-	currentLoc, setLocation := LocationContext.UseContext(ctx)
-	bus := getBus(ctx)
+	currentLoc, setLocation := locationCtx.UseContext(ctx)
+	bus := runtime.GetBus(ctx)
 
 	if bus == nil || requestState == nil || !requestState.IsLive() {
 		if requestState != nil {
-			currentLoc := &Location{
+			current := Location{
 				Path:  requestState.Path(),
 				Query: requestState.Query(),
 				Hash:  requestState.Hash(),
 			}
 
-			target := resolveHref(currentLoc, href)
+			target := resolveHref(current, href)
 			redirectURL := buildHref(target.Path, target.Query, target.Hash)
 			status := http.StatusFound
 			if replace {
@@ -72,8 +72,8 @@ func navigate(ctx *runtime.Ctx, href string, replace bool) {
 		return
 	}
 
-	if currentLoc == nil {
-		currentLoc = &Location{Path: "/", Query: url.Values{}}
+	if currentLoc.Path == "" {
+		currentLoc = Location{Path: "/", Query: url.Values{}}
 	}
 
 	target := resolveHref(currentLoc, href)

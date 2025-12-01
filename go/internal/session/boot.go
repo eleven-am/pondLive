@@ -21,12 +21,12 @@ func wrapComponent(component Component) func(*runtime.Ctx, any, []work.Node) wor
 	}
 }
 
-func bootComponent(ctx *runtime.Ctx, props bootProps, children []work.Node) work.Node {
+func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Node) work.Node {
 	app := wrapComponent(props.component)
 
 	return headers.Provider(ctx, props.requestState,
 		metatags.Provider(ctx,
-			router.ProvideRouter(ctx,
+			router.Provide(ctx,
 				styles.Provider(ctx,
 					&work.Element{
 						Tag: "html",
@@ -61,20 +61,24 @@ func bootComponent(ctx *runtime.Ctx, props bootProps, children []work.Node) work
 }
 
 func loadBootComponent(liveSession *LiveSession, component Component, clientAsset string) func(*runtime.Ctx, any, []work.Node) work.Node {
-	var requestInfo *headers.RequestInfo
-	if liveSession != nil {
-		liveSession.transportMu.RLock()
-		t := liveSession.transport
-		liveSession.transportMu.RUnlock()
-
-		if t != nil {
-			requestInfo = t.RequestInfo()
-		}
-	}
-
 	return func(ctx *runtime.Ctx, _ any, children []work.Node) work.Node {
+		var requestState *headers.RequestState
+		if liveSession != nil {
+			liveSession.transportMu.RLock()
+			t := liveSession.transport
+			liveSession.transportMu.RUnlock()
+
+			if t != nil {
+				requestState = t.RequestState()
+			}
+		}
+
+		if requestState == nil {
+			requestState = headers.NewRequestState(nil)
+		}
+
 		boot := bootProps{
-			requestState: headers.NewRequestState(requestInfo),
+			requestState: requestState,
 			component:    component,
 			ClientAsset:  clientAsset,
 		}

@@ -9,9 +9,9 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/route"
 )
 
-func canonicalizeLocation(loc *Location) *Location {
-	if loc == nil {
-		return &Location{Path: "/", Query: url.Values{}}
+func canonicalizeLocation(loc Location) Location {
+	if loc.Path == "" {
+		loc.Path = "/"
 	}
 
 	parts := route.NormalizeParts(loc.Path)
@@ -23,7 +23,7 @@ func canonicalizeLocation(loc *Location) *Location {
 		canonQuery = url.Values{}
 	}
 
-	canon := &Location{
+	canon := Location{
 		Path:  parts.Path,
 		Query: canonQuery,
 		Hash:  normalizeHash(loc.Hash),
@@ -36,31 +36,12 @@ func canonicalizeLocation(loc *Location) *Location {
 	return canon
 }
 
-func cloneLocation(loc *Location) *Location {
-	if loc == nil {
-		return &Location{Path: "/", Query: url.Values{}}
-	}
-	return &Location{
+func cloneLocation(loc Location) Location {
+	return Location{
 		Path:  loc.Path,
 		Query: cloneValues(loc.Query),
 		Hash:  loc.Hash,
 	}
-}
-
-func locationEqual(a, b *Location) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	if a.Path != b.Path {
-		return false
-	}
-	if a.Hash != b.Hash {
-		return false
-	}
-	return valuesEqual(a.Query, b.Query)
 }
 
 func normalizeHash(hash string) string {
@@ -108,57 +89,12 @@ func canonicalizeList(values []string) []string {
 	return cleaned
 }
 
-func valuesEqual(a, b url.Values) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	if len(a) == 0 {
-		return true
-	}
-	return encodeQuery(a) == encodeQuery(b)
-}
-
-func encodeQuery(q url.Values) string {
-	if len(q) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(q))
-	for k := range q {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var builder strings.Builder
-	first := true
-	for _, key := range keys {
-		values := q[key]
-		if len(values) == 0 {
-			if !first {
-				builder.WriteByte('&')
-			}
-			builder.WriteString(url.QueryEscape(key))
-			builder.WriteString("=")
-			first = false
-			continue
-		}
-		for _, v := range values {
-			if !first {
-				builder.WriteByte('&')
-			}
-			builder.WriteString(url.QueryEscape(key))
-			builder.WriteByte('=')
-			builder.WriteString(url.QueryEscape(v))
-			first = false
-		}
-	}
-	return builder.String()
-}
-
-func buildHref(path string, query url.Values, hash string) string {
-	if path == "" {
-		path = "/"
+func buildHref(p string, query url.Values, hash string) string {
+	if p == "" {
+		p = "/"
 	}
 
-	href := path
+	href := p
 
 	if len(query) > 0 {
 		encoded := query.Encode()
@@ -178,7 +114,7 @@ func buildHref(path string, query url.Values, hash string) string {
 	return href
 }
 
-func resolveHref(current *Location, href string) *Location {
+func resolveHref(current Location, href string) Location {
 	if href == "" {
 		return cloneLocation(current)
 	}
@@ -188,7 +124,7 @@ func resolveHref(current *Location, href string) *Location {
 		if err != nil {
 			return cloneLocation(current)
 		}
-		return &Location{
+		return Location{
 			Path:  parsed.Path,
 			Query: parsed.Query(),
 			Hash:  normalizeHash(parsed.Fragment),
@@ -196,7 +132,7 @@ func resolveHref(current *Location, href string) *Location {
 	}
 
 	if strings.HasPrefix(href, "#") {
-		return &Location{
+		return Location{
 			Path:  current.Path,
 			Query: cloneValues(current.Query),
 			Hash:  normalizeHash(strings.TrimPrefix(href, "#")),
@@ -206,7 +142,6 @@ func resolveHref(current *Location, href string) *Location {
 	if strings.HasPrefix(href, "./") || strings.HasPrefix(href, "../") {
 		basePath := current.Path
 		if !strings.HasSuffix(basePath, "/") {
-
 			if idx := strings.LastIndex(basePath, "/"); idx >= 0 {
 				basePath = basePath[:idx+1]
 			}
@@ -220,7 +155,7 @@ func resolveHref(current *Location, href string) *Location {
 
 		cleanPath := path.Clean(parsed.Path)
 
-		return &Location{
+		return Location{
 			Path:  cleanPath,
 			Query: parsed.Query(),
 			Hash:  normalizeHash(parsed.Fragment),
@@ -232,14 +167,33 @@ func resolveHref(current *Location, href string) *Location {
 		return cloneLocation(current)
 	}
 
-	path := parsed.Path
-	if path == "" {
-		path = current.Path
+	p := parsed.Path
+	if p == "" {
+		p = current.Path
 	}
 
-	return &Location{
-		Path:  path,
+	return Location{
+		Path:  p,
 		Query: parsed.Query(),
 		Hash:  normalizeHash(parsed.Fragment),
 	}
+}
+
+func matchesPrefix(currentPath, targetPath string) bool {
+	if targetPath == "/" {
+		return currentPath == "/"
+	}
+
+	if len(currentPath) < len(targetPath) {
+		return false
+	}
+
+	if currentPath[:len(targetPath)] != targetPath {
+		return false
+	}
+
+	if len(currentPath) > len(targetPath) {
+		return currentPath[len(targetPath)] == '/'
+	}
+	return true
 }

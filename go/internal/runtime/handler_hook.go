@@ -46,7 +46,9 @@ func UseHandler(ctx *Ctx, method string, chain ...HandlerFunc) HandlerHandle {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
 
-	if idx >= len(ctx.instance.HookFrame) {
+	isMount := idx >= len(ctx.instance.HookFrame)
+
+	if isMount {
 		ctx.instance.HookFrame = append(ctx.instance.HookFrame, HookSlot{
 			Type:  HookTypeHandler,
 			Value: &handlerCell{},
@@ -65,9 +67,13 @@ func UseHandler(ctx *Ctx, method string, chain ...HandlerFunc) HandlerHandle {
 			ctx.session.updateHTTPHandler(cell.entry, method, chain)
 		}
 
-		ctx.instance.RegisterCleanup(func() {
-			ctx.session.removeHTTPHandler(cell.entry.id)
-		})
+		if isMount {
+			sess := ctx.session
+			entry := cell.entry
+			ctx.instance.RegisterCleanup(func() {
+				sess.removeHTTPHandler(entry.id)
+			})
+		}
 	}
 
 	return HandlerHandle{entry: cell.entry}

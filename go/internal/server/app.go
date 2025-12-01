@@ -10,7 +10,6 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
-	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/route"
 	"github.com/eleven-am/pondlive/go/internal/session"
@@ -137,17 +136,22 @@ func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {
 	cfg := cloneSessionConfig(a.sessionConfig)
 	cfg.ClientAsset = a.clientAsset
 
-	requestInfo := headers.NewRequestInfo(r)
-
 	sess := session.NewLiveSession(sid, version, a.component, &cfg)
 
-	capture := newBootCaptureTransport()
-	capture.requestInfo = requestInfo
+	capture := session.NewSSRTransport(r)
 	sess.SetTransport(capture)
 
 	if err := sess.Flush(); err != nil {
 		http.Error(w, "Initial render failed: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if reqState := capture.RequestState(); reqState != nil {
+		if redirectURL, redirectCode, hasRedirect := reqState.Redirect(); hasRedirect {
+			sess.SetTransport(nil)
+			http.Redirect(w, r, redirectURL, redirectCode)
+			return
+		}
 	}
 
 	rtSession := sess.Session()
@@ -176,7 +180,7 @@ func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {
 		T:        "boot",
 		SID:      string(sid),
 		Ver:      version,
-		Seq:      capture.LastSeq(),
+		Seq:      int(capture.LastSeq()),
 		Patch:    diff.ExtractMetadata(rtSession.View),
 		Location: location,
 		Client:   clientCfg,
@@ -246,32 +250,6 @@ func lastIndexFold(haystack, needle string) int {
 		}
 	}
 	return -1
-}
-
-type bootCaptureTransport struct {
-	lastSeq     int
-	requestInfo *headers.RequestInfo
-}
-
-func newBootCaptureTransport() *bootCaptureTransport {
-	return &bootCaptureTransport{}
-}
-
-func (b *bootCaptureTransport) LastSeq() int {
-	return b.lastSeq
-}
-
-func (b *bootCaptureTransport) IsLive() bool { return false }
-
-func (b *bootCaptureTransport) RequestInfo() *headers.RequestInfo { return b.requestInfo }
-
-func (b *bootCaptureTransport) Close() error { return nil }
-
-func (b *bootCaptureTransport) Send(topic, event string, data any) error {
-	if topic == string(protocol.TopicFrame) && event == string(protocol.FramePatchAction) {
-		b.lastSeq++
-	}
-	return nil
 }
 
 type AppError struct {

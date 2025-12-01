@@ -10,21 +10,24 @@ import (
 )
 
 type SSRTransport struct {
-	mu          sync.Mutex
-	messages    []Message
-	seq         uint64
-	closed      bool
-	requestInfo *headers.RequestInfo
-	maxMessages int
-	maxAge      time.Duration
+	mu           sync.Mutex
+	messages     []Message
+	seq          uint64
+	closed       bool
+	requestInfo  *headers.RequestInfo
+	requestState *headers.RequestState
+	maxMessages  int
+	maxAge       time.Duration
 }
 
 func NewSSRTransport(r *http.Request) *SSRTransport {
+	requestInfo := headers.NewRequestInfo(r)
 	return &SSRTransport{
-		messages:    make([]Message, 0),
-		maxMessages: 10000,
-		maxAge:      10 * time.Second,
-		requestInfo: headers.NewRequestInfo(r),
+		messages:     make([]Message, 0),
+		maxMessages:  10000,
+		maxAge:       10 * time.Second,
+		requestInfo:  requestInfo,
+		requestState: headers.NewRequestState(requestInfo),
 	}
 }
 
@@ -131,6 +134,14 @@ func (t *SSRTransport) SetMaxMessages(n int) {
 	t.mu.Lock()
 	t.maxMessages = n
 	t.mu.Unlock()
+}
+
+func (t *SSRTransport) RequestState() *headers.RequestState {
+	if t == nil {
+		return nil
+	}
+
+	return t.requestState
 }
 
 // SetMaxAge updates the max age for buffered messages; zero disables age trimming.

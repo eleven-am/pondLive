@@ -55,6 +55,7 @@ type scriptSlot struct {
 	scriptMu sync.RWMutex
 
 	subs              map[string]*protocol.Subscription
+	subsMu            sync.Mutex
 	cleanupRegistered bool
 }
 
@@ -97,6 +98,9 @@ func (slot *scriptSlot) setEventHandler(event string, fn func(interface{})) {
 		slot.sess.Bus = protocol.NewBus()
 	}
 
+	slot.subsMu.Lock()
+	defer slot.subsMu.Unlock()
+
 	if slot.subs == nil {
 		slot.subs = make(map[string]*protocol.Subscription)
 	}
@@ -114,6 +118,8 @@ func (slot *scriptSlot) setEventHandler(event string, fn func(interface{})) {
 	if !slot.cleanupRegistered {
 		slot.cleanupRegistered = true
 		slot.instance.RegisterCleanup(func() {
+			slot.subsMu.Lock()
+			defer slot.subsMu.Unlock()
 			for _, sub := range slot.subs {
 				if sub != nil {
 					sub.Unsubscribe()

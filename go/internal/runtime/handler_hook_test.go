@@ -203,3 +203,82 @@ func TestUseHandlerSkipsNilHandlers(t *testing.T) {
 		t.Fatalf("expected ok, got %q", body)
 	}
 }
+
+func TestUseHandlerCleanupRegisteredOnceOnMount(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root"}
+	sess.Root = root
+
+	for i := 0; i < 10; i++ {
+		ctx := &Ctx{instance: root, session: sess, hookIndex: 0}
+		_ = UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+			return nil
+		})
+	}
+
+	root.mu.Lock()
+	cleanupCount := len(root.cleanups)
+	root.mu.Unlock()
+
+	if cleanupCount != 1 {
+		t.Errorf("expected 1 cleanup registered (on mount only), got %d", cleanupCount)
+	}
+}
+
+func TestUseHandlerCleanupNotAccumulatingOnRerender(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root", HookFrame: []HookSlot{}}
+	sess.Root = root
+
+	ctx := &Ctx{instance: root, session: sess, hookIndex: 0}
+	_ = UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+		return nil
+	})
+
+	initialCleanups := len(root.cleanups)
+
+	for i := 0; i < 50; i++ {
+		ctx := &Ctx{instance: root, session: sess, hookIndex: 0}
+		_ = UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+			return nil
+		})
+	}
+
+	finalCleanups := len(root.cleanups)
+
+	if finalCleanups != initialCleanups {
+		t.Errorf("cleanups grew from %d to %d during re-renders", initialCleanups, finalCleanups)
+	}
+}
+
+func TestUseHandlerMultipleHooksEachGetOneCleanup(t *testing.T) {
+	sess := &Session{SessionID: "sess1"}
+	root := &Instance{ID: "root", HookFrame: []HookSlot{}}
+	sess.Root = root
+
+	ctx := &Ctx{instance: root, session: sess, hookIndex: 0}
+	_ = UseHandler(ctx, http.MethodGet, func(w http.ResponseWriter, r *http.Request) error {
+		return nil
+	})
+	_ = UseHandler(ctx, http.MethodPost, func(w http.ResponseWriter, r *http.Request) error {
+		return nil
+	})
+	_ = UseHandler(ctx, http.MethodPut, func(w http.ResponseWriter, r *http.Request) error {
+		return nil
+	})
+
+	if len(root.cleanups) != 3 {
+		t.Errorf("expected 3 cleanups for 3 handlers, got %d", len(root.cleanups))
+	}
+
+	for i := 0; i < 10; i++ {
+		ctx := &Ctx{instance: root, session: sess, hookIndex: 0}
+		_ = UseHandler(ctx, http.MethodGet)
+		_ = UseHandler(ctx, http.MethodPost)
+		_ = UseHandler(ctx, http.MethodPut)
+	}
+
+	if len(root.cleanups) != 3 {
+		t.Errorf("cleanups should remain at 3 after re-renders, got %d", len(root.cleanups))
+	}
+}

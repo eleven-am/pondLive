@@ -712,3 +712,139 @@ func TestCollectRenderedComponentsIncludesAllTreeNodes(t *testing.T) {
 		t.Errorf("expected 4 components in result, got %d", len(result))
 	}
 }
+
+func TestChildrenSliceConcurrentAccess(t *testing.T) {
+	sess := &Session{
+		Components:        make(map[string]*Instance),
+		MountedComponents: make(map[*Instance]struct{}),
+		DirtyQueue:        []*Instance{},
+		DirtySet:          make(map[*Instance]struct{}),
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+	}
+
+	root := &Instance{
+		ID:                 "root",
+		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		HookFrame:          []HookSlot{},
+		Children:           []*Instance{},
+		ReferencedChildren: make(map[string]bool),
+	}
+	sess.Root = root
+	sess.Components["root"] = root
+
+	for i := 0; i < 10; i++ {
+		child := &Instance{
+			ID:                 "child-" + string(rune('0'+i)),
+			Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+			Parent:             root,
+			HookFrame:          []HookSlot{},
+			ReferencedChildren: make(map[string]bool),
+		}
+		root.Children = append(root.Children, child)
+		root.ReferencedChildren[child.ID] = true
+		sess.Components[child.ID] = child
+		sess.MountedComponents[child] = struct{}{}
+	}
+	sess.MountedComponents[root] = struct{}{}
+
+	done := make(chan struct{})
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			sess.clearRenderedFlags(root)
+		}
+		done <- struct{}{}
+	}()
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			result := make(map[*Instance]struct{})
+			sess.collectRenderedComponents(root, result)
+		}
+		done <- struct{}{}
+	}()
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			root.mu.Lock()
+			if len(root.Children) > 5 {
+				root.Children = root.Children[:5]
+			}
+			for j := len(root.Children); j < 10; j++ {
+				child := &Instance{
+					ID:        "child-" + string(rune('0'+j)),
+					Parent:    root,
+					HookFrame: []HookSlot{},
+				}
+				root.Children = append(root.Children, child)
+			}
+			root.mu.Unlock()
+		}
+		done <- struct{}{}
+	}()
+
+	<-done
+	<-done
+	<-done
+}
+
+func TestPruneUnreferencedChildrenConcurrentSafety(t *testing.T) {
+	sess := &Session{
+		Components:        make(map[string]*Instance),
+		MountedComponents: make(map[*Instance]struct{}),
+		DirtyQueue:        []*Instance{},
+		DirtySet:          make(map[*Instance]struct{}),
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+	}
+
+	root := &Instance{
+		ID:                 "root",
+		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		HookFrame:          []HookSlot{},
+		Children:           []*Instance{},
+		ReferencedChildren: make(map[string]bool),
+	}
+	sess.Root = root
+	sess.Components["root"] = root
+	sess.MountedComponents[root] = struct{}{}
+
+	for i := 0; i < 5; i++ {
+		child := &Instance{
+			ID:                 "child-" + string(rune('0'+i)),
+			Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+			Parent:             root,
+			HookFrame:          []HookSlot{},
+			ReferencedChildren: make(map[string]bool),
+		}
+		root.Children = append(root.Children, child)
+		root.ReferencedChildren[child.ID] = true
+		sess.Components[child.ID] = child
+		sess.MountedComponents[child] = struct{}{}
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		for i := 0; i < 50; i++ {
+			sess.pruneUnreferencedChildren(root)
+		}
+		done <- struct{}{}
+	}()
+
+	go func() {
+		for i := 0; i < 50; i++ {
+			root.mu.Lock()
+			root.ReferencedChildren = make(map[string]bool)
+			for _, c := range root.Children {
+				root.ReferencedChildren[c.ID] = true
+			}
+			root.mu.Unlock()
+		}
+		done <- struct{}{}
+	}()
+
+	<-done
+	<-done
+}

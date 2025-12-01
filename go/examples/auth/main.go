@@ -44,18 +44,18 @@ func root(ctx *pkg.Ctx) pkg.Node {
 
 	return pkg.Div(
 		pkg.Class("bg-slate-900", "text-slate-100", "min-h-screen"),
-		pkg.Routes(ctx, pkg.RoutesProps{},
+		pkg.Routes(ctx,
 			pkg.Route(ctx, pkg.RouteProps{Path: "/login", Component: loginPage}),
 			pkg.Route(ctx, pkg.RouteProps{Path: "/", Component: mainLayout},
 				pkg.Route(ctx, pkg.RouteProps{Path: "/", Component: homePage}),
 				pkg.Route(ctx, pkg.RouteProps{Path: "/dashboard", Component: dashboardPage}),
 			),
 		),
-		pkg.OutletDefault(ctx),
 	)
 }
 
 func mainLayout(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
+	log.Println("Rendering main layout")
 	session, setSession := pkg.UseCookie(ctx, "session")
 	isLoggedIn := session != ""
 
@@ -111,12 +111,13 @@ func mainLayout(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 		),
 		pkg.Main(
 			pkg.Class("flex-1"),
-			pkg.OutletDefault(ctx),
+			pkg.Outlet(ctx),
 		),
 	)
 }
 
 func homePage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
+	log.Println("Rendering home page")
 	return pkg.Div(
 		pkg.Class("flex", "flex-col", "items-center", "justify-center", "min-h-[calc(100vh-80px)]", "space-y-6"),
 		pkg.H1(
@@ -131,6 +132,7 @@ func homePage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 }
 
 func loginPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
+	log.Println("Rendering login page")
 	session, setSession := pkg.UseCookie(ctx, "session")
 	if session != "" {
 		return pkg.Redirect(ctx, pkg.RedirectProps{To: "/dashboard"})
@@ -212,6 +214,7 @@ func loginPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 }
 
 func dashboardPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
+	log.Println("Rendering dashboard page")
 	session, _ := pkg.UseCookie(ctx, "session")
 	if session == "" {
 		return pkg.Redirect(ctx, pkg.RedirectProps{To: "/login"})

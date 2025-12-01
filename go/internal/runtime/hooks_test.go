@@ -681,3 +681,198 @@ func TestDefaultEqual(t *testing.T) {
 		t.Error("expected different slices to not be equal")
 	}
 }
+
+func TestUseEffectEmptyDepsRunsOnce(t *testing.T) {
+	inst := &Instance{
+		ID:        "test-comp",
+		HookFrame: []HookSlot{},
+	}
+	sess := &Session{
+		PendingEffects:  []effectTask{},
+		PendingCleanups: []cleanupTask{},
+	}
+	ctx := &Ctx{
+		instance:  inst,
+		session:   sess,
+		hookIndex: 0,
+	}
+
+	runCount := 0
+	effect := func() func() {
+		runCount++
+		return nil
+	}
+
+	UseEffect(ctx, effect, []any{}...)
+	sess.runPendingEffects()
+	if runCount != 1 {
+		t.Errorf("expected effect to run once on mount, got %d", runCount)
+	}
+
+	ctx.hookIndex = 0
+	UseEffect(ctx, effect, []any{}...)
+	if len(sess.PendingEffects) != 0 {
+		t.Errorf("expected no pending effects on re-render with empty deps, got %d", len(sess.PendingEffects))
+	}
+	sess.runPendingEffects()
+	if runCount != 1 {
+		t.Errorf("expected effect to still be 1 (empty deps = run once), got %d", runCount)
+	}
+
+	ctx.hookIndex = 0
+	UseEffect(ctx, effect, []any{}...)
+	sess.runPendingEffects()
+	if runCount != 1 {
+		t.Errorf("expected effect to still be 1 after third render, got %d", runCount)
+	}
+}
+
+func TestUseEffectNilVsEmptyDepsDistinction(t *testing.T) {
+	instNil := &Instance{
+		ID:        "test-nil-deps",
+		HookFrame: []HookSlot{},
+	}
+	sessNil := &Session{
+		PendingEffects:  []effectTask{},
+		PendingCleanups: []cleanupTask{},
+	}
+	ctxNil := &Ctx{
+		instance:  instNil,
+		session:   sessNil,
+		hookIndex: 0,
+	}
+
+	nilDepsRunCount := 0
+	nilDepsEffect := func() func() {
+		nilDepsRunCount++
+		return nil
+	}
+
+	UseEffect(ctxNil, nilDepsEffect)
+	sessNil.runPendingEffects()
+	if nilDepsRunCount != 1 {
+		t.Errorf("expected nil deps effect to run once on mount, got %d", nilDepsRunCount)
+	}
+
+	ctxNil.hookIndex = 0
+	UseEffect(ctxNil, nilDepsEffect)
+	sessNil.runPendingEffects()
+	if nilDepsRunCount != 2 {
+		t.Errorf("expected nil deps effect to run every render, got %d", nilDepsRunCount)
+	}
+
+	ctxNil.hookIndex = 0
+	UseEffect(ctxNil, nilDepsEffect)
+	sessNil.runPendingEffects()
+	if nilDepsRunCount != 3 {
+		t.Errorf("expected nil deps effect to run on third render, got %d", nilDepsRunCount)
+	}
+
+	instEmpty := &Instance{
+		ID:        "test-empty-deps",
+		HookFrame: []HookSlot{},
+	}
+	sessEmpty := &Session{
+		PendingEffects:  []effectTask{},
+		PendingCleanups: []cleanupTask{},
+	}
+	ctxEmpty := &Ctx{
+		instance:  instEmpty,
+		session:   sessEmpty,
+		hookIndex: 0,
+	}
+
+	emptyDepsRunCount := 0
+	emptyDepsEffect := func() func() {
+		emptyDepsRunCount++
+		return nil
+	}
+
+	UseEffect(ctxEmpty, emptyDepsEffect, []any{}...)
+	sessEmpty.runPendingEffects()
+	if emptyDepsRunCount != 1 {
+		t.Errorf("expected empty deps effect to run once on mount, got %d", emptyDepsRunCount)
+	}
+
+	ctxEmpty.hookIndex = 0
+	UseEffect(ctxEmpty, emptyDepsEffect, []any{}...)
+	sessEmpty.runPendingEffects()
+	if emptyDepsRunCount != 1 {
+		t.Errorf("expected empty deps effect to NOT run on re-render, got %d", emptyDepsRunCount)
+	}
+
+	ctxEmpty.hookIndex = 0
+	UseEffect(ctxEmpty, emptyDepsEffect, []any{}...)
+	sessEmpty.runPendingEffects()
+	if emptyDepsRunCount != 1 {
+		t.Errorf("expected empty deps effect to NOT run on third render, got %d", emptyDepsRunCount)
+	}
+}
+
+func TestUseEffectEmptyDepsHasDepsTrue(t *testing.T) {
+	inst := &Instance{
+		ID:        "test-comp",
+		HookFrame: []HookSlot{},
+	}
+	sess := &Session{
+		PendingEffects:  []effectTask{},
+		PendingCleanups: []cleanupTask{},
+	}
+	ctx := &Ctx{
+		instance:  inst,
+		session:   sess,
+		hookIndex: 0,
+	}
+
+	effect := func() func() { return nil }
+	UseEffect(ctx, effect, []any{}...)
+
+	if len(inst.HookFrame) != 1 {
+		t.Fatalf("expected 1 hook slot, got %d", len(inst.HookFrame))
+	}
+
+	cell, ok := inst.HookFrame[0].Value.(*effectCell)
+	if !ok {
+		t.Fatal("expected effectCell")
+	}
+
+	if !cell.hasDeps {
+		t.Error("expected hasDeps to be true for empty deps array")
+	}
+
+	if len(cell.deps) != 0 {
+		t.Errorf("expected empty deps slice, got %d", len(cell.deps))
+	}
+}
+
+func TestUseEffectNilDepsHasDepsFalse(t *testing.T) {
+	inst := &Instance{
+		ID:        "test-comp",
+		HookFrame: []HookSlot{},
+	}
+	sess := &Session{
+		PendingEffects:  []effectTask{},
+		PendingCleanups: []cleanupTask{},
+	}
+	ctx := &Ctx{
+		instance:  inst,
+		session:   sess,
+		hookIndex: 0,
+	}
+
+	effect := func() func() { return nil }
+	UseEffect(ctx, effect)
+
+	if len(inst.HookFrame) != 1 {
+		t.Fatalf("expected 1 hook slot, got %d", len(inst.HookFrame))
+	}
+
+	cell, ok := inst.HookFrame[0].Value.(*effectCell)
+	if !ok {
+		t.Fatal("expected effectCell")
+	}
+
+	if cell.hasDeps {
+		t.Error("expected hasDeps to be false for nil deps (no deps passed)")
+	}
+}

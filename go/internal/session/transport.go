@@ -9,5 +9,7 @@ type Transport interface {
 
 	RequestInfo() *headers.RequestInfo
 
+	RequestState() *headers.RequestState
+
 	Close() error
 }

@@ -1,106 +1,41 @@
 package router
 
 import (
-	"net/url"
-
-	"github.com/eleven-am/pondlive/go/internal/protocol"
+	"github.com/eleven-am/pondlive/go/internal/route"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
-	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-var LocationContext = runtime.CreateContext[*Location](nil)
+var locationCtx = runtime.CreateContext[Location](Location{Path: "/"}).WithEqual(locationEqual)
 
-var MatchContext = runtime.CreateContext[*MatchState](nil)
+var matchCtx = runtime.CreateContext[*MatchState](nil).WithEqual(matchStateEqual)
 
-var outletSlotCtx = runtime.CreateSlotContext()
+const defaultSlotName = "__default__"
 
-var childRoutesCtx = runtime.CreateContext[[]work.Node](nil)
+var slotsCtx = runtime.CreateContext[map[string]outletRenderer](nil)
 
-func getBus(ctx *runtime.Ctx) *protocol.Bus {
-	return runtime.GetBus(ctx)
-}
+var routeBaseCtx = runtime.CreateContext[string]("/")
 
-func UseLocation(ctx *runtime.Ctx) *Location {
-	return LocationContext.UseContextValue(ctx)
-}
-
-func UseParams(ctx *runtime.Ctx) map[string]string {
-	match := MatchContext.UseContextValue(ctx)
-	if match == nil {
-		return nil
+func matchStateEqual(a, b *MatchState) bool {
+	if a == nil && b == nil {
+		return true
 	}
-	return match.Params
-}
-
-func UseParam(ctx *runtime.Ctx, key string) string {
-	params := UseParams(ctx)
-	if params == nil {
-		return ""
+	if a == nil || b == nil {
+		return false
 	}
-	return params[key]
-}
-
-func UseQuery(ctx *runtime.Ctx) url.Values {
-	loc := UseLocation(ctx)
-	if loc == nil {
-		return nil
+	if a.Matched != b.Matched || a.Pattern != b.Pattern || a.Path != b.Path || a.Rest != b.Rest {
+		return false
 	}
-	return loc.Query
-}
-
-func UseSearchParam(ctx *runtime.Ctx, key string) (func() []string, func([]string)) {
-	loc := UseLocation(ctx)
-
-	getter := func() []string {
-		if loc == nil || loc.Query == nil {
-			return nil
+	if len(a.Params) != len(b.Params) {
+		return false
+	}
+	for k, v := range a.Params {
+		if b.Params[k] != v {
+			return false
 		}
-		return loc.Query[key]
 	}
-
-	setter := func(values []string) {
-		if loc == nil {
-			return
-		}
-		newQuery := cloneValues(loc.Query)
-		if len(values) == 0 {
-			delete(newQuery, key)
-		} else {
-			newQuery[key] = values
-		}
-		href := buildHref(loc.Path, newQuery, loc.Hash)
-		Navigate(ctx, href)
-	}
-
-	return getter, setter
+	return true
 }
 
-func UseSearchParams(ctx *runtime.Ctx) (func() url.Values, func(url.Values)) {
-	loc := UseLocation(ctx)
-
-	getter := func() url.Values {
-		if loc == nil {
-			return nil
-		}
-		return cloneValues(loc.Query)
-	}
-
-	setter := func(values url.Values) {
-		if loc == nil {
-			return
-		}
-		href := buildHref(loc.Path, values, loc.Hash)
-		Navigate(ctx, href)
-	}
-
-	return getter, setter
-}
-
-func UseMatch(ctx *runtime.Ctx) *MatchState {
-	return MatchContext.UseContextValue(ctx)
-}
-
-func UseMatched(ctx *runtime.Ctx) bool {
-	match := MatchContext.UseContextValue(ctx)
-	return match != nil && match.Matched
+func locationEqual(a, b Location) bool {
+	return route.LocEqual(a, b)
 }

@@ -220,11 +220,11 @@ func TestMinimalProviderFlush(t *testing.T) {
 		t.Log("provider + render: OK")
 	})
 
-	t.Run("router.ProvideRouter", func(t *testing.T) {
+	t.Run("router.Provide", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
-				return router.ProvideRouter(ctx,
+				return router.Provide(ctx,
 					&work.Text{Value: "Hello"},
 				)
 			},
@@ -243,7 +243,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 		if err := sess.Flush(); err != nil {
 			t.Fatalf("Flush failed: %v", err)
 		}
-		t.Log("router.ProvideRouter: OK")
+		t.Log("router.Provide: OK")
 	})
 
 	t.Run("all three providers", func(t *testing.T) {
@@ -251,7 +251,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
 				return metatags.Provider(ctx,
-					router.ProvideRouter(ctx,
+					router.Provide(ctx,
 						styles.Provider(ctx,
 							&work.Text{Value: "Hello"},
 						),
@@ -282,7 +282,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 			Fn: func(ctx *runtime.Ctx, _ any, children []work.Node) work.Node {
 				return headers.Provider(ctx, nil,
 					metatags.Provider(ctx,
-						router.ProvideRouter(ctx,
+						router.Provide(ctx,
 							styles.Provider(ctx,
 								&work.Element{
 									Tag: "html",
@@ -344,7 +344,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 				_ = headers.UseRequestState(ctx)
 
 				return metatags.Provider(ctx,
-					router.ProvideRouter(ctx,
+					router.Provide(ctx,
 						styles.Provider(ctx,
 							&work.Element{
 								Tag: "html",
@@ -413,7 +413,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 				ref := runtime.UseElement(ctx)
 
 				return metatags.Provider(ctx,
-					router.ProvideRouter(ctx,
+					router.Provide(ctx,
 						styles.Provider(ctx,
 							&work.Element{
 								Tag: "html",
@@ -484,7 +484,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 				scriptDiv.Children = []work.Node{&work.Text{Value: "With Script"}}
 
 				return metatags.Provider(ctx,
-					router.ProvideRouter(ctx,
+					router.Provide(ctx,
 						styles.Provider(ctx,
 							&work.Element{
 								Tag: "html",
@@ -554,7 +554,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 				btn.Children = []work.Node{&work.Text{Value: "All Metadata"}}
 
 				return metatags.Provider(ctx,
-					router.ProvideRouter(ctx,
+					router.Provide(ctx,
 						styles.Provider(ctx,
 							&work.Element{
 								Tag: "html",

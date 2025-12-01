@@ -21,13 +21,9 @@ func UseMetaTags(ctx *runtime.Ctx, meta *Meta) {
 		state.setEntries(next)
 
 		return func() {
-			currentState := metaCtx.UseContextValue(ctx)
-			if currentState == nil {
-				return
-			}
-			cleaned := maps.Clone(currentState.entries)
+			cleaned := maps.Clone(state.entries)
 			delete(cleaned, componentID)
-			currentState.setEntries(cleaned)
+			state.setEntries(cleaned)
 		}
 	}, meta)
 }

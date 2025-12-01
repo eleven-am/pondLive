@@ -407,3 +407,48 @@ func TestWebSocketTransportSendAckFailureClearsPending(t *testing.T) {
 		t.Fatalf("expected ack pending cleared on failure, got %d", pending)
 	}
 }
+
+func TestWebSocketTransportSendRaceWithClose(t *testing.T) {
+	sender := &mockSender{}
+	transport := NewWebSocketTransport(sender, "user123", nil)
+
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < 1000; i++ {
+			_ = transport.Send("topic", "event", i)
+		}
+		close(done)
+	}()
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			_ = transport.Close()
+			transport.SetSender(sender)
+		}
+	}()
+
+	<-done
+}
+
+func TestWebSocketTransportConcurrentSend(t *testing.T) {
+	sender := &mockSender{}
+	transport := NewWebSocketTransport(sender, "user123", nil)
+
+	done := make(chan struct{})
+	for i := 0; i < 10; i++ {
+		go func(n int) {
+			for j := 0; j < 100; j++ {
+				_ = transport.Send("topic", "event", n*100+j)
+			}
+			done <- struct{}{}
+		}(i)
+	}
+
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+
+	if transport.LastSeq() != 1000 {
+		t.Errorf("expected 1000 messages, got %d", transport.LastSeq())
+	}
+}

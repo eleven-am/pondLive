@@ -49,6 +49,14 @@ func (t *WebSocketTransport) RequestInfo() *headers.RequestInfo {
 	return t.requestInfo
 }
 
+func (t *WebSocketTransport) RequestState() *headers.RequestState {
+	if t == nil {
+		return nil
+	}
+
+	return headers.NewRequestState(t.requestInfo)
+}
+
 func (t *WebSocketTransport) UpdateRequestInfo(h http.Header) {
 	if t == nil {
 		return
@@ -68,7 +76,6 @@ func (t *WebSocketTransport) Send(topic, event string, data any) error {
 		t.mu.Unlock()
 		return nil
 	}
-	t.mu.Unlock()
 
 	seq := atomic.AddUint64(&t.nextSeq, 1)
 	msg := Message{
@@ -77,12 +84,12 @@ func (t *WebSocketTransport) Send(topic, event string, data any) error {
 		Event: event,
 		Data:  data,
 	}
-
-	t.mu.Lock()
 	t.pending[seq] = msg
+	sender := t.sender
+	userID := t.userID
 	t.mu.Unlock()
 
-	if err := t.sender.BroadcastTo(event, msg, t.userID); err != nil {
+	if err := sender.BroadcastTo(event, msg, userID); err != nil {
 		t.mu.Lock()
 		delete(t.pending, seq)
 		t.mu.Unlock()
@@ -146,11 +153,13 @@ func (t *WebSocketTransport) Resend() error {
 	for _, msg := range t.pending {
 		msgs = append(msgs, msg)
 	}
+	sender := t.sender
+	userID := t.userID
 	t.mu.Unlock()
 
 	var firstErr error
 	for _, msg := range msgs {
-		if err := t.sender.BroadcastTo(msg.Event, msg, t.userID); err != nil && firstErr == nil {
+		if err := sender.BroadcastTo(msg.Event, msg, userID); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -186,7 +195,6 @@ func (t *WebSocketTransport) SendAck(sid string) uint64 {
 		t.mu.Unlock()
 		return 0
 	}
-	t.mu.Unlock()
 
 	seq := atomic.AddUint64(&t.nextSeq, 1)
 
@@ -207,7 +215,11 @@ func (t *WebSocketTransport) SendAck(sid string) uint64 {
 		Data:  ack,
 	}
 
-	_ = t.sender.BroadcastTo("ack", msg, t.userID)
+	sender := t.sender
+	userID := t.userID
+	t.mu.Unlock()
+
+	_ = sender.BroadcastTo("ack", msg, userID)
 
 	return seq
 }

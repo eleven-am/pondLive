@@ -128,18 +128,22 @@ func (inst *Instance) NotifyContextChange(sess *Session) {
 		return
 	}
 
+	inst.mu.Lock()
 	inst.ContextEpoch++
 	if inst.Parent != nil {
 		inst.CombinedContextEpoch = inst.ContextEpoch + inst.Parent.CombinedContextEpoch
 	} else {
 		inst.CombinedContextEpoch = inst.ContextEpoch
 	}
+	children := make([]*Instance, len(inst.Children))
+	copy(children, inst.Children)
+	inst.mu.Unlock()
 
 	if sess == nil {
 		return
 	}
 
-	for _, child := range inst.Children {
+	for _, child := range children {
 		sess.MarkDirty(child)
 	}
 }

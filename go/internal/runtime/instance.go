@@ -92,13 +92,16 @@ func (inst *Instance) findChildError() *ComponentError {
 	}
 
 	inst.mu.Lock()
-	defer inst.mu.Unlock()
-
 	if inst.RenderError != nil {
-		return inst.RenderError
+		err := inst.RenderError
+		inst.mu.Unlock()
+		return err
 	}
+	children := make([]*Instance, len(inst.Children))
+	copy(children, inst.Children)
+	inst.mu.Unlock()
 
-	for _, child := range inst.Children {
+	for _, child := range children {
 		if err := child.findChildError(); err != nil {
 			return err
 		}
@@ -114,9 +117,11 @@ func (inst *Instance) clearChildErrors() {
 
 	inst.mu.Lock()
 	inst.RenderError = nil
+	children := make([]*Instance, len(inst.Children))
+	copy(children, inst.Children)
 	inst.mu.Unlock()
 
-	for _, child := range inst.Children {
+	for _, child := range children {
 		child.clearChildErrors()
 	}
 }

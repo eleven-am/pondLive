@@ -9,9 +9,9 @@ import (
 )
 
 var Link = runtime.PropsComponent(func(ctx *runtime.Ctx, props LinkProps, children []work.Node) work.Node {
-	location := LocationContext.UseContextValue(ctx)
-	base := &Location{Path: "/", Query: url.Values{}}
-	if location != nil {
+	location := locationCtx.UseContextValue(ctx)
+	base := Location{Path: "/", Query: url.Values{}}
+	if location.Path != "" {
 		base = location
 	}
 
@@ -45,9 +45,9 @@ var Link = runtime.PropsComponent(func(ctx *runtime.Ctx, props LinkProps, childr
 })
 
 var NavLink = runtime.PropsComponent(func(ctx *runtime.Ctx, props NavLinkProps, children []work.Node) work.Node {
-	location := LocationContext.UseContextValue(ctx)
-	base := &Location{Path: "/", Query: url.Values{}}
-	if location != nil {
+	location := locationCtx.UseContextValue(ctx)
+	base := Location{Path: "/", Query: url.Values{}}
+	if location.Path != "" {
 		base = location
 	}
 
@@ -56,9 +56,9 @@ var NavLink = runtime.PropsComponent(func(ctx *runtime.Ctx, props NavLinkProps, 
 
 	isActive := false
 	if props.End {
-		isActive = location != nil && location.Path == target.Path
+		isActive = location.Path == target.Path
 	} else {
-		isActive = location != nil && matchesPrefix(location.Path, target.Path)
+		isActive = matchesPrefix(location.Path, target.Path)
 	}
 
 	var classes []string
@@ -104,30 +104,3 @@ var NavLink = runtime.PropsComponent(func(ctx *runtime.Ctx, props NavLinkProps, 
 		Children: children,
 	}
 })
-
-type NavLinkProps struct {
-	To          string
-	Replace     bool
-	ClassName   string
-	ActiveClass string
-	End         bool
-}
-
-func matchesPrefix(currentPath, targetPath string) bool {
-	if targetPath == "/" {
-		return currentPath == "/"
-	}
-
-	if len(currentPath) < len(targetPath) {
-		return false
-	}
-
-	if currentPath[:len(targetPath)] != targetPath {
-		return false
-	}
-
-	if len(currentPath) > len(targetPath) {
-		return currentPath[len(targetPath)] == '/'
-	}
-	return true
-}

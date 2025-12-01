@@ -113,7 +113,6 @@ func (c *Context[T]) createSetter(ctx *Ctx, providerInst *Instance) func(T) {
 		oldValue, ok := raw.(T)
 		if !ok {
 			providerInst.mu.Unlock()
-
 			providerInst.Providers[c.id] = newValue
 			if ctx.session != nil {
 				providerInst.NotifyContextChange(ctx.session)
@@ -121,8 +120,7 @@ func (c *Context[T]) createSetter(ctx *Ctx, providerInst *Instance) func(T) {
 			return
 		}
 
-		equal := safeEqual(eq, oldValue, newValue)
-		if equal {
+		if safeEqual(eq, oldValue, newValue) {
 			providerInst.mu.Unlock()
 			return
 		}

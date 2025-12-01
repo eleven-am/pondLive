@@ -479,3 +479,103 @@ func TestTypeMismatchPanicsWithClearMessage(t *testing.T) {
 
 	_, _ = themeCtx.UseContext(ctx)
 }
+
+func TestNotifyContextChangeConcurrentSafety(t *testing.T) {
+	themeCtx := CreateContext("light")
+
+	parent := &Instance{
+		ID:        "parent",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{},
+		Providers: map[any]any{},
+	}
+	parent.Providers[themeCtx.id] = "dark"
+
+	for i := 0; i < 100; i++ {
+		child := &Instance{
+			ID:        "child-" + string(rune('0'+i%10)) + string(rune('0'+i/10)),
+			Parent:    parent,
+			HookFrame: []HookSlot{},
+		}
+		parent.Children = append(parent.Children, child)
+	}
+
+	sess := &Session{
+		DirtyQueue: []*Instance{},
+		DirtySet:   make(map[*Instance]struct{}),
+	}
+	sess.SetAutoFlush(func() {})
+
+	done := make(chan bool)
+
+	go func() {
+		for i := 0; i < 1000; i++ {
+			parent.NotifyContextChange(sess)
+		}
+		done <- true
+	}()
+
+	go func() {
+		for i := 0; i < 1000; i++ {
+			parent.mu.Lock()
+			newChild := &Instance{
+				ID:        "new-child",
+				Parent:    parent,
+				HookFrame: []HookSlot{},
+			}
+			parent.Children = append(parent.Children, newChild)
+			if len(parent.Children) > 150 {
+				parent.Children = parent.Children[:100]
+			}
+			parent.mu.Unlock()
+		}
+		done <- true
+	}()
+
+	<-done
+	<-done
+}
+
+func TestNotifyContextChangeSnapshotsChildren(t *testing.T) {
+	parent := &Instance{
+		ID:        "parent",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{},
+	}
+
+	child1 := &Instance{ID: "child1", Parent: parent, HookFrame: []HookSlot{}}
+	child2 := &Instance{ID: "child2", Parent: parent, HookFrame: []HookSlot{}}
+	parent.Children = []*Instance{child1, child2}
+
+	markedDirty := make([]*Instance, 0)
+
+	sess := &Session{
+		DirtyQueue: []*Instance{},
+		DirtySet:   make(map[*Instance]struct{}),
+	}
+
+	originalMarkDirty := func(inst *Instance) {
+		markedDirty = append(markedDirty, inst)
+	}
+
+	parent.mu.Lock()
+	parent.ContextEpoch++
+	parent.CombinedContextEpoch = parent.ContextEpoch
+	children := make([]*Instance, len(parent.Children))
+	copy(children, parent.Children)
+	parent.mu.Unlock()
+
+	parent.mu.Lock()
+	parent.Children = append(parent.Children, &Instance{ID: "child3", Parent: parent})
+	parent.mu.Unlock()
+
+	for _, child := range children {
+		originalMarkDirty(child)
+	}
+
+	if len(markedDirty) != 2 {
+		t.Errorf("expected 2 children marked dirty (snapshot), got %d", len(markedDirty))
+	}
+
+	_ = sess
+}

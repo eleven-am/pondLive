@@ -214,7 +214,12 @@ func (s *Session) cleanupInstanceTree(inst *Instance) {
 		return
 	}
 
-	for _, child := range inst.Children {
+	inst.mu.Lock()
+	children := make([]*Instance, len(inst.Children))
+	copy(children, inst.Children)
+	inst.mu.Unlock()
+
+	for _, child := range children {
 		s.cleanupInstanceTree(child)
 	}
 

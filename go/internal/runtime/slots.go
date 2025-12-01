@@ -22,8 +22,51 @@ type SlotContext struct {
 
 func CreateSlotContext() *SlotContext {
 	return &SlotContext{
-		ctx: CreateContext[*SlotMap](nil),
+		ctx: CreateContext[*SlotMap](nil).WithEqual(slotMapEqual),
 	}
+}
+
+func slotMapEqual(a, b *SlotMap) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if len(a.slotOrder) != len(b.slotOrder) {
+		return false
+	}
+	for i, name := range a.slotOrder {
+		if b.slotOrder[i] != name {
+			return false
+		}
+	}
+	if len(a.slots) != len(b.slots) {
+		return false
+	}
+	for name, nodesA := range a.slots {
+		nodesB, exists := b.slots[name]
+		if !exists {
+			return false
+		}
+		fpA := fingerprintSlice(nodesA)
+		fpB := fingerprintSlice(nodesB)
+		if fpA != fpB {
+			return false
+		}
+	}
+	return true
+}
+
+func fingerprintSlice(nodes []work.Node) string {
+	if len(nodes) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, n := range nodes {
+		parts = append(parts, fingerprintNode(n))
+	}
+	return strings.Join(parts, ",")
 }
 
 func (sc *SlotContext) Provide(ctx *Ctx, children []work.Node) work.Node {
@@ -115,6 +158,20 @@ func (sc *SlotContext) SetSlot(ctx *Ctx, name string, content ...work.Node) {
 	slots := sc.ctx.UseContextValue(ctx)
 	if slots == nil {
 		return
+	}
+
+	existing := slots.slots[name]
+	if len(existing) == len(content) {
+		same := true
+		for i := range existing {
+			if existing[i] != content[i] {
+				same = false
+				break
+			}
+		}
+		if same {
+			return
+		}
 	}
 
 	newSlots := make(map[string][]work.Node)

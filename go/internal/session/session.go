@@ -32,6 +32,7 @@ type LiveSession struct {
 	mu          sync.Mutex
 	transportMu sync.RWMutex
 	outboundSub *protocol.Subscription
+	closed      bool
 }
 
 func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *LiveSession {
@@ -85,10 +86,17 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 		}
 		sess.transportMu.RLock()
 		t := sess.transport
-		if t != nil {
-			_ = t.Send(string(topic), event, data)
-		}
 		sess.transportMu.RUnlock()
+
+		if t != nil {
+			if err := t.Send(string(topic), event, data); err != nil {
+				rtSession.Bus.Publish(protocol.Topic("session:error"), "send_error", map[string]any{
+					"topic": string(topic),
+					"event": event,
+					"error": err.Error(),
+				})
+			}
+		}
 	})
 
 	return sess
@@ -161,7 +169,13 @@ func (s *LiveSession) Touch() {
 	for _, obs := range observers {
 		if obs != nil {
 			func() {
-				defer func() { recover() }()
+				defer func() {
+					if r := recover(); r != nil && s.session != nil && s.session.Bus != nil {
+						s.session.Bus.Publish(protocol.Topic("session:error"), "observer_panic", map[string]any{
+							"panic": r,
+						})
+					}
+				}()
 				obs(now)
 			}()
 		}
@@ -187,12 +201,25 @@ func (s *LiveSession) Close() error {
 		return nil
 	}
 
-	if s.outboundSub != nil {
-		s.outboundSub.Unsubscribe()
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil
+	}
+	s.closed = true
+
+	outboundSub := s.outboundSub
+	s.outboundSub = nil
+	session := s.session
+	s.session = nil
+	s.mu.Unlock()
+
+	if outboundSub != nil {
+		outboundSub.Unsubscribe()
 	}
 
-	if s.session != nil {
-		s.session.Close()
+	if session != nil {
+		session.Close()
 	}
 
 	s.transportMu.Lock()

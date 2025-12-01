@@ -5,90 +5,57 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
+	"github.com/eleven-am/pondlive/go/internal/route"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-var ProvideRouter = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
+var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
 	requestState := headers.UseRequestState(ctx)
-	bus := getBus(ctx)
 
-	initialLocation := &Location{
-		Path:  "/",
-		Query: url.Values{},
-	}
-
+	initialLoc := Location{Path: "/"}
 	if requestState != nil {
-		initialLocation = canonicalizeLocation(&Location{
+		initialLoc = Location{
 			Path:  requestState.Path(),
 			Query: requestState.Query(),
 			Hash:  requestState.Hash(),
-		})
+		}
 	}
 
-	_, setLocation := LocationContext.UseProvider(ctx, initialLocation)
+	if initialLoc.Path == "" {
+		initialLoc.Path = "/"
+	}
 
+	loc, setLoc := runtime.UseState(ctx, initialLoc)
+
+	bus := runtime.GetBus(ctx)
 	runtime.UseEffect(ctx, func() func() {
 		if bus == nil {
 			return nil
 		}
 
-		sub := bus.Upsert(protocol.RouteHandler, func(event string, data interface{}) {
-			switch event {
-			case "popstate":
-				nav := parseNavPayload(data)
-				if nav == nil {
-					return
-				}
-				newLoc := canonicalizeLocation(navPayloadToLocation(nav))
-				setLocation(newLoc)
+		sub := bus.SubscribeToRouterPopstate(func(payload protocol.RouterNavPayload) {
+			query, _ := url.ParseQuery(payload.Query)
+			newLoc := Location{
+				Path:  payload.Path,
+				Query: query,
+				Hash:  payload.Hash,
+			}
+			if newLoc.Path == "" {
+				newLoc.Path = "/"
+			}
+			if !route.LocEqual(loc, newLoc) {
+				setLoc(newLoc)
 			}
 		})
 
-		return sub.Unsubscribe
+		return func() {
+			sub.Unsubscribe()
+		}
 	}, bus)
 
-	return outletSlotCtx.ProvideWithoutDefault(ctx, children)
+	locationCtx.UseProvider(ctx, loc)
+	routeBaseCtx.UseProvider(ctx, "/")
+
+	return &work.Fragment{Children: children}
 })
-
-func parseNavPayload(data interface{}) *protocol.RouterNavPayload {
-	if data == nil {
-		return nil
-	}
-
-	switch v := data.(type) {
-	case protocol.RouterNavPayload:
-		return &v
-	case *protocol.RouterNavPayload:
-		return v
-	case map[string]interface{}:
-		nav := &protocol.RouterNavPayload{}
-		if path, ok := v["path"].(string); ok {
-			nav.Path = path
-		}
-		if query, ok := v["query"].(string); ok {
-			nav.Query = query
-		}
-		if hash, ok := v["hash"].(string); ok {
-			nav.Hash = hash
-		}
-		if replace, ok := v["replace"].(bool); ok {
-			nav.Replace = replace
-		}
-		return nav
-	default:
-		return nil
-	}
-}
-
-func navPayloadToLocation(nav *protocol.RouterNavPayload) *Location {
-	if nav == nil {
-		return nil
-	}
-	query, _ := url.ParseQuery(nav.Query)
-	return &Location{
-		Path:  nav.Path,
-		Query: query,
-		Hash:  nav.Hash,
-	}
-}

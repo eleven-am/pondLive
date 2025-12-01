@@ -523,3 +523,45 @@ func TestScriptCleanupAccumulationFix(t *testing.T) {
 		t.Errorf("expected 1 bus subscriber, got %d", sess.Bus.SubscriberCount(channelID))
 	}
 }
+
+func TestScriptHandleOnConcurrentSafety(t *testing.T) {
+	inst := &Instance{
+		ID:       "test-comp",
+		cleanups: []func(){},
+	}
+	sess := &Session{
+		Scripts: make(map[string]*scriptSlot),
+		Bus:     protocol.NewBus(),
+	}
+
+	slot := &scriptSlot{
+		id:       "test:s0",
+		sess:     sess,
+		instance: inst,
+	}
+
+	handle := ScriptHandle{slot: slot}
+
+	done := make(chan struct{})
+
+	for i := 0; i < 10; i++ {
+		go func(n int) {
+			for j := 0; j < 100; j++ {
+				handle.On("event-"+string(rune('a'+n)), func(data interface{}) {})
+			}
+			done <- struct{}{}
+		}(i)
+	}
+
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+
+	slot.subsMu.Lock()
+	subCount := len(slot.subs)
+	slot.subsMu.Unlock()
+
+	if subCount != 10 {
+		t.Errorf("expected 10 unique event handlers, got %d", subCount)
+	}
+}

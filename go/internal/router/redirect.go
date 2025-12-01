@@ -1,16 +1,24 @@
 package router
 
 import (
+	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-type RedirectProps struct {
-	To      string
-	Replace bool
-}
-
 var Redirect = runtime.PropsComponent(func(ctx *runtime.Ctx, props RedirectProps, _ []work.Node) work.Node {
+	requestState := headers.UseRequestState(ctx)
+	isLive := requestState != nil && requestState.IsLive()
+
+	if !isLive {
+		if props.Replace {
+			Replace(ctx, props.To)
+		} else {
+			Navigate(ctx, props.To)
+		}
+		return &work.Fragment{}
+	}
+
 	runtime.UseEffect(ctx, func() func() {
 		if props.Replace {
 			Replace(ctx, props.To)
@@ -22,14 +30,3 @@ var Redirect = runtime.PropsComponent(func(ctx *runtime.Ctx, props RedirectProps
 
 	return &work.Fragment{}
 })
-
-func RedirectIf(ctx *runtime.Ctx, condition bool, to string, otherwise work.Node) work.Node {
-	if condition {
-		return Redirect(ctx, RedirectProps{To: to})
-	}
-	return otherwise
-}
-
-func RedirectIfNot(ctx *runtime.Ctx, condition bool, to string, otherwise work.Node) work.Node {
-	return RedirectIf(ctx, !condition, to, otherwise)
-}

@@ -216,14 +216,17 @@ func UseMemo[T any](ctx *Ctx, compute func() T, deps ...any) T {
 type effectCell struct {
 	cleanup func()
 	deps    []any
+	hasDeps bool
 }
 
 func UseEffect(ctx *Ctx, fn func() func(), deps ...any) {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
 
+	hasDeps := deps != nil
+
 	if idx >= len(ctx.instance.HookFrame) {
-		cell := &effectCell{cleanup: nil, deps: cloneDeps(deps)}
+		cell := &effectCell{cleanup: nil, deps: cloneDeps(deps), hasDeps: hasDeps}
 		ctx.instance.HookFrame = append(ctx.instance.HookFrame, HookSlot{
 			Type:  HookTypeEffect,
 			Value: cell,
@@ -244,8 +247,7 @@ func UseEffect(ctx *Ctx, fn func() func(), deps ...any) {
 		panic("runtime: UseEffect hook mismatch")
 	}
 
-	if len(deps) == 0 {
-
+	if !hasDeps {
 		if cell.cleanup != nil && ctx.session != nil {
 			cleanup := cell.cleanup
 			ctx.session.PendingCleanups = append(ctx.session.PendingCleanups, cleanupTask{
