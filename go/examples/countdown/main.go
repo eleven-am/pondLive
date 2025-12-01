@@ -28,7 +28,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(assets))))
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets))))
 	mux.Handle("/", app.Handler())
 
 	log.Println("countdown timer listening on http://localhost:8080")
@@ -47,7 +47,7 @@ func countdown(ctx *pkg.Ctx) pkg.Node {
 		Links: []pkg.LinkTag{
 			{
 				Rel:  "stylesheet",
-				Href: "/static/tailwind.css",
+				Href: "/assets/tailwind.css",
 			},
 		},
 	})

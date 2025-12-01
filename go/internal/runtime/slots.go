@@ -13,6 +13,7 @@ const DefaultSlotName = "default"
 type SlotMap struct {
 	slots     map[string][]work.Node
 	slotOrder []string
+	setSlots  func(*SlotMap)
 }
 
 type SlotContext struct {
@@ -27,13 +28,21 @@ func CreateSlotContext() *SlotContext {
 
 func (sc *SlotContext) Provide(ctx *Ctx, children []work.Node) work.Node {
 	slots := extractSlotsWithDefault(children, true)
-	sc.ctx.UseProvider(ctx, slots)
+	state, setState := sc.ctx.UseProvider(ctx, slots)
+	state.setSlots = func(newSlots *SlotMap) {
+		newSlots.setSlots = state.setSlots
+		setState(newSlots)
+	}
 	return &work.Fragment{Children: filterRenderedChildren(children)}
 }
 
 func (sc *SlotContext) ProvideWithoutDefault(ctx *Ctx, children []work.Node) work.Node {
 	slots := extractSlotsWithDefault(children, false)
-	sc.ctx.UseProvider(ctx, slots)
+	state, setState := sc.ctx.UseProvider(ctx, slots)
+	state.setSlots = func(newSlots *SlotMap) {
+		newSlots.setSlots = state.setSlots
+		setState(newSlots)
+	}
 	return &work.Fragment{Children: filterRenderedChildren(children)}
 }
 
@@ -108,15 +117,23 @@ func (sc *SlotContext) SetSlot(ctx *Ctx, name string, content ...work.Node) {
 		return
 	}
 
-	if slots.slots == nil {
-		slots.slots = make(map[string][]work.Node)
+	newSlots := make(map[string][]work.Node)
+	for k, v := range slots.slots {
+		newSlots[k] = v
+	}
+	newSlots[name] = content
+
+	newOrder := slots.slotOrder
+	_, existed := slots.slots[name]
+	if !existed {
+		newOrder = append(append([]string{}, slots.slotOrder...), name)
 	}
 
-	_, existed := slots.slots[name]
-	slots.slots[name] = content
-
-	if !existed {
-		slots.slotOrder = append(slots.slotOrder, name)
+	if slots.setSlots != nil {
+		slots.setSlots(&SlotMap{
+			slots:     newSlots,
+			slotOrder: newOrder,
+		})
 	}
 }
 
@@ -126,15 +143,23 @@ func (sc *SlotContext) AppendSlot(ctx *Ctx, name string, content ...work.Node) {
 		return
 	}
 
-	if slots.slots == nil {
-		slots.slots = make(map[string][]work.Node)
+	newSlots := make(map[string][]work.Node)
+	for k, v := range slots.slots {
+		newSlots[k] = v
+	}
+	newSlots[name] = append(newSlots[name], content...)
+
+	newOrder := slots.slotOrder
+	_, existed := slots.slots[name]
+	if !existed {
+		newOrder = append(append([]string{}, slots.slotOrder...), name)
 	}
 
-	_, existed := slots.slots[name]
-	slots.slots[name] = append(slots.slots[name], content...)
-
-	if !existed {
-		slots.slotOrder = append(slots.slotOrder, name)
+	if slots.setSlots != nil {
+		slots.setSlots(&SlotMap{
+			slots:     newSlots,
+			slotOrder: newOrder,
+		})
 	}
 }
 

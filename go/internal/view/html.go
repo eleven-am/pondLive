@@ -122,8 +122,6 @@ func renderStylesheet(b *strings.Builder, ss *metadata.Stylesheet) {
 		return
 	}
 
-	b.WriteString("<style>")
-
 	for _, rule := range ss.Rules {
 		b.WriteString(escapeCSSForHTML(rule.Selector))
 		b.WriteString("{")
@@ -143,8 +141,6 @@ func renderStylesheet(b *strings.Builder, ss *metadata.Stylesheet) {
 		}
 		b.WriteString("}")
 	}
-
-	b.WriteString("</style>")
 }
 
 func escapeCSSForHTML(s string) string {

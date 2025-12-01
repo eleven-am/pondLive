@@ -6,6 +6,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/headers"
 	"github.com/eleven-am/pondlive/go/internal/metatags"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/styles"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -97,7 +98,7 @@ func UseStream[T any](ctx *Ctx, renderRow func(StreamItem[T]) Node, initial ...S
 }
 
 func UseStyles(ctx *Ctx, rawCSS string) *Styles {
-	return runtime.UseStyles(ctx, rawCSS)
+	return styles.UseStyles(ctx, rawCSS)
 }
 
 func UseHeaders(ctx *Ctx) http.Header {
