@@ -5,7 +5,7 @@ type Item interface {
 }
 
 type Attachment interface {
-	RefID() string
+	AttachTo(*Element)
 }
 
 type HandlerProvider interface {

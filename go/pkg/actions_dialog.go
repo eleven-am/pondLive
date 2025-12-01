@@ -2,14 +2,13 @@ package pkg
 
 import (
 	"github.com/eleven-am/pondlive/go/internal/runtime"
-	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 type DialogActions struct {
 	*ElementActions
 }
 
-func NewDialogActions(ctx *runtime.Ctx, ref work.Attachment) *DialogActions {
+func NewDialogActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *DialogActions {
 	return &DialogActions{ElementActions: NewElementActions(ctx, ref)}
 }
 

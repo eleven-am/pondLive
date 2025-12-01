@@ -2,14 +2,13 @@ package pkg
 
 import (
 	"github.com/eleven-am/pondlive/go/internal/runtime"
-	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 type CanvasActions struct {
 	*ElementActions
 }
 
-func NewCanvasActions(ctx *runtime.Ctx, ref work.Attachment) *CanvasActions {
+func NewCanvasActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *CanvasActions {
 	return &CanvasActions{ElementActions: NewElementActions(ctx, ref)}
 }
 

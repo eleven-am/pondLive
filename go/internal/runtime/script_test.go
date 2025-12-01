@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"testing"
+	"time"
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/work"
@@ -98,10 +99,12 @@ func TestScriptHandleOn(t *testing.T) {
 
 	callCount := 0
 	var receivedData interface{}
+	done := make(chan struct{})
 
 	handle.On("test-event", func(data interface{}) {
 		callCount++
 		receivedData = data
+		close(done)
 	})
 
 	channelID := protocol.Topic("script:test:s0")
@@ -110,6 +113,12 @@ func TestScriptHandleOn(t *testing.T) {
 	}
 
 	slot.handleMessage("test-event", "test-data")
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for handler")
+	}
 
 	if callCount != 1 {
 		t.Errorf("expected handler called once, got %d", callCount)
@@ -136,15 +145,23 @@ func TestScriptHandleSend(t *testing.T) {
 
 	var receivedAction string
 	var receivedPayload protocol.ScriptPayload
+	done := make(chan struct{})
 
 	sess.Bus.Subscribe(protocol.Topic("script:test:s0"), func(action string, data interface{}) {
 		receivedAction = action
 		if payload, ok := data.(protocol.ScriptPayload); ok {
 			receivedPayload = payload
 		}
+		close(done)
 	})
 
 	handle.Send("client-event", map[string]string{"key": "value"})
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for callback")
+	}
 
 	if receivedAction != "send" {
 		t.Errorf("expected action 'send', got '%s'", receivedAction)
@@ -392,11 +409,19 @@ func TestSessionHandleScriptMessage(t *testing.T) {
 	sess.Scripts["test:s0"] = slot
 
 	callCount := 0
+	done := make(chan struct{})
 	slot.setEventHandler("test-event", func(data interface{}) {
 		callCount++
+		close(done)
 	})
 
 	sess.HandleScriptMessage("test:s0", "test-event", nil)
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for handler")
+	}
 
 	if callCount != 1 {
 		t.Errorf("expected handler called once, got %d", callCount)

@@ -146,15 +146,7 @@ type attachItem struct {
 }
 
 func (a attachItem) ApplyTo(el *Element) {
-	el.RefID = a.ref.RefID()
-
-	if hp, ok := a.ref.(HandlerProvider); ok {
-		events := hp.Events()
-		for _, event := range events {
-			handler := hp.ProxyHandler(event)
-			eventItem{event: event, handler: handler}.ApplyTo(el)
-		}
-	}
+	a.ref.AttachTo(el)
 }
 
 func Attach(ref Attachment) Item {

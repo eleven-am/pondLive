@@ -10,7 +10,7 @@ type FormActions struct {
 	*ElementActions
 }
 
-func NewFormActions(ctx *runtime.Ctx, ref work.Attachment) *FormActions {
+func NewFormActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *FormActions {
 	return &FormActions{ElementActions: NewElementActions(ctx, ref)}
 }
 

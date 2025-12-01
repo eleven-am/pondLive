@@ -21,10 +21,6 @@ func (h ScriptHandle) ID() string {
 	return ""
 }
 
-func (h ScriptHandle) RefID() string {
-	return h.ID()
-}
-
 func (h ScriptHandle) On(event string, fn func(interface{})) {
 	if h.slot != nil {
 		h.slot.setEventHandler(event, fn)

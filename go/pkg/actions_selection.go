@@ -2,14 +2,13 @@ package pkg
 
 import (
 	"github.com/eleven-am/pondlive/go/internal/runtime"
-	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 type SelectionActions struct {
 	*ValueActions
 }
 
-func NewSelectionActions(ctx *runtime.Ctx, ref work.Attachment) *SelectionActions {
+func NewSelectionActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *SelectionActions {
 	return &SelectionActions{ValueActions: NewValueActions(ctx, ref)}
 }
 

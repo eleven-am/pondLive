@@ -8,15 +8,8 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 )
 
-type mockRef struct {
-	id string
-}
-
-func (m *mockRef) RefID() string {
-	if m == nil {
-		return ""
-	}
-	return m.id
+func makeTestRef(id string) *ElementRef {
+	return &ElementRef{id: id}
 }
 
 func TestCtxCall(t *testing.T) {
@@ -27,6 +20,7 @@ func TestCtxCall(t *testing.T) {
 	var received protocol.DOMCallPayload
 	var receivedTopic protocol.Topic
 	var receivedEvent string
+	done := make(chan struct{})
 
 	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
 		receivedTopic = protocol.DOMHandler
@@ -34,10 +28,17 @@ func TestCtxCall(t *testing.T) {
 		if payload, ok := data.(protocol.DOMCallPayload); ok {
 			received = payload
 		}
+		close(done)
 	})
 
-	ref := &mockRef{id: "ref-1"}
+	ref := makeTestRef("ref-1")
 	ctx.Call(ref, "focus")
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for callback")
+	}
 
 	if receivedTopic != protocol.DOMHandler {
 		t.Errorf("expected topic %q, got %q", protocol.DOMHandler, receivedTopic)
@@ -59,15 +60,23 @@ func TestCtxCallWithArgs(t *testing.T) {
 	ctx := &Ctx{session: session}
 
 	var received protocol.DOMCallPayload
+	done := make(chan struct{})
 
 	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
 		if payload, ok := data.(protocol.DOMCallPayload); ok {
 			received = payload
 		}
+		close(done)
 	})
 
-	ref := &mockRef{id: "ref-2"}
+	ref := makeTestRef("ref-2")
 	ctx.Call(ref, "scrollTo", 0, 100, map[string]any{"behavior": "smooth"})
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for callback")
+	}
 
 	if received.Method != "scrollTo" {
 		t.Errorf("expected method 'scrollTo', got %q", received.Method)
@@ -110,7 +119,7 @@ func TestCtxCallEmptyRef(t *testing.T) {
 		called = true
 	})
 
-	ref := &mockRef{id: ""}
+	ref := makeTestRef("")
 	ctx.Call(ref, "focus")
 
 	if called {
@@ -121,7 +130,7 @@ func TestCtxCallEmptyRef(t *testing.T) {
 func TestCtxCallNilSession(t *testing.T) {
 	ctx := &Ctx{session: nil}
 
-	ctx.Call(&mockRef{id: "ref-1"}, "focus")
+	ctx.Call(makeTestRef("ref-1"), "focus")
 }
 
 func TestCtxSet(t *testing.T) {
@@ -131,16 +140,24 @@ func TestCtxSet(t *testing.T) {
 
 	var received protocol.DOMSetPayload
 	var receivedEvent string
+	done := make(chan struct{})
 
 	bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
 		receivedEvent = event
 		if payload, ok := data.(protocol.DOMSetPayload); ok {
 			received = payload
 		}
+		close(done)
 	})
 
-	ref := &mockRef{id: "ref-3"}
+	ref := makeTestRef("ref-3")
 	ctx.Set(ref, "value", "hello world")
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for callback")
+	}
 
 	if receivedEvent != string(protocol.DOMSetAction) {
 		t.Errorf("expected event %q, got %q", string(protocol.DOMSetAction), receivedEvent)
@@ -199,7 +216,7 @@ func TestCtxQuery(t *testing.T) {
 		}()
 	})
 
-	ref := &mockRef{id: "ref-4"}
+	ref := makeTestRef("ref-4")
 	values, err := ctx.Query(ref, "value", "scrollTop")
 
 	if err != nil {
@@ -221,7 +238,7 @@ func TestCtxQueryTimeout(t *testing.T) {
 
 	ctx := &Ctx{session: session}
 
-	ref := &mockRef{id: "ref-5"}
+	ref := makeTestRef("ref-5")
 	_, err := ctx.Query(ref, "value")
 
 	if err != ErrQueryTimeout {
@@ -246,7 +263,7 @@ func TestCtxQueryEmptySelectors(t *testing.T) {
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
 
-	ref := &mockRef{id: "ref-6"}
+	ref := makeTestRef("ref-6")
 	values, err := ctx.Query(ref)
 
 	if err != nil {
@@ -280,7 +297,7 @@ func TestCtxQueryError(t *testing.T) {
 		}()
 	})
 
-	ref := &mockRef{id: "ref-7"}
+	ref := makeTestRef("ref-7")
 	_, err := ctx.Query(ref, "value")
 
 	if err == nil || err.Error() != "element not found" {
@@ -311,7 +328,7 @@ func TestCtxAsyncCall(t *testing.T) {
 		}()
 	})
 
-	ref := &mockRef{id: "ref-8"}
+	ref := makeTestRef("ref-8")
 	result, err := ctx.AsyncCall(ref, "toDataURL", "image/png")
 
 	if err != nil {
@@ -330,7 +347,7 @@ func TestCtxAsyncCallTimeout(t *testing.T) {
 
 	ctx := &Ctx{session: session}
 
-	ref := &mockRef{id: "ref-9"}
+	ref := makeTestRef("ref-9")
 	_, err := ctx.AsyncCall(ref, "someMethod")
 
 	if err != ErrQueryTimeout {
@@ -361,7 +378,7 @@ func TestCtxAsyncCallError(t *testing.T) {
 		}()
 	})
 
-	ref := &mockRef{id: "ref-10"}
+	ref := makeTestRef("ref-10")
 	_, err := ctx.AsyncCall(ref, "unsupportedMethod")
 
 	if err == nil || err.Error() != "method not supported" {
@@ -400,7 +417,7 @@ func TestDOMRequestManagerConcurrent(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 
-			ref := &mockRef{id: "ref-concurrent"}
+			ref := makeTestRef("ref-concurrent")
 			values, err := ctx.Query(ref, "value")
 
 			if err != nil {
@@ -439,7 +456,7 @@ func TestSetDOMTimeoutUpdatesExistingManager(t *testing.T) {
 	bus := protocol.NewBus()
 	session := &Session{Bus: bus}
 	ctx := &Ctx{session: session}
-	ref := &mockRef{id: "ref-timeout"}
+	ref := makeTestRef("ref-timeout")
 
 	firstSub := bus.Subscribe(protocol.DOMHandler, func(event string, data interface{}) {
 		if event != string(protocol.DOMQueryAction) {

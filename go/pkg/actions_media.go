@@ -20,7 +20,7 @@ type MediaActions struct {
 	*ElementActions
 }
 
-func NewMediaActions(ctx *runtime.Ctx, ref work.Attachment) *MediaActions {
+func NewMediaActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *MediaActions {
 	return &MediaActions{ElementActions: NewElementActions(ctx, ref)}
 }
 

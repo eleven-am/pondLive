@@ -16,7 +16,7 @@ type ScrollActions struct {
 	*ElementActions
 }
 
-func NewScrollActions(ctx *runtime.Ctx, ref work.Attachment) *ScrollActions {
+func NewScrollActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *ScrollActions {
 	return &ScrollActions{ElementActions: NewElementActions(ctx, ref)}
 }
 

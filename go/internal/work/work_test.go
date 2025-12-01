@@ -10,8 +10,8 @@ type mockAttachment struct {
 	id string
 }
 
-func (m mockAttachment) RefID() string {
-	return m.id
+func (m mockAttachment) AttachTo(el *Element) {
+	el.RefID = m.id
 }
 
 func TestNodeApplyTo(t *testing.T) {
@@ -391,8 +391,15 @@ type mockHandlerRef struct {
 	handlers map[string][]Handler
 }
 
-func (m *mockHandlerRef) RefID() string {
-	return m.id
+func (m *mockHandlerRef) AttachTo(el *Element) {
+	if m == nil || el == nil {
+		return
+	}
+	el.RefID = m.id
+	for _, event := range m.Events() {
+		handler := m.ProxyHandler(event)
+		eventItem{event: event, handler: handler}.ApplyTo(el)
+	}
 }
 
 func (m *mockHandlerRef) Events() []string {

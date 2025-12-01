@@ -10,7 +10,7 @@ type ValueActions struct {
 	*ElementActions
 }
 
-func NewValueActions(ctx *runtime.Ctx, ref work.Attachment) *ValueActions {
+func NewValueActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *ValueActions {
 	return &ValueActions{ElementActions: NewElementActions(ctx, ref)}
 }
 

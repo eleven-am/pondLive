@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
-	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 var (
@@ -99,7 +98,7 @@ func (m *domRequestManager) close() {
 	m.mu.Unlock()
 }
 
-func (c *Ctx) Call(ref work.Attachment, method string, args ...any) {
+func (c *Ctx) Call(ref *ElementRef, method string, args ...any) {
 	if ref == nil || ref.RefID() == "" {
 		return
 	}
@@ -114,7 +113,7 @@ func (c *Ctx) Call(ref work.Attachment, method string, args ...any) {
 	})
 }
 
-func (c *Ctx) Set(ref work.Attachment, prop string, value any) {
+func (c *Ctx) Set(ref *ElementRef, prop string, value any) {
 	if ref == nil || ref.RefID() == "" {
 		return
 	}
@@ -129,7 +128,7 @@ func (c *Ctx) Set(ref work.Attachment, prop string, value any) {
 	})
 }
 
-func (c *Ctx) Query(ref work.Attachment, selectors ...string) (map[string]any, error) {
+func (c *Ctx) Query(ref *ElementRef, selectors ...string) (map[string]any, error) {
 	if ref == nil || ref.RefID() == "" {
 		return nil, ErrNilRef
 	}
@@ -166,7 +165,7 @@ func (c *Ctx) Query(ref work.Attachment, selectors ...string) (map[string]any, e
 	return resp.Values, nil
 }
 
-func (c *Ctx) AsyncCall(ref work.Attachment, method string, args ...any) (any, error) {
+func (c *Ctx) AsyncCall(ref *ElementRef, method string, args ...any) (any, error) {
 	if ref == nil || ref.RefID() == "" {
 		return nil, ErrNilRef
 	}

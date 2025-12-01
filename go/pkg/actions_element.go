@@ -28,10 +28,10 @@ type ScrollMetrics struct {
 
 type ElementActions struct {
 	ctx *runtime.Ctx
-	ref work.Attachment
+	ref *runtime.ElementRef
 }
 
-func NewElementActions(ctx *runtime.Ctx, ref work.Attachment) *ElementActions {
+func NewElementActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *ElementActions {
 	return &ElementActions{ctx: ctx, ref: ref}
 }
 
@@ -199,9 +199,7 @@ func (a *ElementActions) addHandler(event string, handler work.Handler) {
 	if a.ref == nil {
 		return
 	}
-	if adder, ok := a.ref.(work.HandlerAdder); ok {
-		adder.AddHandler(event, handler)
-	}
+	a.ref.AddHandler(event, handler)
 }
 
 func (a *ElementActions) OnClick(handler func(ClickEvent) work.Updates) *ElementActions {

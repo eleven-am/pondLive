@@ -2,14 +2,13 @@ package pkg
 
 import (
 	"github.com/eleven-am/pondlive/go/internal/runtime"
-	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 type DisableableActions struct {
 	*ElementActions
 }
 
-func NewDisableableActions(ctx *runtime.Ctx, ref work.Attachment) *DisableableActions {
+func NewDisableableActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *DisableableActions {
 	return &DisableableActions{ElementActions: NewElementActions(ctx, ref)}
 }
 

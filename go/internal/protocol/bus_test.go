@@ -2,8 +2,18 @@ package protocol
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
+
+func waitForCallback(t *testing.T, done chan struct{}) {
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for callback")
+	}
+}
 
 func TestBusSubscribeAndPublish(t *testing.T) {
 	bus := NewBus()
@@ -11,11 +21,13 @@ func TestBusSubscribeAndPublish(t *testing.T) {
 	received := false
 	var receivedEvent string
 	var receivedData interface{}
+	done := make(chan struct{})
 
 	sub := bus.Subscribe("test-id", func(event string, data interface{}) {
 		received = true
 		receivedEvent = event
 		receivedData = data
+		close(done)
 	})
 
 	if sub == nil {
@@ -23,6 +35,8 @@ func TestBusSubscribeAndPublish(t *testing.T) {
 	}
 
 	bus.Publish("test-id", "click", "payload")
+
+	waitForCallback(t, done)
 
 	if !received {
 		t.Error("expected callback to be called")
@@ -38,32 +52,40 @@ func TestBusSubscribeAndPublish(t *testing.T) {
 func TestBusMultipleSubscribers(t *testing.T) {
 	bus := NewBus()
 
-	count1 := 0
-	count2 := 0
+	var count1, count2 int32
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	bus.Subscribe("test-id", func(event string, data interface{}) {
-		count1++
+		atomic.AddInt32(&count1, 1)
+		wg.Done()
 	})
 
 	bus.Subscribe("test-id", func(event string, data interface{}) {
-		count2++
+		atomic.AddInt32(&count2, 1)
+		wg.Done()
 	})
 
 	bus.Publish("test-id", "event", nil)
 
-	if count1 != 1 {
+	wg.Wait()
+
+	if atomic.LoadInt32(&count1) != 1 {
 		t.Errorf("expected subscriber 1 called once, got %d", count1)
 	}
-	if count2 != 1 {
+	if atomic.LoadInt32(&count2) != 1 {
 		t.Errorf("expected subscriber 2 called once, got %d", count2)
 	}
 
+	wg.Add(2)
 	bus.Publish("test-id", "event2", nil)
 
-	if count1 != 2 {
+	wg.Wait()
+
+	if atomic.LoadInt32(&count1) != 2 {
 		t.Errorf("expected subscriber 1 called twice, got %d", count1)
 	}
-	if count2 != 2 {
+	if atomic.LoadInt32(&count2) != 2 {
 		t.Errorf("expected subscriber 2 called twice, got %d", count2)
 	}
 }
@@ -71,20 +93,29 @@ func TestBusMultipleSubscribers(t *testing.T) {
 func TestBusUnsubscribe(t *testing.T) {
 	bus := NewBus()
 
-	count := 0
+	var count int32
+	done := make(chan struct{}, 1)
 	sub := bus.Subscribe("test-id", func(event string, data interface{}) {
-		count++
+		atomic.AddInt32(&count, 1)
+		select {
+		case done <- struct{}{}:
+		default:
+		}
 	})
 
 	bus.Publish("test-id", "event", nil)
-	if count != 1 {
+	<-done
+
+	if atomic.LoadInt32(&count) != 1 {
 		t.Errorf("expected callback called once, got %d", count)
 	}
 
 	sub.Unsubscribe()
 
 	bus.Publish("test-id", "event2", nil)
-	if count != 1 {
+	time.Sleep(20 * time.Millisecond)
+
+	if atomic.LoadInt32(&count) != 1 {
 		t.Errorf("expected callback still called once (unsubscribed), got %d", count)
 	}
 }
@@ -92,31 +123,37 @@ func TestBusUnsubscribe(t *testing.T) {
 func TestBusUnsubscribeOneOfMany(t *testing.T) {
 	bus := NewBus()
 
-	count1 := 0
-	count2 := 0
+	var count1, count2 int32
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	sub1 := bus.Subscribe("test-id", func(event string, data interface{}) {
-		count1++
+		atomic.AddInt32(&count1, 1)
+		wg.Done()
 	})
 
 	bus.Subscribe("test-id", func(event string, data interface{}) {
-		count2++
+		atomic.AddInt32(&count2, 1)
+		wg.Done()
 	})
 
 	bus.Publish("test-id", "event", nil)
+	wg.Wait()
 
-	if count1 != 1 || count2 != 1 {
+	if atomic.LoadInt32(&count1) != 1 || atomic.LoadInt32(&count2) != 1 {
 		t.Errorf("expected both called once, got %d and %d", count1, count2)
 	}
 
 	sub1.Unsubscribe()
 
+	wg.Add(1)
 	bus.Publish("test-id", "event2", nil)
+	wg.Wait()
 
-	if count1 != 1 {
+	if atomic.LoadInt32(&count1) != 1 {
 		t.Errorf("expected sub1 still 1 (unsubscribed), got %d", count1)
 	}
-	if count2 != 2 {
+	if atomic.LoadInt32(&count2) != 2 {
 		t.Errorf("expected sub2 called twice, got %d", count2)
 	}
 }
@@ -124,32 +161,37 @@ func TestBusUnsubscribeOneOfMany(t *testing.T) {
 func TestBusDifferentIDs(t *testing.T) {
 	bus := NewBus()
 
-	count1 := 0
-	count2 := 0
+	var count1, count2 int32
+	done1 := make(chan struct{})
 
 	bus.Subscribe("id1", func(event string, data interface{}) {
-		count1++
+		atomic.AddInt32(&count1, 1)
+		close(done1)
 	})
 
+	done2 := make(chan struct{})
 	bus.Subscribe("id2", func(event string, data interface{}) {
-		count2++
+		atomic.AddInt32(&count2, 1)
+		close(done2)
 	})
 
 	bus.Publish("id1", "event", nil)
+	<-done1
 
-	if count1 != 1 {
+	if atomic.LoadInt32(&count1) != 1 {
 		t.Errorf("expected id1 subscriber called, got %d", count1)
 	}
-	if count2 != 0 {
+	if atomic.LoadInt32(&count2) != 0 {
 		t.Errorf("expected id2 subscriber not called, got %d", count2)
 	}
 
 	bus.Publish("id2", "event", nil)
+	<-done2
 
-	if count1 != 1 {
+	if atomic.LoadInt32(&count1) != 1 {
 		t.Errorf("expected id1 subscriber still 1, got %d", count1)
 	}
-	if count2 != 1 {
+	if atomic.LoadInt32(&count2) != 1 {
 		t.Errorf("expected id2 subscriber called, got %d", count2)
 	}
 }
@@ -260,17 +302,21 @@ func TestBusConcurrentUnsubscribe(t *testing.T) {
 func TestSubscribeToHandlerInvokeUsesUpsert(t *testing.T) {
 	bus := NewBus()
 
-	count := 0
+	var count int32
+	done := make(chan struct{})
+
 	bus.SubscribeToHandlerInvoke("handler", func(event interface{}) {
-		count++
+		atomic.AddInt32(&count, 1)
 	})
 	bus.SubscribeToHandlerInvoke("handler", func(event interface{}) {
-		count += 10
+		atomic.AddInt32(&count, 10)
+		close(done)
 	})
 
 	bus.PublishHandlerInvoke("handler", nil)
+	<-done
 
-	if count != 10 {
+	if atomic.LoadInt32(&count) != 10 {
 		t.Fatalf("expected only latest handler to fire once, got %d", count)
 	}
 
@@ -297,8 +343,10 @@ func TestBusUpsertCreatesNew(t *testing.T) {
 	bus := NewBus()
 
 	called := false
+	done := make(chan struct{})
 	sub := bus.Upsert("test-id", func(event string, data interface{}) {
 		called = true
+		close(done)
 	})
 
 	if sub == nil {
@@ -306,6 +354,7 @@ func TestBusUpsertCreatesNew(t *testing.T) {
 	}
 
 	bus.Publish("test-id", "event", nil)
+	<-done
 
 	if !called {
 		t.Error("expected callback to be called")
@@ -319,19 +368,25 @@ func TestBusUpsertCreatesNew(t *testing.T) {
 func TestBusUpsertUpdatesExisting(t *testing.T) {
 	bus := NewBus()
 
-	count1 := 0
+	var count1 int32
+	done1 := make(chan struct{})
 	bus.Upsert("test-id", func(event string, data interface{}) {
-		count1++
+		atomic.AddInt32(&count1, 1)
+		close(done1)
 	})
 
 	bus.Publish("test-id", "event", nil)
-	if count1 != 1 {
+	<-done1
+
+	if atomic.LoadInt32(&count1) != 1 {
 		t.Errorf("expected count1=1, got %d", count1)
 	}
 
-	count2 := 0
+	var count2 int32
+	done2 := make(chan struct{})
 	bus.Upsert("test-id", func(event string, data interface{}) {
-		count2++
+		atomic.AddInt32(&count2, 1)
+		close(done2)
 	})
 
 	if bus.SubscriberCount("test-id") != 1 {
@@ -339,11 +394,12 @@ func TestBusUpsertUpdatesExisting(t *testing.T) {
 	}
 
 	bus.Publish("test-id", "event", nil)
+	<-done2
 
-	if count1 != 1 {
+	if atomic.LoadInt32(&count1) != 1 {
 		t.Errorf("expected count1 still 1 (old callback replaced), got %d", count1)
 	}
-	if count2 != 1 {
+	if atomic.LoadInt32(&count2) != 1 {
 		t.Errorf("expected count2=1 (new callback), got %d", count2)
 	}
 }
@@ -373,23 +429,29 @@ func TestBusUpsertWithHandlerPattern(t *testing.T) {
 
 	handlerID := Topic("h-123")
 
-	value1 := 0
+	var value1 int32
+	done1 := make(chan struct{})
 	bus.Upsert(handlerID, func(event string, data interface{}) {
 		if event == string(HandlerInvokeAction) {
-			value1 = 1
+			atomic.StoreInt32(&value1, 1)
 		}
+		close(done1)
 	})
 
 	bus.PublishHandlerInvoke(string(handlerID), nil)
-	if value1 != 1 {
+	<-done1
+
+	if atomic.LoadInt32(&value1) != 1 {
 		t.Errorf("expected value1=1, got %d", value1)
 	}
 
-	value2 := 0
+	var value2 int32
+	done2 := make(chan struct{})
 	bus.Upsert(handlerID, func(event string, data interface{}) {
 		if event == string(HandlerInvokeAction) {
-			value2 = 2
+			atomic.StoreInt32(&value2, 2)
 		}
+		close(done2)
 	})
 
 	if bus.SubscriberCount(handlerID) != 1 {
@@ -397,11 +459,12 @@ func TestBusUpsertWithHandlerPattern(t *testing.T) {
 	}
 
 	bus.PublishHandlerInvoke(string(handlerID), nil)
+	<-done2
 
-	if value1 != 1 {
+	if atomic.LoadInt32(&value1) != 1 {
 		t.Errorf("expected value1 still 1, got %d", value1)
 	}
-	if value2 != 2 {
+	if atomic.LoadInt32(&value2) != 2 {
 		t.Errorf("expected value2=2, got %d", value2)
 	}
 }
@@ -409,28 +472,31 @@ func TestBusUpsertWithHandlerPattern(t *testing.T) {
 func TestBusUpsertCollapsesToSingleSubscriber(t *testing.T) {
 	bus := NewBus()
 
-	legacyCount := 0
+	var legacyCount int32
 	bus.Subscribe("id", func(event string, data interface{}) {
-		legacyCount++
+		atomic.AddInt32(&legacyCount, 1)
 	})
 	bus.Subscribe("id", func(event string, data interface{}) {
-		legacyCount++
+		atomic.AddInt32(&legacyCount, 1)
 	})
 
-	newCount := 0
+	var newCount int32
+	done := make(chan struct{})
 	bus.Upsert("id", func(event string, data interface{}) {
-		newCount++
+		atomic.AddInt32(&newCount, 1)
+		close(done)
 	})
 
 	bus.Publish("id", "event", nil)
+	<-done
 
 	if bus.SubscriberCount("id") != 1 {
 		t.Fatalf("expected subscribers collapsed to 1, got %d", bus.SubscriberCount("id"))
 	}
-	if legacyCount != 0 {
+	if atomic.LoadInt32(&legacyCount) != 0 {
 		t.Fatalf("expected legacy subscribers removed, got legacyCount=%d", legacyCount)
 	}
-	if newCount != 1 {
+	if atomic.LoadInt32(&newCount) != 1 {
 		t.Fatalf("expected new upsert callback called once, got %d", newCount)
 	}
 }
@@ -438,13 +504,17 @@ func TestBusUpsertCollapsesToSingleSubscriber(t *testing.T) {
 func TestBusPublishRecoversFromPanic(t *testing.T) {
 	bus := NewBus()
 
-	called := false
+	var called int32
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	bus.Subscribe("id", func(event string, data interface{}) {
+		defer wg.Done()
 		panic("boom")
 	})
 	bus.Subscribe("id", func(event string, data interface{}) {
-		called = true
+		defer wg.Done()
+		atomic.StoreInt32(&called, 1)
 	})
 
 	defer func() {
@@ -455,7 +525,9 @@ func TestBusPublishRecoversFromPanic(t *testing.T) {
 
 	bus.Publish("id", "event", nil)
 
-	if !called {
+	wg.Wait()
+
+	if atomic.LoadInt32(&called) != 1 {
 		t.Fatalf("expected non-panicking subscriber to be invoked despite panic in another")
 	}
 }
@@ -463,19 +535,23 @@ func TestBusPublishRecoversFromPanic(t *testing.T) {
 func TestBusPublishPanicRecovery(t *testing.T) {
 	bus := NewBus()
 
-	called1 := false
-	called3 := false
+	var called1, called3 int32
+	var wg sync.WaitGroup
+	wg.Add(3)
 
 	bus.Subscribe("test-id", func(event string, data interface{}) {
-		called1 = true
+		defer wg.Done()
+		atomic.StoreInt32(&called1, 1)
 	})
 
 	bus.Subscribe("test-id", func(event string, data interface{}) {
+		defer wg.Done()
 		panic("intentional panic")
 	})
 
 	bus.Subscribe("test-id", func(event string, data interface{}) {
-		called3 = true
+		defer wg.Done()
+		atomic.StoreInt32(&called3, 1)
 	})
 
 	defer func() {
@@ -486,10 +562,12 @@ func TestBusPublishPanicRecovery(t *testing.T) {
 
 	bus.Publish("test-id", "event", nil)
 
-	if !called1 {
+	wg.Wait()
+
+	if atomic.LoadInt32(&called1) != 1 {
 		t.Error("expected first subscriber to be called")
 	}
-	if !called3 {
+	if atomic.LoadInt32(&called3) != 1 {
 		t.Error("expected third subscriber to be called despite second panicking")
 	}
 }
@@ -497,9 +575,9 @@ func TestBusPublishPanicRecovery(t *testing.T) {
 func TestBusPublishPanicInUpsert(t *testing.T) {
 	bus := NewBus()
 
-	called := false
-
+	done1 := make(chan struct{})
 	bus.Upsert("test-id", func(event string, data interface{}) {
+		close(done1)
 		panic("upsert panic")
 	})
 
@@ -510,18 +588,25 @@ func TestBusPublishPanicInUpsert(t *testing.T) {
 	}()
 
 	bus.Publish("test-id", "event", nil)
+	<-done1
+
+	time.Sleep(10 * time.Millisecond)
 
 	if bus.SubscriberCount("test-id") != 1 {
 		t.Error("expected subscriber to still exist after panic")
 	}
 
+	var called int32
+	done2 := make(chan struct{})
 	bus.Upsert("test-id", func(event string, data interface{}) {
-		called = true
+		atomic.StoreInt32(&called, 1)
+		close(done2)
 	})
 
 	bus.Publish("test-id", "event", nil)
+	<-done2
 
-	if !called {
+	if atomic.LoadInt32(&called) != 1 {
 		t.Error("expected updated callback to be called")
 	}
 }
@@ -529,20 +614,25 @@ func TestBusPublishPanicInUpsert(t *testing.T) {
 func TestBusPublishMultiplePanics(t *testing.T) {
 	bus := NewBus()
 
-	count := 0
+	var count int32
+	var wg sync.WaitGroup
+	wg.Add(3)
 
 	bus.Subscribe("test-id", func(event string, data interface{}) {
-		count++
+		defer wg.Done()
+		atomic.AddInt32(&count, 1)
 		panic("panic 1")
 	})
 
 	bus.Subscribe("test-id", func(event string, data interface{}) {
-		count++
+		defer wg.Done()
+		atomic.AddInt32(&count, 1)
 		panic("panic 2")
 	})
 
 	bus.Subscribe("test-id", func(event string, data interface{}) {
-		count++
+		defer wg.Done()
+		atomic.AddInt32(&count, 1)
 		panic("panic 3")
 	})
 
@@ -554,7 +644,9 @@ func TestBusPublishMultiplePanics(t *testing.T) {
 
 	bus.Publish("test-id", "event", nil)
 
-	if count != 3 {
+	wg.Wait()
+
+	if atomic.LoadInt32(&count) != 3 {
 		t.Errorf("expected all 3 subscribers to be called, got %d", count)
 	}
 }
@@ -562,56 +654,67 @@ func TestBusPublishMultiplePanics(t *testing.T) {
 func TestBusSubscribeAllReceivesAllMessages(t *testing.T) {
 	bus := NewBus()
 
+	var mu sync.Mutex
 	var received []struct {
 		topic string
 		event string
 		data  interface{}
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(3)
+
 	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
+		defer wg.Done()
+		mu.Lock()
 		received = append(received, struct {
 			topic string
 			event string
 			data  interface{}
 		}{string(topic), event, data})
+		mu.Unlock()
 	})
 
 	bus.Publish("topic1", "event1", "data1")
 	bus.Publish("topic2", "event2", "data2")
 	bus.Publish("topic3", "event3", "data3")
 
+	wg.Wait()
+
+	mu.Lock()
+	defer mu.Unlock()
+
 	if len(received) != 3 {
 		t.Fatalf("expected 3 messages, got %d", len(received))
-	}
-
-	if received[0].topic != "topic1" || received[0].event != "event1" || received[0].data != "data1" {
-		t.Errorf("message 0 mismatch: %+v", received[0])
-	}
-	if received[1].topic != "topic2" || received[1].event != "event2" || received[1].data != "data2" {
-		t.Errorf("message 1 mismatch: %+v", received[1])
-	}
-	if received[2].topic != "topic3" || received[2].event != "event3" || received[2].data != "data3" {
-		t.Errorf("message 2 mismatch: %+v", received[2])
 	}
 }
 
 func TestBusSubscribeAllUnsubscribe(t *testing.T) {
 	bus := NewBus()
 
-	count := 0
+	var count int32
+	done := make(chan struct{})
 	sub := bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
-		count++
+		atomic.AddInt32(&count, 1)
+		select {
+		case done <- struct{}{}:
+		default:
+		}
 	})
 
 	bus.Publish("topic1", "event", nil)
-	if count != 1 {
+	<-done
+
+	if atomic.LoadInt32(&count) != 1 {
 		t.Errorf("expected 1 call, got %d", count)
 	}
 
 	sub.Unsubscribe()
 
 	bus.Publish("topic2", "event", nil)
-	if count != 1 {
+	time.Sleep(20 * time.Millisecond)
+
+	if atomic.LoadInt32(&count) != 1 {
 		t.Errorf("expected still 1 call after unsubscribe, got %d", count)
 	}
 }
@@ -619,32 +722,38 @@ func TestBusSubscribeAllUnsubscribe(t *testing.T) {
 func TestBusSubscribeAllWithRegularSubscribers(t *testing.T) {
 	bus := NewBus()
 
-	wildcardCount := 0
-	regularCount := 0
+	var wildcardCount, regularCount int32
+	var wg sync.WaitGroup
 
 	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
-		wildcardCount++
+		atomic.AddInt32(&wildcardCount, 1)
+		wg.Done()
 	})
 
 	bus.Subscribe("specific-topic", func(event string, data interface{}) {
-		regularCount++
+		atomic.AddInt32(&regularCount, 1)
+		wg.Done()
 	})
 
+	wg.Add(2)
 	bus.Publish("specific-topic", "event", nil)
+	wg.Wait()
 
-	if wildcardCount != 1 {
+	if atomic.LoadInt32(&wildcardCount) != 1 {
 		t.Errorf("expected wildcard called once, got %d", wildcardCount)
 	}
-	if regularCount != 1 {
+	if atomic.LoadInt32(&regularCount) != 1 {
 		t.Errorf("expected regular called once, got %d", regularCount)
 	}
 
+	wg.Add(1)
 	bus.Publish("other-topic", "event", nil)
+	wg.Wait()
 
-	if wildcardCount != 2 {
+	if atomic.LoadInt32(&wildcardCount) != 2 {
 		t.Errorf("expected wildcard called twice, got %d", wildcardCount)
 	}
-	if regularCount != 1 {
+	if atomic.LoadInt32(&regularCount) != 1 {
 		t.Errorf("expected regular still 1, got %d", regularCount)
 	}
 }
@@ -652,23 +761,28 @@ func TestBusSubscribeAllWithRegularSubscribers(t *testing.T) {
 func TestBusSubscribeAllMultipleWildcards(t *testing.T) {
 	bus := NewBus()
 
-	count1 := 0
-	count2 := 0
+	var count1, count2 int32
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
-		count1++
+		atomic.AddInt32(&count1, 1)
+		wg.Done()
 	})
 
 	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
-		count2++
+		atomic.AddInt32(&count2, 1)
+		wg.Done()
 	})
 
 	bus.Publish("topic", "event", nil)
 
-	if count1 != 1 {
+	wg.Wait()
+
+	if atomic.LoadInt32(&count1) != 1 {
 		t.Errorf("expected wildcard 1 called once, got %d", count1)
 	}
-	if count2 != 1 {
+	if atomic.LoadInt32(&count2) != 1 {
 		t.Errorf("expected wildcard 2 called once, got %d", count2)
 	}
 }
@@ -676,14 +790,18 @@ func TestBusSubscribeAllMultipleWildcards(t *testing.T) {
 func TestBusSubscribeAllPanicRecovery(t *testing.T) {
 	bus := NewBus()
 
-	called := false
+	var called int32
+	var wg sync.WaitGroup
+	wg.Add(2)
 
 	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
+		defer wg.Done()
 		panic("wildcard panic")
 	})
 
 	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
-		called = true
+		defer wg.Done()
+		atomic.StoreInt32(&called, 1)
 	})
 
 	defer func() {
@@ -694,7 +812,9 @@ func TestBusSubscribeAllPanicRecovery(t *testing.T) {
 
 	bus.Publish("topic", "event", nil)
 
-	if !called {
+	wg.Wait()
+
+	if atomic.LoadInt32(&called) != 1 {
 		t.Error("expected second wildcard to be called despite first panicking")
 	}
 }

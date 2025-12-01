@@ -10,7 +10,7 @@ type DetailsActions struct {
 	*ElementActions
 }
 
-func NewDetailsActions(ctx *runtime.Ctx, ref work.Attachment) *DetailsActions {
+func NewDetailsActions(ctx *runtime.Ctx, ref *runtime.ElementRef) *DetailsActions {
 	return &DetailsActions{ElementActions: NewElementActions(ctx, ref)}
 }
 

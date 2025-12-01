@@ -104,3 +104,19 @@ func (r *ElementRef) ResetAttachment() {
 		r.handlers[event] = r.handlers[event][:0]
 	}
 }
+
+func (r *ElementRef) AttachTo(el *work.Element) {
+	if r == nil || el == nil {
+		return
+	}
+
+	el.RefID = r.id
+
+	for _, event := range r.Events() {
+		handler := r.ProxyHandler(event)
+		if el.Handlers == nil {
+			el.Handlers = make(map[string]work.Handler)
+		}
+		el.Handlers[event] = handler
+	}
+}
