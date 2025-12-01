@@ -96,7 +96,7 @@ export class Runtime {
             resolveRef,
         });
 
-        this.scripts = new ScriptExecutor({ bus: this.bus });
+        this.scripts = new ScriptExecutor({ bus: this.bus, transport: this.transport });
 
         this.bus.subscribe('frame', 'patch', (payload) => this.handlePatch(payload));
 

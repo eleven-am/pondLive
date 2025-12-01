@@ -1,15 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ScriptExecutor, ScriptExecutorConfig } from './scripts';
 import { Bus } from './bus';
-import { ScriptMeta } from './protocol';
+import { ScriptMeta, ScriptPayload } from './protocol';
+import { Transport } from './transport';
 
 describe('ScriptExecutor', () => {
     let executor: ScriptExecutor;
     let bus: Bus;
+    let mockTransport: Transport;
+    let sendScriptSpy: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         bus = new Bus();
-        const config: ScriptExecutorConfig = { bus };
+        sendScriptSpy = vi.fn();
+        mockTransport = {
+            sendScript: sendScriptSpy,
+        } as unknown as Transport;
+        const config: ScriptExecutorConfig = { bus, transport: mockTransport };
         executor = new ScriptExecutor(config);
     });
 
@@ -65,10 +72,7 @@ describe('ScriptExecutor', () => {
     });
 
     describe('transport.send', () => {
-        it('should publish message to bus', async () => {
-            const callback = vi.fn();
-            bus.subscribeScript('script-1', 'message', callback);
-
+        it('should send message via transport', async () => {
             const el = document.createElement('div');
             const meta: ScriptMeta = {
                 scriptId: 'script-1',
@@ -77,7 +81,7 @@ describe('ScriptExecutor', () => {
 
             await executor.execute(meta, el);
 
-            expect(callback).toHaveBeenCalledWith({
+            expect(sendScriptSpy).toHaveBeenCalledWith('script-1', {
                 scriptId: 'script-1',
                 event: 'test',
                 data: { foo: 'bar' },
@@ -85,9 +89,6 @@ describe('ScriptExecutor', () => {
         });
 
         it('should send multiple messages', async () => {
-            const callback = vi.fn();
-            bus.subscribeScript('script-1', 'message', callback);
-
             const el = document.createElement('div');
             const meta: ScriptMeta = {
                 scriptId: 'script-1',
@@ -99,7 +100,7 @@ describe('ScriptExecutor', () => {
 
             await executor.execute(meta, el);
 
-            expect(callback).toHaveBeenCalledTimes(2);
+            expect(sendScriptSpy).toHaveBeenCalledTimes(2);
         });
     });
 

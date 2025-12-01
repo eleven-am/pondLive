@@ -2,6 +2,7 @@ package session
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,7 +80,7 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 	sess.session = rtSession
 
 	sess.outboundSub = rtSession.Bus.SubscribeAll(func(topic protocol.Topic, event string, data interface{}) {
-		if !isClientTopic(topic) {
+		if !isClientTopic(topic, event) {
 			return
 		}
 		sess.transportMu.RLock()
@@ -284,11 +285,14 @@ func (s *LiveSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.session.ServeHTTP(w, r)
 }
 
-func isClientTopic(topic protocol.Topic) bool {
+func isClientTopic(topic protocol.Topic, event string) bool {
 	switch topic {
 	case protocol.TopicFrame, protocol.RouteHandler, protocol.DOMHandler, protocol.AckTopic:
 		return true
 	default:
+		if strings.HasPrefix(string(topic), "script:") {
+			return event == string(protocol.ScriptSendAction)
+		}
 		return false
 	}
 }

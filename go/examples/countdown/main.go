@@ -17,7 +17,7 @@ import (
 var publicFS embed.FS
 
 func main() {
-	app, err := pkg.NewApp(countdown)
+	app, err := pkg.NewApp(countdown, pkg.WithDevMode())
 	if err != nil {
 		log.Fatalf("build live app: %v", err)
 	}

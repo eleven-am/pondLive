@@ -13,6 +13,7 @@ import {
     FramePatchPayload,
     Patch,
     Event,
+    ScriptPayload,
 } from './protocol';
 import { Bus } from './bus';
 import {Logger} from "./logger";
@@ -132,6 +133,16 @@ export class Transport {
         this.sendMessage('evt', evt);
     }
 
+    sendScript(scriptId: string, payload: ScriptPayload): void {
+        const evt: ClientEvt = {
+            t: `script:${scriptId}`,
+            sid: this.sessionId,
+            a: 'message',
+            p: payload,
+        };
+        this.sendMessage('evt', evt);
+    }
+
     private handleMessage(payload: unknown): void {
         Logger.info('TRANSPORT','Transport received message:', payload);
         if (!isMessage(payload)) {
@@ -148,7 +159,7 @@ export class Transport {
     }
 
     private isValidTopic(topic: string): topic is Topic {
-        return topic === 'router' || topic === 'dom' || topic === 'frame' || topic === 'ack';
+        return topic === 'router' || topic === 'dom' || topic === 'frame' || topic === 'ack' || topic.startsWith('script:');
     }
 
     private publishToBus(topic: Topic, action: string, data: unknown, seq: number): void {
@@ -187,6 +198,12 @@ export class Transport {
             case 'ack':
                 if (action === 'ack') {
                     this.bus.publish('ack', 'ack', data as PayloadFor<'ack', 'ack'>);
+                }
+                break;
+            default:
+                if (topic.startsWith('script:') && action === 'send') {
+                    const payload = data as ScriptPayload;
+                    this.bus.publishScript(payload.scriptId, 'send', payload);
                 }
                 break;
         }

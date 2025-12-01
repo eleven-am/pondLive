@@ -1473,6 +1473,15 @@ var LiveUIModule = (() => {
       };
       this.sendMessage("evt", evt);
     }
+    sendScript(scriptId, payload) {
+      const evt = {
+        t: `script:${scriptId}`,
+        sid: this.sessionId,
+        a: "message",
+        p: payload
+      };
+      this.sendMessage("evt", evt);
+    }
     handleMessage(payload) {
       Logger.info("TRANSPORT", "Transport received message:", payload);
       if (!isMessage(payload)) {
@@ -1485,7 +1494,7 @@ var LiveUIModule = (() => {
       this.publishToBus(topic, event, data, seq);
     }
     isValidTopic(topic) {
-      return topic === "router" || topic === "dom" || topic === "frame" || topic === "ack";
+      return topic === "router" || topic === "dom" || topic === "frame" || topic === "ack" || topic.startsWith("script:");
     }
     publishToBus(topic, action, data, seq) {
       switch (topic) {
@@ -1523,6 +1532,12 @@ var LiveUIModule = (() => {
         case "ack":
           if (action === "ack") {
             this.bus.publish("ack", "ack", data);
+          }
+          break;
+        default:
+          if (topic.startsWith("script:") && action === "send") {
+            const payload = data;
+            this.bus.publishScript(payload.scriptId, "send", payload);
           }
           break;
       }
@@ -2164,6 +2179,17 @@ var LiveUIModule = (() => {
     "BigInt64Array",
     "BigUint64Array"
   ];
+  var BIND_TO_WINDOW = /* @__PURE__ */ new Set([
+    "setTimeout",
+    "clearTimeout",
+    "setInterval",
+    "clearInterval",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "fetch",
+    "atob",
+    "btoa"
+  ]);
   function createSandbox(element, transport) {
     const target = {
       element,
@@ -2171,7 +2197,12 @@ var LiveUIModule = (() => {
     };
     for (const key of SANDBOX_WHITELIST) {
       if (key in globalThis) {
-        target[key] = globalThis[key];
+        const value = globalThis[key];
+        if (BIND_TO_WINDOW.has(key) && typeof value === "function") {
+          target[key] = value.bind(globalThis);
+        } else {
+          target[key] = value;
+        }
       }
     }
     return new Proxy(target, {
@@ -2194,65 +2225,92 @@ var LiveUIModule = (() => {
     constructor(config) {
       this.scripts = /* @__PURE__ */ new Map();
       this.bus = config.bus;
+      this.transport = config.transport;
     }
     async execute(meta, element) {
       const { scriptId, script } = meta;
+      Logger.debug("Script", "execute called", { scriptId, element: element.tagName, script: script.substring(0, 100) + "..." });
       this.cleanup(scriptId);
       const instance = {
         eventHandlers: /* @__PURE__ */ new Map(),
         subscription: this.bus.subscribeScript(scriptId, "send", (payload) => {
+          Logger.debug("Script", "server message received", { scriptId, event: payload.event, data: payload.data });
           this.handleServerMessage(scriptId, payload.event, payload.data);
         })
       };
       const transport = {
         send: (event, data) => {
-          this.bus.publishScript(scriptId, "message", {
+          Logger.debug("Script", "transport.send called", { scriptId, event, data });
+          const payload = {
             scriptId,
             event,
             data
-          });
+          };
+          this.transport.sendScript(scriptId, payload);
         },
         on: (event, handler) => {
+          Logger.debug("Script", "transport.on registered", { scriptId, event });
           instance.eventHandlers.set(event, handler);
         }
       };
       const sandbox = createSandbox(element, transport);
       try {
+        Logger.debug("Script", "creating function", { scriptId });
         const fn = new Function(
           "sandbox",
           `with(sandbox) { return (${script})(element, transport); }`
         );
+        Logger.debug("Script", "executing function", { scriptId });
         const cleanup = await fn(sandbox);
         if (typeof cleanup === "function") {
+          Logger.debug("Script", "cleanup function returned", { scriptId });
           instance.cleanup = cleanup;
         }
         this.scripts.set(scriptId, instance);
+        Logger.debug("Script", "execute complete", { scriptId, handlers: Array.from(instance.eventHandlers.keys()) });
       } catch (err) {
+        Logger.error("Script", "execute failed", { scriptId, error: String(err) });
         instance.subscription.unsubscribe();
         throw err;
       }
     }
     handleServerMessage(scriptId, event, data) {
+      Logger.debug("Script", "handleServerMessage", { scriptId, event, data });
       const instance = this.scripts.get(scriptId);
-      if (!instance) return;
+      if (!instance) {
+        Logger.warn("Script", "no instance found", { scriptId });
+        return;
+      }
       const handler = instance.eventHandlers.get(event);
-      if (!handler) return;
+      if (!handler) {
+        Logger.warn("Script", "no handler found", { scriptId, event, availableHandlers: Array.from(instance.eventHandlers.keys()) });
+        return;
+      }
       try {
+        Logger.debug("Script", "invoking handler", { scriptId, event });
         handler(data);
-      } catch {
+      } catch (err) {
+        Logger.error("Script", "handler error", { scriptId, event, error: String(err) });
       }
     }
     cleanup(scriptId) {
+      Logger.debug("Script", "cleanup called", { scriptId });
       const instance = this.scripts.get(scriptId);
-      if (!instance) return;
+      if (!instance) {
+        Logger.debug("Script", "cleanup: no instance found", { scriptId });
+        return;
+      }
       if (instance.cleanup) {
         try {
+          Logger.debug("Script", "running cleanup function", { scriptId });
           instance.cleanup();
-        } catch {
+        } catch (err) {
+          Logger.error("Script", "cleanup function error", { scriptId, error: String(err) });
         }
       }
       instance.subscription.unsubscribe();
       this.scripts.delete(scriptId);
+      Logger.debug("Script", "cleanup complete", { scriptId });
     }
     destroy() {
       for (const scriptId of this.scripts.keys()) {
@@ -2302,7 +2360,7 @@ var LiveUIModule = (() => {
         transport: this.transport,
         resolveRef
       });
-      this.scripts = new ScriptExecutor({ bus: this.bus });
+      this.scripts = new ScriptExecutor({ bus: this.bus, transport: this.transport });
       this.bus.subscribe("frame", "patch", (payload) => this.handlePatch(payload));
       this.transport.onStateChange((state) => this.handleStateChange(state));
       window.__POND_RUNTIME__ = this;
