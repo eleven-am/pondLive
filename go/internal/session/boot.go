@@ -23,36 +23,38 @@ func wrapComponent(component Component) func(*runtime.Ctx, any, []work.Node) wor
 
 func bootComponent(ctx *runtime.Ctx, props bootProps, children []work.Node) work.Node {
 	app := wrapComponent(props.component)
-	headers.UseProvideRequestState(ctx, props.requestState)
 
-	return metatags.Provider(ctx,
-		router.ProvideRouter(ctx,
-			styles.Provider(ctx,
-				&work.Element{
-					Tag: "html",
-					Children: []work.Node{
-						&work.Element{
-							Tag: "head",
-							Children: []work.Node{
-								metatags.Render(ctx),
-								styles.Render(ctx),
+	return headers.Provider(ctx, props.requestState,
+		metatags.Provider(ctx,
+			router.ProvideRouter(ctx,
+				styles.Provider(ctx,
+					&work.Element{
+						Tag: "html",
+						Children: []work.Node{
+							&work.Element{
+								Tag: "head",
+								Children: []work.Node{
+									metatags.Render(ctx),
+									styles.Render(ctx),
+									headers.Render(ctx),
+								},
 							},
-						},
-						&work.Element{
-							Tag: "body",
-							Children: []work.Node{
-								work.Component(app),
-								&work.Element{
-									Tag: "script",
-									Attrs: map[string][]string{
-										"src":   {props.ClientAsset},
-										"defer": {""},
+							&work.Element{
+								Tag: "body",
+								Children: []work.Node{
+									work.Component(app),
+									&work.Element{
+										Tag: "script",
+										Attrs: map[string][]string{
+											"src":   {props.ClientAsset},
+											"defer": {""},
+										},
 									},
 								},
 							},
 						},
 					},
-				},
+				),
 			),
 		),
 	)

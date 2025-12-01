@@ -33,12 +33,18 @@ func UseCookie(ctx *runtime.Ctx, name string) (string, func(value string, opts *
 	}
 
 	value, _ := state.GetCookie(name)
+	pState := useProviderState(ctx)
 
 	setter := func(newValue string, opts *CookieOptions) {
 		if opts != nil && opts.MaxAge < 0 {
 			state.DeleteCookieMutation(name)
 		} else {
 			state.MutateCookie(name, newValue)
+		}
+
+		if state.IsLive() && pState != nil {
+			sendCookieViaScript(pState, name, newValue, opts)
+			return
 		}
 
 		cookie := &http.Cookie{

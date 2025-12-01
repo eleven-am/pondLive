@@ -13,6 +13,7 @@ type (
 	LinkProps     = router.LinkProps
 	NavLinkProps  = router.NavLinkProps
 	RedirectProps = router.RedirectProps
+	OutletProps   = router.OutletProps
 )
 
 func Navigate(ctx *Ctx, href string) {
@@ -51,20 +52,20 @@ func UseMatched(ctx *Ctx) bool {
 	return router.UseMatched(ctx)
 }
 
-func Link(ctx *Ctx, props LinkProps, children []Node) Node {
-	return router.Link(ctx, props, children)
+func Link(ctx *Ctx, props LinkProps, children ...Item) Node {
+	return router.Link(ctx, props, children...)
 }
 
-func NavLink(ctx *Ctx, props NavLinkProps, children []Node) Node {
-	return router.NavLink(ctx, props, children)
+func NavLink(ctx *Ctx, props NavLinkProps, children ...Item) Node {
+	return router.NavLink(ctx, props, children...)
 }
 
-func Route(ctx *Ctx, props RouteProps) Node {
-	return router.Route(ctx, props)
+func Route(ctx *Ctx, props RouteProps, children ...Node) Node {
+	return router.Route(ctx, props, children...)
 }
 
-func Routes(ctx *Ctx, props RoutesProps, children []Node) Node {
-	return router.Routes(ctx, props, children)
+func Routes(ctx *Ctx, props RoutesProps, children ...Item) Node {
+	return router.Routes(ctx, props, children...)
 }
 
 func Redirect(ctx *Ctx, props RedirectProps) Node {
@@ -77,4 +78,20 @@ func RedirectIf(ctx *Ctx, condition bool, to string, otherwise Node) Node {
 
 func RedirectIfNot(ctx *Ctx, condition bool, to string, otherwise Node) Node {
 	return router.RedirectIfNot(ctx, condition, to, otherwise)
+}
+
+func Outlet(ctx *Ctx, props OutletProps, fallback ...Item) Node {
+	return router.Outlet(ctx, props, fallback...)
+}
+
+func OutletDefault(ctx *Ctx, fallback ...Item) Node {
+	return router.OutletDefault(ctx, fallback...)
+}
+
+func HasOutlet(ctx *Ctx, name string) bool {
+	return router.HasOutlet(ctx, name)
+}
+
+func OutletNames(ctx *Ctx) []string {
+	return router.OutletNames(ctx)
 }

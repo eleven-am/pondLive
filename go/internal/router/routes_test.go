@@ -7,11 +7,11 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-func mockComponent(ctx *runtime.Ctx, match Match, children []work.Node) work.Node {
+func mockComponent(ctx *runtime.Ctx, match Match) work.Node {
 	return &work.Element{Tag: "div"}
 }
 
-func mockComponent2(ctx *runtime.Ctx, match Match, children []work.Node) work.Node {
+func mockComponent2(ctx *runtime.Ctx, match Match) work.Node {
 	return &work.Element{Tag: "span"}
 }
 

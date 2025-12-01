@@ -27,6 +27,7 @@ type (
 	StreamItem[T any]         = runtime.StreamItem[T]
 	StreamHandle[T any]       = runtime.StreamHandle[T]
 	Meta                      = metatags.Meta
+	CookieOptions             = headers.CookieOptions
 )
 
 func CreateContext[T any](defaultValue T) *Context[T] {
@@ -103,6 +104,10 @@ func UseStyles(ctx *Ctx, rawCSS string) *Styles {
 
 func UseHeaders(ctx *Ctx) http.Header {
 	return headers.UseHeaders(ctx)
+}
+
+func UseCookie(ctx *Ctx, name string) (string, func(value string, opts *CookieOptions)) {
+	return headers.UseCookie(ctx, name)
 }
 
 func UseMetaTags(ctx *Ctx, meta *Meta) {

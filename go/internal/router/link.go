@@ -8,7 +8,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-func Link(ctx *runtime.Ctx, props LinkProps, children []work.Node) work.Node {
+var Link = runtime.PropsComponent(func(ctx *runtime.Ctx, props LinkProps, children []work.Node) work.Node {
 	location := LocationContext.UseContextValue(ctx)
 	base := &Location{Path: "/", Query: url.Values{}}
 	if location != nil {
@@ -42,9 +42,9 @@ func Link(ctx *runtime.Ctx, props LinkProps, children []work.Node) work.Node {
 		},
 		Children: children,
 	}
-}
+})
 
-func NavLink(ctx *runtime.Ctx, props NavLinkProps, children []work.Node) work.Node {
+var NavLink = runtime.PropsComponent(func(ctx *runtime.Ctx, props NavLinkProps, children []work.Node) work.Node {
 	location := LocationContext.UseContextValue(ctx)
 	base := &Location{Path: "/", Query: url.Values{}}
 	if location != nil {
@@ -103,7 +103,7 @@ func NavLink(ctx *runtime.Ctx, props NavLinkProps, children []work.Node) work.No
 		},
 		Children: children,
 	}
-}
+})
 
 type NavLinkProps struct {
 	To          string

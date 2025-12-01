@@ -280,38 +280,39 @@ func TestMinimalProviderFlush(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, children []work.Node) work.Node {
-				headers.UseProvideRequestState(ctx, nil)
-
-				return metatags.Provider(ctx,
-					router.ProvideRouter(ctx,
-						styles.Provider(ctx,
-							&work.Element{
-								Tag: "html",
-								Children: []work.Node{
-									&work.Element{
-										Tag: "head",
-										Children: []work.Node{
-											metatags.Render(ctx),
-											styles.Render(ctx),
-										},
-									},
-									&work.Element{
-										Tag: "body",
-										Children: []work.Node{
-											&work.Element{
-												Tag:      "div",
-												Children: []work.Node{&work.Text{Value: "User App"}},
+				return headers.Provider(ctx, nil,
+					metatags.Provider(ctx,
+						router.ProvideRouter(ctx,
+							styles.Provider(ctx,
+								&work.Element{
+									Tag: "html",
+									Children: []work.Node{
+										&work.Element{
+											Tag: "head",
+											Children: []work.Node{
+												metatags.Render(ctx),
+												styles.Render(ctx),
+												headers.Render(ctx),
 											},
-											&work.Element{
-												Tag: "script",
-												Attrs: map[string][]string{
-													"src": {"/static/pondlive.js"},
+										},
+										&work.Element{
+											Tag: "body",
+											Children: []work.Node{
+												&work.Element{
+													Tag:      "div",
+													Children: []work.Node{&work.Text{Value: "User App"}},
+												},
+												&work.Element{
+													Tag: "script",
+													Attrs: map[string][]string{
+														"src": {"/static/pondlive.js"},
+													},
 												},
 											},
 										},
 									},
 								},
-							},
+							),
 						),
 					),
 				)
@@ -340,7 +341,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
-				headers.UseProvideRequestState(ctx, nil)
+				_ = headers.UseRequestState(ctx)
 
 				return metatags.Provider(ctx,
 					router.ProvideRouter(ctx,
@@ -408,7 +409,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
-				headers.UseProvideRequestState(ctx, nil)
+				_ = headers.UseRequestState(ctx)
 				ref := runtime.UseElement(ctx)
 
 				return metatags.Provider(ctx,
@@ -475,7 +476,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
-				headers.UseProvideRequestState(ctx, nil)
+				_ = headers.UseRequestState(ctx)
 				script := runtime.UseScript(ctx, "console.log('hello')")
 
 				scriptDiv := &work.Element{Tag: "div"}
@@ -540,7 +541,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
 			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
-				headers.UseProvideRequestState(ctx, nil)
+				_ = headers.UseRequestState(ctx)
 				ref := runtime.UseElement(ctx)
 				script := runtime.UseScript(ctx, "console.log('combined')")
 

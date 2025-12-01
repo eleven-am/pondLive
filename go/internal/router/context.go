@@ -5,6 +5,7 @@ import (
 
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
+	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 var LocationContext = runtime.CreateContext[*Location](nil)
@@ -12,6 +13,8 @@ var LocationContext = runtime.CreateContext[*Location](nil)
 var MatchContext = runtime.CreateContext[*MatchState](nil)
 
 var outletSlotCtx = runtime.CreateSlotContext()
+
+var childRoutesCtx = runtime.CreateContext[[]work.Node](nil)
 
 func getBus(ctx *runtime.Ctx) *protocol.Bus {
 	return runtime.GetBus(ctx)

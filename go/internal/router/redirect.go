@@ -10,8 +10,7 @@ type RedirectProps struct {
 	Replace bool
 }
 
-func Redirect(ctx *runtime.Ctx, props RedirectProps) work.Node {
-
+var Redirect = runtime.PropsComponent(func(ctx *runtime.Ctx, props RedirectProps, _ []work.Node) work.Node {
 	runtime.UseEffect(ctx, func() func() {
 		if props.Replace {
 			Replace(ctx, props.To)
@@ -22,7 +21,7 @@ func Redirect(ctx *runtime.Ctx, props RedirectProps) work.Node {
 	}, props.To, props.Replace)
 
 	return &work.Fragment{}
-}
+})
 
 func RedirectIf(ctx *runtime.Ctx, condition bool, to string, otherwise work.Node) work.Node {
 	if condition {

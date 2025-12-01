@@ -7,7 +7,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-func Route(ctx *runtime.Ctx, props RouteProps) work.Node {
+func Route(ctx *runtime.Ctx, props RouteProps, children ...work.Node) work.Node {
 	pattern := strings.TrimSpace(props.Path)
 	if pattern == "" {
 		pattern = "/"
@@ -18,12 +18,13 @@ func Route(ctx *runtime.Ctx, props RouteProps) work.Node {
 			routeMetadataKey: routeEntry{
 				pattern:   pattern,
 				component: props.Component,
+				children:  children,
 			},
 		},
 	}
 }
 
-func Routes(ctx *runtime.Ctx, props RoutesProps, children []work.Node) work.Node {
+var Routes = runtime.PropsComponent(func(ctx *runtime.Ctx, props RoutesProps, children []work.Node) work.Node {
 	outlet := props.Outlet
 	if outlet == "" {
 		outlet = "default"
@@ -82,12 +83,14 @@ func Routes(ctx *runtime.Ctx, props RoutesProps, children []work.Node) work.Node
 		Rest:     matchResult.Rest,
 	}
 
-	component := matchResult.Entry.component(ctx, match, matchResult.Entry.children)
+	childRoutesCtx.UseProvider(ctx, matchResult.Entry.children)
+
+	component := matchResult.Entry.component(ctx, match)
 
 	outletSlotCtx.SetSlot(ctx, outlet, component)
 
 	return &work.Fragment{}
-}
+})
 
 func collectRouteEntries(nodes []work.Node) []routeEntry {
 	if len(nodes) == 0 {

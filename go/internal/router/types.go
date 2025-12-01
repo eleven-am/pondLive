@@ -33,7 +33,7 @@ type Match struct {
 
 type RouteProps struct {
 	Path      string
-	Component func(*runtime.Ctx, Match, []work.Node) work.Node
+	Component func(*runtime.Ctx, Match) work.Node
 }
 
 type RoutesProps struct {
@@ -47,7 +47,7 @@ type LinkProps struct {
 
 type routeEntry struct {
 	pattern   string
-	component func(*runtime.Ctx, Match, []work.Node) work.Node
+	component func(*runtime.Ctx, Match) work.Node
 	children  []work.Node
 }
 
