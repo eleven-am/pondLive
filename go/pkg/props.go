@@ -120,19 +120,11 @@ func OnWith(event string, options metadata.EventOptions, fn func(work.Event) wor
 	}
 }
 
-type attachItem struct {
-	ref work.Attachment
-}
-
-func (a attachItem) ApplyTo(el *work.Element) {
-	el.RefID = a.ref.RefID()
-}
-
 func Attach(ref work.Attachment) Item {
 	if ref == nil {
 		return noopItem{}
 	}
-	return attachItem{ref: ref}
+	return work.Attach(ref)
 }
 
 type boolAttrItem struct {

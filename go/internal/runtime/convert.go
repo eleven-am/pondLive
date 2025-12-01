@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -94,6 +93,8 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 		needsRender = true
 	} else if inst.RenderedThisFlush {
 		needsRender = false
+	} else if inst.Dirty {
+		needsRender = true
 	} else if !propsEqual(inst.PrevProps, comp.Props) {
 		needsRender = true
 	} else if inst.ParentContextEpoch != parent.CombinedContextEpoch {
@@ -117,20 +118,6 @@ func propsEqual(a, b any) bool {
 		return false
 	}
 	return reflect.DeepEqual(a, b)
-}
-
-func convertToWorkEvent(data interface{}) work.Event {
-	if event, ok := data.(work.Event); ok {
-		return event
-	}
-
-	var event work.Event
-	bytes, err := json.Marshal(data)
-	if err != nil {
-		return work.Event{}
-	}
-	_ = json.Unmarshal(bytes, &event)
-	return event
 }
 
 func (s *Session) convertFragment(frag *work.Fragment, parent *Instance) view.Node {
@@ -171,7 +158,11 @@ func (s *Session) registerHandler(inst *Instance, elem *work.Element, event stri
 	}
 
 	sub := s.Bus.SubscribeToHandlerInvoke(handlerID, func(data interface{}) {
-		event := convertToWorkEvent(data)
+		event, ok := protocol.DecodePayload[work.Event](data)
+		if !ok {
+			return
+		}
+
 		handler.Fn(event)
 	})
 

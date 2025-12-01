@@ -149,9 +149,9 @@ func (a attachItem) ApplyTo(el *Element) {
 	el.RefID = a.ref.RefID()
 
 	if hp, ok := a.ref.(HandlerProvider); ok {
-		for _, event := range hp.Events() {
+		events := hp.Events()
+		for _, event := range events {
 			handler := hp.ProxyHandler(event)
-
 			eventItem{event: event, handler: handler}.ApplyTo(el)
 		}
 	}

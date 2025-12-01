@@ -84,11 +84,11 @@ func TestExtractMetadata_MultipleMetadata(t *testing.T) {
 		t.Fatalf("Expected 2 patches, got %d", len(patches))
 	}
 
-	if patches[0].Op != OpSetHandlers {
-		t.Errorf("Expected first patch to be OpSetHandlers, got %v", patches[0].Op)
+	if patches[0].Op != OpSetRef {
+		t.Errorf("Expected first patch to be OpSetRef, got %v", patches[0].Op)
 	}
-	if patches[1].Op != OpSetRef {
-		t.Errorf("Expected second patch to be OpSetRef, got %v", patches[1].Op)
+	if patches[1].Op != OpSetHandlers {
+		t.Errorf("Expected second patch to be OpSetHandlers, got %v", patches[1].Op)
 	}
 
 	if patches[0].Seq != 0 {
@@ -219,7 +219,7 @@ func TestExtractMetadata_AllMetadataTypes(t *testing.T) {
 		t.Fatalf("Expected 3 patches, got %d", len(patches))
 	}
 
-	expectedOps := []OpKind{OpSetHandlers, OpSetRef, OpSetScript}
+	expectedOps := []OpKind{OpSetRef, OpSetHandlers, OpSetScript}
 	for i, expectedOp := range expectedOps {
 		if patches[i].Op != expectedOp {
 			t.Errorf("Expected patch %d to be %v, got %v", i, expectedOp, patches[i].Op)

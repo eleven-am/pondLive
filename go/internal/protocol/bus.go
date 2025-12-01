@@ -1,9 +1,26 @@
 package protocol
 
 import (
+	"encoding/json"
 	"sync"
 	"sync/atomic"
 )
+
+func DecodePayload[T any](data interface{}) (T, bool) {
+	var zero T
+	if typed, ok := data.(T); ok {
+		return typed, true
+	}
+	bytes, err := json.Marshal(data)
+	if err != nil {
+		return zero, false
+	}
+	var result T
+	if err := json.Unmarshal(bytes, &result); err != nil {
+		return zero, false
+	}
+	return result, true
+}
 
 type Bus struct {
 	subscribers         map[Topic][]*subscriber
@@ -146,20 +163,20 @@ func (b *Bus) Publish(id Topic, event string, data interface{}) {
 		if callback == nil {
 			continue
 		}
-		func() {
+		go func(cb func(event string, data interface{})) {
 			defer func() { recover() }()
-			callback(event, data)
-		}()
+			cb(event, data)
+		}(callback)
 	}
 
 	for _, callback := range wildcardCallbacks {
 		if callback == nil {
 			continue
 		}
-		func() {
+		go func(cb func(topic Topic, event string, data interface{})) {
 			defer func() { recover() }()
-			callback(id, event, data)
-		}()
+			cb(id, event, data)
+		}(callback)
 	}
 }
 

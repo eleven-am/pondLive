@@ -1,47 +1,39 @@
 package metatags
 
 import (
-	"maps"
-
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 type Ctx = runtime.Ctx
 
-var noopController = &Controller{
-	get:    func() map[string]metaEntry { return make(map[string]metaEntry) },
-	set:    func(string, metaEntry) {},
-	remove: func(string) {},
+type metaState struct {
+	entries    map[string]metaEntry
+	setEntries func(map[string]metaEntry)
 }
 
-var metaCtx = runtime.CreateContext[*Controller](noopController)
+var noopState = &metaState{
+	entries:    make(map[string]metaEntry),
+	setEntries: func(map[string]metaEntry) {},
+}
+
+var metaCtx = runtime.CreateContext[*metaState](noopState)
 
 var Provider = runtime.Component(func(ctx *Ctx, children []work.Node) work.Node {
-	entries, setEntries := runtime.UseState(ctx, map[string]metaEntry{})
+	initialState := &metaState{
+		entries:    make(map[string]metaEntry),
+		setEntries: func(map[string]metaEntry) {},
+	}
 
-	entriesRef := runtime.UseRef(ctx, entries)
-	entriesRef.Current = entries
+	state, setState := metaCtx.UseProvider(ctx, initialState)
 
-	controller := runtime.UseMemo(ctx, func() *Controller {
-		return &Controller{
-			get: func() map[string]metaEntry {
-				return entriesRef.Current
-			},
-			set: func(componentID string, entry metaEntry) {
-				next := maps.Clone(entriesRef.Current)
-				next[componentID] = entry
-				setEntries(next)
-			},
-			remove: func(componentID string) {
-				next := maps.Clone(entriesRef.Current)
-				delete(next, componentID)
-				setEntries(next)
-			},
+	state.setEntries = func(newEntries map[string]metaEntry) {
+		next := &metaState{
+			entries:    newEntries,
+			setEntries: state.setEntries,
 		}
-	})
-
-	metaCtx.UseProvider(ctx, controller)
+		setState(next)
+	}
 
 	return &work.Fragment{Children: children}
 })

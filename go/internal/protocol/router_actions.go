@@ -47,7 +47,7 @@ func (b *Bus) SubscribeToRouterCommands(callback func(action RouterServerAction,
 func (b *Bus) SubscribeToRouterPopstate(callback func(payload RouterNavPayload)) *Subscription {
 	return b.Upsert(RouteHandler, func(event string, data interface{}) {
 		if event == string(RouterPopstateAction) {
-			if payload, ok := data.(RouterNavPayload); ok {
+			if payload, ok := DecodePayload[RouterNavPayload](data); ok {
 				callback(payload)
 			}
 		}

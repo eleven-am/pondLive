@@ -36,7 +36,7 @@ func (b *Bus) PublishScriptMessage(scriptID, event string, data interface{}) {
 func (b *Bus) SubscribeToScript(scriptID string, callback func(action string, payload ScriptPayload)) *Subscription {
 	topic := Topic("script:" + scriptID)
 	return b.Upsert(topic, func(event string, data interface{}) {
-		if payload, ok := data.(ScriptPayload); ok {
+		if payload, ok := DecodePayload[ScriptPayload](data); ok {
 			callback(event, payload)
 		}
 	})
@@ -46,7 +46,7 @@ func (b *Bus) SubscribeToScriptMessages(scriptID string, callback func(event str
 	topic := Topic("script:" + scriptID)
 	return b.Upsert(topic, func(action string, data interface{}) {
 		if action == string(ScriptMessageAction) {
-			if payload, ok := data.(ScriptPayload); ok {
+			if payload, ok := DecodePayload[ScriptPayload](data); ok {
 				callback(payload.Event, payload.Data)
 			}
 		}

@@ -15,8 +15,8 @@ type bootProps struct {
 	ClientAsset  string
 }
 
-func wrapComponent(component Component) runtime.ComponentNode[struct{}] {
-	return func(ctx *runtime.Ctx, props struct{}, children []work.Node) work.Node {
+func wrapComponent(component Component) func(*runtime.Ctx, any, []work.Node) work.Node {
+	return func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
 		return component(ctx)
 	}
 }
@@ -41,7 +41,7 @@ func bootComponent(ctx *runtime.Ctx, props bootProps, children []work.Node) work
 						&work.Element{
 							Tag: "body",
 							Children: []work.Node{
-								app(ctx, struct{}{}, children),
+								work.Component(app),
 								&work.Element{
 									Tag: "script",
 									Attrs: map[string][]string{

@@ -72,7 +72,7 @@ func (b *Bus) SubscribeToDOMActions(callback func(action DOMServerAction, data i
 func (b *Bus) SubscribeToDOMResponses(callback func(response DOMResponsePayload)) *Subscription {
 	return b.Subscribe(DOMHandler, func(event string, data interface{}) {
 		if event == string(DOMResponseAction) {
-			if resp, ok := data.(DOMResponsePayload); ok {
+			if resp, ok := DecodePayload[DOMResponsePayload](data); ok {
 				callback(resp)
 			}
 		}

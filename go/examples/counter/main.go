@@ -56,8 +56,6 @@ func counter(ctx *pkg.Ctx) pkg.Node {
 
 	decRef := pkg.UseButton(ctx)
 	decRef.OnClick(func(evt pkg.ClickEvent) pkg.Updates {
-		x, err := decRef.GetBoundingClientRect()
-		fmt.Printf("Button bounding rect: %+v, err: %v\n", x, err)
 		setCount(count - 1)
 		return nil
 	})

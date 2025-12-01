@@ -83,7 +83,6 @@ func (c *Context[T]) findProvider(inst *Instance) (*Instance, T) {
 
 		if providers != nil {
 			if val, ok := providers[c.id]; ok {
-
 				typed, typeOk := val.(T)
 				if !typeOk {
 					panic(fmt.Sprintf("runtime: context value type mismatch: expected %T, got %T (context ID: %v)", c.defaultValue, val, c.id))

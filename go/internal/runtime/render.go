@@ -129,6 +129,11 @@ func (inst *Instance) NotifyContextChange(sess *Session) {
 	}
 
 	inst.ContextEpoch++
+	if inst.Parent != nil {
+		inst.CombinedContextEpoch = inst.ContextEpoch + inst.Parent.CombinedContextEpoch
+	} else {
+		inst.CombinedContextEpoch = inst.ContextEpoch
+	}
 
 	if sess == nil {
 		return

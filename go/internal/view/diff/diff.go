@@ -698,22 +698,22 @@ func extractMetadataRecursive(n view.Node, patches *[]Patch, seq *int, path []in
 		}
 
 	case *view.Element:
-		if len(node.Handlers) > 0 {
-			*patches = append(*patches, Patch{
-				Seq:   *seq,
-				Path:  copyPath(path),
-				Op:    OpSetHandlers,
-				Value: node.Handlers,
-			})
-			*seq++
-		}
-
 		if node.RefID != "" {
 			*patches = append(*patches, Patch{
 				Seq:   *seq,
 				Path:  copyPath(path),
 				Op:    OpSetRef,
 				Value: node.RefID,
+			})
+			*seq++
+		}
+
+		if len(node.Handlers) > 0 {
+			*patches = append(*patches, Patch{
+				Seq:   *seq,
+				Path:  copyPath(path),
+				Op:    OpSetHandlers,
+				Value: node.Handlers,
 			})
 			*seq++
 		}
