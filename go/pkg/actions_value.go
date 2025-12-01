@@ -71,6 +71,17 @@ func (a *ValueActions) OnChange(handler func(ChangeEvent) work.Updates) *ValueAc
 	if handler == nil {
 		return a
 	}
+	a.addHandler("input", work.Handler{
+		EventOptions: metadata.EventOptions{Props: ChangeEvent{}.props()},
+		Fn:           func(evt work.Event) work.Updates { return handler(buildChangeEvent(evt)) },
+	})
+	return a
+}
+
+func (a *ValueActions) OnFileChange(handler func(ChangeEvent) work.Updates) *ValueActions {
+	if handler == nil {
+		return a
+	}
 	a.addHandler("change", work.Handler{
 		EventOptions: metadata.EventOptions{Props: ChangeEvent{}.props()},
 		Fn:           func(evt work.Event) work.Updates { return handler(buildChangeEvent(evt)) },

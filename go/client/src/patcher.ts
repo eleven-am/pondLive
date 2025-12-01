@@ -11,6 +11,7 @@ export interface StructuredNode {
     script?: ScriptMeta;
     refId?: string;
     unsafeHTML?: string;
+    key?: string;
 }
 
 export type EventCallback = (handlerId: string, data: Record<string, unknown>) => void;
@@ -37,6 +38,7 @@ export class Patcher {
     private callbacks: PatcherCallbacks;
     private handlerStore = new WeakMap<Element, Map<string, HandlerState>>();
     private scriptStore = new WeakMap<Element, string>();
+    private keyedElements = new Map<string, Element>();
 
     constructor(root: Node, callbacks: PatcherCallbacks) {
         this.root = root;
@@ -100,13 +102,13 @@ export class Patcher {
                 this.replaceNode(node, patch.value as StructuredNode);
                 break;
             case 'addChild':
-                this.addChild(node, patch.index!, patch.value as StructuredNode);
+                this.addChild(node, patch.index!, patch.value as StructuredNode, patch.path);
                 break;
             case 'delChild':
                 this.delChild(node, patch.index!);
                 break;
             case 'moveChild':
-                this.moveChild(node, patch.value as { fromIndex: number; newIdx: number });
+                this.moveChild(node, patch.value as { fromIndex: number; newIdx: number; key?: string }, patch.path);
                 break;
         }
     }
@@ -374,9 +376,14 @@ export class Patcher {
         }
     }
 
-    private addChild(parent: Node, index: number, nodeData: StructuredNode): void {
+    private addChild(parent: Node, index: number, nodeData: StructuredNode, parentPath: number[]): void {
         const newNode = this.createNode(nodeData);
         if (!newNode) return;
+
+        if (nodeData.key && newNode instanceof Element) {
+            const keyId = `${parentPath.join(',')}-${nodeData.key}`;
+            this.keyedElements.set(keyId, newNode);
+        }
 
         const refChild = parent.childNodes[index] ?? null;
         parent.insertBefore(newNode, refChild);
@@ -390,8 +397,18 @@ export class Patcher {
         }
     }
 
-    private moveChild(parent: Node, move: { fromIndex: number; newIdx: number }): void {
-        const child = parent.childNodes[move.fromIndex];
+    private moveChild(parent: Node, move: { fromIndex: number; newIdx: number; key?: string }, parentPath: number[]): void {
+        let child: ChildNode | null = null;
+
+        if (move.key) {
+            const keyId = `${parentPath.join(',')}-${move.key}`;
+            child = this.keyedElements.get(keyId) ?? null;
+        }
+
+        if (!child) {
+            child = parent.childNodes[move.fromIndex] ?? null;
+        }
+
         if (!child) return;
 
         parent.removeChild(child);

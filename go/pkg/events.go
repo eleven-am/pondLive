@@ -125,6 +125,7 @@ type KeyboardEvent struct {
 	ShiftKey    bool
 	MetaKey     bool
 	IsComposing bool
+	TargetValue string
 }
 
 func (KeyboardEvent) props() []string {
@@ -132,6 +133,7 @@ func (KeyboardEvent) props() []string {
 		"event.key", "event.code", "event.location", "event.repeat",
 		"event.altKey", "event.ctrlKey", "event.shiftKey", "event.metaKey",
 		"event.isComposing",
+		"target.value",
 	}
 }
 
@@ -147,6 +149,7 @@ func buildKeyboardEvent(evt work.Event) KeyboardEvent {
 		ShiftKey:    payloadBool(evt.Payload, "event.shiftKey"),
 		MetaKey:     payloadBool(evt.Payload, "event.metaKey"),
 		IsComposing: payloadBool(evt.Payload, "event.isComposing"),
+		TargetValue: payloadString(evt.Payload, "target.value"),
 	}
 }
 
@@ -358,14 +361,18 @@ func buildInputEvent(evt work.Event) InputEvent {
 
 type ChangeEvent struct {
 	BaseEvent
+	Value string
 }
 
 func (ChangeEvent) props() []string {
-	return []string{}
+	return []string{"target.value"}
 }
 
 func buildChangeEvent(evt work.Event) ChangeEvent {
-	return ChangeEvent{BaseEvent: BaseEvent{Event: evt}}
+	return ChangeEvent{
+		BaseEvent: BaseEvent{Event: evt},
+		Value:     payloadString(evt.Payload, "target.value"),
+	}
 }
 
 type FormEvent struct {

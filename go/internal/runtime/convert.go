@@ -158,8 +158,12 @@ func (s *Session) registerHandler(inst *Instance, elem *work.Element, event stri
 	}
 
 	sub := s.Bus.SubscribeToHandlerInvoke(handlerID, func(data interface{}) {
-		event, ok := protocol.DecodePayload[work.Event](data)
-		if !ok {
+		var event work.Event
+		if payload, ok := data.(map[string]any); ok {
+			event.Payload = payload
+		} else if payload, ok := data.(map[string]interface{}); ok {
+			event.Payload = payload
+		} else {
 			return
 		}
 

@@ -1579,6 +1579,7 @@ var LiveUIModule = (() => {
     constructor(root, callbacks) {
       this.handlerStore = /* @__PURE__ */ new WeakMap();
       this.scriptStore = /* @__PURE__ */ new WeakMap();
+      this.keyedElements = /* @__PURE__ */ new Map();
       this.root = root;
       this.callbacks = callbacks;
     }
@@ -1637,13 +1638,13 @@ var LiveUIModule = (() => {
           this.replaceNode(node, patch.value);
           break;
         case "addChild":
-          this.addChild(node, patch.index, patch.value);
+          this.addChild(node, patch.index, patch.value, patch.path);
           break;
         case "delChild":
           this.delChild(node, patch.index);
           break;
         case "moveChild":
-          this.moveChild(node, patch.value);
+          this.moveChild(node, patch.value, patch.path);
           break;
       }
     }
@@ -1869,9 +1870,13 @@ var LiveUIModule = (() => {
         oldNode.parentNode.replaceChild(newNode, oldNode);
       }
     }
-    addChild(parent, index, nodeData) {
+    addChild(parent, index, nodeData, parentPath) {
       const newNode = this.createNode(nodeData);
       if (!newNode) return;
+      if (nodeData.key && newNode instanceof Element) {
+        const keyId = `${parentPath.join(",")}-${nodeData.key}`;
+        this.keyedElements.set(keyId, newNode);
+      }
       const refChild = parent.childNodes[index] ?? null;
       parent.insertBefore(newNode, refChild);
     }
@@ -1882,8 +1887,15 @@ var LiveUIModule = (() => {
         parent.removeChild(child);
       }
     }
-    moveChild(parent, move) {
-      const child = parent.childNodes[move.fromIndex];
+    moveChild(parent, move, parentPath) {
+      let child = null;
+      if (move.key) {
+        const keyId = `${parentPath.join(",")}-${move.key}`;
+        child = this.keyedElements.get(keyId) ?? null;
+      }
+      if (!child) {
+        child = parent.childNodes[move.fromIndex] ?? null;
+      }
       if (!child) return;
       parent.removeChild(child);
       const refChild = parent.childNodes[move.newIdx] ?? null;
