@@ -114,7 +114,7 @@ var Provider = runtime.PropsComponent(func(ctx *runtime.Ctx, requestState *Reque
 	return &work.Fragment{Children: children}
 })
 
-func Render(ctx *runtime.Ctx) work.Node {
+var Render = runtime.Component(func(ctx *runtime.Ctx, _ []work.Node) work.Node {
 	pState := providerCtx.UseContextValue(ctx)
 	if pState == nil {
 		return nil
@@ -123,10 +123,10 @@ func Render(ctx *runtime.Ctx) work.Node {
 	scriptNode := &work.Element{
 		Tag: "script",
 	}
-	pState.script.AttachTo(scriptNode)
 
+	pState.script.AttachTo(scriptNode)
 	return scriptNode
-}
+})
 
 func useProviderState(ctx *runtime.Ctx) *providerState {
 	return providerCtx.UseContextValue(ctx)

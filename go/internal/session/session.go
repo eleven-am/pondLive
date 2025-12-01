@@ -90,7 +90,7 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 
 		if t != nil {
 			if err := t.Send(string(topic), event, data); err != nil {
-				rtSession.Bus.Publish(protocol.Topic("session:error"), "send_error", map[string]any{
+				rtSession.Bus.Publish("session:error", "send_error", map[string]any{
 					"topic": string(topic),
 					"event": event,
 					"error": err.Error(),
