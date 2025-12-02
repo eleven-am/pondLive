@@ -49,12 +49,9 @@ func routes(ctx *runtime.Ctx, children []work.Node) work.Node {
 		return slotEntries
 	}, fingerprintChildren(children), fingerprintSlots(children), base)
 
-	slots := runtime.UseMemo(ctx, func() map[string]outletRenderer {
-		if pathToMatch == "" {
-			return nil
-		}
-
-		result := make(map[string]outletRenderer)
+	var slots map[string]outletRenderer
+	if pathToMatch != "" {
+		slots = make(map[string]outletRenderer)
 
 		for _, slot := range allSlots {
 			trie := newRouterTrie()
@@ -65,7 +62,7 @@ func routes(ctx *runtime.Ctx, children []work.Node) work.Node {
 			matchResult := trie.Match(pathToMatch)
 			if matchResult == nil || matchResult.Entry == nil {
 				if slot.fallback != nil {
-					result[slot.name] = slot.fallback
+					slots[slot.name] = slot.fallback
 				}
 				continue
 			}
@@ -103,6 +100,7 @@ func routes(ctx *runtime.Ctx, children []work.Node) work.Node {
 			if strings.Contains(entry.fullPath, ":") || strings.Contains(entry.fullPath, "*") {
 				componentKey += "|" + loc.Path
 			}
+
 			renderer := func(ictx *runtime.Ctx) work.Node {
 				return routeMount(ictx, routeMountProps{
 					match:        capturedMatch,
@@ -114,11 +112,9 @@ func routes(ctx *runtime.Ctx, children []work.Node) work.Node {
 				})
 			}
 
-			result[slot.name] = renderer
+			slots[slot.name] = renderer
 		}
-
-		return result
-	}, pathToMatch, allSlots, loc)
+	}
 
 	hasDefaultSlot := false
 	for _, slot := range allSlots {
@@ -130,15 +126,19 @@ func routes(ctx *runtime.Ctx, children []work.Node) work.Node {
 
 	if hasDefaultSlot {
 		if slots == nil || slots[defaultSlotName] == nil {
-			matchCtx.UseProvider(ctx, &MatchState{Matched: false})
-			slotsCtx.UseProvider(ctx, nil)
-			routeBaseCtx.UseProvider(ctx, base)
+			_, setMatch := matchCtx.UseProvider(ctx, &MatchState{Matched: false})
+			_, setSlots := slotsCtx.UseProvider(ctx, nil)
+			_, setBase := routeBaseCtx.UseProvider(ctx, base)
+			setMatch(&MatchState{Matched: false})
+			setSlots(nil)
+			setBase(base)
 			return &work.Fragment{}
 		}
 		return slots[defaultSlotName](ctx)
 	}
 
-	slotsCtx.UseProvider(ctx, slots)
+	_, setSlots := slotsCtx.UseProvider(ctx, slots)
+	setSlots(slots)
 	return &work.Fragment{}
 }
 

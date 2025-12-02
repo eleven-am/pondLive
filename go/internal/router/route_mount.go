@@ -15,9 +15,13 @@ type routeMountProps struct {
 }
 
 var routeMount = runtime.PropsComponent(func(ctx *runtime.Ctx, props routeMountProps, _ []work.Node) work.Node {
-	matchCtx.UseProvider(ctx, props.matchState)
-	routeBaseCtx.UseProvider(ctx, props.base)
-	slotsCtx.UseProvider(ctx, props.childSlots)
+	_, setMatch := matchCtx.UseProvider(ctx, props.matchState)
+	_, setBase := routeBaseCtx.UseProvider(ctx, props.base)
+	_, setSlots := slotsCtx.UseProvider(ctx, props.childSlots)
+
+	setMatch(props.matchState)
+	setBase(props.base)
+	setSlots(props.childSlots)
 
 	return &work.ComponentNode{
 		Fn:    props.component,
