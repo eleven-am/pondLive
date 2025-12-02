@@ -18,6 +18,6 @@ func Comment(value string) Node {
 	return work.NewComment(value)
 }
 
-func Fragment(children ...Node) Node {
+func Fragment(children ...Item) Node {
 	return work.NewFragment(children...)
 }

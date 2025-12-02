@@ -28,6 +28,10 @@ func (c *ComponentNode) WithKey(key string) *ComponentNode {
 }
 
 func splitItems(items []Item) ([]Node, []Item) {
+	return SplitItems(items)
+}
+
+func SplitItems(items []Item) ([]Node, []Item) {
 	var children []Node
 	var attrs []Item
 	for _, item := range items {

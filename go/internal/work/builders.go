@@ -32,6 +32,7 @@ func NewComment(value string) *Comment {
 	return &Comment{Value: value}
 }
 
-func NewFragment(children ...Node) *Fragment {
+func NewFragment(items ...Item) *Fragment {
+	children, _ := splitItems(items)
 	return &Fragment{Children: children}
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/metatags"
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 	"github.com/eleven-am/pondlive/go/internal/styles"
-	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 type (
@@ -82,12 +81,12 @@ func UseHandler(ctx *Ctx, method string, chain ...HandlerFunc) HandlerHandle {
 	return runtime.UseHandler(ctx, method, chain...)
 }
 
-func UseSlots(ctx *Ctx, children []work.Node) *SlotRenderer {
-	return runtime.UseSlots(ctx, children)
+func UseSlots(ctx *Ctx, items []Item) *SlotRenderer {
+	return runtime.UseSlots(ctx, items)
 }
 
-func UseScopedSlots[T any](ctx *Ctx, children []work.Node) *ScopedSlotRenderer[T] {
-	return runtime.UseScopedSlots[T](ctx, children)
+func UseScopedSlots[T any](ctx *Ctx, items []Item) *ScopedSlotRenderer[T] {
+	return runtime.UseScopedSlots[T](ctx, items)
 }
 
 func UseUpload(ctx *Ctx) UploadHandle {

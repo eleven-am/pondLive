@@ -228,7 +228,8 @@ func (sc *SlotContext) Names(ctx *Ctx) []string {
 	return slots.slotOrder
 }
 
-func UseSlots(ctx *Ctx, children []work.Node) *SlotRenderer {
+func UseSlots(ctx *Ctx, items []work.Item) *SlotRenderer {
+	children, _ := work.SplitItems(items)
 	slots := extractSlots(children)
 	return &SlotRenderer{slots: slots}
 }
@@ -354,7 +355,8 @@ func (sr *ScopedSlotRenderer[T]) Names() []string {
 	return sr.slots.slotOrder
 }
 
-func UseScopedSlots[T any](ctx *Ctx, children []work.Node) *ScopedSlotRenderer[T] {
+func UseScopedSlots[T any](ctx *Ctx, items []work.Item) *ScopedSlotRenderer[T] {
+	children, _ := work.SplitItems(items)
 	slots := UseMemo(ctx, func() *ScopedSlotMap[T] {
 		return extractScopedSlots[T](children)
 	}, fingerprintChildren(children))
