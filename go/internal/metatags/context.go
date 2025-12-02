@@ -19,7 +19,7 @@ var noopState = &metaState{
 
 var metaCtx = runtime.CreateContext[*metaState](noopState)
 
-var Provider = runtime.Component(func(ctx *Ctx, children []work.Node) work.Node {
+var Provider = runtime.Component(func(ctx *Ctx, children []work.Item) work.Node {
 	initialState := &metaState{
 		entries:    make(map[string]metaEntry),
 		setEntries: func(map[string]metaEntry) {},
@@ -35,5 +35,16 @@ var Provider = runtime.Component(func(ctx *Ctx, children []work.Node) work.Node 
 		setState(next)
 	}
 
-	return &work.Fragment{Children: children}
+	nodes := itemsToNodes(children)
+	return &work.Fragment{Children: nodes}
 })
+
+func itemsToNodes(items []work.Item) []work.Node {
+	nodes := make([]work.Node, 0, len(items))
+	for _, item := range items {
+		if node, ok := item.(work.Node); ok {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
+}

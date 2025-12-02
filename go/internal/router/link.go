@@ -8,7 +8,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-var Link = runtime.PropsComponent(func(ctx *runtime.Ctx, props LinkProps, children []work.Node) work.Node {
+var Link = runtime.PropsComponent(func(ctx *runtime.Ctx, props LinkProps, children []work.Item) work.Node {
 	location := locationCtx.UseContextValue(ctx)
 	base := Location{Path: "/", Query: url.Values{}}
 	if location.Path != "" {
@@ -32,6 +32,7 @@ var Link = runtime.PropsComponent(func(ctx *runtime.Ctx, props LinkProps, childr
 		},
 	}
 
+	nodes := work.ItemsToNodes(children)
 	return &work.Element{
 		Tag: "a",
 		Attrs: map[string][]string{
@@ -40,11 +41,11 @@ var Link = runtime.PropsComponent(func(ctx *runtime.Ctx, props LinkProps, childr
 		Handlers: map[string]work.Handler{
 			"click": clickHandler,
 		},
-		Children: children,
+		Children: nodes,
 	}
 })
 
-var NavLink = runtime.PropsComponent(func(ctx *runtime.Ctx, props NavLinkProps, children []work.Node) work.Node {
+var NavLink = runtime.PropsComponent(func(ctx *runtime.Ctx, props NavLinkProps, children []work.Item) work.Node {
 	location := locationCtx.UseContextValue(ctx)
 	base := Location{Path: "/", Query: url.Values{}}
 	if location.Path != "" {
@@ -95,12 +96,13 @@ var NavLink = runtime.PropsComponent(func(ctx *runtime.Ctx, props NavLinkProps, 
 		},
 	}
 
+	nodes := work.ItemsToNodes(children)
 	return &work.Element{
 		Tag:   "a",
 		Attrs: attrs,
 		Handlers: map[string]work.Handler{
 			"click": clickHandler,
 		},
-		Children: children,
+		Children: nodes,
 	}
 })

@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"github.com/eleven-am/pondlive/go/internal/router"
-	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 type (
@@ -59,12 +58,18 @@ func NavLink(ctx *Ctx, props NavLinkProps, children ...Item) Node {
 	return router.NavLink(ctx, props, children...)
 }
 
-func Route(ctx *Ctx, props RouteProps, children ...Node) Node {
-	return router.Route(ctx, props, children...)
+func Route(ctx *Ctx, props RouteProps, children ...Item) Node {
+	nodes := make([]Node, 0, len(children))
+	for _, item := range children {
+		if node, ok := item.(Node); ok {
+			nodes = append(nodes, node)
+		}
+	}
+	return router.Route(ctx, props, nodes...)
 }
 
-func Routes(ctx *Ctx, children ...Node) Node {
-	return router.Routes(ctx, work.NodesToItems(children)...)
+func Routes(ctx *Ctx, children ...Item) Node {
+	return router.Routes(ctx, children...)
 }
 
 func Redirect(ctx *Ctx, props RedirectProps) Node {

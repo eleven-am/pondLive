@@ -51,7 +51,7 @@ type tokenPayload struct {
 	Token string `json:"token"`
 }
 
-var Provider = runtime.PropsComponent(func(ctx *runtime.Ctx, requestState *RequestState, children []work.Node) work.Node {
+var Provider = runtime.PropsComponent(func(ctx *runtime.Ctx, requestState *RequestState, children []work.Item) work.Node {
 	requestCtx.UseProvider(ctx, requestState)
 
 	pState := &providerState{
@@ -111,10 +111,11 @@ var Provider = runtime.PropsComponent(func(ctx *runtime.Ctx, requestState *Reque
 
 	providerCtx.UseProvider(ctx, pState)
 
-	return &work.Fragment{Children: children}
+	nodes := work.ItemsToNodes(children)
+	return &work.Fragment{Children: nodes}
 })
 
-var Render = runtime.Component(func(ctx *runtime.Ctx, _ []work.Node) work.Node {
+var Render = runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
 	pState := providerCtx.UseContextValue(ctx)
 	if pState == nil {
 		return nil

@@ -13,7 +13,7 @@ func Outlet(ctx *runtime.Ctx, name ...string) work.Node {
 	return outlet(ctx, slotName)
 }
 
-var outlet = runtime.PropsComponent(func(ctx *runtime.Ctx, slotName string, _ []work.Node) work.Node {
+var outlet = runtime.PropsComponent(func(ctx *runtime.Ctx, slotName string, _ []work.Item) work.Node {
 	slots := slotsCtx.UseContextValue(ctx)
 	if slots == nil {
 		return &work.Fragment{}

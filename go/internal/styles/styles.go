@@ -11,12 +11,13 @@ type Styles = runtime.Styles
 
 var slot = runtime.CreateSlotContext()
 
-var Provider = runtime.Component(func(ctx *Ctx, children []work.Node) work.Node {
-	slot.ProvideWithoutDefault(ctx, children)
-	return &work.Fragment{Children: children}
+var Provider = runtime.Component(func(ctx *Ctx, children []work.Item) work.Node {
+	nodes := work.ItemsToNodes(children)
+	slot.ProvideWithoutDefault(ctx, nodes)
+	return &work.Fragment{Children: nodes}
 })
 
-var Render = runtime.Component(func(ctx *Ctx, children []work.Node) work.Node {
+var Render = runtime.Component(func(ctx *Ctx, children []work.Item) work.Node {
 	return slot.Render(ctx, runtime.DefaultSlotName)
 })
 

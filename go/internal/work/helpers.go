@@ -87,3 +87,13 @@ func NodesToItems[T Node](nodes []T) []Item {
 	}
 	return items
 }
+
+func ItemsToNodes(items []Item) []Node {
+	nodes := make([]Node, 0, len(items))
+	for _, item := range items {
+		if node, ok := item.(Node); ok {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
+}

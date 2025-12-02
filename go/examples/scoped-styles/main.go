@@ -67,7 +67,7 @@ func HomePage(ctx *pkg.Ctx) pkg.Node {
 	)
 }
 
-var RedCard = pkg.Component(func(ctx *pkg.Ctx, _ []pkg.Node) pkg.Node {
+var RedCard = pkg.Component(func(ctx *pkg.Ctx, _ []pkg.Item) pkg.Node {
 	style := pkg.UseStyles(ctx, `
 		.card {
 			padding: 2rem;
@@ -108,7 +108,7 @@ var RedCard = pkg.Component(func(ctx *pkg.Ctx, _ []pkg.Node) pkg.Node {
 	)
 })
 
-var BlueCard = pkg.Component(func(ctx *pkg.Ctx, _ []pkg.Node) pkg.Node {
+var BlueCard = pkg.Component(func(ctx *pkg.Ctx, _ []pkg.Item) pkg.Node {
 	style := pkg.UseStyles(ctx, `
 		.card {
 			padding: 2rem;

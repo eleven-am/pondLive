@@ -6,7 +6,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-var Redirect = runtime.PropsComponent(func(ctx *runtime.Ctx, props RedirectProps, _ []work.Node) work.Node {
+var Redirect = runtime.PropsComponent(func(ctx *runtime.Ctx, props RedirectProps, _ []work.Item) work.Node {
 	requestState := headers.UseRequestState(ctx)
 	isLive := requestState != nil && requestState.IsLive()
 

@@ -11,7 +11,7 @@ import (
 )
 
 // Provide sets up router contexts and live navigation handling.
-var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
+var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Item) work.Node {
 	requestState := headers.UseRequestState(ctx)
 
 	initialLoc := Location{Path: "/"}
@@ -58,5 +58,6 @@ var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) wor
 		}
 	}, bus, loc)
 
-	return &work.Fragment{Children: children}
+	nodes := work.ItemsToNodes(children)
+	return &work.Fragment{Children: nodes}
 })

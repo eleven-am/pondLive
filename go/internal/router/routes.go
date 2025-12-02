@@ -25,7 +25,9 @@ func Route(ctx *runtime.Ctx, props RouteProps, children ...work.Node) work.Node 
 	}
 }
 
-func routes(ctx *runtime.Ctx, children []work.Node) work.Node {
+func routes(ctx *runtime.Ctx, items []work.Item) work.Node {
+	children := work.ItemsToNodes(items)
+
 	loc := locationCtx.UseContextValue(ctx)
 	base := routeBaseCtx.UseContextValue(ctx)
 	parentMatch := matchCtx.UseContextValue(ctx)
@@ -71,7 +73,7 @@ func routes(ctx *runtime.Ctx, children []work.Node) work.Node {
 			childRoutes := entry.children
 			childSlots := map[string]outletRenderer{}
 			if len(childRoutes) > 0 {
-				capturedChildren := childRoutes
+				capturedChildren := work.NodesToItems(childRoutes)
 				childSlots[defaultSlotName] = func(cctx *runtime.Ctx) work.Node {
 					return routes(cctx, capturedChildren)
 				}

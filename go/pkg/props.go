@@ -121,9 +121,6 @@ func OnWith(event string, options metadata.EventOptions, fn func(work.Event) wor
 }
 
 func Attach(ref work.Attachment) Item {
-	if ref == nil {
-		return noopItem{}
-	}
 	return work.Attach(ref)
 }
 

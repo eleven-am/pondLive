@@ -5,7 +5,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
-var Render = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
+var Render = runtime.Component(func(ctx *runtime.Ctx, children []work.Item) work.Node {
 	state := metaCtx.UseContextValue(ctx)
 	metaData := getMergedMeta(state.entries)
 
