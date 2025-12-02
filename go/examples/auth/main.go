@@ -131,10 +131,6 @@ func homePage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 
 func loginPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 	session, setSession := pkg.UseCookie(ctx, "session")
-	if session != "" {
-		return pkg.Redirect(ctx, pkg.RedirectProps{To: "/dashboard"})
-	}
-
 	username, setUsername := pkg.UseState(ctx, "")
 	errorMsg, setError := pkg.UseState(ctx, "")
 
@@ -158,6 +154,10 @@ func loginPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 		pkg.Navigate(ctx, "/dashboard")
 		return nil
 	})
+
+	if session != "" {
+		return pkg.Redirect(ctx, pkg.RedirectProps{To: "/dashboard"})
+	}
 
 	return pkg.Div(
 		pkg.Class("flex", "items-center", "justify-center", "min-h-screen"),

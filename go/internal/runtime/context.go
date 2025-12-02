@@ -32,6 +32,7 @@ func (c *Context[T]) UseProvider(ctx *Ctx, initial T) (T, func(T)) {
 	}
 
 	inst := ctx.instance
+	inst.recordContextDep(c.id)
 
 	inst.mu.Lock()
 	if inst.Providers == nil {
@@ -43,6 +44,7 @@ func (c *Context[T]) UseProvider(ctx *Ctx, initial T) (T, func(T)) {
 		inst.Providers[c.id] = initial
 		existing = initial
 	}
+	inst.ensureContextEpochEntry(c.id)
 	inst.mu.Unlock()
 
 	value, ok := existing.(T)
@@ -64,6 +66,8 @@ func (c *Context[T]) UseContext(ctx *Ctx) (T, func(T)) {
 	if providerInst == nil {
 		return value, nil
 	}
+
+	ctx.instance.recordContextDep(c.id)
 
 	setter := c.createSetter(ctx, providerInst)
 	return value, setter
@@ -115,7 +119,7 @@ func (c *Context[T]) createSetter(ctx *Ctx, providerInst *Instance) func(T) {
 			providerInst.mu.Unlock()
 			providerInst.Providers[c.id] = newValue
 			if ctx.session != nil {
-				providerInst.NotifyContextChange(ctx.session)
+				providerInst.NotifyContextChange(ctx.session, c.id)
 			}
 			return
 		}
@@ -129,7 +133,7 @@ func (c *Context[T]) createSetter(ctx *Ctx, providerInst *Instance) func(T) {
 		providerInst.mu.Unlock()
 
 		if ctx.session != nil {
-			providerInst.NotifyContextChange(ctx.session)
+			providerInst.NotifyContextChange(ctx.session, c.id)
 		}
 	}
 }
@@ -141,4 +145,14 @@ func safeEqual[T any](eq func(a, b T) bool, a, b T) (equal bool) {
 		}
 	}()
 	return eq(a, b)
+}
+
+func (inst *Instance) recordContextDep(id contextID) {
+	if inst == nil {
+		return
+	}
+	if inst.ContextDeps == nil {
+		inst.ContextDeps = make(map[contextID]struct{})
+	}
+	inst.ContextDeps[id] = struct{}{}
 }

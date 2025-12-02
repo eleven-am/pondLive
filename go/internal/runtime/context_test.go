@@ -315,7 +315,7 @@ func TestContextEpochPropagationNoExtraRenders(t *testing.T) {
 		flushRequests++
 	})
 
-	root.NotifyContextChange(sess)
+	root.NotifyContextChange(sess, contextID(1))
 
 	if len(sess.DirtyQueue) != 1 {
 		t.Fatalf("expected 1 dirty component, got %d", len(sess.DirtyQueue))
@@ -325,15 +325,13 @@ func TestContextEpochPropagationNoExtraRenders(t *testing.T) {
 		t.Fatalf("expected 1 flush request, got %d", flushRequests)
 	}
 
-	child.ParentContextEpoch = root.CombinedContextEpoch
-
 	sess.DirtyQueue = []*Instance{}
 	sess.DirtySet = make(map[*Instance]struct{})
 	sess.flushMu.Lock()
 	sess.pendingFlush = false
 	sess.flushMu.Unlock()
 
-	root.NotifyContextChange(sess)
+	root.NotifyContextChange(sess, contextID(1))
 
 	if len(sess.DirtyQueue) != 1 {
 		t.Fatalf("expected 1 dirty component after second change, got %d", len(sess.DirtyQueue))
@@ -510,7 +508,7 @@ func TestNotifyContextChangeConcurrentSafety(t *testing.T) {
 
 	go func() {
 		for i := 0; i < 1000; i++ {
-			parent.NotifyContextChange(sess)
+			parent.NotifyContextChange(sess, contextID(1))
 		}
 		done <- true
 	}()

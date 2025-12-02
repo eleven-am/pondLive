@@ -132,7 +132,6 @@ func TestLiveSessionMethodsAfterClose(t *testing.T) {
 	_ = sess.Flush()
 	sess.Touch()
 	sess.SetDevMode(true)
-	sess.SetDiagnosticReporter(nil)
 	sess.SetAutoFlush(nil)
 	sess.SetDOMTimeout(time.Second)
 
@@ -155,7 +154,6 @@ func TestLiveSessionNilSafety(t *testing.T) {
 	_ = sess.TTL()
 	_ = sess.Close()
 	sess.SetDevMode(true)
-	sess.SetDiagnosticReporter(nil)
 	cancel := sess.OnTouch(func(t time.Time) {})
 	cancel()
 	_ = sess.ClientAsset()

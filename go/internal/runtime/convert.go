@@ -86,6 +86,8 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 	}
 
 	inst := parent.EnsureChild(s, comp.Fn, comp.Key, comp.Props, comp.InputChildren)
+	inst.ParentContextEpoch = parent.CombinedContextEpoch
+	inst.CombinedContextEpochs = inst.buildCombinedContextEpochs()
 
 	needsRender := false
 
@@ -97,13 +99,14 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 		needsRender = true
 	} else if !propsEqual(inst.PrevProps, comp.Props) {
 		needsRender = true
-	} else if inst.ParentContextEpoch != parent.CombinedContextEpoch {
+	} else if childNeedsContextRender(inst, parent) {
 		needsRender = true
 	}
 
 	if needsRender {
 		s.resetRefsForComponent(inst)
 		inst.Render(s)
+		inst.snapshotContextDeps(parent)
 	}
 
 	inst.NextHandlerIndex = 0
@@ -118,6 +121,59 @@ func propsEqual(a, b any) bool {
 		return false
 	}
 	return reflect.DeepEqual(a, b)
+}
+
+func childNeedsContextRender(child *Instance, parent *Instance) bool {
+	if child == nil || parent == nil {
+		return false
+	}
+
+	if len(child.ContextDeps) == 0 {
+		return false
+	}
+
+	parentCombined := parent.CombinedContextEpochs
+	for id := range child.ContextDeps {
+		current := 0
+		if parentCombined != nil {
+			if v, ok := parentCombined[id]; ok {
+				current = v
+			}
+		}
+
+		if child.SeenContextEpochs == nil {
+			return true
+		}
+
+		if child.SeenContextEpochs[id] != current {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (inst *Instance) snapshotContextDeps(parent *Instance) {
+	if inst == nil || len(inst.ContextDeps) == 0 {
+		return
+	}
+
+	if inst.SeenContextEpochs == nil {
+		inst.SeenContextEpochs = make(map[contextID]int, len(inst.ContextDeps))
+	}
+
+	var source map[contextID]int
+	if parent != nil {
+		source = parent.CombinedContextEpochs
+	}
+
+	for id := range inst.ContextDeps {
+		if source != nil {
+			inst.SeenContextEpochs[id] = source[id]
+		} else {
+			inst.SeenContextEpochs[id] = 0
+		}
+	}
 }
 
 func (s *Session) convertFragment(frag *work.Fragment, parent *Instance) view.Node {

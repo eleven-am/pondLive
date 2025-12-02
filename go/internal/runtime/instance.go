@@ -44,6 +44,11 @@ type Instance struct {
 	CombinedContextEpoch int
 	ProviderSeq          int
 
+	ContextEpochs         map[contextID]int
+	CombinedContextEpochs map[contextID]int
+	ContextDeps           map[contextID]struct{}
+	SeenContextEpochs     map[contextID]int
+
 	ChildRenderIndex   int
 	ReferencedChildren map[string]bool
 	NextHandlerIndex   int
@@ -124,4 +129,34 @@ func (inst *Instance) clearChildErrors() {
 	for _, child := range children {
 		child.clearChildErrors()
 	}
+}
+
+func (inst *Instance) ensureContextEpochEntry(id contextID) {
+	if inst == nil {
+		return
+	}
+	if inst.ContextEpochs == nil {
+		inst.ContextEpochs = make(map[contextID]int)
+	}
+	if _, ok := inst.ContextEpochs[id]; !ok {
+		inst.ContextEpochs[id] = 0
+	}
+}
+
+func (inst *Instance) buildCombinedContextEpochs() map[contextID]int {
+	combined := make(map[contextID]int)
+
+	if inst != nil && inst.Parent != nil {
+		for id, epoch := range inst.Parent.CombinedContextEpochs {
+			combined[id] = epoch
+		}
+	}
+
+	if inst != nil && inst.ContextEpochs != nil {
+		for id, epoch := range inst.ContextEpochs {
+			combined[id] = epoch
+		}
+	}
+
+	return combined
 }

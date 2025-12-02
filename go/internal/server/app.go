@@ -10,6 +10,7 @@ import (
 
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 
+	"github.com/eleven-am/pondlive/go/internal/handler"
 	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/route"
 	"github.com/eleven-am/pondlive/go/internal/session"
@@ -95,6 +96,7 @@ func New(cfg Config) (*App, error) {
 func (a *App) registerRoutes() {
 	a.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(Assets))))
 	a.mux.HandleFunc("/live", a.pondManager.HTTPHandler())
+	a.mux.Handle(handler.PathPrefix, handler.NewDispatcher(a.registry))
 	a.mux.HandleFunc("/", a.serveSSR)
 }
 

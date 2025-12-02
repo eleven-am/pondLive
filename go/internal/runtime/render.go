@@ -23,15 +23,15 @@ func (inst *Instance) Render(sess *Session) work.Node {
 	inst.ChildRenderIndex = 0
 	inst.ProviderSeq = 0
 	inst.ReferencedChildren = make(map[string]bool)
-	inst.mu.Unlock()
-
+	inst.ContextDeps = nil
+	inst.CombinedContextEpochs = inst.buildCombinedContextEpochs()
 	if inst.Parent != nil {
 		inst.CombinedContextEpoch = inst.ContextEpoch + inst.Parent.CombinedContextEpoch
-
 		inst.ParentContextEpoch = inst.Parent.CombinedContextEpoch
 	} else {
 		inst.CombinedContextEpoch = inst.ContextEpoch
 	}
+	inst.mu.Unlock()
 
 	ctx := &Ctx{
 		instance:  inst,
@@ -176,12 +176,17 @@ func (inst *Instance) SetDirty(dirty bool) {
 	inst.Dirty = dirty
 }
 
-func (inst *Instance) NotifyContextChange(sess *Session) {
+func (inst *Instance) NotifyContextChange(sess *Session, id contextID) {
 	if inst == nil {
 		return
 	}
 
 	inst.mu.Lock()
+	if inst.ContextEpochs == nil {
+		inst.ContextEpochs = make(map[contextID]int)
+	}
+	inst.ContextEpochs[id]++
+	inst.CombinedContextEpochs = inst.buildCombinedContextEpochs()
 	inst.ContextEpoch++
 	if inst.Parent != nil {
 		inst.CombinedContextEpoch = inst.ContextEpoch + inst.Parent.CombinedContextEpoch
