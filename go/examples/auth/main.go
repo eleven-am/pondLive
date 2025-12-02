@@ -175,7 +175,7 @@ func loginPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 				pkg.Class("space-y-4"),
 				pkg.Div(
 					pkg.Label(
-						pkg.Class("block", "text-sm", "font-medium", "mb-1"),
+						pkg.Class("block", "text-sm", "font-medium", "mb-2"),
 						pkg.Attr("for", "username"),
 						pkg.Text("Username"),
 					),

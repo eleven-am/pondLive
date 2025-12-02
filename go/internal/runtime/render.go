@@ -46,7 +46,6 @@ func (inst *Instance) Render(sess *Session) work.Node {
 		defer func() {
 			if r := recover(); r != nil {
 				stack := string(debug.Stack())
-				fmt.Printf("RENDER PANIC in component %s: %v\n%s\n", inst.ID, r, stack)
 				renderErr = &ComponentError{
 					Message:     fmt.Sprintf("%v", r),
 					StackTrace:  stack,
@@ -204,10 +203,6 @@ func (inst *Instance) EnsureChild(sess *Session, fn any, key string, props any, 
 	}
 
 	childID := buildComponentID(inst, fn, key)
-	fnPtr := reflect.ValueOf(fn).Pointer()
-
-	fmt.Println("EnsureChild: parent=", inst.ID, "childID=", childID, "fnPtr=", fnPtr, "key=", key)
-
 	inst.mu.Lock()
 
 	if inst.ReferencedChildren != nil {
@@ -218,14 +213,11 @@ func (inst *Instance) EnsureChild(sess *Session, fn any, key string, props any, 
 	for _, c := range inst.Children {
 		if c.ID == childID {
 			child = c
-			existingFnPtr := reflect.ValueOf(c.Fn).Pointer()
-			fmt.Println("  -> found existing child, existingFnPtr=", existingFnPtr, "newFnPtr=", fnPtr, "match=", existingFnPtr == fnPtr)
 			break
 		}
 	}
 
 	if child == nil {
-		fmt.Println("  -> creating NEW child instance")
 		child = &Instance{
 			ID:                 childID,
 			Fn:                 fn,
