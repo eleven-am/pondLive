@@ -45,6 +45,7 @@ type ComponentNode struct {
 	Props         any
 	InputChildren []Node
 	Key           string
+	IdentityPtr   uintptr
 }
 
 func (e *Element) workNode()       {}

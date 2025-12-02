@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -158,8 +159,8 @@ func UseMemo[T any](ctx *Ctx, compute func() T, deps ...any) T {
 					Timestamp:   time.Now(),
 				}
 
-				if ctx.session != nil && ctx.session.devMode && ctx.session.reporter != nil {
-					ctx.session.reporter.ReportDiagnostic(Diagnostic{
+				if ctx.session != nil && ctx.session.devMode && ctx.session.Bus != nil {
+					ctx.session.Bus.ReportDiagnostic(protocol.Diagnostic{
 						Phase:      fmt.Sprintf("memo:%s:%d", ctx.instance.ID, idx),
 						Message:    fmt.Sprintf("panic: %v", r),
 						StackTrace: stack,

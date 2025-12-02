@@ -10,6 +10,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
+// Provide sets up router contexts and live navigation handling.
 var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) work.Node {
 	requestState := headers.UseRequestState(ctx)
 
@@ -26,7 +27,8 @@ var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) wor
 		initialLoc.Path = "/"
 	}
 
-	loc, setLoc := runtime.UseState(ctx, initialLoc)
+	loc, setLoc := locationCtx.UseProvider(ctx, canonicalizeLocation(initialLoc))
+	routeBaseCtx.UseProvider(ctx, "/")
 
 	bus := runtime.GetBus(ctx)
 	runtime.UseEffect(ctx, func() func() {
@@ -44,6 +46,8 @@ var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) wor
 			if newLoc.Path == "" {
 				newLoc.Path = "/"
 			}
+			newLoc = canonicalizeLocation(newLoc)
+
 			if !route.LocEqual(loc, newLoc) {
 				setLoc(newLoc)
 			}
@@ -52,10 +56,7 @@ var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Node) wor
 		return func() {
 			sub.Unsubscribe()
 		}
-	}, bus)
-
-	locationCtx.UseProvider(ctx, loc)
-	routeBaseCtx.UseProvider(ctx, "/")
+	}, bus, loc)
 
 	return &work.Fragment{Children: children}
 })

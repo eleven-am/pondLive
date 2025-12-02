@@ -117,8 +117,8 @@ func TestSetterUpdatesValue(t *testing.T) {
 		t.Error("expected value to be updated to 'blue'")
 	}
 
-	if len(sess.DirtyQueue) != 1 || sess.DirtyQueue[0] != child {
-		t.Error("expected child to be marked dirty")
+	if len(sess.DirtyQueue) != 1 || sess.DirtyQueue[0] != parent {
+		t.Error("expected parent (provider) to be marked dirty")
 	}
 }
 

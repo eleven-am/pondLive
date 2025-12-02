@@ -19,18 +19,19 @@ func Route(ctx *runtime.Ctx, props RouteProps, children ...work.Node) work.Node 
 				pattern:   pattern,
 				component: props.Component,
 				children:  children,
+				slot:      defaultSlotName,
 			},
 		},
 	}
 }
 
-func Routes(ctx *runtime.Ctx, children ...work.Node) work.Node {
+func routes(ctx *runtime.Ctx, children []work.Node) work.Node {
 	loc := locationCtx.UseContextValue(ctx)
 	base := routeBaseCtx.UseContextValue(ctx)
 	parentMatch := matchCtx.UseContextValue(ctx)
 
 	pathToMatch := loc.Path
-	if parentMatch != nil && parentMatch.Rest != "" {
+	if parentMatch != nil && parentMatch.Matched && parentMatch.Rest != "" && parentMatch.Path == loc.Path {
 		pathToMatch = parentMatch.Rest
 	}
 
@@ -58,7 +59,7 @@ func Routes(ctx *runtime.Ctx, children ...work.Node) work.Node {
 		for _, slot := range allSlots {
 			trie := newRouterTrie()
 			for _, e := range slot.routes {
-				trie.Insert(e.pattern, e)
+				trie.Insert(e.fullPath, e)
 			}
 
 			matchResult := trie.Match(pathToMatch)
@@ -71,8 +72,16 @@ func Routes(ctx *runtime.Ctx, children ...work.Node) work.Node {
 
 			entry := matchResult.Entry
 			childRoutes := entry.children
+			childSlots := map[string]outletRenderer{}
+			if len(childRoutes) > 0 {
+				capturedChildren := childRoutes
+				childSlots[defaultSlotName] = func(cctx *runtime.Ctx) work.Node {
+					return routes(cctx, capturedChildren)
+				}
+			}
+
 			capturedMatch := Match{
-				Pattern:  entry.pattern,
+				Pattern:  entry.fullPath,
 				Path:     loc.Path,
 				Params:   matchResult.Params,
 				Query:    loc.Query,
@@ -82,27 +91,30 @@ func Routes(ctx *runtime.Ctx, children ...work.Node) work.Node {
 			}
 			capturedMatchState := &MatchState{
 				Matched: true,
-				Pattern: entry.pattern,
+				Pattern: entry.fullPath,
 				Path:    loc.Path,
 				Params:  matchResult.Params,
 				Rest:    matchResult.Rest,
 			}
-			capturedBase := entry.pattern
 
-			result[slot.name] = func(ictx *runtime.Ctx) work.Node {
-				matchCtx.UseProvider(ictx, capturedMatchState)
-				routeBaseCtx.UseProvider(ictx, capturedBase)
+			basePath := trimWildcardSuffix(entry.fullPath)
 
-				childRender := func(cctx *runtime.Ctx) work.Node {
-					if len(childRoutes) == 0 {
-						return &work.Fragment{}
-					}
-					return Routes(cctx, childRoutes...)
-				}
-				slotsCtx.UseProvider(ictx, map[string]outletRenderer{defaultSlotName: childRender})
-
-				return entry.component(ictx, capturedMatch)
+			componentKey := slot.name + ":" + entry.fullPath
+			if strings.Contains(entry.fullPath, ":") || strings.Contains(entry.fullPath, "*") {
+				componentKey += "|" + loc.Path
 			}
+			renderer := func(ictx *runtime.Ctx) work.Node {
+				return routeMount(ictx, routeMountProps{
+					match:        capturedMatch,
+					matchState:   capturedMatchState,
+					base:         basePath,
+					childSlots:   childSlots,
+					component:    entry.component,
+					componentKey: componentKey,
+				})
+			}
+
+			result[slot.name] = renderer
 		}
 
 		return result
@@ -123,7 +135,6 @@ func Routes(ctx *runtime.Ctx, children ...work.Node) work.Node {
 			routeBaseCtx.UseProvider(ctx, base)
 			return &work.Fragment{}
 		}
-
 		return slots[defaultSlotName](ctx)
 	}
 
@@ -146,12 +157,13 @@ func collectRouteEntries(nodes []work.Node, base string) []routeEntry {
 			if frag.Metadata != nil {
 				if meta, ok := frag.Metadata[routeMetadataKey]; ok {
 					if entry, ok := meta.(routeEntry); ok {
-						entry.pattern = resolveRoutePattern(entry.pattern, base)
-						if len(entry.children) > 0 && !strings.HasSuffix(entry.pattern, "*") {
-							if entry.pattern == "/" {
-								entry.pattern = "/*"
+						entry.pattern = strings.TrimSpace(entry.pattern)
+						entry.fullPath = resolveRoutePattern(entry.pattern, base)
+						if len(entry.children) > 0 && !strings.HasSuffix(entry.fullPath, "*") {
+							if entry.fullPath == "/" {
+								entry.fullPath = "/*"
 							} else {
-								entry.pattern = entry.pattern + "/*"
+								entry.fullPath = entry.fullPath + "/*"
 							}
 						}
 						entries = append(entries, entry)
@@ -188,7 +200,14 @@ func collectSlotEntries(nodes []work.Node, base string) []slotEntry {
 				if meta, ok := frag.Metadata[slotMetadataKey]; ok {
 					if entry, ok := meta.(slotEntry); ok {
 						for i := range entry.routes {
-							entry.routes[i].pattern = resolveRoutePattern(entry.routes[i].pattern, base)
+							entry.routes[i].fullPath = resolveRoutePattern(entry.routes[i].pattern, base)
+							if len(entry.routes[i].children) > 0 && !strings.HasSuffix(entry.routes[i].fullPath, "*") {
+								if entry.routes[i].fullPath == "/" {
+									entry.routes[i].fullPath = "/*"
+								} else {
+									entry.routes[i].fullPath = entry.routes[i].fullPath + "/*"
+								}
+							}
 						}
 						entries = append(entries, entry)
 						continue
@@ -203,70 +222,6 @@ func collectSlotEntries(nodes []work.Node, base string) []slotEntry {
 	}
 
 	return entries
-}
-
-func resolveRoutePattern(raw, base string) string {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		trimmed = "/"
-	}
-	if strings.HasPrefix(trimmed, "./") {
-		rel := strings.TrimPrefix(trimmed, ".")
-		return normalizePath(joinRelativePath(base, rel))
-	}
-	return normalizePath(trimmed)
-}
-
-func joinRelativePath(base, rel string) string {
-	rel = normalizePath(rel)
-	base = normalizePath(base)
-	base = trimWildcardSuffix(base)
-	if base == "/" {
-		return rel
-	}
-	if rel == "/" {
-		return base
-	}
-	return normalizePath(strings.TrimSuffix(base, "/") + rel)
-}
-
-func trimWildcardSuffix(path string) string {
-	trimmed := strings.TrimSpace(path)
-	if trimmed == "" {
-		return "/"
-	}
-	normalized := normalizePath(trimmed)
-	if normalized == "/" {
-		return "/"
-	}
-	segments := strings.Split(strings.Trim(normalized, "/"), "/")
-	if len(segments) == 0 {
-		return "/"
-	}
-	last := segments[len(segments)-1]
-	if strings.HasPrefix(last, "*") {
-		segments = segments[:len(segments)-1]
-	}
-	if len(segments) == 0 {
-		return "/"
-	}
-	return "/" + strings.Join(segments, "/")
-}
-
-func normalizePath(path string) string {
-	if path == "" {
-		return "/"
-	}
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
-	for strings.Contains(path, "//") {
-		path = strings.ReplaceAll(path, "//", "/")
-	}
-	if path != "/" && strings.HasSuffix(path, "/") {
-		path = strings.TrimSuffix(path, "/")
-	}
-	return path
 }
 
 func fingerprintChildren(children []work.Node) string {
@@ -300,3 +255,5 @@ func fingerprintSlots(children []work.Node) string {
 	}
 	return strings.Join(parts, "|")
 }
+
+var Routes = runtime.Component(routes)

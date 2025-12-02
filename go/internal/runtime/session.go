@@ -46,8 +46,7 @@ type Session struct {
 
 	SessionID string
 
-	devMode  bool
-	reporter DiagnosticReporter
+	devMode bool
 
 	pendingFlush bool
 	flushing     bool
@@ -55,17 +54,6 @@ type Session struct {
 	flushMu      sync.Mutex
 
 	mu sync.Mutex
-}
-
-type DiagnosticReporter interface {
-	ReportDiagnostic(Diagnostic)
-}
-
-type Diagnostic struct {
-	Phase      string
-	Message    string
-	StackTrace string
-	Metadata   map[string]any
 }
 
 type effectTask struct {
@@ -175,21 +163,12 @@ func (s *Session) SetDevMode(enabled bool) {
 	s.mu.Unlock()
 }
 
-func (s *Session) SetDiagnosticReporter(r DiagnosticReporter) {
-	if s == nil {
-		return
-	}
-	s.mu.Lock()
-	s.reporter = r
-	s.mu.Unlock()
-}
-
 func (s *Session) withRecovery(phase string, fn func() error) error {
 	defer func() {
 		if r := recover(); r != nil {
 			stack := string(debug.Stack())
-			if s != nil && s.reporter != nil {
-				s.reporter.ReportDiagnostic(Diagnostic{
+			if s != nil && s.Bus != nil {
+				s.Bus.ReportDiagnostic(protocol.Diagnostic{
 					Phase:      phase,
 					Message:    fmt.Sprintf("panic: %v", r),
 					StackTrace: stack,

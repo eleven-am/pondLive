@@ -133,6 +133,11 @@ func (s *LiveSession) SetTransport(t Transport) {
 	s.transportMu.Unlock()
 
 	if old != nil && old != t {
+		if ws, ok := t.(*WebSocketTransport); ok {
+			if state := old.RequestState(); state != nil {
+				ws.UpdateRequestState(state)
+			}
+		}
 		_ = old.Close()
 	}
 }
@@ -239,13 +244,6 @@ func (s *LiveSession) SetDevMode(enabled bool) {
 		return
 	}
 	s.session.SetDevMode(enabled)
-}
-
-func (s *LiveSession) SetDiagnosticReporter(reporter runtime.DiagnosticReporter) {
-	if s == nil || s.session == nil {
-		return
-	}
-	s.session.SetDiagnosticReporter(reporter)
 }
 
 func (s *LiveSession) OnTouch(observer TouchObserver) func() {

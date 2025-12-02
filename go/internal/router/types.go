@@ -8,6 +8,7 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
+// Location is re-exported to mirror the public API of the existing router.
 type Location = route.Location
 
 type MatchState struct {
@@ -37,8 +38,11 @@ type Match struct {
 
 type routeEntry struct {
 	pattern   string
+	fullPath  string
 	component func(*runtime.Ctx, Match) work.Node
 	children  []work.Node
+	slot      string
+	key       string
 }
 
 const routeMetadataKey = "router:entry"

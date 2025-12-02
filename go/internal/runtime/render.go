@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
@@ -45,6 +46,7 @@ func (inst *Instance) Render(sess *Session) work.Node {
 		defer func() {
 			if r := recover(); r != nil {
 				stack := string(debug.Stack())
+				fmt.Printf("RENDER PANIC in component %s: %v\n%s\n", inst.ID, r, stack)
 				renderErr = &ComponentError{
 					Message:     fmt.Sprintf("%v", r),
 					StackTrace:  stack,
@@ -54,8 +56,8 @@ func (inst *Instance) Render(sess *Session) work.Node {
 					Timestamp:   time.Now(),
 				}
 
-				if sess != nil && sess.devMode && sess.reporter != nil {
-					sess.reporter.ReportDiagnostic(Diagnostic{
+				if sess != nil && sess.devMode && sess.Bus != nil {
+					sess.Bus.ReportDiagnostic(protocol.Diagnostic{
 						Phase:      fmt.Sprintf("render:%s", inst.ID),
 						Message:    fmt.Sprintf("panic: %v", r),
 						StackTrace: stack,
@@ -92,11 +94,63 @@ func (inst *Instance) Render(sess *Session) work.Node {
 }
 
 func callComponent(fn any, ctx *Ctx, props any, children []work.Node) work.Node {
-	f, ok := fn.(func(*Ctx, any, []work.Node) work.Node)
-	if !ok {
-		panic(fmt.Sprintf("runtime: component signature mismatch, expected func(*Ctx, any, []work.Node) work.Node, got %T", fn))
+	if f, ok := fn.(func(*Ctx, any, []work.Node) work.Node); ok {
+		return f(ctx, props, children)
 	}
-	return f(ctx, props, children)
+
+	fnVal := reflect.ValueOf(fn)
+	fnType := fnVal.Type()
+
+	if fnType.Kind() != reflect.Func {
+		panic(fmt.Sprintf("runtime: component must be a function, got %T", fn))
+	}
+
+	if fnType.NumOut() != 1 {
+		panic(fmt.Sprintf("runtime: component must return exactly one value, got %d", fnType.NumOut()))
+	}
+
+	numIn := fnType.NumIn()
+	args := make([]reflect.Value, numIn)
+
+	for i := 0; i < numIn; i++ {
+		paramType := fnType.In(i)
+
+		switch i {
+		case 0:
+			if paramType == reflect.TypeOf((*Ctx)(nil)) {
+				args[i] = reflect.ValueOf(ctx)
+			} else {
+				panic(fmt.Sprintf("runtime: first parameter must be *Ctx, got %v", paramType))
+			}
+		case 1:
+			if props == nil {
+				args[i] = reflect.Zero(paramType)
+			} else {
+				propsVal := reflect.ValueOf(props)
+				if propsVal.Type().AssignableTo(paramType) {
+					args[i] = propsVal
+				} else if propsVal.Type().ConvertibleTo(paramType) {
+					args[i] = propsVal.Convert(paramType)
+				} else {
+					panic(fmt.Sprintf("runtime: props type %T not assignable to parameter type %v", props, paramType))
+				}
+			}
+		case 2:
+			if paramType == reflect.TypeOf([]work.Node{}) {
+				args[i] = reflect.ValueOf(children)
+			} else {
+				panic(fmt.Sprintf("runtime: third parameter must be []work.Node, got %v", paramType))
+			}
+		default:
+			panic(fmt.Sprintf("runtime: component has too many parameters (%d)", numIn))
+		}
+	}
+
+	results := fnVal.Call(args)
+	if results[0].IsNil() {
+		return nil
+	}
+	return results[0].Interface().(work.Node)
 }
 
 func (inst *Instance) BeginRender() {
@@ -135,17 +189,13 @@ func (inst *Instance) NotifyContextChange(sess *Session) {
 	} else {
 		inst.CombinedContextEpoch = inst.ContextEpoch
 	}
-	children := make([]*Instance, len(inst.Children))
-	copy(children, inst.Children)
 	inst.mu.Unlock()
 
 	if sess == nil {
 		return
 	}
 
-	for _, child := range children {
-		sess.MarkDirty(child)
-	}
+	sess.MarkDirty(inst)
 }
 
 func (inst *Instance) EnsureChild(sess *Session, fn any, key string, props any, children []work.Node) *Instance {
@@ -154,6 +204,9 @@ func (inst *Instance) EnsureChild(sess *Session, fn any, key string, props any, 
 	}
 
 	childID := buildComponentID(inst, fn, key)
+	fnPtr := reflect.ValueOf(fn).Pointer()
+
+	fmt.Println("EnsureChild: parent=", inst.ID, "childID=", childID, "fnPtr=", fnPtr, "key=", key)
 
 	inst.mu.Lock()
 
@@ -165,11 +218,14 @@ func (inst *Instance) EnsureChild(sess *Session, fn any, key string, props any, 
 	for _, c := range inst.Children {
 		if c.ID == childID {
 			child = c
+			existingFnPtr := reflect.ValueOf(c.Fn).Pointer()
+			fmt.Println("  -> found existing child, existingFnPtr=", existingFnPtr, "newFnPtr=", fnPtr, "match=", existingFnPtr == fnPtr)
 			break
 		}
 	}
 
 	if child == nil {
+		fmt.Println("  -> creating NEW child instance")
 		child = &Instance{
 			ID:                 childID,
 			Fn:                 fn,

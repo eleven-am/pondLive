@@ -137,7 +137,6 @@ func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {
 	cfg.ClientAsset = a.clientAsset
 
 	sess := session.NewLiveSession(sid, version, a.component, &cfg)
-
 	capture := session.NewSSRTransport(r)
 	sess.SetTransport(capture)
 
@@ -192,7 +191,6 @@ func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess.SetTransport(nil)
 	a.registry.Put(sess)
 
 	document := decorateDocument(documentHTML, bootJSON)

@@ -204,7 +204,6 @@ func TestWebSocketTransportNilSafety(t *testing.T) {
 	_ = transport.LastSeq()
 	_ = transport.Close()
 	_ = transport.RequestInfo()
-	transport.UpdateRequestInfo(nil)
 }
 
 func TestWebSocketTransportSendError(t *testing.T) {
@@ -286,13 +285,6 @@ func TestWebSocketTransportUpdateRequestInfo(t *testing.T) {
 
 	if cookie, ok := transport.RequestInfo().GetCookie("version"); !ok || cookie != "1" {
 		t.Errorf("expected version=1, got %s", cookie)
-	}
-
-	headers2 := http.Header{"Cookie": []string{"version=2"}}
-	transport.UpdateRequestInfo(headers2)
-
-	if cookie, ok := transport.RequestInfo().GetCookie("version"); !ok || cookie != "2" {
-		t.Errorf("expected version=2 after update, got %s", cookie)
 	}
 }
 

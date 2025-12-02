@@ -79,3 +79,11 @@ func MapIdx[T any](xs []T, render func(int, T) Item) *Fragment {
 	}
 	return &Fragment{Children: children}
 }
+
+func NodesToItems[T Node](nodes []T) []Item {
+	items := make([]Item, len(nodes))
+	for i, n := range nodes {
+		items[i] = n
+	}
+	return items
+}

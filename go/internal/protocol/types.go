@@ -63,3 +63,10 @@ type ServerError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 }
+
+type Diagnostic struct {
+	Phase      string
+	Message    string
+	StackTrace string
+	Metadata   map[string]any
+}

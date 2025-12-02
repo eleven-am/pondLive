@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"sync"
 	"sync/atomic"
+
+	"github.com/sanity-io/litter"
 )
 
 func DecodePayload[T any](data interface{}) (T, bool) {
@@ -189,6 +191,10 @@ func (b *Bus) SubscriberCount(id Topic) int {
 	count := len(b.subscribers[id])
 	b.mu.RUnlock()
 	return count
+}
+
+func (b *Bus) ReportDiagnostic(diagnostic Diagnostic) {
+	litter.Dump(diagnostic)
 }
 
 func (b *Bus) unsubscribeWildcard(subID uint64) {

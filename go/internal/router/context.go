@@ -5,14 +5,11 @@ import (
 	"github.com/eleven-am/pondlive/go/internal/runtime"
 )
 
-var locationCtx = runtime.CreateContext[Location](Location{Path: "/"}).WithEqual(locationEqual)
-
-var matchCtx = runtime.CreateContext[*MatchState](nil).WithEqual(matchStateEqual)
-
 const defaultSlotName = "__default__"
 
+var locationCtx = runtime.CreateContext[Location](Location{Path: "/"}).WithEqual(locationEqual)
+var matchCtx = runtime.CreateContext[*MatchState](nil).WithEqual(matchStateEqual)
 var slotsCtx = runtime.CreateContext[map[string]outletRenderer](nil)
-
 var routeBaseCtx = runtime.CreateContext[string]("/")
 
 func matchStateEqual(a, b *MatchState) bool {

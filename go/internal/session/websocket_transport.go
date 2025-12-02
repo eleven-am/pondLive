@@ -25,19 +25,35 @@ type WebSocketTransport struct {
 	userID  string
 	nextSeq uint64
 
-	mu          sync.Mutex
-	pending     map[uint64]Message
-	closed      bool
-	requestInfo *headers.RequestInfo
+	mu           sync.Mutex
+	pending      map[uint64]Message
+	closed       bool
+	requestInfo  *headers.RequestInfo
+	requestState *headers.RequestState
 }
 
 func NewWebSocketTransport(sender ChannelSender, userID string, h http.Header) *WebSocketTransport {
+	info := headers.NewRequestInfoFromHeaders(h)
 	return &WebSocketTransport{
-		sender:      sender,
-		userID:      userID,
-		pending:     make(map[uint64]Message),
-		requestInfo: headers.NewRequestInfoFromHeaders(h),
+		sender:       sender,
+		userID:       userID,
+		requestInfo:  info,
+		pending:      make(map[uint64]Message),
+		requestState: headers.NewRequestState(info),
 	}
+}
+
+func (t *WebSocketTransport) UpdateRequestState(state *headers.RequestState) {
+	if t == nil {
+		return
+	}
+
+	state.SetIsLive(true)
+	state.ReplaceInfo(t.requestInfo)
+
+	t.mu.Lock()
+	t.requestState = state
+	t.mu.Unlock()
 }
 
 func (t *WebSocketTransport) RequestInfo() *headers.RequestInfo {
@@ -54,16 +70,7 @@ func (t *WebSocketTransport) RequestState() *headers.RequestState {
 		return nil
 	}
 
-	return headers.NewRequestState(t.requestInfo)
-}
-
-func (t *WebSocketTransport) UpdateRequestInfo(h http.Header) {
-	if t == nil {
-		return
-	}
-	t.mu.Lock()
-	t.requestInfo = headers.NewRequestInfoFromHeaders(h)
-	t.mu.Unlock()
+	return t.requestState
 }
 
 func (t *WebSocketTransport) Send(topic, event string, data any) error {

@@ -335,3 +335,15 @@ func (s *RequestState) CookieMutations() map[string]*cookieMutation {
 	}
 	return mutations
 }
+
+func (s *RequestState) ReplaceInfo(info *RequestInfo) {
+	if s == nil {
+		return
+	}
+
+	s.mu.Lock()
+	s.info = info
+	s.responseHeaders = make(http.Header)
+	s.cookieMutations = make(map[string]*cookieMutation)
+	s.mu.Unlock()
+}

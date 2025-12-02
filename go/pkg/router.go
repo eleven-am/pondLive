@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"github.com/eleven-am/pondlive/go/internal/router"
+	"github.com/eleven-am/pondlive/go/internal/work"
 )
 
 type (
@@ -63,7 +64,7 @@ func Route(ctx *Ctx, props RouteProps, children ...Node) Node {
 }
 
 func Routes(ctx *Ctx, children ...Node) Node {
-	return router.Routes(ctx, children...)
+	return router.Routes(ctx, work.NodesToItems(children)...)
 }
 
 func Redirect(ctx *Ctx, props RedirectProps) Node {

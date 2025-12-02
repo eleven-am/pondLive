@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
+
+	"github.com/eleven-am/pondlive/go/internal/protocol"
 )
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request) error
@@ -182,8 +184,8 @@ func (s *Session) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		defer func() {
 			if rec := recover(); rec != nil {
-				if s.reporter != nil {
-					s.reporter.ReportDiagnostic(Diagnostic{
+				if s.Bus != nil {
+					s.Bus.ReportDiagnostic(protocol.Diagnostic{
 						Phase:      "http_handler",
 						Message:    fmt.Sprintf("panic: %v", rec),
 						StackTrace: string(debug.Stack()),

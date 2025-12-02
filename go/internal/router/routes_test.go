@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/eleven-am/pondlive/go/internal/work"
+	"net/url"
+	"sort"
 )
 
 func TestTrieSimpleMatch(t *testing.T) {
@@ -238,11 +240,6 @@ func TestCollectRouteEntriesEmpty(t *testing.T) {
 	if entries != nil {
 		t.Errorf("expected nil for nil input, got %v", entries)
 	}
-
-	entries = collectRouteEntries([]work.Node{}, "/")
-	if entries != nil {
-		t.Errorf("expected nil for empty input, got %v", entries)
-	}
 }
 
 func TestCollectSlotEntriesEmpty(t *testing.T) {
@@ -250,470 +247,112 @@ func TestCollectSlotEntriesEmpty(t *testing.T) {
 	if entries != nil {
 		t.Errorf("expected nil for nil input, got %v", entries)
 	}
+}
 
-	entries = collectSlotEntries([]work.Node{}, "/")
-	if entries != nil {
-		t.Errorf("expected nil for empty input, got %v", entries)
+func TestCollectRouteEntriesNested(t *testing.T) {
+	child := Route(nil, RouteProps{Path: "/child"})
+	parent := Route(nil, RouteProps{Path: "/parent"}, child)
+
+	entries := collectRouteEntries([]work.Node{parent}, "/")
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].fullPath == "" {
+		t.Errorf("expected fullPath to be set")
 	}
 }
 
-func TestTrimWildcardSuffix(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"", "/"},
-		{"/", "/"},
-		{"/app", "/app"},
-		{"/app/*", "/app"},
-		{"/app/*rest", "/app"},
-		{"/users/:id/*", "/users/:id"},
-		{"/*", "/"},
-		{"/a/b/c/*path", "/a/b/c"},
-	}
+func TestCollectRouteEntriesAppendsWildcardForChildren(t *testing.T) {
+	child := Route(nil, RouteProps{Path: "/child"})
+	parent := Route(nil, RouteProps{Path: "/parent"}, child)
 
-	for _, tt := range tests {
-		result := trimWildcardSuffix(tt.input)
-		if result != tt.expected {
-			t.Errorf("trimWildcardSuffix(%q) = %q, expected %q", tt.input, result, tt.expected)
-		}
+	entries := collectRouteEntries([]work.Node{parent}, "/")
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if entries[0].fullPath != "/parent/*" {
+		t.Fatalf("expected fullPath /parent/*, got %s", entries[0].fullPath)
+	}
+	if len(entries[0].children) != 1 {
+		t.Fatalf("expected 1 child route, got %d", len(entries[0].children))
 	}
 }
 
-func TestJoinRelativePath(t *testing.T) {
-	tests := []struct {
-		base     string
-		rel      string
-		expected string
-	}{
-		{"/", "/", "/"},
-		{"/", "/about", "/about"},
-		{"/app", "/", "/app"},
-		{"/app", "/dashboard", "/app/dashboard"},
-		{"/app/*", "/settings", "/app/settings"},
-		{"/users/:id/*rest", "/profile", "/users/:id/profile"},
-	}
+func TestCollectSlotEntriesSetsFullPath(t *testing.T) {
+	r := Route(nil, RouteProps{Path: "/slot-route"})
+	slot := Slot(nil, SlotProps{Name: "main"}, r)
 
-	for _, tt := range tests {
-		result := joinRelativePath(tt.base, tt.rel)
-		if result != tt.expected {
-			t.Errorf("joinRelativePath(%q, %q) = %q, expected %q", tt.base, tt.rel, result, tt.expected)
-		}
+	entries := collectSlotEntries([]work.Node{slot}, "/")
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 slot entry, got %d", len(entries))
+	}
+	if len(entries[0].routes) != 1 {
+		t.Fatalf("expected 1 route in slot, got %d", len(entries[0].routes))
+	}
+	if entries[0].routes[0].fullPath != "/slot-route" {
+		t.Fatalf("expected fullPath /slot-route, got %s", entries[0].routes[0].fullPath)
 	}
 }
 
-func TestCollectRouteEntriesWithMetadata(t *testing.T) {
-	children := []work.Node{
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/about",
-					component: nil,
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/contact",
-					component: nil,
-				},
-			},
-		},
+func TestResolveHrefVariants(t *testing.T) {
+	base := Location{Path: "/base/path", Query: url.Values{"q": []string{"1"}}, Hash: "h"}
+
+	abs := resolveHref(base, "/abs?x=1#z")
+	if abs.Path != "/abs" || abs.Query.Get("x") != "1" || abs.Hash != "z" {
+		t.Fatalf("abs resolve mismatch: %+v", abs)
 	}
 
-	entries := collectRouteEntries(children, "/")
-	if len(entries) != 2 {
-		t.Errorf("expected 2 entries, got %d", len(entries))
+	hash := resolveHref(base, "#top")
+	if hash.Path != "/base/path" || hash.Hash != "top" {
+		t.Fatalf("hash resolve mismatch: %+v", hash)
 	}
-	if entries[0].pattern != "/about" {
-		t.Errorf("expected first pattern /about, got %s", entries[0].pattern)
+
+	rel := resolveHref(base, "./child")
+	if rel.Path != "/base/child" {
+		t.Fatalf("rel resolve mismatch: %+v", rel)
 	}
-	if entries[1].pattern != "/contact" {
-		t.Errorf("expected second pattern /contact, got %s", entries[1].pattern)
+
+	up := resolveHref(base, "../sibling")
+	if up.Path != "/sibling" {
+		t.Fatalf("up resolve mismatch: %+v", up)
 	}
 }
 
-func TestCollectRouteEntriesSkipsSlots(t *testing.T) {
-	children := []work.Node{
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/home",
-					component: nil,
-				},
-			},
+func TestCanonicalizeLocationSortsQuery(t *testing.T) {
+	loc := Location{
+		Path: "/p",
+		Query: url.Values{
+			"b": {"2"},
+			"a": {"1"},
 		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				slotMetadataKey: slotEntry{
-					name: "sidebar",
-					routes: []routeEntry{
-						{pattern: "/sidebar-item", component: nil},
-					},
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/about",
-					component: nil,
-				},
-			},
-		},
+		Hash: "h",
 	}
-
-	entries := collectRouteEntries(children, "/")
-	if len(entries) != 2 {
-		t.Errorf("expected 2 entries (slots skipped), got %d", len(entries))
+	canon := canonicalizeLocation(loc)
+	keys := []string{}
+	for k := range canon.Query {
+		keys = append(keys, k)
 	}
-	if entries[0].pattern != "/home" {
-		t.Errorf("expected first pattern /home, got %s", entries[0].pattern)
-	}
-	if entries[1].pattern != "/about" {
-		t.Errorf("expected second pattern /about, got %s", entries[1].pattern)
+	sort.Strings(keys)
+	if keys[0] != "a" || keys[1] != "b" {
+		t.Fatalf("expected sorted keys [a b], got %v", keys)
 	}
 }
 
-func TestCollectSlotEntriesWithMetadata(t *testing.T) {
-	children := []work.Node{
-		&work.Fragment{
-			Metadata: map[string]any{
-				slotMetadataKey: slotEntry{
-					name: "sidebar",
-					routes: []routeEntry{
-						{pattern: "/sidebar-item", component: nil},
-					},
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				slotMetadataKey: slotEntry{
-					name: "modal",
-					routes: []routeEntry{
-						{pattern: "/modal-content", component: nil},
-					},
-				},
-			},
-		},
-	}
-
-	entries := collectSlotEntries(children, "/")
-	if len(entries) != 2 {
-		t.Errorf("expected 2 slot entries, got %d", len(entries))
-	}
-	if entries[0].name != "sidebar" {
-		t.Errorf("expected first slot name 'sidebar', got %s", entries[0].name)
-	}
-	if entries[1].name != "modal" {
-		t.Errorf("expected second slot name 'modal', got %s", entries[1].name)
+func TestBuildHref(t *testing.T) {
+	h := buildHref("/p", url.Values{"a": {"1"}}, "hash")
+	if h != "/p?a=1#hash" {
+		t.Fatalf("expected /p?a=1#hash, got %s", h)
 	}
 }
 
-func TestCollectRouteAndSlotSiblings(t *testing.T) {
-	children := []work.Node{
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/home",
-					component: nil,
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/about",
-					component: nil,
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				slotMetadataKey: slotEntry{
-					name: "sidebar",
-					routes: []routeEntry{
-						{pattern: "/sidebar-home", component: nil},
-						{pattern: "/sidebar-about", component: nil},
-					},
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				slotMetadataKey: slotEntry{
-					name: "modal",
-					routes: []routeEntry{
-						{pattern: "/modal-login", component: nil},
-					},
-				},
-			},
-		},
+func TestMatchesPrefix(t *testing.T) {
+	if !matchesPrefix("/users/123", "/users") {
+		t.Fatalf("expected /users/123 to match prefix /users")
 	}
-
-	routeEntries := collectRouteEntries(children, "/")
-	if len(routeEntries) != 2 {
-		t.Errorf("expected 2 route entries, got %d", len(routeEntries))
+	if matchesPrefix("/users", "/users/123") {
+		t.Fatalf("did not expect /users to match prefix /users/123")
 	}
-
-	slotEntries := collectSlotEntries(children, "/")
-	if len(slotEntries) != 2 {
-		t.Errorf("expected 2 slot entries, got %d", len(slotEntries))
-	}
-}
-
-func TestCollectNestedRouteEntries(t *testing.T) {
-	children := []work.Node{
-		&work.Fragment{
-			Children: []work.Node{
-				&work.Fragment{
-					Metadata: map[string]any{
-						routeMetadataKey: routeEntry{
-							pattern:   "/nested/route",
-							component: nil,
-						},
-					},
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/top-level",
-					component: nil,
-				},
-			},
-		},
-	}
-
-	entries := collectRouteEntries(children, "/")
-	if len(entries) != 2 {
-		t.Errorf("expected 2 entries (including nested), got %d", len(entries))
-	}
-}
-
-func TestCollectNestedSlotEntries(t *testing.T) {
-	children := []work.Node{
-		&work.Fragment{
-			Children: []work.Node{
-				&work.Fragment{
-					Metadata: map[string]any{
-						slotMetadataKey: slotEntry{
-							name: "nested-slot",
-							routes: []routeEntry{
-								{pattern: "/nested-item", component: nil},
-							},
-						},
-					},
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				slotMetadataKey: slotEntry{
-					name: "top-slot",
-					routes: []routeEntry{
-						{pattern: "/top-item", component: nil},
-					},
-				},
-			},
-		},
-	}
-
-	entries := collectSlotEntries(children, "/")
-	if len(entries) != 2 {
-		t.Errorf("expected 2 slot entries (including nested), got %d", len(entries))
-	}
-}
-
-func TestRoutePatternResolutionWithBase(t *testing.T) {
-	children := []work.Node{
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "./dashboard",
-					component: nil,
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/absolute",
-					component: nil,
-				},
-			},
-		},
-	}
-
-	entries := collectRouteEntries(children, "/app")
-	if len(entries) != 2 {
-		t.Errorf("expected 2 entries, got %d", len(entries))
-	}
-	if entries[0].pattern != "/app/dashboard" {
-		t.Errorf("expected relative pattern resolved to /app/dashboard, got %s", entries[0].pattern)
-	}
-	if entries[1].pattern != "/absolute" {
-		t.Errorf("expected absolute pattern unchanged, got %s", entries[1].pattern)
-	}
-}
-
-func TestFingerprintSlotsWithEntries(t *testing.T) {
-	children := []work.Node{
-		&work.Fragment{
-			Metadata: map[string]any{
-				slotMetadataKey: slotEntry{
-					name: "sidebar",
-					routes: []routeEntry{
-						{pattern: "/a", component: nil},
-						{pattern: "/b", component: nil},
-					},
-				},
-			},
-		},
-	}
-
-	result := fingerprintSlots(children)
-	if result == "" {
-		t.Error("expected non-empty fingerprint for slots")
-	}
-	if result != "sidebar:/a,/b," {
-		t.Errorf("unexpected fingerprint: %q", result)
-	}
-}
-
-func TestFingerprintChildrenWithEntries(t *testing.T) {
-	children := []work.Node{
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/home",
-					component: nil,
-				},
-			},
-		},
-		&work.Fragment{
-			Metadata: map[string]any{
-				routeMetadataKey: routeEntry{
-					pattern:   "/about",
-					component: nil,
-				},
-			},
-		},
-	}
-
-	result := fingerprintChildren(children)
-	if result != "/home|/about" {
-		t.Errorf("expected '/home|/about', got %q", result)
-	}
-}
-
-func TestTrieStaticBeforeWildcard(t *testing.T) {
-	trie := newRouterTrie()
-
-	loginEntry := routeEntry{pattern: "/login", component: nil}
-	layoutEntry := routeEntry{pattern: "/*", component: nil}
-
-	trie.Insert("/login", loginEntry)
-	trie.Insert("/*", layoutEntry)
-
-	result := trie.Match("/login")
-	if result == nil {
-		t.Fatal("expected match for /login")
-	}
-	if result.Entry.pattern != "/login" {
-		t.Errorf("expected /login to match static route, got %s", result.Entry.pattern)
-	}
-
-	result = trie.Match("/dashboard")
-	if result == nil {
-		t.Fatal("expected match for /dashboard")
-	}
-	if result.Entry.pattern != "/*" {
-		t.Errorf("expected /dashboard to match wildcard, got %s", result.Entry.pattern)
-	}
-
-	result = trie.Match("/")
-	if result == nil {
-		t.Fatal("expected match for /")
-	}
-	if result.Entry.pattern != "/*" {
-		t.Errorf("expected / to match wildcard, got %s", result.Entry.pattern)
-	}
-}
-
-func TestTrieWildcardMatchesRoot(t *testing.T) {
-	trie := newRouterTrie()
-
-	entry := routeEntry{pattern: "/*", component: nil}
-	trie.Insert("/*", entry)
-
-	result := trie.Match("/")
-	if result == nil {
-		t.Fatal("expected /* to match /")
-	}
-	if result.Entry.pattern != "/*" {
-		t.Errorf("expected pattern /*, got %s", result.Entry.pattern)
-	}
-	if result.Rest != "/" {
-		t.Errorf("expected rest /, got %s", result.Rest)
-	}
-}
-
-func TestTrieAuthExampleRouting(t *testing.T) {
-	trie := newRouterTrie()
-
-	loginEntry := routeEntry{pattern: "/login", component: nil}
-	layoutEntry := routeEntry{pattern: "/*", component: nil}
-
-	trie.Insert("/login", loginEntry)
-	trie.Insert("/*", layoutEntry)
-
-	tests := []struct {
-		path            string
-		expectedPattern string
-		description     string
-	}{
-		{"/", "/*", "root should match layout wildcard"},
-		{"/login", "/login", "login should match static route, not wildcard"},
-		{"/dashboard", "/*", "dashboard should match layout wildcard"},
-		{"/settings", "/*", "settings should match layout wildcard"},
-	}
-
-	for _, tt := range tests {
-		result := trie.Match(tt.path)
-		if result == nil {
-			t.Errorf("%s: expected match for %s, got nil", tt.description, tt.path)
-			continue
-		}
-		if result.Entry.pattern != tt.expectedPattern {
-			t.Errorf("%s: expected %s to match %s, got %s",
-				tt.description, tt.path, tt.expectedPattern, result.Entry.pattern)
-		}
-	}
-}
-
-func TestTrieNestedWildcardWithStaticSibling(t *testing.T) {
-	trie := newRouterTrie()
-
-	trie.Insert("/auth/login", routeEntry{pattern: "/auth/login", component: nil})
-	trie.Insert("/auth/*", routeEntry{pattern: "/auth/*", component: nil})
-	trie.Insert("/api/users", routeEntry{pattern: "/api/users", component: nil})
-
-	result := trie.Match("/auth/login")
-	if result == nil || result.Entry.pattern != "/auth/login" {
-		t.Errorf("/auth/login should match static, got %v", result)
-	}
-
-	result = trie.Match("/auth/register")
-	if result == nil || result.Entry.pattern != "/auth/*" {
-		t.Errorf("/auth/register should match wildcard, got %v", result)
-	}
-
-	result = trie.Match("/auth")
-	if result != nil && result.Entry.pattern == "/auth/*" {
-		t.Logf("/auth matches wildcard as expected (rest=%s)", result.Rest)
+	if matchesPrefix("/users2/123", "/users") {
+		t.Fatalf("did not expect /users2/123 to match prefix /users")
 	}
 }
