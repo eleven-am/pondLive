@@ -1,0 +1,17 @@
+{
+  "name": "stream-chat",
+  "version": "1.0.0",
+  "description": "A chat example using UseStream for efficient list rendering.",
+  "main": "tailwind.config.js",
+  "scripts": {
+    "build:css": "npx tailwindcss -i styles/input.css -o ./public/assets/tailwind.css --minify",
+    "watch:css": "npx tailwindcss -i styles/input.css -o ./public/assets/tailwind.css --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

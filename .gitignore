@@ -4,6 +4,6 @@ node_modules
 */**/node_modules
 dist
 */**/dist
-/go/examples/counter/package-lock.json
+/examples/counter/package-lock.json
 .DS_Store
-/go/client/package-lock.json
+/client/package-lock.json
