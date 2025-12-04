@@ -1,6 +1,7 @@
 package session
 
 import (
+	"github.com/eleven-am/pondlive/internal/document"
 	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/metatags"
 	"github.com/eleven-am/pondlive/internal/router"
@@ -28,9 +29,8 @@ func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Node) work.Node {
 		metatags.Provider(ctx,
 			router.Provide(ctx,
 				styles.Provider(ctx,
-					&work.Element{
-						Tag: "html",
-						Children: []work.Node{
+					document.Provider(ctx,
+						document.HtmlElement(ctx,
 							&work.Element{
 								Tag: "head",
 								Children: []work.Node{
@@ -39,21 +39,18 @@ func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Node) work.Node {
 									headers.Render(ctx),
 								},
 							},
-							&work.Element{
-								Tag: "body",
-								Children: []work.Node{
-									work.Component(app),
-									&work.Element{
-										Tag: "script",
-										Attrs: map[string][]string{
-											"src":   {props.ClientAsset},
-											"defer": {""},
-										},
+							document.BodyElement(ctx,
+								work.Component(app),
+								&work.Element{
+									Tag: "script",
+									Attrs: map[string][]string{
+										"src":   {props.ClientAsset},
+										"defer": {""},
 									},
 								},
-							},
-						},
-					},
+							),
+						),
+					),
 				),
 			),
 		),

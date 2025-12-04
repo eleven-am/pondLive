@@ -3,6 +3,7 @@ package pkg
 import (
 	"net/http"
 
+	"github.com/eleven-am/pondlive/internal/document"
 	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/metatags"
 	"github.com/eleven-am/pondlive/internal/runtime"
@@ -27,6 +28,7 @@ type (
 	StreamHandle[T any]       = runtime.StreamHandle[T]
 	Meta                      = metatags.Meta
 	CookieOptions             = headers.CookieOptions
+	Document                  = document.Document
 )
 
 func CreateContext[T any](defaultValue T) *Context[T] {
@@ -111,4 +113,8 @@ func UseCookie(ctx *Ctx, name string) (string, func(value string, opts *CookieOp
 
 func UseMetaTags(ctx *Ctx, meta *Meta) {
 	metatags.UseMetaTags(ctx, meta)
+}
+
+func UseDocument(ctx *Ctx, doc *Document) {
+	document.UseDocument(ctx, doc)
 }
