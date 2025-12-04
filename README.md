@@ -41,7 +41,7 @@ setCount(count + 1) // triggers re-render and patch
 ```
 
 ### Event Handling and DOM Actions
-Events can be wired directly with `pkg.On`/`pkg.OnWith` on elements—no JavaScript needed. The runtime forwards the browser event to a Go handler, runs the logic, and patches the DOM. When DOM actions or element data are needed (e.g., `getBoundingClientRect`), use a generated element ref (e.g., `UseDiv`, `UseButton`) that bundles actions.
+Events can be wired directly with `pkg.On`/`pkg.OnWith` on elements; no JavaScript needed. The runtime forwards the browser event to a Go handler, runs the logic, and patches the DOM. When DOM actions or element data are needed (e.g., `getBoundingClientRect`), use a generated element ref (e.g., `UseDiv`, `UseButton`) that bundles actions.
 
 ```go
 // Direct handler without a ref
