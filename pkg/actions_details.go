@@ -38,12 +38,12 @@ func (a *DetailsActions) Toggle() error {
 	return nil
 }
 
-func (a *DetailsActions) OnToggle(handler func(ToggleEvent) work.Updates) *DetailsActions {
+func (a *DetailsActions) OnToggle(handler func(ToggleEvent) work.Updates, opts ...metadata.EventOptions) *DetailsActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("toggle", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ToggleEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ToggleEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildToggleEvent(evt)) },
 	})
 	return a

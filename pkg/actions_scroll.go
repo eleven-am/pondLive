@@ -56,12 +56,12 @@ func (a *ScrollActions) GetScrollLeft() (float64, error) {
 	return toFloat64(values["scrollLeft"]), nil
 }
 
-func (a *ScrollActions) OnScroll(handler func(ScrollEvent) work.Updates) *ScrollActions {
+func (a *ScrollActions) OnScroll(handler func(ScrollEvent) work.Updates, opts ...metadata.EventOptions) *ScrollActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("scroll", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ScrollEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ScrollEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildScrollEvent(evt)) },
 	})
 	return a

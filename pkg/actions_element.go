@@ -6,6 +6,13 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
+func mergeOpts(base metadata.EventOptions, opts ...metadata.EventOptions) metadata.EventOptions {
+	for _, opt := range opts {
+		base = work.MergeEventOptions(base, opt)
+	}
+	return base
+}
+
 type DOMRect struct {
 	X      float64
 	Y      float64
@@ -202,518 +209,518 @@ func (a *ElementActions) addHandler(event string, handler work.Handler) {
 	a.ref.AddHandler(event, handler)
 }
 
-func (a *ElementActions) OnClick(handler func(ClickEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnClick(handler func(ClickEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("click", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ClickEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ClickEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildClickEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnDoubleClick(handler func(ClickEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnDoubleClick(handler func(ClickEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("dblclick", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ClickEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ClickEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildClickEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnContextMenu(handler func(ClickEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnContextMenu(handler func(ClickEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("contextmenu", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ClickEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ClickEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildClickEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnMouseDown(handler func(MouseEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnMouseDown(handler func(MouseEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("mousedown", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MouseEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnMouseUp(handler func(MouseEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnMouseUp(handler func(MouseEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("mouseup", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MouseEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnMouseMove(handler func(MouseEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnMouseMove(handler func(MouseEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("mousemove", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MouseEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnMouseEnter(handler func(MouseEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnMouseEnter(handler func(MouseEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("mouseenter", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MouseEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnMouseLeave(handler func(MouseEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnMouseLeave(handler func(MouseEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("mouseleave", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MouseEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnMouseOver(handler func(MouseEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnMouseOver(handler func(MouseEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("mouseover", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MouseEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnMouseOut(handler func(MouseEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnMouseOut(handler func(MouseEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("mouseout", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MouseEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MouseEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMouseEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnFocus(handler func(FocusEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnFocus(handler func(FocusEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("focus", work.Handler{
-		EventOptions: metadata.EventOptions{Props: FocusEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: FocusEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildFocusEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnBlur(handler func(FocusEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnBlur(handler func(FocusEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("blur", work.Handler{
-		EventOptions: metadata.EventOptions{Props: FocusEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: FocusEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildFocusEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnKeyDown(handler func(KeyboardEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnKeyDown(handler func(KeyboardEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("keydown", work.Handler{
-		EventOptions: metadata.EventOptions{Props: KeyboardEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: KeyboardEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildKeyboardEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnKeyUp(handler func(KeyboardEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnKeyUp(handler func(KeyboardEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("keyup", work.Handler{
-		EventOptions: metadata.EventOptions{Props: KeyboardEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: KeyboardEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildKeyboardEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnKeyPress(handler func(KeyboardEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnKeyPress(handler func(KeyboardEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("keypress", work.Handler{
-		EventOptions: metadata.EventOptions{Props: KeyboardEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: KeyboardEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildKeyboardEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnPointerDown(handler func(PointerEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnPointerDown(handler func(PointerEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("pointerdown", work.Handler{
-		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: PointerEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnPointerUp(handler func(PointerEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnPointerUp(handler func(PointerEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("pointerup", work.Handler{
-		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: PointerEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnPointerMove(handler func(PointerEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnPointerMove(handler func(PointerEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("pointermove", work.Handler{
-		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: PointerEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnPointerEnter(handler func(PointerEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnPointerEnter(handler func(PointerEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("pointerenter", work.Handler{
-		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: PointerEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnPointerLeave(handler func(PointerEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnPointerLeave(handler func(PointerEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("pointerleave", work.Handler{
-		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: PointerEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnPointerCancel(handler func(PointerEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnPointerCancel(handler func(PointerEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("pointercancel", work.Handler{
-		EventOptions: metadata.EventOptions{Props: PointerEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: PointerEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildPointerEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnTouchStart(handler func(TouchEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnTouchStart(handler func(TouchEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("touchstart", work.Handler{
-		EventOptions: metadata.EventOptions{Props: TouchEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: TouchEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildTouchEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnTouchEnd(handler func(TouchEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnTouchEnd(handler func(TouchEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("touchend", work.Handler{
-		EventOptions: metadata.EventOptions{Props: TouchEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: TouchEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildTouchEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnTouchMove(handler func(TouchEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnTouchMove(handler func(TouchEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("touchmove", work.Handler{
-		EventOptions: metadata.EventOptions{Props: TouchEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: TouchEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildTouchEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnTouchCancel(handler func(TouchEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnTouchCancel(handler func(TouchEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("touchcancel", work.Handler{
-		EventOptions: metadata.EventOptions{Props: TouchEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: TouchEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildTouchEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnDrag(handler func(DragEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnDrag(handler func(DragEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("drag", work.Handler{
-		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: DragEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnDragStart(handler func(DragEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnDragStart(handler func(DragEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("dragstart", work.Handler{
-		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: DragEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnDragEnd(handler func(DragEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnDragEnd(handler func(DragEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("dragend", work.Handler{
-		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: DragEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnDragEnter(handler func(DragEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnDragEnter(handler func(DragEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("dragenter", work.Handler{
-		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: DragEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnDragLeave(handler func(DragEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnDragLeave(handler func(DragEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("dragleave", work.Handler{
-		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: DragEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnDragOver(handler func(DragEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnDragOver(handler func(DragEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("dragover", work.Handler{
-		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: DragEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnDrop(handler func(DragEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnDrop(handler func(DragEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("drop", work.Handler{
-		EventOptions: metadata.EventOptions{Props: DragEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: DragEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildDragEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnWheel(handler func(WheelEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnWheel(handler func(WheelEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("wheel", work.Handler{
-		EventOptions: metadata.EventOptions{Props: WheelEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: WheelEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildWheelEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnAnimationStart(handler func(AnimationEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnAnimationStart(handler func(AnimationEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("animationstart", work.Handler{
-		EventOptions: metadata.EventOptions{Props: AnimationEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: AnimationEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildAnimationEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnAnimationEnd(handler func(AnimationEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnAnimationEnd(handler func(AnimationEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("animationend", work.Handler{
-		EventOptions: metadata.EventOptions{Props: AnimationEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: AnimationEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildAnimationEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnAnimationIteration(handler func(AnimationEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnAnimationIteration(handler func(AnimationEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("animationiteration", work.Handler{
-		EventOptions: metadata.EventOptions{Props: AnimationEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: AnimationEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildAnimationEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnAnimationCancel(handler func(AnimationEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnAnimationCancel(handler func(AnimationEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("animationcancel", work.Handler{
-		EventOptions: metadata.EventOptions{Props: AnimationEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: AnimationEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildAnimationEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnTransitionStart(handler func(TransitionEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnTransitionStart(handler func(TransitionEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("transitionstart", work.Handler{
-		EventOptions: metadata.EventOptions{Props: TransitionEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: TransitionEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildTransitionEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnTransitionEnd(handler func(TransitionEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnTransitionEnd(handler func(TransitionEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("transitionend", work.Handler{
-		EventOptions: metadata.EventOptions{Props: TransitionEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: TransitionEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildTransitionEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnTransitionRun(handler func(TransitionEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnTransitionRun(handler func(TransitionEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("transitionrun", work.Handler{
-		EventOptions: metadata.EventOptions{Props: TransitionEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: TransitionEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildTransitionEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnTransitionCancel(handler func(TransitionEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnTransitionCancel(handler func(TransitionEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("transitioncancel", work.Handler{
-		EventOptions: metadata.EventOptions{Props: TransitionEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: TransitionEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildTransitionEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnCopy(handler func(ClipboardEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnCopy(handler func(ClipboardEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("copy", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ClipboardEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ClipboardEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildClipboardEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnCut(handler func(ClipboardEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnCut(handler func(ClipboardEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("cut", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ClipboardEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ClipboardEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildClipboardEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnPaste(handler func(ClipboardEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnPaste(handler func(ClipboardEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("paste", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ClipboardEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ClipboardEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildClipboardEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnCompositionStart(handler func(CompositionEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnCompositionStart(handler func(CompositionEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("compositionstart", work.Handler{
-		EventOptions: metadata.EventOptions{Props: CompositionEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: CompositionEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildCompositionEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnCompositionUpdate(handler func(CompositionEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnCompositionUpdate(handler func(CompositionEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("compositionupdate", work.Handler{
-		EventOptions: metadata.EventOptions{Props: CompositionEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: CompositionEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildCompositionEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ElementActions) OnCompositionEnd(handler func(CompositionEvent) work.Updates) *ElementActions {
+func (a *ElementActions) OnCompositionEnd(handler func(CompositionEvent) work.Updates, opts ...metadata.EventOptions) *ElementActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("compositionend", work.Handler{
-		EventOptions: metadata.EventOptions{Props: CompositionEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: CompositionEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildCompositionEvent(evt)) },
 	})
 	return a

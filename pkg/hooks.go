@@ -5,6 +5,7 @@ import (
 
 	"github.com/eleven-am/pondlive/internal/document"
 	"github.com/eleven-am/pondlive/internal/headers"
+	"github.com/eleven-am/pondlive/internal/metadata"
 	"github.com/eleven-am/pondlive/internal/metatags"
 	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/styles"
@@ -29,6 +30,7 @@ type (
 	Meta                      = metatags.Meta
 	CookieOptions             = headers.CookieOptions
 	Document                  = document.Document
+	EventOptions              = metadata.EventOptions
 )
 
 func CreateContext[T any](defaultValue T) *Context[T] {

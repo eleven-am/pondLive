@@ -48,23 +48,23 @@ func (a *FormActions) ReportValidity() (bool, error) {
 	return false, nil
 }
 
-func (a *FormActions) OnSubmit(handler func(FormEvent) work.Updates) *FormActions {
+func (a *FormActions) OnSubmit(handler func(FormEvent) work.Updates, opts ...metadata.EventOptions) *FormActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("submit", work.Handler{
-		EventOptions: metadata.EventOptions{Props: FormEvent{}.props(), Prevent: true},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: FormEvent{}.props(), Prevent: true}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildFormEvent(evt)) },
 	})
 	return a
 }
 
-func (a *FormActions) OnReset(handler func(FormEvent) work.Updates) *FormActions {
+func (a *FormActions) OnReset(handler func(FormEvent) work.Updates, opts ...metadata.EventOptions) *FormActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("reset", work.Handler{
-		EventOptions: metadata.EventOptions{Props: FormEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: FormEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildFormEvent(evt)) },
 	})
 	return a

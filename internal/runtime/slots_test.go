@@ -23,7 +23,7 @@ func TestUseSlots_BasicSlotExtraction(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.SlotMarker("header",
 			&work.Element{Tag: "h1"},
 			&work.Element{Tag: "p"},
@@ -84,7 +84,7 @@ func TestUseSlots_EmptySlots(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{}
+	children := []work.Item{}
 
 	slots := UseSlots(ctx, children)
 
@@ -119,7 +119,7 @@ func TestUseSlots_MultipleNodesPerSlot(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.SlotMarker("header",
 			&work.Element{Tag: "h1"},
 		),
@@ -157,7 +157,7 @@ func TestUseSlots_SlotOrder(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.SlotMarker("header", &work.Element{Tag: "h1"}),
 		&work.Element{Tag: "div"},
 		work.SlotMarker("footer", &work.Element{Tag: "footer"}),
@@ -200,7 +200,7 @@ func TestUseScopedSlots_BasicExtraction(t *testing.T) {
 		Name string
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.ScopedSlotMarker("actions", func(data TestData) work.Node {
 			return &work.Element{
 				Tag: "button",
@@ -260,7 +260,7 @@ func TestUseScopedSlots_MultipleFunctions(t *testing.T) {
 		Value int
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.ScopedSlotMarker("actions", func(data TestData) work.Node {
 			return &work.Element{Tag: "button"}
 		}),
@@ -330,7 +330,7 @@ func TestUseSlots_ExtractsCorrectly(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.SlotMarker("header", &work.Element{Tag: "h1"}),
 		&work.Element{Tag: "div"},
 	}
@@ -363,7 +363,7 @@ func TestUseSlots_NilChildren(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		nil,
 		work.SlotMarker("header", &work.Element{Tag: "h1"}),
 		nil,
@@ -397,7 +397,7 @@ func TestUseSlots_FallbackSingle(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{}
+	children := []work.Item{}
 	slots := UseSlots(ctx, children)
 
 	fallbackNode := &work.Element{Tag: "h1"}
@@ -429,7 +429,7 @@ func TestUseSlots_FallbackMultiple(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{}
+	children := []work.Item{}
 	slots := UseSlots(ctx, children)
 
 	fallback1 := &work.Element{Tag: "h1"}
@@ -462,7 +462,7 @@ func TestUseSlots_FallbackIgnoredWhenSlotProvided(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.SlotMarker("header", &work.Element{Tag: "h2"}),
 	}
 	slots := UseSlots(ctx, children)
@@ -500,7 +500,7 @@ func TestUseScopedSlots_Fallback(t *testing.T) {
 		Value int
 	}
 
-	children := []work.Node{}
+	children := []work.Item{}
 	slots := UseScopedSlots[TestData](ctx, children)
 
 	fallbackNode := &work.Element{Tag: "span"}
@@ -851,7 +851,7 @@ func TestSlotRenderer_RequireSlots_AllPresent(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.SlotMarker("header", &work.Element{Tag: "h1"}),
 		work.SlotMarker("footer", &work.Element{Tag: "footer"}),
 	}
@@ -881,7 +881,7 @@ func TestSlotRenderer_RequireSlots_Missing(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.SlotMarker("header", &work.Element{Tag: "h1"}),
 	}
 
@@ -914,7 +914,7 @@ func TestScopedSlotRenderer_Names(t *testing.T) {
 		Value int
 	}
 
-	children := []work.Node{
+	children := []work.Item{
 		work.ScopedSlotMarker("actions", func(data TestData) work.Node {
 			return &work.Element{Tag: "button"}
 		}),

@@ -194,199 +194,199 @@ func parseTimeRanges(result any) *TimeRanges {
 	return &TimeRanges{Length: length, Ranges: ranges}
 }
 
-func (a *MediaActions) OnPlay(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnPlay(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("play", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnPause(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnPause(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("pause", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnEnded(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnEnded(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("ended", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnTimeUpdate(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnTimeUpdate(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("timeupdate", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnVolumeChange(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnVolumeChange(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("volumechange", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnSeeking(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnSeeking(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("seeking", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnSeeked(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnSeeked(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("seeked", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnLoadedMetadata(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnLoadedMetadata(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("loadedmetadata", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnLoadedData(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnLoadedData(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("loadeddata", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnCanPlay(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnCanPlay(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("canplay", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnCanPlayThrough(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnCanPlayThrough(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("canplaythrough", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnWaiting(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnWaiting(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("waiting", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnPlaying(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnPlaying(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("playing", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnStalled(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnStalled(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("stalled", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnRateChange(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnRateChange(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("ratechange", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnDurationChange(handler func(MediaEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnDurationChange(handler func(MediaEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("durationchange", work.Handler{
-		EventOptions: metadata.EventOptions{Props: MediaEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: MediaEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildMediaEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnProgress(handler func(ProgressEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnProgress(handler func(ProgressEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("progress", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ProgressEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ProgressEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildProgressEvent(evt)) },
 	})
 	return a
 }
 
-func (a *MediaActions) OnError(handler func(ErrorEvent) work.Updates) *MediaActions {
+func (a *MediaActions) OnError(handler func(ErrorEvent) work.Updates, opts ...metadata.EventOptions) *MediaActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("error", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ErrorEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ErrorEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildErrorEvent(evt)) },
 	})
 	return a

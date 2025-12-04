@@ -56,56 +56,57 @@ func (a *ValueActions) GetSelectedIndex() (int, error) {
 	return toInt(values["selectedIndex"]), nil
 }
 
-func (a *ValueActions) OnInput(handler func(InputEvent) work.Updates) *ValueActions {
+func (a *ValueActions) OnInput(handler func(InputEvent) work.Updates, opts ...metadata.EventOptions) *ValueActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("input", work.Handler{
-		EventOptions: metadata.EventOptions{Props: InputEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: InputEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildInputEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ValueActions) OnChange(handler func(ChangeEvent) work.Updates) *ValueActions {
+func (a *ValueActions) OnChange(handler func(ChangeEvent) work.Updates, opts ...metadata.EventOptions) *ValueActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("input", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ChangeEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ChangeEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildChangeEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ValueActions) OnFileChange(handler func(ChangeEvent) work.Updates) *ValueActions {
+func (a *ValueActions) OnFileChange(handler func(ChangeEvent) work.Updates, opts ...metadata.EventOptions) *ValueActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("change", work.Handler{
-		EventOptions: metadata.EventOptions{Props: ChangeEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: ChangeEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildChangeEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ValueActions) OnSelect(handler func(SelectionEvent) work.Updates) *ValueActions {
+func (a *ValueActions) OnSelect(handler func(SelectionEvent) work.Updates, opts ...metadata.EventOptions) *ValueActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("select", work.Handler{
-		EventOptions: metadata.EventOptions{Props: SelectionEvent{}.props()},
+		EventOptions: mergeOpts(metadata.EventOptions{Props: SelectionEvent{}.props()}, opts...),
 		Fn:           func(evt work.Event) work.Updates { return handler(buildSelectionEvent(evt)) },
 	})
 	return a
 }
 
-func (a *ValueActions) OnInvalid(handler func(work.Event) work.Updates) *ValueActions {
+func (a *ValueActions) OnInvalid(handler func(work.Event) work.Updates, opts ...metadata.EventOptions) *ValueActions {
 	if handler == nil {
 		return a
 	}
 	a.addHandler("invalid", work.Handler{
-		Fn: handler,
+		EventOptions: mergeOpts(metadata.EventOptions{}, opts...),
+		Fn:           handler,
 	})
 	return a
 }
