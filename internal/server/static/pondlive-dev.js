@@ -2122,117 +2122,6 @@ var LiveUIModule = (() => {
   };
 
   // src/scripts.ts
-  var SANDBOX_WHITELIST = [
-    "console",
-    "setTimeout",
-    "clearTimeout",
-    "setInterval",
-    "clearInterval",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-    "Promise",
-    "Array",
-    "Object",
-    "String",
-    "Number",
-    "Boolean",
-    "Math",
-    "JSON",
-    "Date",
-    "Map",
-    "Set",
-    "WeakMap",
-    "WeakSet",
-    "Error",
-    "TypeError",
-    "RangeError",
-    "SyntaxError",
-    "ReferenceError",
-    "parseInt",
-    "parseFloat",
-    "isNaN",
-    "isFinite",
-    "encodeURI",
-    "decodeURI",
-    "encodeURIComponent",
-    "decodeURIComponent",
-    "atob",
-    "btoa",
-    "fetch",
-    "URL",
-    "URLSearchParams",
-    "TextEncoder",
-    "TextDecoder",
-    "Blob",
-    "File",
-    "FormData",
-    "Headers",
-    "Request",
-    "Response",
-    "AbortController",
-    "AbortSignal",
-    "Symbol",
-    "Proxy",
-    "Reflect",
-    "RegExp",
-    "Intl",
-    "BigInt",
-    "ArrayBuffer",
-    "DataView",
-    "Uint8Array",
-    "Uint16Array",
-    "Uint32Array",
-    "Int8Array",
-    "Int16Array",
-    "Int32Array",
-    "Float32Array",
-    "Float64Array",
-    "Uint8ClampedArray",
-    "BigInt64Array",
-    "BigUint64Array"
-  ];
-  var BIND_TO_WINDOW = /* @__PURE__ */ new Set([
-    "setTimeout",
-    "clearTimeout",
-    "setInterval",
-    "clearInterval",
-    "requestAnimationFrame",
-    "cancelAnimationFrame",
-    "fetch",
-    "atob",
-    "btoa"
-  ]);
-  function createSandbox(element, transport) {
-    const target = {
-      element,
-      transport
-    };
-    for (const key of SANDBOX_WHITELIST) {
-      if (key in globalThis) {
-        const value = globalThis[key];
-        if (BIND_TO_WINDOW.has(key) && typeof value === "function") {
-          target[key] = value.bind(globalThis);
-        } else {
-          target[key] = value;
-        }
-      }
-    }
-    return new Proxy(target, {
-      has: () => true,
-      get: (t, prop) => {
-        if (typeof prop === "string" && prop in t) {
-          return t[prop];
-        }
-        return void 0;
-      },
-      set: (t, prop, value) => {
-        if (typeof prop === "string") {
-          t[prop] = value;
-        }
-        return true;
-      }
-    });
-  }
   var ScriptExecutor = class {
     constructor(config) {
       this.scripts = /* @__PURE__ */ new Map();
@@ -2265,15 +2154,11 @@ var LiveUIModule = (() => {
           instance.eventHandlers.set(event, handler);
         }
       };
-      const sandbox = createSandbox(element, transport);
       try {
         Logger.debug("Script", "creating function", { scriptId });
-        const fn = new Function(
-          "sandbox",
-          `with(sandbox) { return (${script})(element, transport); }`
-        );
+        const fn = new Function("element", "transport", `return (${script})(element, transport);`);
         Logger.debug("Script", "executing function", { scriptId });
-        const cleanup = await fn(sandbox);
+        const cleanup = await fn(element, transport);
         if (typeof cleanup === "function") {
           Logger.debug("Script", "cleanup function returned", { scriptId });
           instance.cleanup = cleanup;
