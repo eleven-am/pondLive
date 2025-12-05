@@ -2123,6 +2123,8 @@ var LiveUIModule = (() => {
 
   // src/scripts.ts
   var SANDBOX_WHITELIST = [
+    "window",
+    "document",
     "console",
     "setTimeout",
     "clearTimeout",
