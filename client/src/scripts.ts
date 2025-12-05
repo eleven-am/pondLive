@@ -22,6 +22,8 @@ export interface ScriptExecutorConfig {
 type SandboxTarget = Record<string, unknown>;
 
 const SANDBOX_WHITELIST: readonly string[] = [
+    'window',
+    'document',
     'console',
     'setTimeout',
     'clearTimeout',
