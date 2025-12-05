@@ -117,6 +117,6 @@ func UseMetaTags(ctx *Ctx, meta *Meta) {
 	metatags.UseMetaTags(ctx, meta)
 }
 
-func UseDocument(ctx *Ctx, doc *Document) {
-	document.UseDocument(ctx, doc)
+func UseDocument(ctx *Ctx) *DocumentActions {
+	return newDocumentActions(document.UseDocument(ctx))
 }

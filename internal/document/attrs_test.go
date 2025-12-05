@@ -3,6 +3,8 @@ package document
 import (
 	"strings"
 	"testing"
+
+	"github.com/eleven-am/pondlive/internal/work"
 )
 
 func TestGetMergedDocumentEmpty(t *testing.T) {
@@ -245,5 +247,212 @@ func TestGetMergedDocumentMultipleClasses(t *testing.T) {
 	bodyClasses := strings.Fields(doc.BodyClass)
 	if len(bodyClasses) != 2 {
 		t.Errorf("Expected 2 body classes, got %d", len(bodyClasses))
+	}
+}
+
+func TestComputeBodyHandlersEmpty(t *testing.T) {
+	handlers := computeBodyHandlers(nil)
+	if handlers != nil {
+		t.Error("Expected nil handlers for nil state")
+	}
+
+	state := &documentState{entries: make(map[string]documentEntry)}
+	handlers = computeBodyHandlers(state)
+	if handlers != nil {
+		t.Error("Expected nil handlers for empty entries")
+	}
+}
+
+func TestComputeBodyHandlersSingleEntry(t *testing.T) {
+	callCount := 0
+	state := &documentState{
+		entries: map[string]documentEntry{
+			"comp1": {
+				componentID: "comp1",
+				depth:       0,
+				bodyHandlers: map[string][]work.Handler{
+					"click": {{Fn: func(evt work.Event) work.Updates {
+						callCount++
+						return nil
+					}}},
+				},
+			},
+		},
+	}
+
+	handlers := computeBodyHandlers(state)
+	if handlers == nil {
+		t.Fatal("Expected non-nil handlers")
+	}
+
+	if _, ok := handlers["click"]; !ok {
+		t.Error("Expected click handler")
+	}
+
+	handlers["click"].Fn(work.Event{})
+	if callCount != 1 {
+		t.Errorf("Expected handler to be called once, got %d", callCount)
+	}
+}
+
+func TestComputeBodyHandlersMultipleEntriesSameEvent(t *testing.T) {
+	callCount := 0
+	state := &documentState{
+		entries: map[string]documentEntry{
+			"comp1": {
+				componentID: "comp1",
+				depth:       0,
+				bodyHandlers: map[string][]work.Handler{
+					"keydown": {{Fn: func(evt work.Event) work.Updates {
+						callCount++
+						return nil
+					}}},
+				},
+			},
+			"comp2": {
+				componentID: "comp2",
+				depth:       1,
+				bodyHandlers: map[string][]work.Handler{
+					"keydown": {{Fn: func(evt work.Event) work.Updates {
+						callCount++
+						return nil
+					}}},
+				},
+			},
+		},
+	}
+
+	handlers := computeBodyHandlers(state)
+	if handlers == nil {
+		t.Fatal("Expected non-nil handlers")
+	}
+
+	handlers["keydown"].Fn(work.Event{})
+	if callCount != 2 {
+		t.Errorf("Expected both handlers called, got %d calls", callCount)
+	}
+}
+
+func TestComputeBodyHandlersDifferentEvents(t *testing.T) {
+	clickCalled := false
+	keydownCalled := false
+
+	state := &documentState{
+		entries: map[string]documentEntry{
+			"comp1": {
+				componentID: "comp1",
+				depth:       0,
+				bodyHandlers: map[string][]work.Handler{
+					"click": {{Fn: func(evt work.Event) work.Updates {
+						clickCalled = true
+						return nil
+					}}},
+				},
+			},
+			"comp2": {
+				componentID: "comp2",
+				depth:       1,
+				bodyHandlers: map[string][]work.Handler{
+					"keydown": {{Fn: func(evt work.Event) work.Updates {
+						keydownCalled = true
+						return nil
+					}}},
+				},
+			},
+		},
+	}
+
+	handlers := computeBodyHandlers(state)
+	if len(handlers) != 2 {
+		t.Errorf("Expected 2 event types, got %d", len(handlers))
+	}
+
+	handlers["click"].Fn(work.Event{})
+	handlers["keydown"].Fn(work.Event{})
+
+	if !clickCalled {
+		t.Error("Expected click handler to be called")
+	}
+	if !keydownCalled {
+		t.Error("Expected keydown handler to be called")
+	}
+}
+
+func TestMergeHandlersEmpty(t *testing.T) {
+	merged := mergeHandlers(nil)
+	if merged.Fn != nil {
+		t.Error("Expected nil Fn for empty handlers")
+	}
+
+	merged = mergeHandlers([]work.Handler{})
+	if merged.Fn != nil {
+		t.Error("Expected nil Fn for empty slice")
+	}
+}
+
+func TestMergeHandlersSingle(t *testing.T) {
+	called := false
+	handlers := []work.Handler{{Fn: func(evt work.Event) work.Updates {
+		called = true
+		return nil
+	}}}
+
+	merged := mergeHandlers(handlers)
+	merged.Fn(work.Event{})
+
+	if !called {
+		t.Error("Expected single handler to be called")
+	}
+}
+
+func TestMergeHandlersMultiple(t *testing.T) {
+	order := []int{}
+	handlers := []work.Handler{
+		{Fn: func(evt work.Event) work.Updates {
+			order = append(order, 1)
+			return nil
+		}},
+		{Fn: func(evt work.Event) work.Updates {
+			order = append(order, 2)
+			return nil
+		}},
+		{Fn: func(evt work.Event) work.Updates {
+			order = append(order, 3)
+			return nil
+		}},
+	}
+
+	merged := mergeHandlers(handlers)
+	merged.Fn(work.Event{})
+
+	if len(order) != 3 {
+		t.Errorf("Expected 3 calls, got %d", len(order))
+	}
+	for i, v := range order {
+		if v != i+1 {
+			t.Errorf("Expected call order %d at index %d, got %d", i+1, i, v)
+		}
+	}
+}
+
+func TestMergeHandlersSkipsNilFn(t *testing.T) {
+	callCount := 0
+	handlers := []work.Handler{
+		{Fn: func(evt work.Event) work.Updates {
+			callCount++
+			return nil
+		}},
+		{Fn: nil},
+		{Fn: func(evt work.Event) work.Updates {
+			callCount++
+			return nil
+		}},
+	}
+
+	merged := mergeHandlers(handlers)
+	merged.Fn(work.Event{})
+
+	if callCount != 2 {
+		t.Errorf("Expected 2 calls (skipping nil), got %d", callCount)
 	}
 }

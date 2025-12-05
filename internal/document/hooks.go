@@ -6,24 +6,21 @@ import (
 	"github.com/eleven-am/pondlive/internal/runtime"
 )
 
-func UseDocument(ctx *runtime.Ctx, doc *Document) {
+func UseDocument(ctx *runtime.Ctx) *DocumentHandle {
 	state := documentCtx.UseContextValue(ctx)
 	if state == nil {
-		return
+		return &DocumentHandle{}
 	}
 
-	componentID := ctx.ComponentID()
-	depth := ctx.ComponentDepth()
+	handle := newDocumentHandle(ctx, state)
 
 	runtime.UseEffect(ctx, func() func() {
-		next := maps.Clone(state.entries)
-		next[componentID] = documentEntry{doc: doc, depth: depth, componentID: componentID}
-		state.setEntries(next)
-
 		return func() {
 			cleaned := maps.Clone(state.entries)
-			delete(cleaned, componentID)
+			delete(cleaned, handle.componentID)
 			state.setEntries(cleaned)
 		}
-	}, doc)
+	})
+
+	return handle
 }

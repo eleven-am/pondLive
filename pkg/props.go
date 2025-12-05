@@ -34,6 +34,8 @@ func Name(v string) Item        { return Attr("name", v) }
 func Placeholder(v string) Item { return Attr("placeholder", v) }
 func Data(k, v string) Item     { return Attr("data-"+k, v) }
 func Aria(k, v string) Item     { return Attr("aria-"+k, v) }
+func Lang(v string) Item        { return Attr("lang", v) }
+func Dir(v string) Item         { return Attr("dir", v) }
 
 type classItem struct {
 	vals []string
