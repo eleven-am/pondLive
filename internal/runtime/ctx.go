@@ -1,11 +1,23 @@
 package runtime
 
-import "github.com/eleven-am/pondlive/internal/protocol"
+import (
+	"context"
+
+	"github.com/eleven-am/pondlive/internal/protocol"
+)
 
 type Ctx struct {
 	instance  *Instance
 	session   *Session
 	hookIndex int
+	goCtx     context.Context
+}
+
+func (c *Ctx) Context() context.Context {
+	if c == nil || c.goCtx == nil {
+		return context.Background()
+	}
+	return c.goCtx
 }
 
 func GetBus(ctx *Ctx) *protocol.Bus {
@@ -34,5 +46,5 @@ func (c *Ctx) ComponentDepth() int {
 }
 
 func NewCtxForTest(inst *Instance, sess *Session) *Ctx {
-	return &Ctx{instance: inst, session: sess}
+	return &Ctx{instance: inst, session: sess, goCtx: context.Background()}
 }

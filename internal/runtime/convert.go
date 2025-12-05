@@ -105,7 +105,7 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 
 	if needsRender {
 		s.resetRefsForComponent(inst)
-		inst.Render(s)
+		inst.Render(s, parent.renderCtx)
 		inst.snapshotContextDeps(parent)
 	}
 

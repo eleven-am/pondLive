@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -54,6 +55,9 @@ type Instance struct {
 	NextHandlerIndex   int
 
 	RenderError *ComponentError
+
+	renderCtx    context.Context
+	cancelRender context.CancelFunc
 
 	cleanups   []func()
 	cleanupsMu sync.Mutex

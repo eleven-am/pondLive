@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -76,6 +77,13 @@ func (s *Session) Flush() error {
 	}
 	s.flushing = true
 	s.pendingFlush = false
+
+	if s.flushCancel != nil {
+		s.flushCancel()
+	}
+	s.flushCtx, s.flushCancel = context.WithCancel(context.Background())
+	flushCtx := s.flushCtx
+
 	s.flushMu.Unlock()
 
 	defer func() {
@@ -98,11 +106,11 @@ func (s *Session) Flush() error {
 
 	if isFirstRender {
 		s.resetRefsForComponent(s.Root)
-		s.Root.Render(s)
+		s.Root.Render(s, flushCtx)
 	} else {
 		for _, inst := range dirtyComponents {
 			s.resetRefsForComponent(inst)
-			inst.Render(s)
+			inst.Render(s, flushCtx)
 		}
 	}
 

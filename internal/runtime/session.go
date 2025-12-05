@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"sync"
@@ -52,6 +53,9 @@ type Session struct {
 	flushing     bool
 	autoFlush    func()
 	flushMu      sync.Mutex
+
+	flushCtx    context.Context
+	flushCancel context.CancelFunc
 
 	mu sync.Mutex
 }
@@ -109,6 +113,12 @@ func (s *Session) Close() {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.flushCancel != nil {
+		s.flushCancel()
+		s.flushCancel = nil
+		s.flushCtx = nil
+	}
 
 	s.cleanupInstanceTree(s.Root)
 
