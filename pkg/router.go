@@ -4,6 +4,11 @@ import (
 	"github.com/eleven-am/pondlive/internal/router"
 )
 
+var (
+	ErrParamNotFound      = router.ErrParamNotFound
+	ErrQueryParamNotFound = router.ErrQueryParamNotFound
+)
+
 type (
 	Location      = router.Location
 	MatchState    = router.MatchState

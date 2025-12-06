@@ -82,8 +82,8 @@ func routes(ctx *runtime.Ctx, items []work.Item) work.Node {
 			capturedMatch := Match{
 				Pattern:  entry.fullPath,
 				Path:     loc.Path,
-				Params:   matchResult.Params,
-				Query:    loc.Query,
+				params:   matchResult.Params,
+				query:    loc.Query,
 				RawQuery: loc.Query.Encode(),
 				Hash:     loc.Hash,
 				Rest:     matchResult.Rest,
