@@ -163,7 +163,7 @@ export const OpKinds = {
 
 export interface Patch {
     seq: number;
-    path: number[];
+    path: number[] | null;
     op: OpKind;
     value?: unknown;
     name?: string;

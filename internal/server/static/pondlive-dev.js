@@ -1650,9 +1650,11 @@ var LiveUIModule = (() => {
     }
     resolvePath(path) {
       let node = this.root;
-      for (const index of path) {
-        if (!node) return null;
-        node = node.childNodes[index] ?? null;
+      if (path) {
+        for (const index of path) {
+          if (!node) return null;
+          node = node.childNodes[index] ?? null;
+        }
       }
       return node;
     }

@@ -14,14 +14,29 @@ func UseDocument(ctx *runtime.Ctx, doc *Document) {
 
 	componentID := ctx.ComponentID()
 	depth := ctx.ComponentDepth()
+	entriesRef := state.entriesRef
 
 	runtime.UseEffect(ctx, func() func() {
-		next := maps.Clone(state.entries)
+		var current map[string]documentEntry
+		if entriesRef != nil {
+			current = entriesRef.Current
+		} else {
+			current = state.entries
+		}
+
+		next := maps.Clone(current)
 		next[componentID] = documentEntry{doc: doc, depth: depth, componentID: componentID}
 		state.setEntries(next)
 
 		return func() {
-			cleaned := maps.Clone(state.entries)
+			var cleanupCurrent map[string]documentEntry
+			if entriesRef != nil {
+				cleanupCurrent = entriesRef.Current
+			} else {
+				cleanupCurrent = state.entries
+			}
+
+			cleaned := maps.Clone(cleanupCurrent)
 			delete(cleaned, componentID)
 			state.setEntries(cleaned)
 		}

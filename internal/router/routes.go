@@ -100,7 +100,9 @@ func routes(ctx *runtime.Ctx, items []work.Item) work.Node {
 
 			componentKey := slot.name + ":" + entry.fullPath
 			if strings.Contains(entry.fullPath, ":") || strings.Contains(entry.fullPath, "*") {
-				componentKey += "|" + loc.Path
+				if len(entry.children) == 0 {
+					componentKey += "|" + loc.Path
+				}
 			}
 
 			renderer := func(ictx *runtime.Ctx) work.Node {

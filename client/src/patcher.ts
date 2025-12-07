@@ -113,11 +113,13 @@ export class Patcher {
         }
     }
 
-    private resolvePath(path: number[]): Node | null {
+    private resolvePath(path: number[] | null): Node | null {
         let node: Node | null = this.root;
-        for (const index of path) {
-            if (!node) return null;
-            node = node.childNodes[index] ?? null;
+        if (path) {
+            for (const index of path) {
+                if (!node) return null;
+                node = node.childNodes[index] ?? null;
+            }
         }
         return node;
     }
