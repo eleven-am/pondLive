@@ -150,6 +150,8 @@ type RequestState struct {
 	redirectCode    int
 
 	cookieMutations map[string]*cookieMutation
+
+	setState func(*RequestState)
 }
 
 type cookieMutation struct {
@@ -346,4 +348,41 @@ func (s *RequestState) ReplaceInfo(info *RequestInfo) {
 	s.responseHeaders = make(http.Header)
 	s.cookieMutations = make(map[string]*cookieMutation)
 	s.mu.Unlock()
+}
+
+func (s *RequestState) Clone() *RequestState {
+	if s == nil {
+		return nil
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	responseHeaders := make(http.Header, len(s.responseHeaders))
+	for k, v := range s.responseHeaders {
+		responseHeaders[k] = append([]string(nil), v...)
+	}
+
+	cookieMutations := make(map[string]*cookieMutation, len(s.cookieMutations))
+	for k, v := range s.cookieMutations {
+		cookieMutations[k] = &cookieMutation{value: v.value, deleted: v.deleted}
+	}
+
+	return &RequestState{
+		info:            s.info.Clone(),
+		isLive:          s.isLive,
+		responseHeaders: responseHeaders,
+		redirectURL:     s.redirectURL,
+		redirectCode:    s.redirectCode,
+		cookieMutations: cookieMutations,
+		setState:        s.setState,
+	}
+}
+
+func (s *RequestState) NotifyChange() {
+	if s == nil || s.setState == nil {
+		return
+	}
+	clone := s.Clone()
+	s.setState(clone)
 }

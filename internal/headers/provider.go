@@ -17,29 +17,27 @@ type pendingCookie struct {
 }
 
 type providerState struct {
-	requestState   *RequestState
-	script         runtime.ScriptHandle
-	handler        runtime.HandlerHandle
-	handlerURL     string
-	pendingCookies map[string]*pendingCookie
-	cookieMu       sync.Mutex
+	requestState      *RequestState
+	script            runtime.ScriptHandle
+	handler           runtime.HandlerHandle
+	handlerURL        string
+	ackHandlerURL     string
+	pendingCookiesRef *runtime.Ref[map[string]*pendingCookie]
+	cookieMu          sync.Mutex
 }
 
 func (p *providerState) storeCookie(token string, cookie *pendingCookie) {
 	p.cookieMu.Lock()
-	if p.pendingCookies == nil {
-		p.pendingCookies = make(map[string]*pendingCookie)
-	}
-	p.pendingCookies[token] = cookie
+	p.pendingCookiesRef.Current[token] = cookie
 	p.cookieMu.Unlock()
 }
 
 func (p *providerState) consumeCookie(token string) *pendingCookie {
 	p.cookieMu.Lock()
 	defer p.cookieMu.Unlock()
-	cookie, exists := p.pendingCookies[token]
+	cookie, exists := p.pendingCookiesRef.Current[token]
 	if exists {
-		delete(p.pendingCookies, token)
+		delete(p.pendingCookiesRef.Current, token)
 		return cookie
 	}
 	return nil
@@ -52,11 +50,15 @@ type tokenPayload struct {
 }
 
 var Provider = runtime.PropsComponent(func(ctx *runtime.Ctx, requestState *RequestState, children []work.Item) work.Node {
-	requestCtx.UseProvider(ctx, requestState)
+	_, setState := requestCtx.UseProvider(ctx, requestState)
+
+	requestState.setState = setState
+
+	pendingCookiesRef := runtime.UseRef(ctx, make(map[string]*pendingCookie))
 
 	pState := &providerState{
-		requestState:   requestState,
-		pendingCookies: make(map[string]*pendingCookie),
+		requestState:      requestState,
+		pendingCookiesRef: pendingCookiesRef,
 	}
 
 	handler := runtime.UseHandler(ctx, "POST", func(w http.ResponseWriter, r *http.Request) error {
@@ -103,11 +105,21 @@ var Provider = runtime.PropsComponent(func(ctx *runtime.Ctx, requestState *Reque
 		return nil
 	})
 
-	script := runtime.UseScript(ctx, `function(element,transport){transport.on('setCookie',function(data){fetch(data.url,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:data.token})})})}`)
+	ackHandler := runtime.UseHandler(ctx, "POST", func(w http.ResponseWriter, r *http.Request) error {
+		newInfo := NewRequestInfo(r)
+		pState.requestState.ReplaceInfo(newInfo)
+		pState.requestState.SetIsLive(true)
+		pState.requestState.NotifyChange()
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	})
+
+	script := runtime.UseScript(ctx, `function(element,transport){transport.on('setCookie',function(data){fetch(data.url,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:data.token})}).then(function(){fetch(data.ackUrl,{method:'POST',credentials:'include'})})})}`)
 
 	pState.handler = handler
 	pState.script = script
 	pState.handlerURL = handler.URL()
+	pState.ackHandlerURL = ackHandler.URL()
 
 	providerCtx.UseProvider(ctx, pState)
 
@@ -146,7 +158,8 @@ func sendCookieViaScript(pState *providerState, name, value string, opts *Cookie
 	})
 
 	pState.script.Send("setCookie", map[string]any{
-		"url":   pState.handlerURL,
-		"token": token,
+		"url":    pState.handlerURL,
+		"token":  token,
+		"ackUrl": pState.ackHandlerURL,
 	})
 }

@@ -1575,7 +1575,7 @@ var LiveUIModule = (() => {
   };
 
   // src/patcher.ts
-  var Patcher = class {
+  var _Patcher = class _Patcher {
     constructor(root, callbacks) {
       this.handlerStore = /* @__PURE__ */ new WeakMap();
       this.scriptStore = /* @__PURE__ */ new WeakMap();
@@ -1591,9 +1591,7 @@ var LiveUIModule = (() => {
     }
     applyPatch(patch) {
       const node = this.resolvePath(patch.path);
-      if (!node) {
-        return;
-      }
+      if (!node) return;
       switch (patch.op) {
         case "setText":
           this.setText(node, patch.value);
@@ -1667,7 +1665,11 @@ var LiveUIModule = (() => {
     setAttr(el, attrs) {
       for (const [name, values] of Object.entries(attrs)) {
         if (name === "class") {
-          el.className = values.join(" ");
+          if (el instanceof SVGElement) {
+            el.setAttribute("class", values.join(" "));
+          } else {
+            el.className = values.join(" ");
+          }
         } else if (name === "value" && el instanceof HTMLInputElement) {
           el.value = values[0] ?? "";
         } else if (name === "checked" && el instanceof HTMLInputElement) {
@@ -1923,7 +1925,7 @@ var LiveUIModule = (() => {
         }
       }
     }
-    createNode(data) {
+    createNode(data, isSvg = false) {
       if (data.text !== void 0) {
         return document.createTextNode(data.text);
       }
@@ -1931,7 +1933,9 @@ var LiveUIModule = (() => {
         return document.createComment(data.comment);
       }
       if (!data.tag) return null;
-      const el = document.createElement(data.tag);
+      const isSvgElement = _Patcher.SVG_TAGS.has(data.tag);
+      const useSvg = isSvg || isSvgElement;
+      const el = useSvg ? document.createElementNS(_Patcher.SVG_NS, data.tag) : document.createElement(data.tag);
       if (data.attrs) {
         this.setAttr(el, data.attrs);
       }
@@ -1950,8 +1954,9 @@ var LiveUIModule = (() => {
       if (data.unsafeHTML) {
         el.innerHTML = data.unsafeHTML;
       } else if (data.children) {
+        const childSvg = useSvg && data.tag !== "foreignObject";
         for (const child of data.children) {
-          const childNode = this.createNode(child);
+          const childNode = this.createNode(child, childSvg);
           if (childNode) {
             el.appendChild(childNode);
           }
@@ -1960,6 +1965,70 @@ var LiveUIModule = (() => {
       return el;
     }
   };
+  _Patcher.SVG_NS = "http://www.w3.org/2000/svg";
+  _Patcher.SVG_TAGS = /* @__PURE__ */ new Set([
+    "svg",
+    "animate",
+    "animateMotion",
+    "animateTransform",
+    "circle",
+    "clipPath",
+    "defs",
+    "desc",
+    "ellipse",
+    "feBlend",
+    "feColorMatrix",
+    "feComponentTransfer",
+    "feComposite",
+    "feConvolveMatrix",
+    "feDiffuseLighting",
+    "feDisplacementMap",
+    "feDistantLight",
+    "feDropShadow",
+    "feFlood",
+    "feFuncA",
+    "feFuncB",
+    "feFuncG",
+    "feFuncR",
+    "feGaussianBlur",
+    "feImage",
+    "feMerge",
+    "feMergeNode",
+    "feMorphology",
+    "feOffset",
+    "fePointLight",
+    "feSpecularLighting",
+    "feSpotLight",
+    "feTile",
+    "feTurbulence",
+    "filter",
+    "foreignObject",
+    "g",
+    "image",
+    "line",
+    "linearGradient",
+    "marker",
+    "mask",
+    "metadata",
+    "mpath",
+    "path",
+    "pattern",
+    "polygon",
+    "polyline",
+    "radialGradient",
+    "rect",
+    "set",
+    "stop",
+    "switch",
+    "symbol",
+    "text",
+    "textPath",
+    "title",
+    "tspan",
+    "use",
+    "view"
+  ]);
+  var Patcher = _Patcher;
 
   // src/executor.ts
   var Executor = class {

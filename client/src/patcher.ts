@@ -54,9 +54,7 @@ export class Patcher {
 
     private applyPatch(patch: Patch): void {
         const node = this.resolvePath(patch.path);
-        if (!node) {
-            return;
-        }
+        if (!node) return;
 
         switch (patch.op) {
             case 'setText':
@@ -135,7 +133,11 @@ export class Patcher {
     private setAttr(el: Element, attrs: Record<string, string[]>): void {
         for (const [name, values] of Object.entries(attrs)) {
             if (name === 'class') {
-                el.className = values.join(' ');
+                if (el instanceof SVGElement) {
+                    el.setAttribute('class', values.join(' '));
+                } else {
+                    el.className = values.join(' ');
+                }
             } else if (name === 'value' && el instanceof HTMLInputElement) {
                 el.value = values[0] ?? '';
             } else if (name === 'checked' && el instanceof HTMLInputElement) {
@@ -442,7 +444,21 @@ export class Patcher {
         }
     }
 
-    private createNode(data: StructuredNode): Node | null {
+    private static readonly SVG_NS = 'http://www.w3.org/2000/svg';
+    private static readonly SVG_TAGS = new Set([
+        'svg', 'animate', 'animateMotion', 'animateTransform', 'circle', 'clipPath',
+        'defs', 'desc', 'ellipse', 'feBlend', 'feColorMatrix', 'feComponentTransfer',
+        'feComposite', 'feConvolveMatrix', 'feDiffuseLighting', 'feDisplacementMap',
+        'feDistantLight', 'feDropShadow', 'feFlood', 'feFuncA', 'feFuncB', 'feFuncG',
+        'feFuncR', 'feGaussianBlur', 'feImage', 'feMerge', 'feMergeNode', 'feMorphology',
+        'feOffset', 'fePointLight', 'feSpecularLighting', 'feSpotLight', 'feTile',
+        'feTurbulence', 'filter', 'foreignObject', 'g', 'image', 'line', 'linearGradient',
+        'marker', 'mask', 'metadata', 'mpath', 'path', 'pattern', 'polygon', 'polyline',
+        'radialGradient', 'rect', 'set', 'stop', 'switch', 'symbol', 'text', 'textPath',
+        'title', 'tspan', 'use', 'view'
+    ]);
+
+    private createNode(data: StructuredNode, isSvg = false): Node | null {
         if (data.text !== undefined) {
             return document.createTextNode(data.text);
         }
@@ -453,7 +469,12 @@ export class Patcher {
 
         if (!data.tag) return null;
 
-        const el = document.createElement(data.tag);
+        const isSvgElement = Patcher.SVG_TAGS.has(data.tag);
+        const useSvg = isSvg || isSvgElement;
+
+        const el = useSvg
+            ? document.createElementNS(Patcher.SVG_NS, data.tag)
+            : document.createElement(data.tag);
 
         if (data.attrs) {
             this.setAttr(el, data.attrs);
@@ -478,8 +499,9 @@ export class Patcher {
         if (data.unsafeHTML) {
             el.innerHTML = data.unsafeHTML;
         } else if (data.children) {
+            const childSvg = useSvg && data.tag !== 'foreignObject';
             for (const child of data.children) {
-                const childNode = this.createNode(child);
+                const childNode = this.createNode(child, childSvg);
                 if (childNode) {
                     el.appendChild(childNode);
                 }
