@@ -6,6 +6,7 @@ func Component(fn any, items ...Item) *ComponentNode {
 		Fn:            fn,
 		Props:         nil,
 		InputChildren: children,
+		InputAttrs:    attrs,
 	}
 	applyAttrsToComponent(comp, attrs)
 	return comp
@@ -17,6 +18,7 @@ func PropsComponent[P any](fn any, props P, items ...Item) *ComponentNode {
 		Fn:            fn,
 		Props:         props,
 		InputChildren: children,
+		InputAttrs:    attrs,
 	}
 	applyAttrsToComponent(comp, attrs)
 	return comp

@@ -17,13 +17,19 @@ func Replace(ctx *runtime.Ctx, href string) {
 	navigate(ctx, href, true)
 }
 
-func NavigateWithQuery(ctx *runtime.Ctx, path string, query url.Values) {
-	href := buildHref(path, query, "")
+func NavigateWith(ctx *runtime.Ctx, fn func(Location) Location) {
+	currentLoc := UseLocation(ctx)
+	cloned := cloneLocation(currentLoc)
+	target := fn(cloned)
+	href := buildHref(target.Path, target.Query, target.Hash)
 	Navigate(ctx, href)
 }
 
-func ReplaceWithQuery(ctx *runtime.Ctx, path string, query url.Values) {
-	href := buildHref(path, query, "")
+func ReplaceWith(ctx *runtime.Ctx, fn func(Location) Location) {
+	currentLoc := UseLocation(ctx)
+	cloned := cloneLocation(currentLoc)
+	target := fn(cloned)
+	href := buildHref(target.Path, target.Query, target.Hash)
 	Replace(ctx, href)
 }
 

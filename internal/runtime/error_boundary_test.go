@@ -14,7 +14,7 @@ func TestUseErrorBoundary_NoError(t *testing.T) {
 
 	root := &Instance{
 		ID:        "root",
-		Fn:        func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:        func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame: []HookSlot{},
 	}
 	sess.Root = root
@@ -36,7 +36,7 @@ func TestUseErrorBoundary_RenderError(t *testing.T) {
 		Components: make(map[string]*Instance),
 	}
 
-	panicComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	panicComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		panic("intentional panic")
 	}
 
@@ -48,7 +48,7 @@ func TestUseErrorBoundary_RenderError(t *testing.T) {
 
 	parent := &Instance{
 		ID:        "parent",
-		Fn:        func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:        func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame: []HookSlot{},
 		Children:  []*Instance{child},
 	}
@@ -87,7 +87,7 @@ func TestUseErrorBoundary_MemoError(t *testing.T) {
 		Components: make(map[string]*Instance),
 	}
 
-	panicMemoComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	panicMemoComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 
 		UseMemo(ctx, func() int {
 			panic("memo panic")
@@ -103,7 +103,7 @@ func TestUseErrorBoundary_MemoError(t *testing.T) {
 
 	parent := &Instance{
 		ID:        "parent",
-		Fn:        func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:        func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame: []HookSlot{},
 		Children:  []*Instance{child},
 	}
@@ -142,11 +142,11 @@ func TestErrorBoundary_CatchChildError(t *testing.T) {
 		Components: make(map[string]*Instance),
 	}
 
-	childComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	childComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		panic("child error")
 	}
 
-	parentComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		err := UseErrorBoundary(ctx)
 		if err != nil {
 
@@ -197,7 +197,7 @@ func TestErrorBoundary_MultipleErrors(t *testing.T) {
 
 	child1 := &Instance{
 		ID: "child1",
-		Fn: func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 			panic("error 1")
 		},
 		HookFrame: []HookSlot{},
@@ -205,7 +205,7 @@ func TestErrorBoundary_MultipleErrors(t *testing.T) {
 
 	child2 := &Instance{
 		ID: "child2",
-		Fn: func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 			panic("error 2")
 		},
 		HookFrame: []HookSlot{},
@@ -213,7 +213,7 @@ func TestErrorBoundary_MultipleErrors(t *testing.T) {
 
 	parent := &Instance{
 		ID:        "parent",
-		Fn:        func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:        func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame: []HookSlot{},
 		Children:  []*Instance{child1, child2},
 	}
@@ -247,7 +247,7 @@ func TestErrorBoundary_ClearsOnSuccessfulRender(t *testing.T) {
 	}
 
 	shouldPanic := true
-	testComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	testComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		if shouldPanic {
 			panic("first render fails")
 		}
@@ -291,11 +291,11 @@ func TestErrorBoundary_LayeredInnerCatches(t *testing.T) {
 		Components: make(map[string]*Instance),
 	}
 
-	widgetComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	widgetComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		panic("widget error")
 	}
 
-	dashboardComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	dashboardComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		err := UseErrorBoundary(ctx)
 		if err != nil {
 			return &work.Text{Value: "Dashboard Error: " + err.Message}
@@ -303,7 +303,7 @@ func TestErrorBoundary_LayeredInnerCatches(t *testing.T) {
 		return nil
 	}
 
-	appComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	appComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		err := UseErrorBoundary(ctx)
 		if err != nil {
 			return &work.Text{Value: "App Error: " + err.Message}
@@ -357,15 +357,15 @@ func TestErrorBoundary_LayeredOuterCatchesWhenInnerMissing(t *testing.T) {
 		Components: make(map[string]*Instance),
 	}
 
-	widgetComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	widgetComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		panic("widget error")
 	}
 
-	dashboardComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	dashboardComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return nil
 	}
 
-	appComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	appComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		err := UseErrorBoundary(ctx)
 		if err != nil {
 			return &work.Text{Value: "App Error: " + err.Message}
@@ -415,15 +415,15 @@ func TestErrorBoundary_LayeredMultiLevel(t *testing.T) {
 		Components: make(map[string]*Instance),
 	}
 
-	chartComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	chartComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		panic("chart error")
 	}
 
-	widgetComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	widgetComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return nil
 	}
 
-	dashboardComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	dashboardComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		err := UseErrorBoundary(ctx)
 		if err != nil {
 			return &work.Text{Value: "Dashboard Error: " + err.Message}
@@ -431,7 +431,7 @@ func TestErrorBoundary_LayeredMultiLevel(t *testing.T) {
 		return nil
 	}
 
-	appComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	appComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		err := UseErrorBoundary(ctx)
 		if err != nil {
 			return &work.Text{Value: "App Error: " + err.Message}
@@ -494,15 +494,15 @@ func TestErrorBoundary_LayeredSiblingIsolation(t *testing.T) {
 		Components: make(map[string]*Instance),
 	}
 
-	criticalComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	criticalComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		panic("critical error")
 	}
 
-	optionalComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	optionalComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return &work.Text{Value: "optional works"}
 	}
 
-	criticalWrapperComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	criticalWrapperComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		err := UseErrorBoundary(ctx)
 		if err != nil {
 			return &work.Text{Value: "Critical Fallback: " + err.Message}
@@ -510,7 +510,7 @@ func TestErrorBoundary_LayeredSiblingIsolation(t *testing.T) {
 		return nil
 	}
 
-	optionalWrapperComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	optionalWrapperComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		err := UseErrorBoundary(ctx)
 		if err != nil {
 			return &work.Text{Value: "Optional Fallback: " + err.Message}
@@ -518,7 +518,7 @@ func TestErrorBoundary_LayeredSiblingIsolation(t *testing.T) {
 		return nil
 	}
 
-	parentComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return nil
 	}
 

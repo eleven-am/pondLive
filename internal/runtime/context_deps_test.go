@@ -33,18 +33,18 @@ func TestContextChangeRerendersConsumersButNotNonConsumers(t *testing.T) {
 	renderChild := 0
 	renderGrandchild := 0
 
-	grandchildFn := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	grandchildFn := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		renderGrandchild++
 		_ = theme.UseContextValue(ctx)
 		return &work.Text{Value: "gc"}
 	}
 
-	childFn := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	childFn := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		renderChild++
 		return work.Component(grandchildFn)
 	}
 
-	rootFn := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	rootFn := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		renderRoot++
 		_, setter := theme.UseProvider(ctx, "light")
 		if setTheme == nil {
@@ -89,13 +89,13 @@ func TestContextChangeSkipsUnrelatedContext(t *testing.T) {
 
 	renderChild := 0
 
-	childFn := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	childFn := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		renderChild++
 		_ = ctxA.UseContextValue(ctx)
 		return &work.Text{Value: "child"}
 	}
 
-	rootFn := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	rootFn := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		_, sa := ctxA.UseProvider(ctx, "a")
 		if setA == nil {
 			setA = func(v string) { sa(v) }
@@ -138,13 +138,13 @@ func TestContextOverrideHonorsNearestProvider(t *testing.T) {
 
 	renderConsumer := 0
 
-	consumer := func(c *Ctx, _ any, _ []work.Node) work.Node {
+	consumer := func(c *Ctx, _ any, _ []work.Item) work.Node {
 		renderConsumer++
 		_ = valueCtx.UseContextValue(c)
 		return &work.Text{Value: "c"}
 	}
 
-	childWithProvider := func(c *Ctx, _ any, _ []work.Node) work.Node {
+	childWithProvider := func(c *Ctx, _ any, _ []work.Item) work.Node {
 		_, setter := valueCtx.UseProvider(c, "child")
 		if setChild == nil {
 			setChild = func(v string) { setter(v) }
@@ -152,7 +152,7 @@ func TestContextOverrideHonorsNearestProvider(t *testing.T) {
 		return work.Component(consumer)
 	}
 
-	rootFn := func(c *Ctx, _ any, _ []work.Node) work.Node {
+	rootFn := func(c *Ctx, _ any, _ []work.Item) work.Node {
 		_, setter := valueCtx.UseProvider(c, "root")
 		if setParent == nil {
 			setParent = func(v string) { setter(v) }

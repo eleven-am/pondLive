@@ -33,6 +33,6 @@ func NewComment(value string) *Comment {
 }
 
 func NewFragment(items ...Item) *Fragment {
-	children, _ := splitItems(items)
-	return &Fragment{Children: children}
+	children, attrs := splitItems(items)
+	return &Fragment{Children: children, Attrs: attrs}
 }

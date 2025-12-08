@@ -15,7 +15,7 @@ import (
 )
 
 func TestDirectSessionHandlerExtraction(t *testing.T) {
-	component := func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 		return &work.Element{
 			Tag: "div",
 			Children: []work.Node{
@@ -115,7 +115,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 	t.Run("simple element", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				return &work.Element{
 					Tag:      "div",
 					Children: []work.Node{&work.Text{Value: "Hello"}},
@@ -142,7 +142,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 	t.Run("metatags.Provider only", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				return metatags.Provider(ctx, &work.Text{Value: "Hello"})
 			},
 			HookFrame: []runtime.HookSlot{},
@@ -166,7 +166,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 	t.Run("nested providers", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				return metatags.Provider(ctx,
 					styles.Provider(ctx,
 						&work.Text{Value: "Hello"},
@@ -194,7 +194,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 	t.Run("provider + render", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				return metatags.Provider(ctx,
 					&work.Element{
 						Tag:      "div",
@@ -223,7 +223,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 	t.Run("router.Provide", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				return router.Provide(ctx,
 					&work.Text{Value: "Hello"},
 				)
@@ -249,7 +249,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 	t.Run("all three providers", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				return metatags.Provider(ctx,
 					router.Provide(ctx,
 						styles.Provider(ctx,
@@ -279,7 +279,7 @@ func TestMinimalProviderFlush(t *testing.T) {
 	t.Run("boot-like structure", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, children []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, children []work.Item) work.Node {
 				return headers.Provider(ctx, nil,
 					metatags.Provider(ctx,
 						router.Provide(ctx,
@@ -340,7 +340,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 	t.Run("handlers in boot structure", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				_ = headers.UseRequestState(ctx)
 
 				return metatags.Provider(ctx,
@@ -408,7 +408,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 	t.Run("refs in boot structure", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				_ = headers.UseRequestState(ctx)
 				ref := runtime.UseElement(ctx)
 
@@ -475,7 +475,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 	t.Run("scripts in boot structure", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				_ = headers.UseRequestState(ctx)
 				script := runtime.UseScript(ctx, "console.log('hello')")
 
@@ -540,7 +540,7 @@ func TestBootMetadataExtraction(t *testing.T) {
 	t.Run("all metadata types combined", func(t *testing.T) {
 		root := &runtime.Instance{
 			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 				_ = headers.UseRequestState(ctx)
 				ref := runtime.UseElement(ctx)
 				script := runtime.UseScript(ctx, "console.log('combined')")

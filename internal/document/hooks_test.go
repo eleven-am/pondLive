@@ -21,7 +21,7 @@ func TestUseDocumentEffectRunsOnDocumentChange(t *testing.T) {
 	root := &runtime.Instance{
 		ID:        "root",
 		HookFrame: []runtime.HookSlot{},
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 			doc, setDoc := runtime.UseState(ctx, &Document{HtmlClass: ""})
 			setDocFn = setDoc
 
@@ -78,7 +78,7 @@ func TestUseDocumentEffectDoesNotRunWhenDocumentUnchanged(t *testing.T) {
 	root := &runtime.Instance{
 		ID:        "root",
 		HookFrame: []runtime.HookSlot{},
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 			renderCount++
 			counter, setCounter := runtime.UseState(ctx, 0)
 			forceRerender = func() { setCounter(counter + 1) }
@@ -134,7 +134,7 @@ func TestUseDocumentDepsCompareByValue(t *testing.T) {
 	root := &runtime.Instance{
 		ID:        "root",
 		HookFrame: []runtime.HookSlot{},
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 			counter, setCounter := runtime.UseState(ctx, 0)
 			forceRerender = func() { setCounter(counter + 1) }
 
@@ -185,7 +185,7 @@ func TestUseDocumentFullFlowWithProvider(t *testing.T) {
 	root := &runtime.Instance{
 		ID:        "app",
 		HookFrame: []runtime.HookSlot{},
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 			dark, setDark := runtime.UseState(ctx, false)
 			setDarkFn = setDark
 
@@ -226,7 +226,7 @@ func TestUseDocumentFullFlowWithProvider(t *testing.T) {
 
 			return &work.ComponentNode{
 				Key: "html",
-				Fn: func(hctx *runtime.Ctx, _ any, children []work.Node) work.Node {
+				Fn: func(hctx *runtime.Ctx, _ any, children []work.Item) work.Node {
 					htmlRenderCount++
 					hstate := documentCtx.UseContextValue(hctx)
 					attrs := computeHtmlAttrs(hstate)
@@ -309,7 +309,7 @@ func TestUseDocumentDeeplyNested4Levels(t *testing.T) {
 	root := &runtime.Instance{
 		ID:        "root",
 		HookFrame: []runtime.HookSlot{},
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 			dark, setDark := runtime.UseState(ctx, false)
 			setDarkFn = setDark
 
@@ -330,7 +330,7 @@ func TestUseDocumentDeeplyNested4Levels(t *testing.T) {
 				Children: []work.Node{
 					&work.ComponentNode{
 						Key: "html-consumer",
-						Fn: func(hctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+						Fn: func(hctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 							htmlRenderCount++
 							hstate := documentCtx.UseContextValue(hctx)
 							attrs := computeHtmlAttrs(hstate)
@@ -348,19 +348,19 @@ func TestUseDocumentDeeplyNested4Levels(t *testing.T) {
 					&work.ComponentNode{
 						Key:   "level1",
 						Props: dark,
-						Fn: func(l1ctx *runtime.Ctx, l1dark any, _ []work.Node) work.Node {
+						Fn: func(l1ctx *runtime.Ctx, l1dark any, _ []work.Item) work.Node {
 							return &work.ComponentNode{
 								Key:   "level2",
 								Props: l1dark,
-								Fn: func(l2ctx *runtime.Ctx, l2dark any, _ []work.Node) work.Node {
+								Fn: func(l2ctx *runtime.Ctx, l2dark any, _ []work.Item) work.Node {
 									return &work.ComponentNode{
 										Key:   "level3",
 										Props: l2dark,
-										Fn: func(l3ctx *runtime.Ctx, l3dark any, _ []work.Node) work.Node {
+										Fn: func(l3ctx *runtime.Ctx, l3dark any, _ []work.Item) work.Node {
 											return &work.ComponentNode{
 												Key:   "level4-theme",
 												Props: l3dark,
-												Fn: func(l4ctx *runtime.Ctx, darkProp any, _ []work.Node) work.Node {
+												Fn: func(l4ctx *runtime.Ctx, darkProp any, _ []work.Item) work.Node {
 													level4RenderCount++
 													isDark := darkProp.(bool)
 													l4state := documentCtx.UseContextValue(l4ctx)
@@ -457,13 +457,13 @@ func TestUseDocumentWithBootStructure(t *testing.T) {
 	root := &runtime.Instance{
 		ID:        "boot",
 		HookFrame: []runtime.HookSlot{},
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 			return Provider(ctx,
 				HtmlElement(ctx,
 					BodyElement(ctx,
 						&work.ComponentNode{
 							Key: "theme-toggle",
-							Fn: func(tctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+							Fn: func(tctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 								themeToggleRenderCount++
 								dark, setDark := runtime.UseState(tctx, false)
 								setDarkFn = setDark
@@ -561,7 +561,7 @@ func TestUseDocumentHookWithDarkModeContext(t *testing.T) {
 	root := &runtime.Instance{
 		ID:        "root",
 		HookFrame: []runtime.HookSlot{},
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 			dark, setDark := runtime.UseState(ctx, false)
 			setDarkFn = setDark
 
@@ -588,7 +588,7 @@ func TestUseDocumentHookWithDarkModeContext(t *testing.T) {
 				Children: []work.Node{
 					&work.ComponentNode{
 						Key: "html-consumer",
-						Fn: func(hctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+						Fn: func(hctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 							htmlRenderCount++
 							hstate := documentCtx.UseContextValue(hctx)
 							attrs := computeHtmlAttrs(hstate)
@@ -605,16 +605,16 @@ func TestUseDocumentHookWithDarkModeContext(t *testing.T) {
 					},
 					&work.ComponentNode{
 						Key: "level1",
-						Fn: func(l1ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+						Fn: func(l1ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 							return &work.ComponentNode{
 								Key: "level2",
-								Fn: func(l2ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+								Fn: func(l2ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 									return &work.ComponentNode{
 										Key: "level3",
-										Fn: func(l3ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+										Fn: func(l3ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 											return &work.ComponentNode{
 												Key: "level4-theme",
-												Fn: func(l4ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+												Fn: func(l4ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 													level4RenderCount++
 
 													isDark := darkModeCtx.UseContextValue(l4ctx)
@@ -699,7 +699,7 @@ func TestUseDocumentDeeplyNestedWithContext(t *testing.T) {
 	root := &runtime.Instance{
 		ID:        "root",
 		HookFrame: []runtime.HookSlot{},
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 			dark, setDark := runtime.UseState(ctx, false)
 			setDarkFn = setDark
 
@@ -726,7 +726,7 @@ func TestUseDocumentDeeplyNestedWithContext(t *testing.T) {
 				Children: []work.Node{
 					&work.ComponentNode{
 						Key: "html-consumer",
-						Fn: func(hctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+						Fn: func(hctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 							htmlRenderCount++
 							hstate := documentCtx.UseContextValue(hctx)
 							attrs := computeHtmlAttrs(hstate)
@@ -743,16 +743,16 @@ func TestUseDocumentDeeplyNestedWithContext(t *testing.T) {
 					},
 					&work.ComponentNode{
 						Key: "level1",
-						Fn: func(l1ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+						Fn: func(l1ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 							return &work.ComponentNode{
 								Key: "level2",
-								Fn: func(l2ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+								Fn: func(l2ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 									return &work.ComponentNode{
 										Key: "level3",
-										Fn: func(l3ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+										Fn: func(l3ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 											return &work.ComponentNode{
 												Key: "level4-theme",
-												Fn: func(l4ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+												Fn: func(l4ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 													level4RenderCount++
 
 													isDark := darkModeCtx.UseContextValue(l4ctx)
@@ -853,7 +853,7 @@ func TestUseDocumentRealHook(t *testing.T) {
 	root := &runtime.Instance{
 		ID:        "app",
 		HookFrame: []runtime.HookSlot{},
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 			dark, setDark := runtime.UseState(ctx, false)
 			setDarkFn = setDark
 
@@ -878,7 +878,7 @@ func TestUseDocumentRealHook(t *testing.T) {
 
 			return &work.ComponentNode{
 				Key: "html",
-				Fn: func(hctx *runtime.Ctx, _ any, children []work.Node) work.Node {
+				Fn: func(hctx *runtime.Ctx, _ any, children []work.Item) work.Node {
 					htmlRenderCount++
 					hstate := documentCtx.UseContextValue(hctx)
 					attrs := computeHtmlAttrs(hstate)

@@ -6,12 +6,11 @@ import (
 )
 
 type routeMountProps struct {
-	match        Match
-	matchState   *MatchState
-	base         string
-	childSlots   map[string]outletRenderer
-	component    func(*runtime.Ctx, Match) work.Node
-	componentKey string
+	match      Match
+	matchState *MatchState
+	base       string
+	childSlots map[string]outletRenderer
+	component  func(*runtime.Ctx, Match) work.Node
 }
 
 var routeMount = runtime.PropsComponent(func(ctx *runtime.Ctx, props routeMountProps, _ []work.Item) work.Node {
@@ -26,6 +25,5 @@ var routeMount = runtime.PropsComponent(func(ctx *runtime.Ctx, props routeMountP
 	return &work.ComponentNode{
 		Fn:    props.component,
 		Props: props.match,
-		Key:   props.componentKey,
 	}
 })

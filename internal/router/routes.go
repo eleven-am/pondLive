@@ -98,21 +98,13 @@ func routes(ctx *runtime.Ctx, items []work.Item) work.Node {
 
 			basePath := trimWildcardSuffix(entry.fullPath)
 
-			componentKey := slot.name + ":" + entry.fullPath
-			if strings.Contains(entry.fullPath, ":") || strings.Contains(entry.fullPath, "*") {
-				if len(entry.children) == 0 {
-					componentKey += "|" + loc.Path
-				}
-			}
-
 			renderer := func(ictx *runtime.Ctx) work.Node {
 				return routeMount(ictx, routeMountProps{
-					match:        capturedMatch,
-					matchState:   capturedMatchState,
-					base:         basePath,
-					childSlots:   childSlots,
-					component:    entry.component,
-					componentKey: componentKey,
+					match:      capturedMatch,
+					matchState: capturedMatchState,
+					base:       basePath,
+					childSlots: childSlots,
+					component:  entry.component,
 				})
 			}
 

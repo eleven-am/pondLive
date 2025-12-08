@@ -16,7 +16,7 @@ func TestCtxContext_ReturnsContext(t *testing.T) {
 
 	inst := &Instance{
 		ID:        "test",
-		Fn:        func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:        func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame: []HookSlot{},
 	}
 	sess.Root = inst
@@ -73,7 +73,7 @@ func TestRenderCancelsOnNewRender(t *testing.T) {
 	}
 
 	var capturedCtx context.Context
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		capturedCtx = ctx.Context()
 		return nil
 	}
@@ -112,7 +112,7 @@ func TestChildContextDerivedFromParent(t *testing.T) {
 	defer parentCancel()
 
 	var capturedCtx context.Context
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		capturedCtx = ctx.Context()
 		return nil
 	}
@@ -148,7 +148,7 @@ func TestFlushCancelsOnNewFlush(t *testing.T) {
 
 	var capturedCtx context.Context
 	var mu sync.Mutex
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		mu.Lock()
 		capturedCtx = ctx.Context()
 		mu.Unlock()
@@ -195,7 +195,7 @@ func TestSessionCloseCancelsFlushContext(t *testing.T) {
 	}
 
 	var capturedCtx context.Context
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		capturedCtx = ctx.Context()
 		return nil
 	}
@@ -234,12 +234,12 @@ func TestContextPropagatesThroughComponentHierarchy(t *testing.T) {
 
 	var parentCapturedCtx, childCapturedCtx context.Context
 
-	childComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	childComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		childCapturedCtx = ctx.Context()
 		return nil
 	}
 
-	parentComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		parentCapturedCtx = ctx.Context()
 		return &work.ComponentNode{
 			Fn:  childComponent,
@@ -298,7 +298,7 @@ func TestContextWithValuePassesThrough(t *testing.T) {
 	parentCtx := context.WithValue(context.Background(), testKey, testValue)
 
 	var capturedCtx context.Context
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		capturedCtx = ctx.Context()
 		return nil
 	}

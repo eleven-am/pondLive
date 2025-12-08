@@ -16,13 +16,13 @@ type bootProps struct {
 	ClientAsset  string
 }
 
-func wrapComponent(component Component) func(*runtime.Ctx, any, []work.Node) work.Node {
-	return func(ctx *runtime.Ctx, _ any, _ []work.Node) work.Node {
+func wrapComponent(component Component) func(*runtime.Ctx, any, []work.Item) work.Node {
+	return func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
 		return component(ctx)
 	}
 }
 
-func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Node) work.Node {
+func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Item) work.Node {
 	app := wrapComponent(props.component)
 
 	return headers.Provider(ctx, props.requestState,
@@ -57,8 +57,8 @@ func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Node) work.Node {
 	)
 }
 
-func loadBootComponent(liveSession *LiveSession, component Component, clientAsset string) func(*runtime.Ctx, any, []work.Node) work.Node {
-	return func(ctx *runtime.Ctx, _ any, children []work.Node) work.Node {
+func loadBootComponent(liveSession *LiveSession, component Component, clientAsset string) func(*runtime.Ctx, any, []work.Item) work.Node {
+	return func(ctx *runtime.Ctx, _ any, children []work.Item) work.Node {
 		var requestState *headers.RequestState
 		if liveSession != nil {
 			liveSession.transportMu.RLock()

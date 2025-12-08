@@ -76,7 +76,13 @@ func (inst *Instance) Render(sess *Session, parentCtx context.Context) work.Node
 			}
 		}()
 
-		node = callComponent(inst.Fn, ctx, inst.Props, inst.InputChildren)
+		combinedChildren := make([]work.Item, 0, len(inst.InputChildren)+len(inst.InputAttrs))
+		for _, child := range inst.InputChildren {
+			combinedChildren = append(combinedChildren, child)
+		}
+		combinedChildren = append(combinedChildren, inst.InputAttrs...)
+
+		node = callComponent(inst.Fn, ctx, inst.Props, combinedChildren)
 	}()
 
 	if renderErr != nil {
@@ -99,8 +105,8 @@ func (inst *Instance) Render(sess *Session, parentCtx context.Context) work.Node
 	return node
 }
 
-func callComponent(fn any, ctx *Ctx, props any, children []work.Node) work.Node {
-	if f, ok := fn.(func(*Ctx, any, []work.Node) work.Node); ok {
+func callComponent(fn any, ctx *Ctx, props any, children []work.Item) work.Node {
+	if f, ok := fn.(func(*Ctx, any, []work.Item) work.Node); ok {
 		return f(ctx, props, children)
 	}
 
@@ -142,10 +148,10 @@ func callComponent(fn any, ctx *Ctx, props any, children []work.Node) work.Node 
 				}
 			}
 		case 2:
-			if paramType == reflect.TypeOf([]work.Node{}) {
+			if paramType == reflect.TypeOf([]work.Item{}) {
 				args[i] = reflect.ValueOf(children)
 			} else {
-				panic(fmt.Sprintf("runtime: third parameter must be []work.Node, got %v", paramType))
+				panic(fmt.Sprintf("runtime: third parameter must be []work.Item, got %v", paramType))
 			}
 		default:
 			panic(fmt.Sprintf("runtime: component has too many parameters (%d)", numIn))

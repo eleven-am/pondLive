@@ -2,6 +2,8 @@ package pkg
 
 import (
 	"net/http"
+	"sync/atomic"
+	"time"
 
 	"github.com/eleven-am/pondlive/internal/document"
 	"github.com/eleven-am/pondlive/internal/headers"
@@ -119,4 +121,41 @@ func UseMetaTags(ctx *Ctx, meta *Meta) {
 
 func UseDocument(ctx *Ctx, doc *Document) {
 	document.UseDocument(ctx, doc)
+}
+
+func UseHydrated(ctx *Ctx, fn func() func(), deps ...any) {
+	isLive := headers.UseIsLive(ctx)
+	wasLiveOnMount := runtime.UseRef(ctx, isLive)
+
+	allDeps := append([]any{isLive}, deps...)
+
+	runtime.UseEffect(ctx, func() func() {
+		if !isLive {
+			return nil
+		}
+
+		if !wasLiveOnMount.Current {
+			return fn()
+		}
+
+		var cancelled atomic.Bool
+		var cleanupFn atomic.Pointer[func()]
+
+		timer := time.AfterFunc(50*time.Millisecond, func() {
+			if cancelled.Load() {
+				return
+			}
+			if cleanup := fn(); cleanup != nil {
+				cleanupFn.Store(&cleanup)
+			}
+		})
+
+		return func() {
+			cancelled.Store(true)
+			timer.Stop()
+			if c := cleanupFn.Load(); c != nil {
+				(*c)()
+			}
+		}
+	}, allDeps...)
 }

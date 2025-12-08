@@ -22,7 +22,7 @@ func TestMemoizedParentNotUnmounted(t *testing.T) {
 
 	parent := &Instance{
 		ID:                 "parent",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		Children:           []*Instance{},
 		ReferencedChildren: make(map[string]bool),
@@ -31,7 +31,7 @@ func TestMemoizedParentNotUnmounted(t *testing.T) {
 
 	child := &Instance{
 		ID:                 "child",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		Parent:             parent,
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
@@ -88,7 +88,7 @@ func TestActualUnmountStillWorks(t *testing.T) {
 
 	parent := &Instance{
 		ID:                 "parent",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		Children:           []*Instance{},
 		ReferencedChildren: make(map[string]bool),
@@ -96,7 +96,7 @@ func TestActualUnmountStillWorks(t *testing.T) {
 
 	child := &Instance{
 		ID:        "child",
-		Fn:        func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:        func(*Ctx, any, []work.Item) work.Node { return nil },
 		Parent:    parent,
 		HookFrame: []HookSlot{},
 	}
@@ -142,7 +142,7 @@ func TestEffectRunsOutsideLock(t *testing.T) {
 
 	inst := &Instance{
 		ID:                 "test",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
@@ -201,7 +201,7 @@ func TestEffectCleanupRunsOutsideLock(t *testing.T) {
 
 	inst := &Instance{
 		ID:        "test",
-		Fn:        func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:        func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame: []HookSlot{},
 	}
 	sess.Root = inst
@@ -254,7 +254,7 @@ func TestConcurrentFlushAndMarkDirty(t *testing.T) {
 
 	inst := &Instance{
 		ID:                 "test",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
@@ -324,7 +324,7 @@ func TestSetAutoFlush(t *testing.T) {
 
 	sess.Root = &Instance{
 		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
@@ -355,7 +355,7 @@ func TestRequestFlushWithoutCallback(t *testing.T) {
 
 	inst := &Instance{
 		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
@@ -381,7 +381,7 @@ func TestRequestFlushBatching(t *testing.T) {
 
 	inst := &Instance{
 		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
@@ -419,7 +419,7 @@ func TestFlushGuardPreventsReentrant(t *testing.T) {
 
 	inst := &Instance{
 		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
@@ -480,7 +480,7 @@ func TestIsFlushing(t *testing.T) {
 
 	inst := &Instance{
 		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
@@ -523,7 +523,7 @@ func TestIsFlushPending(t *testing.T) {
 
 	sess.Root = &Instance{
 		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
@@ -583,7 +583,7 @@ func TestRequestFlushDuringFlushTriggersReflush(t *testing.T) {
 
 	inst := &Instance{
 		ID: "root",
-		Fn: func(*Ctx, any, []work.Node) work.Node {
+		Fn: func(*Ctx, any, []work.Item) work.Node {
 			renderCount.Add(1)
 			return nil
 		},
@@ -627,7 +627,7 @@ func TestConcurrentRequestFlush(t *testing.T) {
 
 	inst := &Instance{
 		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
@@ -725,7 +725,7 @@ func TestChildrenSliceConcurrentAccess(t *testing.T) {
 
 	root := &Instance{
 		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		Children:           []*Instance{},
 		ReferencedChildren: make(map[string]bool),
@@ -736,7 +736,7 @@ func TestChildrenSliceConcurrentAccess(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		child := &Instance{
 			ID:                 "child-" + string(rune('0'+i)),
-			Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+			Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 			Parent:             root,
 			HookFrame:          []HookSlot{},
 			ReferencedChildren: make(map[string]bool),
@@ -801,7 +801,7 @@ func TestPruneUnreferencedChildrenConcurrentSafety(t *testing.T) {
 
 	root := &Instance{
 		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 		HookFrame:          []HookSlot{},
 		Children:           []*Instance{},
 		ReferencedChildren: make(map[string]bool),
@@ -813,7 +813,7 @@ func TestPruneUnreferencedChildrenConcurrentSafety(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		child := &Instance{
 			ID:                 "child-" + string(rune('0'+i)),
-			Fn:                 func(*Ctx, any, []work.Node) work.Node { return nil },
+			Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
 			Parent:             root,
 			HookFrame:          []HookSlot{},
 			ReferencedChildren: make(map[string]bool),

@@ -48,3 +48,10 @@ func (c *Ctx) ComponentDepth() int {
 func NewCtxForTest(inst *Instance, sess *Session) *Ctx {
 	return &Ctx{instance: inst, session: sess, goCtx: context.Background()}
 }
+
+func (c *Ctx) SessionID() string {
+	if c == nil || c.session == nil {
+		return ""
+	}
+	return c.session.SessionID
+}

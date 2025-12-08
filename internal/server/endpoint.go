@@ -99,10 +99,11 @@ func (e *Endpoint) onJoin(ctx *pond.JoinContext) error {
 		return err
 	}
 
-	if err := sess.Flush(); err != nil {
-		e.registry.Detach(user.UserID)
-		return err
-	}
+	go func() {
+		if err := sess.Flush(); err != nil {
+			e.registry.Detach(user.UserID)
+		}
+	}()
 
 	return nil
 }

@@ -27,6 +27,14 @@ func Replace(ctx *Ctx, href string) {
 	router.Replace(ctx, href)
 }
 
+func NavigateWith(ctx *Ctx, fn func(Location) Location) {
+	router.NavigateWith(ctx, fn)
+}
+
+func ReplaceWith(ctx *Ctx, fn func(Location) Location) {
+	router.ReplaceWith(ctx, fn)
+}
+
 func Back(ctx *Ctx) {
 	router.Back(ctx)
 }
@@ -49,6 +57,10 @@ func UseRouteParam(ctx *Ctx, key string) string {
 
 func UseMatch(ctx *Ctx) *MatchState {
 	return router.UseMatch(ctx)
+}
+
+func UseSearchParam(ctx *Ctx, key string) (string, func(string)) {
+	return router.UseSearchParam(ctx, key)
 }
 
 func UseMatched(ctx *Ctx) bool {

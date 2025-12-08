@@ -37,6 +37,7 @@ type Comment struct {
 
 type Fragment struct {
 	Children []Node
+	Attrs    []Item
 	Metadata map[string]any
 }
 
@@ -44,6 +45,7 @@ type ComponentNode struct {
 	Fn            any
 	Props         any
 	InputChildren []Node
+	InputAttrs    []Item
 	Key           string
 	IdentityPtr   uintptr
 }
@@ -67,6 +69,9 @@ func (c *Comment) ApplyTo(parent *Element) {
 }
 
 func (f *Fragment) ApplyTo(parent *Element) {
+	for _, attr := range f.Attrs {
+		attr.ApplyTo(parent)
+	}
 	parent.Children = append(parent.Children, f)
 }
 

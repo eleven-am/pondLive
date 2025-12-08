@@ -10,7 +10,7 @@ import (
 
 func TestFlushRendersRootComponent(t *testing.T) {
 
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return work.BuildElement("div", work.NewText("Hello World"))
 	}
 
@@ -62,7 +62,7 @@ func TestFlushRendersRootComponent(t *testing.T) {
 
 func TestFlushRegistersHandlers(t *testing.T) {
 
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		handler := work.Handler{
 			Fn: func(evt work.Event) work.Updates {
 				return nil
@@ -126,7 +126,7 @@ func TestFlushRegistersHandlers(t *testing.T) {
 
 func TestFlushWithStatefulComponent(t *testing.T) {
 
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		count, setCount := UseState(ctx, 0)
 		_ = setCount
 		return work.BuildElement("div", work.NewTextf("%d", count))
@@ -167,12 +167,12 @@ func TestFlushWithStatefulComponent(t *testing.T) {
 
 func TestFlushHandlesNestedComponents(t *testing.T) {
 
-	childComponent := func(ctx *Ctx, props any, _ []work.Node) work.Node {
+	childComponent := func(ctx *Ctx, props any, _ []work.Item) work.Node {
 		msg := props.(string)
 		return work.BuildElement("span", work.NewText(msg))
 	}
 
-	parentComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return work.BuildElement("div",
 			work.PropsComponent(childComponent, "Hello from child"),
 		)
@@ -252,7 +252,7 @@ func TestFlushHandlesNestedComponents(t *testing.T) {
 
 func TestFlushHandlesFragments(t *testing.T) {
 
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return work.NewFragment(
 			work.BuildElement("span", work.NewText("First")),
 			work.BuildElement("span", work.NewText("Second")),
@@ -312,13 +312,13 @@ func TestPropsMemoization(t *testing.T) {
 
 	childRenderCount := 0
 
-	childComponent := func(ctx *Ctx, props any, _ []work.Node) work.Node {
+	childComponent := func(ctx *Ctx, props any, _ []work.Item) work.Node {
 		childRenderCount++
 		msg := props.(string)
 		return work.BuildElement("span", work.NewText(msg))
 	}
 
-	parentComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return work.BuildElement("div",
 			work.PropsComponent(childComponent, "Hello"),
 		)
@@ -364,13 +364,13 @@ func TestPropsMemoizationWithChangedProps(t *testing.T) {
 	childRenderCount := 0
 	currentMsg := "Hello"
 
-	childComponent := func(ctx *Ctx, props any, _ []work.Node) work.Node {
+	childComponent := func(ctx *Ctx, props any, _ []work.Item) work.Node {
 		childRenderCount++
 		msg := props.(string)
 		return work.BuildElement("span", work.NewText(msg))
 	}
 
-	parentComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return work.BuildElement("div",
 			work.PropsComponent(childComponent, currentMsg),
 		)
@@ -428,13 +428,13 @@ func TestPropsMemoizationWithStructProps(t *testing.T) {
 	childRenderCount := 0
 	currentProps := ChildProps{Name: "Alice", Count: 1}
 
-	childComponent := func(ctx *Ctx, props any, _ []work.Node) work.Node {
+	childComponent := func(ctx *Ctx, props any, _ []work.Item) work.Node {
 		childRenderCount++
 		p := props.(ChildProps)
 		return work.BuildElement("span", work.NewTextf("%s: %d", p.Name, p.Count))
 	}
 
-	parentComponent := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		return work.BuildElement("div",
 			work.PropsComponent(childComponent, currentProps),
 		)
@@ -524,7 +524,7 @@ func TestPropsEqual(t *testing.T) {
 }
 
 func TestFlushRegistersHandlersViaHTMLHelpers(t *testing.T) {
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		btn := work.BuildElement("button",
 			work.NewText("Click me"),
 		)
@@ -593,7 +593,7 @@ func TestFlushRegistersHandlersViaHTMLHelpers(t *testing.T) {
 }
 
 func TestExtractMetadataIncludesNestedHandlers(t *testing.T) {
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		btn := work.BuildElement("button", work.NewText("Click"))
 		btn.Handlers = map[string]work.Handler{
 			"click": {Fn: func(evt work.Event) work.Updates { return nil }},
@@ -629,7 +629,7 @@ func TestExtractMetadataIncludesNestedHandlers(t *testing.T) {
 }
 
 func TestHtmlHelpersWithOnHandler(t *testing.T) {
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		btn := work.BuildElement("button", work.NewText("Click"))
 		btn.Handlers["click"] = work.Handler{Fn: func(evt work.Event) work.Updates { return nil }}
 		return work.BuildElement("div", btn)
@@ -669,7 +669,7 @@ func TestHtmlHelpersWithOnHandler(t *testing.T) {
 }
 
 func TestExtractMetadataIncludesHandlerPatches(t *testing.T) {
-	component := func(ctx *Ctx, _ any, _ []work.Node) work.Node {
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
 		btn := work.BuildElement("button", work.NewText("Click"))
 		btn.Handlers["click"] = work.Handler{Fn: func(evt work.Event) work.Updates { return nil }}
 		return work.BuildElement("div", btn)

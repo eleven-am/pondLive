@@ -8,7 +8,7 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-type ComponentNode[P any] func(*Ctx, P, []work.Node) work.Node
+type ComponentNode[P any] func(*Ctx, P, []work.Item) work.Node
 
 type ComponentError struct {
 	Message     string
@@ -27,6 +27,7 @@ type Instance struct {
 	Props         any
 	PrevProps     any
 	InputChildren []work.Node
+	InputAttrs    []work.Item
 
 	HookFrame []HookSlot
 	Parent    *Instance

@@ -39,3 +39,27 @@ func UseQuery(ctx *runtime.Ctx) url.Values {
 	loc := UseLocation(ctx)
 	return loc.Query
 }
+
+func UseSearchParam(ctx *runtime.Ctx, key string) (string, func(string)) {
+	loc := UseLocation(ctx)
+	value := ""
+	if loc.Query != nil {
+		value = loc.Query.Get(key)
+	}
+
+	setValue := func(newValue string) {
+		ReplaceWith(ctx, func(current Location) Location {
+			if current.Query == nil {
+				current.Query = url.Values{}
+			}
+			if newValue == "" {
+				current.Query.Del(key)
+			} else {
+				current.Query.Set(key, newValue)
+			}
+			return current
+		})
+	}
+
+	return value, setValue
+}
