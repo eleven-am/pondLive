@@ -24,10 +24,11 @@ type Instance struct {
 	Fn  any
 	Key string
 
-	Props         any
-	PrevProps     any
-	InputChildren []work.Node
-	InputAttrs    []work.Item
+	Props             any
+	PrevProps         any
+	InputChildren     []work.Node
+	PrevInputChildren []work.Node
+	InputAttrs        []work.Item
 
 	HookFrame []HookSlot
 	Parent    *Instance
@@ -78,6 +79,7 @@ const (
 	HookTypeScript
 	HookTypeStyles
 	HookTypeErrorBoundary
+	HookTypeChannel
 )
 
 type HookSlot struct {

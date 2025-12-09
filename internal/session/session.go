@@ -287,6 +287,13 @@ func (s *LiveSession) Bus() *protocol.Bus {
 	return s.session.Bus
 }
 
+func (s *LiveSession) ChannelManager() *runtime.ChannelManager {
+	if s == nil || s.session == nil {
+		return nil
+	}
+	return s.session.ChannelManager()
+}
+
 func (s *LiveSession) SetAutoFlush(fn func()) {
 	if s == nil || s.session == nil {
 		return

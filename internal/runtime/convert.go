@@ -100,6 +100,8 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 		needsRender = true
 	} else if !propsEqual(inst.PrevProps, comp.Props) {
 		needsRender = true
+	} else if inputChildrenChanged(inst.PrevInputChildren, comp.InputChildren) {
+		needsRender = true
 	} else if childNeedsContextRender(inst, parent) {
 		needsRender = true
 	}
@@ -122,6 +124,99 @@ func propsEqual(a, b any) bool {
 		return false
 	}
 	return reflect.DeepEqual(a, b)
+}
+
+func inputChildrenChanged(prev, curr []work.Node) bool {
+	if len(prev) != len(curr) {
+		return true
+	}
+
+	for i := range prev {
+		if nodeChanged(prev[i], curr[i]) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func nodeChanged(prev, curr work.Node) bool {
+	if prev == nil && curr == nil {
+		return false
+	}
+	if prev == nil || curr == nil {
+		return true
+	}
+
+	switch p := prev.(type) {
+	case *work.ComponentNode:
+		c, ok := curr.(*work.ComponentNode)
+		if !ok {
+			return true
+		}
+		if p.Key != c.Key {
+			return true
+		}
+		if !depsValueEqual(p.Props, c.Props) {
+			return true
+		}
+		if inputChildrenChanged(p.InputChildren, c.InputChildren) {
+			return true
+		}
+
+	case *work.Element:
+		c, ok := curr.(*work.Element)
+		if !ok {
+			return true
+		}
+		if p.Tag != c.Tag || p.Key != c.Key {
+			return true
+		}
+		if !reflect.DeepEqual(p.Attrs, c.Attrs) {
+			return true
+		}
+		if !reflect.DeepEqual(p.Style, c.Style) {
+			return true
+		}
+		if p.UnsafeHTML != c.UnsafeHTML {
+			return true
+		}
+		if inputChildrenChanged(p.Children, c.Children) {
+			return true
+		}
+
+	case *work.Text:
+		c, ok := curr.(*work.Text)
+		if !ok {
+			return true
+		}
+		if p.Value != c.Value {
+			return true
+		}
+
+	case *work.Comment:
+		c, ok := curr.(*work.Comment)
+		if !ok {
+			return true
+		}
+		if p.Value != c.Value {
+			return true
+		}
+
+	case *work.Fragment:
+		c, ok := curr.(*work.Fragment)
+		if !ok {
+			return true
+		}
+		if inputChildrenChanged(p.Children, c.Children) {
+			return true
+		}
+
+	default:
+		return !reflect.DeepEqual(prev, curr)
+	}
+
+	return false
 }
 
 func childNeedsContextRender(child *Instance, parent *Instance) bool {
@@ -220,10 +315,6 @@ func (s *Session) registerHandler(inst *Instance, elem *work.Element, event stri
 	}
 	if s.allHandlerSubs == nil {
 		s.allHandlerSubs = make(map[string]*protocol.Subscription)
-	}
-
-	if oldSub := s.allHandlerSubs[handlerID]; oldSub != nil {
-		oldSub.Unsubscribe()
 	}
 
 	sub := s.Bus.SubscribeToHandlerInvoke(handlerID, func(data interface{}) {

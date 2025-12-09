@@ -40,6 +40,8 @@ type Config struct {
 	IDGenerator func(*http.Request) (session.SessionID, error)
 
 	Context context.Context
+
+	PubSub pond.PubSub
 }
 
 func New(cfg Config) (*App, error) {
@@ -52,13 +54,18 @@ func New(cfg Config) (*App, error) {
 		ctx = context.Background()
 	}
 
+	pondOpts := pond.DefaultOptions()
+	if cfg.PubSub != nil {
+		pondOpts.PubSub = cfg.PubSub
+	}
+
 	app := &App{
 		component:     cfg.Component,
 		registry:      NewSessionRegistry(),
 		version:       1,
 		idGenerator:   defaultSessionID,
 		clientAsset:   "/static/pondlive.js",
-		pondManager:   pond.NewManager(ctx),
+		pondManager:   pond.NewManager(ctx, *pondOpts),
 		sessionConfig: &session.Config{},
 		mux:           http.NewServeMux(),
 	}
@@ -121,6 +128,15 @@ func (a *App) Server(addr string) *http.Server {
 
 func (a *App) Registry() *SessionRegistry {
 	return a.registry
+}
+
+func (a *App) Broadcast(channelName, event string, payload interface{}) error {
+	pondName := PondChannelName(channelName)
+	channel, err := a.endpoint.pubsubLobby.lobby.GetChannel(pondName)
+	if err != nil {
+		return err
+	}
+	return channel.Broadcast(event, payload)
 }
 
 func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {

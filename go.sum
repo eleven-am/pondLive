@@ -1,5 +1,7 @@
 github.com/eleven-am/pondsocket/go/pondsocket v0.1.3 h1:Ee+zJm3/NHHccss3Ai8kOwgHerCucirTwHH24cJ7w3Y=
 github.com/eleven-am/pondsocket/go/pondsocket v0.1.3/go.mod h1:XQRaa9fHBb3UWPnfYKiBXqZee2kRp48s95LWGVdtQQA=
+github.com/eleven-am/pondsocket/go/pondsocket v0.1.4 h1:m/80QXjF6pOqv6d6zUpI6PdSx6DYSLTVDu2e3z84aNw=
+github.com/eleven-am/pondsocket/go/pondsocket v0.1.4/go.mod h1:08qdfnCCHP035fIsaGaK2DkY8IvCfoSSFL5kGEaKkiI=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=

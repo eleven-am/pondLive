@@ -256,6 +256,7 @@ func (inst *Instance) EnsureChild(sess *Session, fn any, key string, props any, 
 
 	child.PrevProps = child.Props
 	child.Props = props
+	child.PrevInputChildren = child.InputChildren
 	child.InputChildren = children
 
 	return child

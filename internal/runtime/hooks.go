@@ -377,3 +377,54 @@ func UseErrorBoundary(ctx *Ctx) *ComponentError {
 
 	return childErr
 }
+
+type channelCell struct {
+	channel *Channel
+}
+
+func UseChannel(ctx *Ctx, channelName string) *Channel {
+	if ctx == nil || ctx.instance == nil || ctx.session == nil {
+		return nil
+	}
+
+	idx := ctx.hookIndex
+	ctx.hookIndex++
+
+	isMount := idx >= len(ctx.instance.HookFrame)
+
+	if isMount {
+		ctx.instance.HookFrame = append(ctx.instance.HookFrame, HookSlot{
+			Type:  HookTypeChannel,
+			Value: &channelCell{},
+		})
+	}
+
+	cell, ok := ctx.instance.HookFrame[idx].Value.(*channelCell)
+	if !ok {
+		panic("runtime: UseChannel hook mismatch")
+	}
+
+	if isMount {
+		mgr := ctx.session.ChannelManager()
+		if mgr == nil {
+			return nil
+		}
+
+		ref := mgr.Join(channelName)
+		ch := newChannel(ref)
+		cell.channel = ch
+
+		sub := ch.subscribeToBus(ctx.session.Bus)
+
+		ctx.instance.RegisterCleanup(func() {
+			if sub != nil {
+				sub.Unsubscribe()
+			}
+			mgr.Leave(channelName)
+		})
+	}
+
+	cell.channel.resetHandlers()
+
+	return cell.channel
+}

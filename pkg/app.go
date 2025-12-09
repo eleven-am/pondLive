@@ -7,6 +7,7 @@ import (
 
 	"github.com/eleven-am/pondlive/internal/server"
 	"github.com/eleven-am/pondlive/internal/session"
+	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 )
 
 type App = server.App
@@ -16,6 +17,7 @@ type appConfig struct {
 	sessionConfig *session.Config
 	idGenerator   func(*http.Request) (session.SessionID, error)
 	ctx           context.Context
+	pubsub        pond.PubSub
 }
 
 type AppOption func(*appConfig)
@@ -68,6 +70,12 @@ func WithContext(ctx context.Context) AppOption {
 	}
 }
 
+func WithPubSub(pubsub PubSub) AppOption {
+	return func(c *appConfig) {
+		c.pubsub = pubsub
+	}
+}
+
 func NewApp(component func(*Ctx) Node, opts ...AppOption) (*App, error) {
 	cfg := &appConfig{}
 
@@ -81,6 +89,7 @@ func NewApp(component func(*Ctx) Node, opts ...AppOption) (*App, error) {
 		SessionConfig: cfg.sessionConfig,
 		IDGenerator:   cfg.idGenerator,
 		Context:       cfg.ctx,
+		PubSub:        cfg.pubsub,
 	}
 
 	return server.New(serverCfg)

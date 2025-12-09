@@ -29,6 +29,8 @@ type Session struct {
 
 	Bus *protocol.Bus
 
+	channelManager *ChannelManager
+
 	domReqMgr   *domRequestManager
 	domReqMgrMu sync.Mutex
 	domTimeout  time.Duration
@@ -153,6 +155,11 @@ func (s *Session) Close() {
 	}
 	s.domReqMgrMu.Unlock()
 
+	if s.channelManager != nil {
+		s.channelManager.Close()
+		s.channelManager = nil
+	}
+
 	s.Root = nil
 	s.View = nil
 	s.PrevView = nil
@@ -171,6 +178,18 @@ func (s *Session) SetDevMode(enabled bool) {
 	s.mu.Lock()
 	s.devMode = enabled
 	s.mu.Unlock()
+}
+
+func (s *Session) ChannelManager() *ChannelManager {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.channelManager == nil && s.Bus != nil && s.SessionID != "" {
+		s.channelManager = NewChannelManager(s.SessionID, s.Bus)
+	}
+	return s.channelManager
 }
 
 func (s *Session) withRecovery(phase string, fn func() error) error {

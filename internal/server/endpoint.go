@@ -10,8 +10,9 @@ import (
 )
 
 type Endpoint struct {
-	registry *SessionRegistry
-	endpoint *pond.Endpoint
+	registry    *SessionRegistry
+	endpoint    *pond.Endpoint
+	pubsubLobby *PubSubLobby
 }
 
 const (
@@ -37,6 +38,7 @@ func Register(srv *pond.Manager, path string, registry *SessionRegistry) (*Endpo
 		endpoint: endpoint,
 	}
 	e.configure()
+	e.pubsubLobby = NewPubSubLobby(endpoint, registry)
 
 	return e, nil
 }
