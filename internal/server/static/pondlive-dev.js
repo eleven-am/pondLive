@@ -520,6 +520,21 @@ var LiveUIModule = (() => {
     }
   });
 
+  // node_modules/@eleven-am/pondsocket-client/types.js
+  var require_types2 = __commonJS({
+    "node_modules/@eleven-am/pondsocket-client/types.js"(exports) {
+      "use strict";
+      Object.defineProperty(exports, "__esModule", { value: true });
+      exports.ConnectionState = void 0;
+      var ConnectionState3;
+      (function(ConnectionState4) {
+        ConnectionState4["DISCONNECTED"] = "disconnected";
+        ConnectionState4["CONNECTING"] = "connecting";
+        ConnectionState4["CONNECTED"] = "connected";
+      })(ConnectionState3 || (exports.ConnectionState = ConnectionState3 = {}));
+    }
+  });
+
   // node_modules/@eleven-am/pondsocket-client/core/channel.js
   var require_channel = __commonJS({
     "node_modules/@eleven-am/pondsocket-client/core/channel.js"(exports) {
@@ -553,6 +568,7 @@ var LiveUIModule = (() => {
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.Channel = void 0;
       var pondsocket_common_1 = require_pondsocket_common();
+      var types_1 = require_types2();
       var Channel = class {
         constructor(publisher, clientState, name, params) {
           _Channel_instances.add(this);
@@ -612,11 +628,11 @@ var LiveUIModule = (() => {
             return;
           }
           __classPrivateFieldGet(this, _Channel_joinState, "f").publish(pondsocket_common_1.ChannelState.JOINING);
-          if (__classPrivateFieldGet(this, _Channel_clientState, "f").value) {
+          if (__classPrivateFieldGet(this, _Channel_clientState, "f").value === types_1.ConnectionState.CONNECTED) {
             __classPrivateFieldGet(this, _Channel_publisher, "f").call(this, message);
           } else {
             const unsubscribe = __classPrivateFieldGet(this, _Channel_clientState, "f").subscribe((state) => {
-              if (state) {
+              if (state === types_1.ConnectionState.CONNECTED) {
                 unsubscribe();
                 if (__classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.JOINING) {
                   __classPrivateFieldGet(this, _Channel_publisher, "f").call(this, message);
@@ -763,7 +779,7 @@ var LiveUIModule = (() => {
           }
         });
         const unsubStateChange = __classPrivateFieldGet(this, _Channel_clientState, "f").subscribe((state) => {
-          if (state && __classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.STALLED) {
+          if (state === types_1.ConnectionState.CONNECTED && __classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.STALLED) {
             const message = {
               action: pondsocket_common_1.ClientActions.JOIN_CHANNEL,
               event: pondsocket_common_1.ClientActions.JOIN_CHANNEL,
@@ -772,7 +788,7 @@ var LiveUIModule = (() => {
               requestId: (0, pondsocket_common_1.uuid)()
             };
             __classPrivateFieldGet(this, _Channel_publisher, "f").call(this, message);
-          } else if (!state && __classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.JOINED) {
+          } else if (state !== types_1.ConnectionState.CONNECTED && __classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.JOINED) {
             __classPrivateFieldGet(this, _Channel_joinState, "f").publish(pondsocket_common_1.ChannelState.STALLED);
           }
         });
@@ -822,6 +838,7 @@ var LiveUIModule = (() => {
       };
       var _PondClient_instances;
       var _PondClient_channels;
+      var _PondClient_clearTimeouts;
       var _PondClient_createPublisher;
       var _PondClient_handleAcknowledge;
       var _PondClient_init;
@@ -829,8 +846,12 @@ var LiveUIModule = (() => {
       exports.PondClient = void 0;
       var pondsocket_common_1 = require_pondsocket_common();
       var channel_1 = require_channel();
+      var types_1 = require_types2();
+      var DEFAULT_CONNECTION_TIMEOUT = 1e4;
+      var DEFAULT_MAX_RECONNECT_DELAY = 3e4;
       var PondClient2 = class {
-        constructor(endpoint, params = {}) {
+        constructor(endpoint, params = {}, options = {}) {
+          var _a, _b;
           _PondClient_instances.add(this);
           _PondClient_channels.set(this, void 0);
           let address;
@@ -841,6 +862,7 @@ var LiveUIModule = (() => {
             address.pathname = endpoint;
           }
           this._disconnecting = false;
+          this._reconnectAttempts = 0;
           const query = new URLSearchParams(params);
           address.search = query.toString();
           const protocol = address.protocol === "https:" ? "wss:" : "ws:";
@@ -848,9 +870,15 @@ var LiveUIModule = (() => {
             address.protocol = protocol;
           }
           this._address = address;
+          this._options = {
+            connectionTimeout: (_a = options.connectionTimeout) !== null && _a !== void 0 ? _a : DEFAULT_CONNECTION_TIMEOUT,
+            maxReconnectDelay: (_b = options.maxReconnectDelay) !== null && _b !== void 0 ? _b : DEFAULT_MAX_RECONNECT_DELAY,
+            pingInterval: options.pingInterval
+          };
           __classPrivateFieldSet(this, _PondClient_channels, /* @__PURE__ */ new Map(), "f");
           this._broadcaster = new pondsocket_common_1.Subject();
-          this._connectionState = new pondsocket_common_1.BehaviorSubject(false);
+          this._connectionState = new pondsocket_common_1.BehaviorSubject(types_1.ConnectionState.DISCONNECTED);
+          this._errorSubject = new pondsocket_common_1.Subject();
           __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_init).call(this);
         }
         /**
@@ -858,7 +886,26 @@ var LiveUIModule = (() => {
          */
         connect() {
           this._disconnecting = false;
+          this._connectionState.publish(types_1.ConnectionState.CONNECTING);
           const socket = new WebSocket(this._address.toString());
+          this._connectionTimeoutId = setTimeout(() => {
+            if (socket.readyState === WebSocket.CONNECTING) {
+              const error = new Error("Connection timeout");
+              this._errorSubject.publish(error);
+              socket.close();
+            }
+          }, this._options.connectionTimeout);
+          socket.onopen = () => {
+            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
+            this._reconnectAttempts = 0;
+            if (this._options.pingInterval) {
+              this._pingIntervalId = setInterval(() => {
+                if (socket.readyState === WebSocket.OPEN) {
+                  socket.send(JSON.stringify({ action: "ping" }));
+                }
+              }, this._options.pingInterval);
+            }
+          };
           socket.onmessage = (message) => {
             const lines = message.data.trim().split("\n");
             for (const line of lines) {
@@ -869,15 +916,22 @@ var LiveUIModule = (() => {
               }
             }
           };
-          socket.onerror = () => socket.close();
+          socket.onerror = (event) => {
+            const error = new Error("WebSocket error");
+            this._errorSubject.publish(error);
+            socket.close();
+          };
           socket.onclose = () => {
-            this._connectionState.publish(false);
+            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
+            this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
             if (this._disconnecting) {
               return;
             }
+            const delay = Math.min(1e3 * Math.pow(2, this._reconnectAttempts), this._options.maxReconnectDelay);
+            this._reconnectAttempts++;
             setTimeout(() => {
               this.connect();
-            }, 1e3);
+            }, delay);
           };
           this._socket = socket;
         }
@@ -892,8 +946,9 @@ var LiveUIModule = (() => {
          */
         disconnect() {
           var _a;
-          this._connectionState.publish(false);
+          __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
           this._disconnecting = true;
+          this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
           (_a = this._socket) === null || _a === void 0 ? void 0 : _a.close();
           __classPrivateFieldGet(this, _PondClient_channels, "f").clear();
         }
@@ -919,11 +974,27 @@ var LiveUIModule = (() => {
         onConnectionChange(callback) {
           return this._connectionState.subscribe(callback);
         }
+        /**
+         * @desc Subscribes to connection errors.
+         * @param callback - The callback to call when an error occurs.
+         */
+        onError(callback) {
+          return this._errorSubject.subscribe(callback);
+        }
       };
       exports.PondClient = PondClient2;
-      _PondClient_channels = /* @__PURE__ */ new WeakMap(), _PondClient_instances = /* @__PURE__ */ new WeakSet(), _PondClient_createPublisher = function _PondClient_createPublisher2() {
+      _PondClient_channels = /* @__PURE__ */ new WeakMap(), _PondClient_instances = /* @__PURE__ */ new WeakSet(), _PondClient_clearTimeouts = function _PondClient_clearTimeouts2() {
+        if (this._connectionTimeoutId) {
+          clearTimeout(this._connectionTimeoutId);
+          this._connectionTimeoutId = void 0;
+        }
+        if (this._pingIntervalId) {
+          clearInterval(this._pingIntervalId);
+          this._pingIntervalId = void 0;
+        }
+      }, _PondClient_createPublisher = function _PondClient_createPublisher2() {
         return (message) => {
-          if (this._connectionState.value) {
+          if (this._connectionState.value === types_1.ConnectionState.CONNECTED) {
             this._socket.send(JSON.stringify(message));
           }
         };
@@ -937,7 +1008,206 @@ var LiveUIModule = (() => {
           if (message.event === pondsocket_common_1.Events.ACKNOWLEDGE) {
             __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_handleAcknowledge).call(this, message);
           } else if (message.event === pondsocket_common_1.Events.CONNECTION && message.action === pondsocket_common_1.ServerActions.CONNECT) {
-            this._connectionState.publish(true);
+            this._connectionState.publish(types_1.ConnectionState.CONNECTED);
+          }
+        });
+      };
+    }
+  });
+
+  // node_modules/@eleven-am/pondsocket-client/browser/sseClient.js
+  var require_sseClient = __commonJS({
+    "node_modules/@eleven-am/pondsocket-client/browser/sseClient.js"(exports) {
+      "use strict";
+      var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
+        if (kind === "m") throw new TypeError("Private method is not writable");
+        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+        return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+      };
+      var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
+        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+        return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+      };
+      var _SSEClient_instances;
+      var _SSEClient_channels;
+      var _SSEClient_handleMessage;
+      var _SSEClient_clearTimeout;
+      var _SSEClient_createPublisher;
+      var _SSEClient_handleAcknowledge;
+      var _SSEClient_init;
+      Object.defineProperty(exports, "__esModule", { value: true });
+      exports.SSEClient = void 0;
+      var pondsocket_common_1 = require_pondsocket_common();
+      var channel_1 = require_channel();
+      var types_1 = require_types2();
+      var DEFAULT_CONNECTION_TIMEOUT = 1e4;
+      var DEFAULT_MAX_RECONNECT_DELAY = 3e4;
+      var SSEClient = class {
+        constructor(endpoint, params = {}, options = {}) {
+          var _a, _b;
+          _SSEClient_instances.add(this);
+          _SSEClient_channels.set(this, void 0);
+          let address;
+          try {
+            address = new URL(endpoint);
+          } catch (e) {
+            address = new URL(window.location.toString());
+            address.pathname = endpoint;
+          }
+          this._disconnecting = false;
+          this._reconnectAttempts = 0;
+          const query = new URLSearchParams(params);
+          address.search = query.toString();
+          if (address.protocol !== "https:" && address.protocol !== "http:") {
+            address.protocol = window.location.protocol;
+          }
+          this._address = address;
+          this._postAddress = new URL(address.toString());
+          this._options = {
+            connectionTimeout: (_a = options.connectionTimeout) !== null && _a !== void 0 ? _a : DEFAULT_CONNECTION_TIMEOUT,
+            maxReconnectDelay: (_b = options.maxReconnectDelay) !== null && _b !== void 0 ? _b : DEFAULT_MAX_RECONNECT_DELAY,
+            pingInterval: options.pingInterval,
+            withCredentials: options.withCredentials
+          };
+          __classPrivateFieldSet(this, _SSEClient_channels, /* @__PURE__ */ new Map(), "f");
+          this._broadcaster = new pondsocket_common_1.Subject();
+          this._connectionState = new pondsocket_common_1.BehaviorSubject(types_1.ConnectionState.DISCONNECTED);
+          this._errorSubject = new pondsocket_common_1.Subject();
+          __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_init).call(this);
+        }
+        connect() {
+          var _a;
+          this._disconnecting = false;
+          this._connectionState.publish(types_1.ConnectionState.CONNECTING);
+          const eventSource = new EventSource(this._address.toString(), {
+            withCredentials: (_a = this._options.withCredentials) !== null && _a !== void 0 ? _a : false
+          });
+          this._connectionTimeoutId = setTimeout(() => {
+            if (eventSource.readyState === EventSource.CONNECTING) {
+              const error = new Error("Connection timeout");
+              this._errorSubject.publish(error);
+              eventSource.close();
+            }
+          }, this._options.connectionTimeout);
+          eventSource.onopen = () => {
+            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_clearTimeout).call(this);
+            this._reconnectAttempts = 0;
+          };
+          eventSource.onmessage = (event) => {
+            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_handleMessage).call(this, event.data);
+          };
+          eventSource.onerror = () => {
+            const error = new Error("SSE connection error");
+            this._errorSubject.publish(error);
+            eventSource.close();
+            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_clearTimeout).call(this);
+            this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
+            if (this._disconnecting) {
+              return;
+            }
+            const delay = Math.min(1e3 * Math.pow(2, this._reconnectAttempts), this._options.maxReconnectDelay);
+            this._reconnectAttempts++;
+            setTimeout(() => {
+              this.connect();
+            }, delay);
+          };
+          this._eventSource = eventSource;
+        }
+        getState() {
+          return this._connectionState.value;
+        }
+        getConnectionId() {
+          return this._connectionId;
+        }
+        disconnect() {
+          var _a;
+          __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_clearTimeout).call(this);
+          this._disconnecting = true;
+          this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
+          if (this._connectionId) {
+            fetch(this._postAddress.toString(), {
+              method: "DELETE",
+              headers: {
+                "X-Connection-ID": this._connectionId
+              },
+              credentials: this._options.withCredentials ? "include" : "same-origin"
+            }).catch(() => {
+            });
+          }
+          (_a = this._eventSource) === null || _a === void 0 ? void 0 : _a.close();
+          this._connectionId = void 0;
+          __classPrivateFieldGet(this, _SSEClient_channels, "f").clear();
+        }
+        createChannel(name, params) {
+          const channel = __classPrivateFieldGet(this, _SSEClient_channels, "f").get(name);
+          if (channel && channel.channelState !== pondsocket_common_1.ChannelState.CLOSED) {
+            return channel;
+          }
+          const publisher = __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_createPublisher).call(this);
+          const newChannel = new channel_1.Channel(publisher, this._connectionState, name, params || {});
+          __classPrivateFieldGet(this, _SSEClient_channels, "f").set(name, newChannel);
+          return newChannel;
+        }
+        onConnectionChange(callback) {
+          return this._connectionState.subscribe(callback);
+        }
+        onError(callback) {
+          return this._errorSubject.subscribe(callback);
+        }
+      };
+      exports.SSEClient = SSEClient;
+      _SSEClient_channels = /* @__PURE__ */ new WeakMap(), _SSEClient_instances = /* @__PURE__ */ new WeakSet(), _SSEClient_handleMessage = function _SSEClient_handleMessage2(data) {
+        try {
+          const lines = data.trim().split("\n");
+          for (const line of lines) {
+            if (line.trim()) {
+              const parsed = JSON.parse(line);
+              const event = pondsocket_common_1.channelEventSchema.parse(parsed);
+              if (event.event === pondsocket_common_1.Events.CONNECTION && event.action === pondsocket_common_1.ServerActions.CONNECT) {
+                if (event.payload && typeof event.payload === "object" && "connectionId" in event.payload) {
+                  this._connectionId = event.payload.connectionId;
+                }
+              }
+              this._broadcaster.publish(event);
+            }
+          }
+        } catch (e) {
+          this._errorSubject.publish(e instanceof Error ? e : new Error("Failed to parse SSE message"));
+        }
+      }, _SSEClient_clearTimeout = function _SSEClient_clearTimeout2() {
+        if (this._connectionTimeoutId) {
+          clearTimeout(this._connectionTimeoutId);
+          this._connectionTimeoutId = void 0;
+        }
+      }, _SSEClient_createPublisher = function _SSEClient_createPublisher2() {
+        return (message) => {
+          if (this._connectionState.value === types_1.ConnectionState.CONNECTED && this._connectionId) {
+            fetch(this._postAddress.toString(), {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Connection-ID": this._connectionId
+              },
+              body: JSON.stringify(message),
+              credentials: this._options.withCredentials ? "include" : "same-origin"
+            }).catch((err) => {
+              this._errorSubject.publish(err instanceof Error ? err : new Error("Failed to send message"));
+            });
+          }
+        };
+      }, _SSEClient_handleAcknowledge = function _SSEClient_handleAcknowledge2(message) {
+        var _a;
+        const channel = (_a = __classPrivateFieldGet(this, _SSEClient_channels, "f").get(message.channelName)) !== null && _a !== void 0 ? _a : new channel_1.Channel(__classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_createPublisher).call(this), this._connectionState, message.channelName, {});
+        __classPrivateFieldGet(this, _SSEClient_channels, "f").set(message.channelName, channel);
+        channel.acknowledge(this._broadcaster);
+      }, _SSEClient_init = function _SSEClient_init2() {
+        this._broadcaster.subscribe((message) => {
+          if (message.event === pondsocket_common_1.Events.ACKNOWLEDGE) {
+            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_handleAcknowledge).call(this, message);
+          } else if (message.event === pondsocket_common_1.Events.CONNECTION && message.action === pondsocket_common_1.ServerActions.CONNECT) {
+            this._connectionState.publish(types_1.ConnectionState.CONNECTED);
           }
         });
       };
@@ -1096,19 +1366,49 @@ var LiveUIModule = (() => {
   var require_node = __commonJS({
     "node_modules/@eleven-am/pondsocket-client/node/node.js"(exports) {
       "use strict";
+      var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
+        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+        return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+      };
+      var _PondClient_instances;
+      var _PondClient_clearTimeouts;
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.PondClient = void 0;
       var pondsocket_common_1 = require_pondsocket_common();
       var client_1 = require_client();
+      var types_1 = require_types2();
       var WebSocket2 = require_browser().w3cwebsocket;
       var PondClient2 = class extends client_1.PondClient {
+        constructor() {
+          super(...arguments);
+          _PondClient_instances.add(this);
+        }
         /**
          * @desc Connects to the server and returns the socket.
          */
-        connect(backoff = 1) {
+        connect() {
           this._disconnecting = false;
+          this._connectionState.publish(types_1.ConnectionState.CONNECTING);
           const socket = new WebSocket2(this._address.toString());
-          socket.onopen = () => this._connectionState.publish(true);
+          this._connectionTimeoutId = setTimeout(() => {
+            if (socket.readyState === WebSocket2.CONNECTING) {
+              const error = new Error("Connection timeout");
+              this._errorSubject.publish(error);
+              socket.close();
+            }
+          }, this._options.connectionTimeout);
+          socket.onopen = () => {
+            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
+            this._reconnectAttempts = 0;
+            if (this._options.pingInterval) {
+              this._pingIntervalId = setInterval(() => {
+                if (socket.readyState === WebSocket2.OPEN) {
+                  socket.send(JSON.stringify({ action: "ping" }));
+                }
+              }, this._options.pingInterval);
+            }
+          };
           socket.onmessage = (message) => {
             const lines = message.data.trim().split("\n");
             for (const line of lines) {
@@ -1119,19 +1419,37 @@ var LiveUIModule = (() => {
               }
             }
           };
-          socket.onerror = () => socket.close();
+          socket.onerror = () => {
+            const error = new Error("WebSocket error");
+            this._errorSubject.publish(error);
+            socket.close();
+          };
           socket.onclose = () => {
-            this._connectionState.publish(false);
+            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
+            this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
             if (this._disconnecting) {
               return;
             }
+            const delay = Math.min(1e3 * Math.pow(2, this._reconnectAttempts), this._options.maxReconnectDelay);
+            this._reconnectAttempts++;
             setTimeout(() => {
               this.connect();
-            }, 1e3);
+            }, delay);
           };
+          this._socket = socket;
         }
       };
       exports.PondClient = PondClient2;
+      _PondClient_instances = /* @__PURE__ */ new WeakSet(), _PondClient_clearTimeouts = function _PondClient_clearTimeouts2() {
+        if (this._connectionTimeoutId) {
+          clearTimeout(this._connectionTimeoutId);
+          this._connectionTimeoutId = void 0;
+        }
+        if (this._pingIntervalId) {
+          clearInterval(this._pingIntervalId);
+          this._pingIntervalId = void 0;
+        }
+      };
     }
   });
 
@@ -1140,13 +1458,21 @@ var LiveUIModule = (() => {
     "node_modules/@eleven-am/pondsocket-client/index.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", { value: true });
-      exports.PondClient = exports.ChannelState = void 0;
+      exports.SSEClient = exports.PondClient = exports.ConnectionState = exports.ChannelState = void 0;
       var pondsocket_common_1 = require_pondsocket_common();
       Object.defineProperty(exports, "ChannelState", { enumerable: true, get: function() {
         return pondsocket_common_1.ChannelState;
       } });
       var client_1 = require_client();
+      var sseClient_1 = require_sseClient();
+      Object.defineProperty(exports, "SSEClient", { enumerable: true, get: function() {
+        return sseClient_1.SSEClient;
+      } });
       var node_1 = require_node();
+      var types_1 = require_types2();
+      Object.defineProperty(exports, "ConnectionState", { enumerable: true, get: function() {
+        return types_1.ConnectionState;
+      } });
       var PondClient2 = typeof window === "undefined" ? node_1.PondClient : client_1.PondClient;
       exports.PondClient = PondClient2;
     }

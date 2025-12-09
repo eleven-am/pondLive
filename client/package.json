@@ -21,7 +21,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@eleven-am/pondsocket-client": "^0.0.30"
+    "@eleven-am/pondsocket-client": "^0.0.31"
   },
   "devDependencies": {
     "@types/node": "^24.8.1",
