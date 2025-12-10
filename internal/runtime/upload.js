@@ -1,5 +1,6 @@
 function upload(element, transport) {
-    let activeXhr = null;
+    let tusPromise = null;
+    let activeUpload = null;
     let uploadConfig = null;
     let pending = null;
 
@@ -11,6 +12,21 @@ function upload(element, transport) {
     });
 
     let uploadState = resetState();
+
+    const ensureTus = () => {
+        if (window.tus) return Promise.resolve();
+        if (tusPromise) return tusPromise;
+
+        tusPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/tus-js-client@4.2.3/dist/tus.min.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Failed to load tus-js-client'));
+            document.head.appendChild(script);
+        });
+
+        return tusPromise;
+    };
 
     const handleChange = (event) => {
         const input = event.target;
@@ -34,82 +50,77 @@ function upload(element, transport) {
     };
 
     const cancelUpload = () => {
-        if (activeXhr) {
-            activeXhr.abort();
-            activeXhr = null;
+        if (activeUpload) {
+            activeUpload.abort(true);
+            activeUpload = null;
         }
     };
 
     const startUpload = (file, input) => {
-        if (activeXhr) {
-            activeXhr.abort();
-            activeXhr = null;
+        if (activeUpload) {
+            activeUpload.abort(true);
+            activeUpload = null;
         }
 
-        const target = uploadConfig?.url;
-        if (!target) {
-            transport.send('error', { error: 'Upload target not configured' });
+        const token = uploadConfig?.token;
+        if (!token) {
+            transport.send('error', { error: 'Upload token not configured' });
             return;
         }
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', target, true);
-
-        if (uploadConfig.token) {
-            xhr.setRequestHeader('X-Upload-Token', uploadConfig.token);
-        }
-
-        xhr.upload.onprogress = (event) => {
-            const loaded = event.loaded;
-            const total = event.lengthComputable ? event.total : file.size;
-            transport.send('progress', {
-                loaded,
-                total,
-                name: file.name,
-                size: file.size,
-                index: uploadState.index,
-                count: uploadState.count
+        ensureTus().then(() => {
+            const upload = new window.tus.Upload(file, {
+                endpoint: '/tus/',
+                retryDelays: [0, 1000, 3000, 5000],
+                metadata: {
+                    token: token,
+                    filename: file.name,
+                    filetype: file.type,
+                },
+                onProgress: (loaded, total) => {
+                    transport.send('progress', {
+                        loaded,
+                        total,
+                        name: file.name,
+                        size: file.size,
+                        index: uploadState.index,
+                        count: uploadState.count
+                    });
+                },
+                onSuccess: () => {
+                    activeUpload = null;
+                    transport.send('progress', {
+                        loaded: file.size,
+                        total: file.size,
+                        name: file.name,
+                        size: file.size,
+                        index: uploadState.index,
+                        count: uploadState.count
+                    });
+                    transport.send('complete', {
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        index: uploadState.index,
+                        count: uploadState.count
+                    });
+                    if (input) {
+                        input.value = '';
+                    }
+                    advanceQueue();
+                },
+                onError: (error) => {
+                    activeUpload = null;
+                    transport.send('error', { error: error.message || 'Upload failed' });
+                    advanceQueue();
+                },
             });
-        };
 
-        xhr.onerror = () => {
-            activeXhr = null;
-            transport.send('error', { error: 'Upload failed (network)' });
-            advanceQueue();
-        };
-
-        xhr.onabort = () => {
-            activeXhr = null;
-            transport.send('cancelled', {});
-            uploadState = resetState();
-        };
-
-        xhr.onload = () => {
-            activeXhr = null;
-            if (xhr.status < 200 || xhr.status >= 300) {
-                const msg = xhr.responseText || `Upload failed (${xhr.status})`;
-                transport.send('error', { error: msg });
-            } else {
-                const totalSize = file.size;
-                transport.send('progress', {
-                    loaded: totalSize,
-                    total: totalSize,
-                    name: file.name,
-                    size: file.size,
-                    index: uploadState.index,
-                    count: uploadState.count
-                });
-                if (input) {
-                    input.value = '';
-                }
-            }
-            advanceQueue();
-        };
-
-        const form = new FormData();
-        form.append('file', file);
-        xhr.send(form);
-        activeXhr = xhr;
+            activeUpload = upload;
+            upload.start();
+        }).catch((error) => {
+            transport.send('error', { error: error.message || 'Failed to initialize upload' });
+        });
     };
 
     const acceptsFile = (file, acceptList) => {
@@ -132,7 +143,6 @@ function upload(element, transport) {
         if (!pending) return;
         const { files, input } = pending;
 
-        // Validate each file per config
         for (const f of files) {
             if (config.maxSize && config.maxSize > 0 && f.size > config.maxSize) {
                 transport.send('error', { error: `File exceeds maximum size (${config.maxSize} bytes)` });
@@ -200,6 +210,7 @@ function upload(element, transport) {
             element.value = '';
         }
         uploadState = resetState();
+        transport.send('cancelled', {});
     });
 
     element.addEventListener('change', handleChange);

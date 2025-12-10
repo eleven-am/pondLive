@@ -80,6 +80,7 @@ const (
 	HookTypeStyles
 	HookTypeErrorBoundary
 	HookTypeChannel
+	HookTypeUpload
 )
 
 type HookSlot struct {

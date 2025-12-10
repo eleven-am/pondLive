@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/upload"
 	"github.com/eleven-am/pondlive/internal/view"
 	"github.com/eleven-am/pondlive/internal/work"
 )
@@ -41,6 +42,8 @@ type Session struct {
 
 	httpHandlers  map[string]*handlerEntry
 	httpHandlerMu sync.RWMutex
+
+	UploadRegistry *upload.Registry
 
 	PendingEffects  []effectTask
 	PendingCleanups []cleanupTask

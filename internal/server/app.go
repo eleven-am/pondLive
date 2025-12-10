@@ -14,6 +14,7 @@ import (
 	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/route"
 	"github.com/eleven-am/pondlive/internal/session"
+	"github.com/eleven-am/pondlive/internal/upload"
 	"github.com/eleven-am/pondlive/internal/view"
 	"github.com/eleven-am/pondlive/internal/view/diff"
 )
@@ -28,6 +29,7 @@ type App struct {
 	clientAsset   string
 	pondManager   *pond.Manager
 	mux           *http.ServeMux
+	uploadHandler *upload.Handler
 }
 
 type Config struct {
@@ -42,6 +44,8 @@ type Config struct {
 	Context context.Context
 
 	PubSub pond.PubSub
+
+	UploadConfig *upload.Config
 }
 
 func New(cfg Config) (*App, error) {
@@ -95,6 +99,14 @@ func New(cfg Config) (*App, error) {
 	}
 	app.endpoint = endpoint
 
+	if cfg.UploadConfig != nil {
+		uploadHandler, err := upload.NewHandler(*cfg.UploadConfig, app.lookupUploadCallback, app.removeUploadCallback)
+		if err != nil {
+			return nil, err
+		}
+		app.uploadHandler = uploadHandler
+	}
+
 	app.registerRoutes()
 
 	return app, nil
@@ -104,6 +116,9 @@ func (a *App) registerRoutes() {
 	a.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(Assets))))
 	a.mux.HandleFunc("/live", a.pondManager.HTTPHandler())
 	a.mux.Handle(handler.PathPrefix, handler.NewDispatcher(a.registry))
+	if a.uploadHandler != nil {
+		a.mux.Handle("/tus/", http.StripPrefix("/tus", a.uploadHandler))
+	}
 	a.mux.HandleFunc("/", a.serveSSR)
 }
 
@@ -137,6 +152,36 @@ func (a *App) Broadcast(channelName, event string, payload interface{}) error {
 		return err
 	}
 	return channel.Broadcast(event, payload)
+}
+
+func (a *App) lookupUploadCallback(token string) (upload.UploadCallback, bool) {
+	var result upload.UploadCallback
+	found := false
+
+	a.registry.Range(func(sess *session.LiveSession) bool {
+		if reg := sess.UploadRegistry(); reg != nil {
+			if cb, ok := reg.Lookup(token); ok {
+				result = cb
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+
+	return result, found
+}
+
+func (a *App) removeUploadCallback(token string) {
+	a.registry.Range(func(sess *session.LiveSession) bool {
+		if reg := sess.UploadRegistry(); reg != nil {
+			if _, ok := reg.Lookup(token); ok {
+				reg.Remove(token)
+				return false
+			}
+		}
+		return true
+	})
 }
 
 func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {

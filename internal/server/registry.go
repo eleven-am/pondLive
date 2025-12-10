@@ -287,3 +287,20 @@ func (r *SessionRegistry) removeSessionLocked(id session.SessionID, dropTTL bool
 	delete(r.sessions, id)
 	return transportRelease{session: entry.session, transport: entry.transport}
 }
+
+func (r *SessionRegistry) Range(fn func(*session.LiveSession) bool) {
+	r.mu.RLock()
+	sessions := make([]*session.LiveSession, 0, len(r.sessions))
+	for _, entry := range r.sessions {
+		if entry.session != nil {
+			sessions = append(sessions, entry.session)
+		}
+	}
+	r.mu.RUnlock()
+
+	for _, sess := range sessions {
+		if !fn(sess) {
+			return
+		}
+	}
+}

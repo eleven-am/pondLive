@@ -440,3 +440,107 @@ func TestRegistryRemoveNonexistent(t *testing.T) {
 	reg := NewSessionRegistry()
 	reg.Remove("nonexistent")
 }
+
+func TestRegistryRange(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	sess1 := session.NewLiveSession("sess-1", 1, dummyComponent, nil)
+	sess2 := session.NewLiveSession("sess-2", 1, dummyComponent, nil)
+	sess3 := session.NewLiveSession("sess-3", 1, dummyComponent, nil)
+	defer sess1.Close()
+	defer sess2.Close()
+	defer sess3.Close()
+
+	reg.Put(sess1)
+	reg.Put(sess2)
+	reg.Put(sess3)
+
+	visited := make(map[session.SessionID]bool)
+	reg.Range(func(sess *session.LiveSession) bool {
+		visited[sess.ID()] = true
+		return true
+	})
+
+	if len(visited) != 3 {
+		t.Errorf("expected 3 sessions, got %d", len(visited))
+	}
+	if !visited["sess-1"] || !visited["sess-2"] || !visited["sess-3"] {
+		t.Error("expected all sessions to be visited")
+	}
+}
+
+func TestRegistryRangeEarlyExit(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	sess1 := session.NewLiveSession("sess-1", 1, dummyComponent, nil)
+	sess2 := session.NewLiveSession("sess-2", 1, dummyComponent, nil)
+	sess3 := session.NewLiveSession("sess-3", 1, dummyComponent, nil)
+	defer sess1.Close()
+	defer sess2.Close()
+	defer sess3.Close()
+
+	reg.Put(sess1)
+	reg.Put(sess2)
+	reg.Put(sess3)
+
+	count := 0
+	reg.Range(func(sess *session.LiveSession) bool {
+		count++
+		return false
+	})
+
+	if count != 1 {
+		t.Errorf("expected early exit after 1, got %d", count)
+	}
+}
+
+func TestRegistryRangeEmpty(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	count := 0
+	reg.Range(func(sess *session.LiveSession) bool {
+		count++
+		return true
+	})
+
+	if count != 0 {
+		t.Errorf("expected 0 sessions, got %d", count)
+	}
+}
+
+func TestRegistryRangeConcurrent(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
+	defer sess.Close()
+	reg.Put(sess)
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				reg.Range(func(s *session.LiveSession) bool {
+					return true
+				})
+			}
+		}()
+	}
+
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				s := session.NewLiveSession(session.SessionID("temp"), 1, dummyComponent, nil)
+				reg.Put(s)
+				reg.Remove(session.SessionID("temp"))
+				s.Close()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}

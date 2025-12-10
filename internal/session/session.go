@@ -8,6 +8,7 @@ import (
 
 	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/runtime"
+	"github.com/eleven-am/pondlive/internal/upload"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
@@ -71,6 +72,7 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 		MountedComponents: make(map[*runtime.Instance]struct{}),
 		Bus:               protocol.NewBus(),
 		SessionID:         string(id),
+		UploadRegistry:    upload.NewRegistry(),
 	}
 
 	rtSession.SetDevMode(effectiveCfg.DevMode)
@@ -292,6 +294,13 @@ func (s *LiveSession) ChannelManager() *runtime.ChannelManager {
 		return nil
 	}
 	return s.session.ChannelManager()
+}
+
+func (s *LiveSession) UploadRegistry() *upload.Registry {
+	if s == nil || s.session == nil {
+		return nil
+	}
+	return s.session.UploadRegistry
 }
 
 func (s *LiveSession) SetAutoFlush(fn func()) {

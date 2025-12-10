@@ -10,6 +10,7 @@ import (
 	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/session"
 	"github.com/eleven-am/pondlive/internal/styles"
+	"github.com/eleven-am/pondlive/internal/upload"
 	"github.com/eleven-am/pondlive/internal/view/diff"
 	"github.com/eleven-am/pondlive/internal/work"
 )
@@ -624,5 +625,179 @@ func TestBootMetadataExtraction(t *testing.T) {
 
 		t.Logf("All metadata types extracted successfully: handlers=%v, ref=%v, script=%v",
 			hasHandlers, hasRef, hasScript)
+	})
+}
+
+func TestLiveSessionUploadRegistry(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	t.Run("session has upload registry", func(t *testing.T) {
+		sess := session.NewLiveSession("test-sid", 1, component, nil)
+		defer sess.Close()
+
+		reg := sess.UploadRegistry()
+		if reg == nil {
+			t.Fatal("expected upload registry to be non-nil")
+		}
+	})
+
+	t.Run("registry is functional", func(t *testing.T) {
+		sess := session.NewLiveSession("test-sid", 1, component, nil)
+		defer sess.Close()
+
+		reg := sess.UploadRegistry()
+		if reg == nil {
+			t.Fatal("expected upload registry")
+		}
+
+		cb := upload.UploadCallback{
+			Token:   "test-token",
+			MaxSize: 1024,
+		}
+		reg.Register(cb)
+
+		found, ok := reg.Lookup("test-token")
+		if !ok {
+			t.Fatal("expected to find registered callback")
+		}
+		if found.Token != "test-token" {
+			t.Errorf("expected token test-token, got %s", found.Token)
+		}
+	})
+
+	t.Run("nil session returns nil registry", func(t *testing.T) {
+		var sess *session.LiveSession
+		reg := sess.UploadRegistry()
+		if reg != nil {
+			t.Error("expected nil registry for nil session")
+		}
+	})
+}
+
+func TestAppLookupUploadCallback(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	t.Run("lookup finds callback across sessions", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		sess1 := session.NewLiveSession("sess-1", 1, component, nil)
+		sess2 := session.NewLiveSession("sess-2", 1, component, nil)
+		defer sess1.Close()
+		defer sess2.Close()
+
+		app.registry.Put(sess1)
+		app.registry.Put(sess2)
+
+		cb := upload.UploadCallback{
+			Token:   "target-token",
+			MaxSize: 2048,
+		}
+		sess2.UploadRegistry().Register(cb)
+
+		found, ok := app.lookupUploadCallback("target-token")
+		if !ok {
+			t.Fatal("expected to find callback")
+		}
+		if found.Token != "target-token" {
+			t.Errorf("expected token target-token, got %s", found.Token)
+		}
+		if found.MaxSize != 2048 {
+			t.Errorf("expected MaxSize 2048, got %d", found.MaxSize)
+		}
+	})
+
+	t.Run("lookup returns false for nonexistent token", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		sess := session.NewLiveSession("sess-1", 1, component, nil)
+		defer sess.Close()
+		app.registry.Put(sess)
+
+		_, ok := app.lookupUploadCallback("nonexistent")
+		if ok {
+			t.Error("expected false for nonexistent token")
+		}
+	})
+
+	t.Run("lookup works with no sessions", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		_, ok := app.lookupUploadCallback("any-token")
+		if ok {
+			t.Error("expected false with no sessions")
+		}
+	})
+}
+
+func TestAppRemoveUploadCallback(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	t.Run("remove callback from correct session", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		sess1 := session.NewLiveSession("sess-1", 1, component, nil)
+		sess2 := session.NewLiveSession("sess-2", 1, component, nil)
+		defer sess1.Close()
+		defer sess2.Close()
+
+		app.registry.Put(sess1)
+		app.registry.Put(sess2)
+
+		cb1 := upload.UploadCallback{Token: "token-1"}
+		cb2 := upload.UploadCallback{Token: "token-2"}
+		sess1.UploadRegistry().Register(cb1)
+		sess2.UploadRegistry().Register(cb2)
+
+		app.removeUploadCallback("token-2")
+
+		_, ok := sess1.UploadRegistry().Lookup("token-1")
+		if !ok {
+			t.Error("expected token-1 to still exist in sess1")
+		}
+
+		_, ok = sess2.UploadRegistry().Lookup("token-2")
+		if ok {
+			t.Error("expected token-2 to be removed from sess2")
+		}
+	})
+
+	t.Run("remove nonexistent token does not panic", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		sess := session.NewLiveSession("sess-1", 1, component, nil)
+		defer sess.Close()
+		app.registry.Put(sess)
+
+		app.removeUploadCallback("nonexistent")
+	})
+
+	t.Run("remove with no sessions does not panic", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		app.removeUploadCallback("any-token")
 	})
 }
