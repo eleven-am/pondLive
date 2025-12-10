@@ -952,3 +952,187 @@ func TestDiffUnsafeHTMLToNormal(t *testing.T) {
 		t.Fatalf("expected replaceNode op, got %s", patches[0].Op)
 	}
 }
+
+func TestDiffIndexedChildrenShiftOnInsert(t *testing.T) {
+	prev := withChildren(elementNode("body"),
+		withChildren(elementNode("div"), textNode("app content")),
+		withAttr(elementNode("script"), "src", "/static/pondlive.js"),
+	)
+
+	next := withChildren(elementNode("body"),
+		withChildren(elementNode("div"), textNode("app content")),
+		withAttr(elementNode("div"), "class", "dialog-overlay"),
+		withChildren(elementNode("div"), textNode("dialog content")),
+		withAttr(elementNode("script"), "src", "/static/pondlive.js"),
+	)
+
+	patches := Diff(prev, next)
+
+	for _, p := range patches {
+		if p.Op == OpAddChild {
+			if elem, ok := p.Value.(*view.Element); ok {
+				if elem.Tag == "script" {
+					t.Fatalf("script element should not be re-added when children shift - it should be recognized as moved. Got addChild with script tag at index %v", p.Index)
+				}
+			}
+		}
+	}
+}
+
+func TestDiffIndexedInsertAtBeginning(t *testing.T) {
+	prev := withChildren(elementNode("ul"),
+		withChildren(elementNode("li"), textNode("Item 1")),
+		withChildren(elementNode("li"), textNode("Item 2")),
+	)
+
+	next := withChildren(elementNode("ul"),
+		withChildren(elementNode("li"), textNode("New Item")),
+		withChildren(elementNode("li"), textNode("Item 1")),
+		withChildren(elementNode("li"), textNode("Item 2")),
+	)
+
+	patches := Diff(prev, next)
+
+	addCount := 0
+	for _, p := range patches {
+		if p.Op == OpAddChild {
+			addCount++
+		}
+	}
+
+	if addCount != 1 {
+		t.Fatalf("expected 1 add for the new item, got %d adds", addCount)
+	}
+}
+
+func TestDiffIndexedInsertInMiddle(t *testing.T) {
+	prev := withChildren(elementNode("div"),
+		withAttr(elementNode("header"), "id", "header"),
+		withAttr(elementNode("footer"), "id", "footer"),
+	)
+
+	next := withChildren(elementNode("div"),
+		withAttr(elementNode("header"), "id", "header"),
+		withAttr(elementNode("main"), "id", "main"),
+		withAttr(elementNode("footer"), "id", "footer"),
+	)
+
+	patches := Diff(prev, next)
+
+	addCount := 0
+	for _, p := range patches {
+		if p.Op == OpAddChild {
+			addCount++
+			if elem, ok := p.Value.(*view.Element); ok {
+				if elem.Tag != "main" {
+					t.Fatalf("only main should be added, got %s", elem.Tag)
+				}
+			}
+		}
+		if p.Op == OpDelChild {
+			t.Fatalf("no deletions expected when inserting in middle, got delChild at index %v", p.Index)
+		}
+	}
+
+	if addCount != 1 {
+		t.Fatalf("expected 1 add for main element, got %d", addCount)
+	}
+}
+
+func TestDiffIndexedDeleteFromMiddle(t *testing.T) {
+	prev := withChildren(elementNode("div"),
+		withAttr(elementNode("header"), "id", "header"),
+		withAttr(elementNode("main"), "id", "main"),
+		withAttr(elementNode("footer"), "id", "footer"),
+	)
+
+	next := withChildren(elementNode("div"),
+		withAttr(elementNode("header"), "id", "header"),
+		withAttr(elementNode("footer"), "id", "footer"),
+	)
+
+	patches := Diff(prev, next)
+
+	delCount := 0
+	addCount := 0
+	for _, p := range patches {
+		if p.Op == OpDelChild {
+			delCount++
+		}
+		if p.Op == OpAddChild {
+			addCount++
+		}
+	}
+
+	if delCount != 1 {
+		t.Fatalf("expected 1 deletion for main element, got %d", delCount)
+	}
+	if addCount != 0 {
+		t.Fatalf("expected no additions when deleting from middle, got %d", addCount)
+	}
+}
+
+func TestDiffIndexedScriptWithDifferentSrc(t *testing.T) {
+	prev := withChildren(elementNode("body"),
+		withAttr(elementNode("script"), "src", "/static/app.js"),
+		withAttr(elementNode("script"), "src", "/static/vendor.js"),
+	)
+
+	next := withChildren(elementNode("body"),
+		withAttr(elementNode("script"), "src", "/static/vendor.js"),
+		withAttr(elementNode("script"), "src", "/static/new.js"),
+	)
+
+	patches := Diff(prev, next)
+
+	addCount := 0
+	delCount := 0
+	for _, p := range patches {
+		if p.Op == OpAddChild {
+			addCount++
+			if elem, ok := p.Value.(*view.Element); ok {
+				if elem.Attrs["src"][0] != "/static/new.js" {
+					t.Fatalf("expected new.js to be added, got %s", elem.Attrs["src"][0])
+				}
+			}
+		}
+		if p.Op == OpDelChild {
+			delCount++
+		}
+	}
+
+	if addCount != 1 {
+		t.Fatalf("expected 1 add (new.js), got %d", addCount)
+	}
+	if delCount != 1 {
+		t.Fatalf("expected 1 delete (app.js), got %d", delCount)
+	}
+}
+
+func TestDiffIndexedDuplicateSignatures(t *testing.T) {
+	prev := withChildren(elementNode("ul"),
+		withChildren(elementNode("li"), textNode("Item A")),
+		withChildren(elementNode("li"), textNode("Item B")),
+		withChildren(elementNode("li"), textNode("Item C")),
+	)
+
+	next := withChildren(elementNode("ul"),
+		withChildren(elementNode("li"), textNode("New")),
+		withChildren(elementNode("li"), textNode("Item A")),
+		withChildren(elementNode("li"), textNode("Item B")),
+		withChildren(elementNode("li"), textNode("Item C")),
+	)
+
+	patches := Diff(prev, next)
+
+	addCount := 0
+	for _, p := range patches {
+		if p.Op == OpAddChild {
+			addCount++
+		}
+	}
+
+	if addCount != 1 {
+		t.Fatalf("expected 1 add for 'New' item, got %d", addCount)
+	}
+}

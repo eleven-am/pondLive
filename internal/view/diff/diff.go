@@ -157,45 +157,144 @@ func diffElement(patches *[]Patch, seq *int, path []int, a, b *view.Element) {
 func diffChildren(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
 	if hasKeys(a) || hasKeys(b) {
 		diffChildrenKeyed(patches, seq, parentPath, a, b)
-	} else {
-		diffChildrenIndexed(patches, seq, parentPath, a, b)
+		return
+	}
+	diffChildrenIndexed(patches, seq, parentPath, a, b)
+}
+
+func hasStrongIdentity(n view.Node) bool {
+	elem, ok := n.(*view.Element)
+	if !ok {
+		return false
+	}
+	if elem.Attrs == nil {
+		return false
+	}
+	identityAttrs := []string{"id", "src", "href", "name", "data-key"}
+	for _, k := range identityAttrs {
+		if v, ok := elem.Attrs[k]; ok && len(v) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func nodeSignature(n view.Node) string {
+	if n == nil {
+		return ""
+	}
+
+	switch node := n.(type) {
+	case *view.Element:
+		sig := "E:" + node.Tag
+		attrs := node.Attrs
+		if attrs != nil {
+			keys := []string{"id", "src", "href", "name", "data-key"}
+			for _, k := range keys {
+				if v, ok := attrs[k]; ok && len(v) > 0 {
+					sig += "|" + k + "=" + v[0]
+				}
+			}
+		}
+		return sig
+
+	default:
+		return ""
 	}
 }
 
+type unmatchedEntry struct {
+	index int
+	node  view.Node
+	sig   string
+}
+
 func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
+	matchedOld := make(map[int]bool)
+	matchedNew := make(map[int]bool)
+
+	sigToOldIdx := make(map[string]int)
+	for i, child := range a {
+		if hasStrongIdentity(child) {
+			sig := nodeSignature(child)
+			if sig != "" {
+				sigToOldIdx[sig] = i
+			}
+		}
+	}
+
+	for j, childB := range b {
+		if !hasStrongIdentity(childB) {
+			continue
+		}
+		sigB := nodeSignature(childB)
+		if sigB == "" {
+			continue
+		}
+		if oldIdx, found := sigToOldIdx[sigB]; found && !matchedOld[oldIdx] {
+			matchedOld[oldIdx] = true
+			matchedNew[j] = true
+			childPath := append(copyPath(parentPath), j)
+			diffNode(patches, seq, childPath, a[oldIdx], childB)
+		}
+	}
+
 	m := len(a)
 	if len(b) > m {
 		m = len(b)
 	}
-	deletionOffset := 0
+
 	for i := 0; i < m; i++ {
-		childPath := append(copyPath(parentPath), i)
+		if matchedOld[i] || matchedNew[i] {
+			continue
+		}
+
 		var childA, childB view.Node
-		if i < len(a) {
+		if i < len(a) && !matchedOld[i] {
 			childA = a[i]
 		}
-		if i < len(b) {
+		if i < len(b) && !matchedNew[i] {
 			childB = b[i]
 		}
-		if childA == nil && childB != nil {
-			emit(patches, seq, Patch{
-				Path:  copyPath(parentPath),
-				Op:    OpAddChild,
-				Index: intPtr(i),
-				Value: childB,
-			})
-			continue
+
+		if childA != nil && childB != nil {
+			matchedOld[i] = true
+			matchedNew[i] = true
+			childPath := append(copyPath(parentPath), i)
+			diffNode(patches, seq, childPath, childA, childB)
 		}
-		if childA != nil && childB == nil {
-			emit(patches, seq, Patch{
-				Path:  copyPath(parentPath),
-				Op:    OpDelChild,
-				Index: intPtr(i - deletionOffset),
-			})
-			deletionOffset++
-			continue
+	}
+
+	var toDelete []int
+	for i := 0; i < len(a); i++ {
+		if !matchedOld[i] {
+			toDelete = append(toDelete, i)
 		}
-		diffNode(patches, seq, childPath, childA, childB)
+	}
+
+	var toAdd []unmatchedEntry
+	for j := 0; j < len(b); j++ {
+		if !matchedNew[j] {
+			toAdd = append(toAdd, unmatchedEntry{index: j, node: b[j]})
+		}
+	}
+
+	sort.Sort(sort.Reverse(sort.IntSlice(toDelete)))
+	for _, idx := range toDelete {
+		emit(patches, seq, Patch{
+			Path:  copyPath(parentPath),
+			Op:    OpDelChild,
+			Index: intPtr(idx),
+		})
+	}
+
+	for _, entry := range toAdd {
+		emit(patches, seq, Patch{
+			Path:  copyPath(parentPath),
+			Op:    OpAddChild,
+			Index: intPtr(entry.index),
+			Value: entry.node,
+		})
 	}
 }
 
