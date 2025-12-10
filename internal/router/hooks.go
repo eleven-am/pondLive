@@ -35,7 +35,7 @@ func UseMatched(ctx *runtime.Ctx) bool {
 	return match != nil && match.Matched
 }
 
-func UseQuery(ctx *runtime.Ctx) url.Values {
+func UseSearchParams(ctx *runtime.Ctx) url.Values {
 	loc := UseLocation(ctx)
 	return loc.Query
 }

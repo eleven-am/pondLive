@@ -95,7 +95,7 @@ func UseScopedSlots[T any](ctx *Ctx, items []Item) *ScopedSlotRenderer[T] {
 	return runtime.UseScopedSlots[T](ctx, items)
 }
 
-func UseUpload(ctx *Ctx) UploadHandle {
+func UseUpload(ctx *Ctx) *UploadHandle {
 	return runtime.UseUpload(ctx)
 }
 

@@ -2,7 +2,6 @@ package headers
 
 import (
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/eleven-am/pondlive/internal/runtime"
@@ -70,56 +69,6 @@ func UseCookie(ctx *runtime.Ctx, name string) (string, func(value string, opts *
 	}
 
 	return value, setter
-}
-
-func UseRedirect(ctx *runtime.Ctx) func(url string, code int) {
-	state := UseRequestState(ctx)
-	if state == nil {
-		return func(string, int) {}
-	}
-
-	return func(url string, code int) {
-		if code == 0 {
-			code = http.StatusFound
-		}
-		state.SetRedirect(url, code)
-	}
-}
-
-func UsePath(ctx *runtime.Ctx) string {
-	state := UseRequestState(ctx)
-	if state == nil {
-		return ""
-	}
-	return state.Path()
-}
-
-func UseQuery(ctx *runtime.Ctx) map[string]string {
-	state := UseRequestState(ctx)
-	if state == nil {
-		return nil
-	}
-
-	query := state.Query()
-	if query == nil {
-		return nil
-	}
-
-	result := make(map[string]string, len(query))
-	for k, v := range query {
-		if len(v) > 0 {
-			result[k] = v[0]
-		}
-	}
-	return result
-}
-
-func UseQueryValues(ctx *runtime.Ctx) url.Values {
-	state := UseRequestState(ctx)
-	if state == nil {
-		return nil
-	}
-	return state.Query()
 }
 
 func UseIsLive(ctx *runtime.Ctx) bool {
