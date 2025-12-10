@@ -18,7 +18,8 @@ var Provider = runtime.Component(func(ctx *Ctx, children []work.Item) work.Node 
 		nodes: make([]work.Node, 0),
 	}
 
-	portalCtx.UseProvider(ctx, state)
+	state, _ = portalCtx.UseProvider(ctx, state)
+	state.nodes = make([]work.Node, 0)
 
 	return work.NewFragment(children...)
 })
