@@ -134,7 +134,7 @@ var tags = []tagSpec{
 	{"P", "p", "pkg", nil},
 	{"Param", "param", "pkg", nil},
 	{"Picture", "picture", "pkg", nil},
-	{"Portal", "portal", "pkg", nil},
+	{"PortalEl", "portal", "pkg", nil},
 	{"Pre", "pre", "pkg", nil},
 	{"Progress", "progress", "pkg", []string{"value"}},
 	{"Q", "q", "pkg", nil},

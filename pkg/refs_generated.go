@@ -559,7 +559,7 @@ type PolylineRef struct {
 	*ScrollActions
 }
 
-type PortalRef struct {
+type PortalElRef struct {
 	*ElementRef
 	*ElementActions
 	*ScrollActions
@@ -1678,9 +1678,9 @@ func UsePolyline(ctx *Ctx) *PolylineRef {
 	}
 }
 
-func UsePortal(ctx *Ctx) *PortalRef {
+func UsePortalEl(ctx *Ctx) *PortalElRef {
 	ref := UseElement(ctx)
-	return &PortalRef{
+	return &PortalElRef{
 		ElementRef:     ref,
 		ElementActions: NewElementActions(ctx, ref),
 		ScrollActions:  NewScrollActions(ctx, ref),

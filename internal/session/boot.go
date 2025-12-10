@@ -4,6 +4,7 @@ import (
 	"github.com/eleven-am/pondlive/internal/document"
 	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/metatags"
+	"github.com/eleven-am/pondlive/internal/portal"
 	"github.com/eleven-am/pondlive/internal/router"
 	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/styles"
@@ -30,24 +31,27 @@ func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Item) work.Node {
 			router.Provide(ctx,
 				styles.Provider(ctx,
 					document.Provider(ctx,
-						document.HtmlElement(ctx,
-							&work.Element{
-								Tag: "head",
-								Children: []work.Node{
-									metatags.Render(ctx),
-									styles.Render(ctx),
-									headers.Render(ctx),
-								},
-							},
-							document.BodyElement(ctx,
-								work.Component(app),
+						portal.Provider(ctx,
+							document.HtmlElement(ctx,
 								&work.Element{
-									Tag: "script",
-									Attrs: map[string][]string{
-										"src":   {props.ClientAsset},
-										"defer": {""},
+									Tag: "head",
+									Children: []work.Node{
+										metatags.Render(ctx),
+										styles.Render(ctx),
+										headers.Render(ctx),
 									},
 								},
+								document.BodyElement(ctx,
+									work.Component(app),
+									portal.Target(ctx),
+									&work.Element{
+										Tag: "script",
+										Attrs: map[string][]string{
+											"src":   {props.ClientAsset},
+											"defer": {""},
+										},
+									},
+								),
 							),
 						),
 					),

@@ -93,7 +93,7 @@ func Pattern(items ...Item) Node        { return El("pattern", items...) }
 func Picture(items ...Item) Node        { return El("picture", items...) }
 func Polygon(items ...Item) Node        { return El("polygon", items...) }
 func Polyline(items ...Item) Node       { return El("polyline", items...) }
-func Portal(items ...Item) Node         { return El("portal", items...) }
+func PortalEl(items ...Item) Node       { return El("portal", items...) }
 func Pre(items ...Item) Node            { return El("pre", items...) }
 func Progress(items ...Item) Node       { return El("progress", items...) }
 func Q(items ...Item) Node              { return El("q", items...) }
