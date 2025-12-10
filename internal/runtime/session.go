@@ -50,6 +50,8 @@ type Session struct {
 
 	MountedComponents map[*Instance]struct{}
 
+	PortalViews []view.Node
+
 	SessionID string
 
 	devMode bool

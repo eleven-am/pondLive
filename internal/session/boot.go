@@ -31,27 +31,25 @@ func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Item) work.Node {
 			router.Provide(ctx,
 				styles.Provider(ctx,
 					document.Provider(ctx,
-						portal.Provider(ctx,
-							document.HtmlElement(ctx,
+						document.HtmlElement(ctx,
+							&work.Element{
+								Tag: "head",
+								Children: []work.Node{
+									metatags.Render(ctx),
+									styles.Render(ctx),
+									headers.Render(ctx),
+								},
+							},
+							document.BodyElement(ctx,
+								work.Component(app),
+								portal.Target(),
 								&work.Element{
-									Tag: "head",
-									Children: []work.Node{
-										metatags.Render(ctx),
-										styles.Render(ctx),
-										headers.Render(ctx),
+									Tag: "script",
+									Attrs: map[string][]string{
+										"src":   {props.ClientAsset},
+										"defer": {""},
 									},
 								},
-								document.BodyElement(ctx,
-									work.Component(app),
-									portal.Target(ctx),
-									&work.Element{
-										Tag: "script",
-										Attrs: map[string][]string{
-											"src":   {props.ClientAsset},
-											"defer": {""},
-										},
-									},
-								),
 							),
 						),
 					),

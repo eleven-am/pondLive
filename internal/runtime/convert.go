@@ -35,9 +35,43 @@ func (s *Session) convertWorkToView(node work.Node, parent *Instance) view.Node 
 	case *work.Fragment:
 		return s.convertFragment(n, parent)
 
+	case *work.PortalNode:
+		return s.convertPortalNode(n, parent)
+
+	case *work.PortalTarget:
+		return s.convertPortalTarget()
+
 	default:
 		return nil
 	}
+}
+
+func (s *Session) convertPortalNode(portal *work.PortalNode, parent *Instance) view.Node {
+	for _, child := range portal.Children {
+		if viewChild := s.convertWorkToView(child, parent); viewChild != nil {
+			s.PortalViews = append(s.PortalViews, viewChild)
+		}
+	}
+	return nil
+}
+
+func (s *Session) convertPortalTarget() view.Node {
+	if len(s.PortalViews) == 0 {
+		return nil
+	}
+
+	if len(s.PortalViews) == 1 {
+		node := s.PortalViews[0]
+		s.PortalViews = nil
+		return node
+	}
+
+	frag := &view.Fragment{
+		Fragment: true,
+		Children: s.PortalViews,
+	}
+	s.PortalViews = nil
+	return frag
 }
 
 func (s *Session) convertElement(elem *work.Element, parent *Instance) *view.Element {
@@ -290,6 +324,14 @@ func (s *Session) convertFragment(frag *work.Fragment, parent *Instance) view.No
 		if viewChild := s.convertWorkToView(child, parent); viewChild != nil {
 			viewFrag.Children = append(viewFrag.Children, viewChild)
 		}
+	}
+
+	if len(viewFrag.Children) == 0 {
+		return nil
+	}
+
+	if len(viewFrag.Children) == 1 {
+		return viewFrag.Children[0]
 	}
 
 	return viewFrag

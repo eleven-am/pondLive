@@ -25,6 +25,6 @@ func Fragment(children ...Item) Node {
 	return work.NewFragment(children...)
 }
 
-func Portal(ctx *Ctx, children ...Item) Node {
-	return portal.Portal(ctx, children...)
+func Portal(children ...Item) Node {
+	return portal.Portal(children...)
 }

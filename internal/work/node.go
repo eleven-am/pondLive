@@ -50,11 +50,19 @@ type ComponentNode struct {
 	IdentityPtr   uintptr
 }
 
+type PortalNode struct {
+	Children []Node
+}
+
+type PortalTarget struct{}
+
 func (e *Element) workNode()       {}
 func (t *Text) workNode()          {}
 func (c *Comment) workNode()       {}
 func (f *Fragment) workNode()      {}
 func (c *ComponentNode) workNode() {}
+func (p *PortalNode) workNode()    {}
+func (p *PortalTarget) workNode()  {}
 
 func (e *Element) ApplyTo(parent *Element) {
 	parent.Children = append(parent.Children, e)
@@ -77,4 +85,12 @@ func (f *Fragment) ApplyTo(parent *Element) {
 
 func (c *ComponentNode) ApplyTo(parent *Element) {
 	parent.Children = append(parent.Children, c)
+}
+
+func (p *PortalNode) ApplyTo(parent *Element) {
+	parent.Children = append(parent.Children, p)
+}
+
+func (p *PortalTarget) ApplyTo(parent *Element) {
+	parent.Children = append(parent.Children, p)
 }
