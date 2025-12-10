@@ -26,6 +26,5 @@ func Fragment(children ...Item) Node {
 }
 
 func Portal(ctx *Ctx, children ...Item) Node {
-	portal.UsePortal(ctx, children)
-	return Fragment()
+	return portal.Portal(ctx, children...)
 }
