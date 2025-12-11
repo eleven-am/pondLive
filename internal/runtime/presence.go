@@ -66,6 +66,10 @@ func PresentIf[T any](condition bool, value T, dur time.Duration) PresenceInput[
 	}
 }
 
+func PresentWhen(condition bool, dur time.Duration) PresenceInput[struct{}] {
+	return PresentIf(condition, struct{}{}, dur)
+}
+
 func PresentList[T any](items []T, keyFn func(T) string, dur time.Duration) PresenceInput[T] {
 	return PresenceInput[T]{
 		Items:    items,
