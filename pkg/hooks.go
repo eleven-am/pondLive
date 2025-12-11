@@ -29,6 +29,9 @@ type (
 	Styles                    = runtime.Styles
 	StreamItem[T any]         = runtime.StreamItem[T]
 	StreamHandle[T any]       = runtime.StreamHandle[T]
+	PresenceInput[T any]      = runtime.PresenceInput[T]
+	PresenceResult[T any]     = runtime.PresenceResult[T]
+	PresenceItem[T any]       = runtime.PresenceItem[T]
 	Meta                      = metatags.Meta
 	CookieOptions             = headers.CookieOptions
 	Document                  = document.Document
@@ -158,4 +161,20 @@ func UseHydrated(ctx *Ctx, fn func() func(), deps ...any) {
 			}
 		}
 	}, allDeps...)
+}
+
+func UsePresence[T any](ctx *Ctx, in PresenceInput[T]) PresenceResult[T] {
+	return runtime.UsePresence(ctx, in)
+}
+
+func Present[T any](value T, dur time.Duration) PresenceInput[T] {
+	return runtime.Present(value, dur)
+}
+
+func PresentIf[T any](condition bool, value T, dur time.Duration) PresenceInput[T] {
+	return runtime.PresentIf(condition, value, dur)
+}
+
+func PresentList[T any](items []T, keyFn func(T) string, dur time.Duration) PresenceInput[T] {
+	return runtime.PresentList(items, keyFn, dur)
 }
