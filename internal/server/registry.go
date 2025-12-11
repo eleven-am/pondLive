@@ -5,9 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"sync"
-	"time"
 
-	"github.com/eleven-am/pondlive/internal/server/store"
 	"github.com/eleven-am/pondlive/internal/session"
 )
 
@@ -41,23 +39,15 @@ func (rel transportRelease) release() {
 }
 
 type SessionRegistry struct {
-	mu             sync.RWMutex
-	sessions       map[session.SessionID]*sessionEntry
-	connections    map[string]*sessionEntry
-	ttl            store.TTLStore
-	touchObservers map[*session.LiveSession]func()
+	mu          sync.RWMutex
+	sessions    map[session.SessionID]*sessionEntry
+	connections map[string]*sessionEntry
 }
 
 func NewSessionRegistry() *SessionRegistry {
-	return NewSessionRegistryWithTTL(store.NewInMemoryTTLStore())
-}
-
-func NewSessionRegistryWithTTL(ttl store.TTLStore) *SessionRegistry {
 	return &SessionRegistry{
-		sessions:       make(map[session.SessionID]*sessionEntry),
-		connections:    make(map[string]*sessionEntry),
-		ttl:            ttl,
-		touchObservers: make(map[*session.LiveSession]func()),
+		sessions:    make(map[session.SessionID]*sessionEntry),
+		connections: make(map[string]*sessionEntry),
 	}
 }
 
@@ -73,14 +63,18 @@ func (r *SessionRegistry) Put(sess *session.LiveSession) {
 	}
 	entry := &sessionEntry{session: sess}
 	r.sessions[id] = entry
-	r.attachSessionLocked(entry.session)
 }
 
 func (r *SessionRegistry) Remove(id session.SessionID) {
 	r.mu.Lock()
-	release := r.removeSessionLocked(id, true)
+	release := r.removeSessionLocked(id)
 	r.mu.Unlock()
-	release.release()
+	if release.transport != nil {
+		_ = release.transport.Close()
+	}
+	if release.session != nil {
+		_ = release.session.Close()
+	}
 }
 
 func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport session.Transport) (*session.LiveSession, error) {
@@ -113,7 +107,6 @@ func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport 
 	entry.connID = connID
 	r.connections[connID] = entry
 	entry.session.SetTransport(transport)
-	r.attachSessionLocked(entry.session)
 	r.mu.Unlock()
 
 	for _, rel := range releases {
@@ -198,91 +191,13 @@ func (r *SessionRegistry) ConnectionForSession(id session.SessionID) (string, se
 	return connID, transport, connID != "" && transport != nil
 }
 
-func (r *SessionRegistry) SweepExpired() []session.SessionID {
-	var expired []session.SessionID
-	var releases []transportRelease
-
-	if r.ttl != nil {
-		if ids, err := r.ttl.Expired(time.Now()); err == nil && len(ids) > 0 {
-			r.mu.Lock()
-			for _, id := range ids {
-				releases = append(releases, r.removeSessionLocked(id, false))
-				expired = append(expired, id)
-			}
-			r.mu.Unlock()
-		}
-	}
-
-	r.mu.Lock()
-	for id, entry := range r.sessions {
-		if entry.session == nil || !entry.session.IsExpired() {
-			continue
-		}
-		releases = append(releases, r.removeSessionLocked(id, true))
-		expired = append(expired, id)
-	}
-	r.mu.Unlock()
-
-	for _, rel := range releases {
-		rel.release()
-	}
-	return expired
-}
-
-func (r *SessionRegistry) StartSweeper(interval time.Duration) func() {
-	if interval <= 0 {
-		interval = 30 * time.Second
-	}
-	ticker := time.NewTicker(interval)
-	done := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				r.SweepExpired()
-			case <-done:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
-	return func() {
-		close(done)
-	}
-}
-
-func (r *SessionRegistry) attachSessionLocked(sess *session.LiveSession) {
-	if sess == nil || r.ttl == nil {
-		return
-	}
-	if remove := r.touchObservers[sess]; remove != nil {
-		remove()
-	}
-	if ttl := sess.TTL(); ttl > 0 {
-		_ = r.ttl.Touch(sess.ID(), ttl)
-	}
-	remove := sess.OnTouch(func(time.Time) {
-		if ttl := sess.TTL(); ttl > 0 {
-			_ = r.ttl.Touch(sess.ID(), ttl)
-		}
-	})
-	r.touchObservers[sess] = remove
-}
-
-func (r *SessionRegistry) removeSessionLocked(id session.SessionID, dropTTL bool) transportRelease {
+func (r *SessionRegistry) removeSessionLocked(id session.SessionID) transportRelease {
 	entry, ok := r.sessions[id]
 	if !ok {
 		return transportRelease{}
 	}
 	if entry.connID != "" {
 		delete(r.connections, entry.connID)
-	}
-	if remove := r.touchObservers[entry.session]; remove != nil {
-		remove()
-		delete(r.touchObservers, entry.session)
-	}
-	if dropTTL && r.ttl != nil {
-		_ = r.ttl.Remove(id)
 	}
 	delete(r.sessions, id)
 	return transportRelease{session: entry.session, transport: entry.transport}

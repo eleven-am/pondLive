@@ -24,6 +24,13 @@ export interface RuntimeConfig {
     debug?: boolean;
 }
 
+const RELOAD_JITTER_MIN = 1000;
+const RELOAD_JITTER_MAX = 10000;
+const MAX_RELOADS = 10;
+const RELOAD_TRACKING_KEY = 'pond_reload_count';
+const RELOAD_TIMESTAMP_KEY = 'pond_reload_timestamp';
+const RELOAD_WINDOW_MS = 60000;
+
 interface ResumeOK {
     t: 'resume_ok';
     from: number;
@@ -198,8 +205,80 @@ export class Runtime {
 
         if (!wasConnected && this.connectedState) {
             Logger.info('Runtime', 'Connected');
+            this.clearReloadTracking();
         } else if (wasConnected && !this.connectedState) {
             Logger.warn('Runtime', 'Disconnected');
+        }
+
+        if (state === 'declined') {
+            Logger.warn('Runtime', 'Session declined - session expired or not found');
+            this.reloadWithJitter();
+        }
+    }
+
+    private reloadWithJitter(): void {
+        if (this.shouldEnterFailsafeMode()) {
+            Logger.error('Runtime', 'Entering failsafe mode - too many consecutive reloads');
+            this.enterFailsafeMode();
+            return;
+        }
+
+        this.incrementReloadCount();
+
+        const jitter = Math.floor(Math.random() * (RELOAD_JITTER_MAX - RELOAD_JITTER_MIN)) + RELOAD_JITTER_MIN;
+        Logger.info('Runtime', `Reloading in ${jitter}ms`);
+
+        setTimeout(() => {
+            window.location.reload();
+        }, jitter);
+    }
+
+    private shouldEnterFailsafeMode(): boolean {
+        try {
+            const lastTimestamp = parseInt(sessionStorage.getItem(RELOAD_TIMESTAMP_KEY) || '0', 10);
+            const reloadCount = parseInt(sessionStorage.getItem(RELOAD_TRACKING_KEY) || '0', 10);
+            const now = Date.now();
+
+            if (now - lastTimestamp > RELOAD_WINDOW_MS) {
+                return false;
+            }
+
+            return reloadCount >= MAX_RELOADS;
+        } catch {
+            return false;
+        }
+    }
+
+    private incrementReloadCount(): void {
+        try {
+            const lastTimestamp = parseInt(sessionStorage.getItem(RELOAD_TIMESTAMP_KEY) || '0', 10);
+            const now = Date.now();
+
+            if (now - lastTimestamp > RELOAD_WINDOW_MS) {
+                sessionStorage.setItem(RELOAD_TRACKING_KEY, '1');
+            } else {
+                const count = parseInt(sessionStorage.getItem(RELOAD_TRACKING_KEY) || '0', 10);
+                sessionStorage.setItem(RELOAD_TRACKING_KEY, String(count + 1));
+            }
+
+            sessionStorage.setItem(RELOAD_TIMESTAMP_KEY, String(now));
+        } catch {
+        }
+    }
+
+    private clearReloadTracking(): void {
+        try {
+            sessionStorage.removeItem(RELOAD_TRACKING_KEY);
+            sessionStorage.removeItem(RELOAD_TIMESTAMP_KEY);
+        } catch {
+        }
+    }
+
+    private enterFailsafeMode(): void {
+        try {
+            sessionStorage.removeItem(RELOAD_TRACKING_KEY);
+            sessionStorage.removeItem(RELOAD_TIMESTAMP_KEY);
+        } catch {
         }
     }
 

@@ -27,7 +27,7 @@ export interface TransportConfig {
     bus: Bus;
 }
 
-export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'stalled';
+export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'stalled' | 'declined';
 
 export interface JoinPayload {
     sid: string;
@@ -219,6 +219,9 @@ export class Transport {
                 break;
             case ChannelState.CLOSED:
                 this.state = 'disconnected';
+                break;
+            case ChannelState.DECLINED:
+                this.state = 'declined';
                 break;
             case ChannelState.JOINING:
             case ChannelState.IDLE:

@@ -3,7 +3,6 @@ package server
 import (
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/runtime"
@@ -212,44 +211,6 @@ func TestRegistryLookupByConnectionEmptyConnID(t *testing.T) {
 	if ok {
 		t.Error("expected false for empty connID")
 	}
-}
-
-func TestRegistrySweepExpired(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	cfg := &session.Config{TTL: 10 * time.Millisecond}
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, cfg)
-
-	reg.Put(sess)
-
-	time.Sleep(20 * time.Millisecond)
-
-	expired := reg.SweepExpired()
-
-	found := false
-	for _, id := range expired {
-		if id == "test-session" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("expected test-session to be in expired list")
-	}
-
-	_, ok := reg.Lookup("test-session")
-	if ok {
-		t.Error("expected session to be removed after sweep")
-	}
-}
-
-func TestRegistryStartSweeper(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	stop := reg.StartSweeper(10 * time.Millisecond)
-	defer stop()
-
-	time.Sleep(30 * time.Millisecond)
 }
 
 func TestLookupWithConnectionRace(t *testing.T) {

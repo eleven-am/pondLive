@@ -31,30 +31,12 @@ func WithDevMode() AppOption {
 	}
 }
 
-func WithSessionTTL(ttl time.Duration) AppOption {
-	return func(c *appConfig) {
-		if c.sessionConfig == nil {
-			c.sessionConfig = &session.Config{}
-		}
-		c.sessionConfig.TTL = ttl
-	}
-}
-
 func WithDOMTimeout(timeout time.Duration) AppOption {
 	return func(c *appConfig) {
 		if c.sessionConfig == nil {
 			c.sessionConfig = &session.Config{}
 		}
 		c.sessionConfig.DOMTimeout = timeout
-	}
-}
-
-func WithClock(clock func() time.Time) AppOption {
-	return func(c *appConfig) {
-		if c.sessionConfig == nil {
-			c.sessionConfig = &session.Config{}
-		}
-		c.sessionConfig.Clock = clock
 	}
 }
 

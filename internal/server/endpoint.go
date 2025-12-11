@@ -88,7 +88,7 @@ func (e *Endpoint) onJoin(ctx *pond.JoinContext) error {
 	}
 
 	var headers http.Header
-	if h := ctx.GetAssigns(headersAssignKey); h != nil {
+	if h := ctx.GetAssign(headersAssignKey); h != nil {
 		if hdr, ok := h.(http.Header); ok {
 			headers = hdr
 		}
@@ -129,14 +129,15 @@ func (e *Endpoint) onAck(ctx *pond.EventContext) error {
 }
 
 func (e *Endpoint) onLeave(ctx *pond.LeaveContext) {
-	if ctx == nil || ctx.User == nil {
+	if ctx == nil {
 		return
 	}
 
-	if sess, ok := e.registry.Lookup(session.SessionID(ctx.User.UserID)); ok && sess != nil {
-		_ = sess.Close()
+	if sid := ctx.GetAssign(sessionAssignKey); sid != nil {
+		if sessionID, ok := sid.(string); ok {
+			e.registry.Remove(session.SessionID(sessionID))
+		}
 	}
-	e.registry.Detach(ctx.User.UserID)
 }
 
 func (e *Endpoint) getSession(ctx *pond.EventContext, sid string) (*session.LiveSession, session.Transport, bool) {
@@ -164,7 +165,6 @@ func (e *Endpoint) onEvt(ctx *pond.EventContext) error {
 		return nil
 	}
 
-	sess.Touch()
 	if bus := sess.Bus(); bus != nil {
 		bus.Publish(evt.Type, evt.Action, evt.Payload)
 	}

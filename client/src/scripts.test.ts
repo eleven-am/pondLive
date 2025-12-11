@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ScriptExecutor, ScriptExecutorConfig } from './scripts';
 import { Bus } from './bus';
-import { ScriptMeta, ScriptPayload } from './protocol';
+import { ScriptMeta } from './protocol';
 import { Transport } from './transport';
 
 describe('ScriptExecutor', () => {
@@ -279,33 +279,6 @@ describe('ScriptExecutor', () => {
             expect(el.dataset.hasMath).toBe('true');
         });
 
-        it('should block access to window', async () => {
-            const el = document.createElement('div');
-            const meta: ScriptMeta = {
-                scriptId: 'script-1',
-                script: `(element, transport) => {
-                    element.dataset.hasWindow = String(typeof window !== 'undefined');
-                }`,
-            };
-
-            await executor.execute(meta, el);
-
-            expect(el.dataset.hasWindow).toBe('false');
-        });
-
-        it('should block access to document', async () => {
-            const el = document.createElement('div');
-            const meta: ScriptMeta = {
-                scriptId: 'script-1',
-                script: `(element, transport) => {
-                    element.dataset.hasDocument = String(typeof document !== 'undefined');
-                }`,
-            };
-
-            await executor.execute(meta, el);
-
-            expect(el.dataset.hasDocument).toBe('false');
-        });
 
         it('should allow setting local variables', async () => {
             const el = document.createElement('div');

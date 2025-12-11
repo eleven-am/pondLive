@@ -161,11 +161,16 @@ func (p *PubSubLobby) handleMessage(ctx *pond.EventContext) error {
 }
 
 func (p *PubSubLobby) handleLeave(ctx *pond.LeaveContext) {
-	if ctx == nil || ctx.User == nil {
+	if ctx == nil {
 		return
 	}
 
-	sess, _, ok := p.registry.LookupByConnection(ctx.User.UserID)
+	user := ctx.GetUser()
+	if user == nil {
+		return
+	}
+
+	sess, _, ok := p.registry.LookupByConnection(user.UserID)
 	if !ok || sess == nil {
 		return
 	}

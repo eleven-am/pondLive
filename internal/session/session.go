@@ -14,19 +14,12 @@ import (
 
 type Component = func(*runtime.Ctx) work.Node
 
-type TouchObserver func(time.Time)
-
 type LiveSession struct {
 	id      SessionID
 	version int
 
 	session   *runtime.Session
 	transport Transport
-	lifecycle *Lifecycle
-
-	touchObservers   map[int]TouchObserver
-	nextObserverID   int
-	touchObserversMu sync.Mutex
 
 	clientAsset string
 
@@ -39,23 +32,15 @@ type LiveSession struct {
 func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *LiveSession {
 	effectiveCfg := DefaultConfig()
 	if cfg != nil {
-		if cfg.TTL > 0 {
-			effectiveCfg.TTL = cfg.TTL
-		}
-		if cfg.Clock != nil {
-			effectiveCfg.Clock = cfg.Clock
-		}
 		effectiveCfg.DevMode = cfg.DevMode
 		effectiveCfg.ClientAsset = cfg.ClientAsset
 		effectiveCfg.DOMTimeout = cfg.DOMTimeout
 	}
 
 	sess := &LiveSession{
-		id:             id,
-		version:        version,
-		lifecycle:      NewLifecycle(effectiveCfg.Clock, effectiveCfg.TTL),
-		touchObservers: make(map[int]TouchObserver),
-		clientAsset:    effectiveCfg.ClientAsset,
+		id:          id,
+		version:     version,
+		clientAsset: effectiveCfg.ClientAsset,
 	}
 
 	rootInst := &runtime.Instance{
@@ -148,7 +133,6 @@ func (s *LiveSession) Receive(topic, event string, data any) {
 	if s == nil || s.session == nil || s.session.Bus == nil {
 		return
 	}
-	s.Touch()
 	s.session.Bus.Publish(protocol.Topic(topic), event, data)
 }
 
@@ -157,50 +141,6 @@ func (s *LiveSession) Flush() error {
 		return nil
 	}
 	return s.session.Flush()
-}
-
-func (s *LiveSession) Touch() {
-	if s == nil || s.lifecycle == nil {
-		return
-	}
-	s.lifecycle.Touch()
-
-	s.touchObserversMu.Lock()
-	observers := make([]TouchObserver, 0, len(s.touchObservers))
-	for _, obs := range s.touchObservers {
-		observers = append(observers, obs)
-	}
-	s.touchObserversMu.Unlock()
-
-	now := s.lifecycle.LastTouch()
-	for _, obs := range observers {
-		if obs != nil {
-			func() {
-				defer func() {
-					if r := recover(); r != nil && s.session != nil && s.session.Bus != nil {
-						s.session.Bus.Publish(protocol.Topic("session:error"), "observer_panic", map[string]any{
-							"panic": r,
-						})
-					}
-				}()
-				obs(now)
-			}()
-		}
-	}
-}
-
-func (s *LiveSession) IsExpired() bool {
-	if s == nil || s.lifecycle == nil {
-		return true
-	}
-	return s.lifecycle.IsExpired()
-}
-
-func (s *LiveSession) TTL() time.Duration {
-	if s == nil || s.lifecycle == nil {
-		return 0
-	}
-	return s.lifecycle.TTL()
 }
 
 func (s *LiveSession) Close() error {
@@ -246,24 +186,6 @@ func (s *LiveSession) SetDevMode(enabled bool) {
 		return
 	}
 	s.session.SetDevMode(enabled)
-}
-
-func (s *LiveSession) OnTouch(observer TouchObserver) func() {
-	if s == nil || observer == nil {
-		return func() {}
-	}
-
-	s.touchObserversMu.Lock()
-	id := s.nextObserverID
-	s.nextObserverID++
-	s.touchObservers[id] = observer
-	s.touchObserversMu.Unlock()
-
-	return func() {
-		s.touchObserversMu.Lock()
-		delete(s.touchObservers, id)
-		s.touchObserversMu.Unlock()
-	}
 }
 
 func (s *LiveSession) ClientAsset() string {
@@ -322,7 +244,6 @@ func (s *LiveSession) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	s.Touch()
 	s.session.ServeHTTP(w, r)
 }
 

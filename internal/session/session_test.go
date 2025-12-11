@@ -58,38 +58,6 @@ func TestLiveSessionCloseNilsSession(t *testing.T) {
 	}
 }
 
-func TestLiveSessionTouchObserverPanicReported(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	var receivedPanic bool
-	var mu sync.Mutex
-
-	sess.Session().Bus.Subscribe(protocol.Topic("session:error"), func(event string, data interface{}) {
-		mu.Lock()
-		if event == "observer_panic" {
-			receivedPanic = true
-		}
-		mu.Unlock()
-	})
-
-	sess.OnTouch(func(t time.Time) {
-		panic("test panic")
-	})
-
-	sess.Touch()
-
-	time.Sleep(10 * time.Millisecond)
-
-	mu.Lock()
-	gotPanic := receivedPanic
-	mu.Unlock()
-
-	if !gotPanic {
-		t.Error("expected observer panic to be reported via bus")
-	}
-}
-
 func TestLiveSessionSSRSendErrorReported(t *testing.T) {
 	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
 	defer sess.Close()
@@ -130,7 +98,6 @@ func TestLiveSessionMethodsAfterClose(t *testing.T) {
 
 	sess.Receive("topic", "event", nil)
 	_ = sess.Flush()
-	sess.Touch()
 	sess.SetDevMode(true)
 	sess.SetAutoFlush(nil)
 	sess.SetDOMTimeout(time.Second)
@@ -149,13 +116,8 @@ func TestLiveSessionNilSafety(t *testing.T) {
 	sess.SetTransport(nil)
 	sess.Receive("topic", "event", nil)
 	_ = sess.Flush()
-	sess.Touch()
-	_ = sess.IsExpired()
-	_ = sess.TTL()
 	_ = sess.Close()
 	sess.SetDevMode(true)
-	cancel := sess.OnTouch(func(t time.Time) {})
-	cancel()
 	_ = sess.ClientAsset()
 	sess.SetClientAsset("test")
 	_ = sess.Bus()

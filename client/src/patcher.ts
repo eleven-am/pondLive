@@ -100,13 +100,13 @@ export class Patcher {
                 this.replaceNode(node, patch.value as StructuredNode);
                 break;
             case 'addChild':
-                this.addChild(node, patch.index!, patch.value as StructuredNode, patch.path);
+                this.addChild(node, patch.index!, patch.value as StructuredNode, patch.path ?? []);
                 break;
             case 'delChild':
                 this.delChild(node, patch.index!);
                 break;
             case 'moveChild':
-                this.moveChild(node, patch.value as { fromIndex: number; newIdx: number; key?: string }, patch.path);
+                this.moveChild(node, patch.value as { fromIndex: number; newIdx: number; key?: string }, patch.path ?? []);
                 break;
         }
     }

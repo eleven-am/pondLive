@@ -209,6 +209,7 @@ var LiveUIModule = (() => {
         ChannelState3["JOINED"] = "JOINED";
         ChannelState3["STALLED"] = "STALLED";
         ChannelState3["CLOSED"] = "CLOSED";
+        ChannelState3["DECLINED"] = "DECLINED";
       })(ChannelState2 || (exports.ChannelState = ChannelState2 = {}));
       var ErrorTypes;
       (function(ErrorTypes2) {
@@ -236,6 +237,7 @@ var LiveUIModule = (() => {
       (function(Events2) {
         Events2["ACKNOWLEDGE"] = "ACKNOWLEDGE";
         Events2["CONNECTION"] = "CONNECTION";
+        Events2["UNAUTHORIZED"] = "UNAUTHORIZED";
       })(Events || (exports.Events = Events = {}));
       var PubSubEvents;
       (function(PubSubEvents2) {
@@ -614,6 +616,14 @@ var LiveUIModule = (() => {
           __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_emptyQueue).call(this);
         }
         /**
+         * @desc Marks the channel join as declined by the server.
+         * @param payload - The decline payload containing status code and message.
+         */
+        decline(payload) {
+          __classPrivateFieldGet(this, _Channel_joinState, "f").publish(pondsocket_common_1.ChannelState.DECLINED);
+          __classPrivateFieldSet(this, _Channel_queue, [], "f");
+        }
+        /**
          * @desc Connects to the channel.
          */
         join() {
@@ -841,6 +851,7 @@ var LiveUIModule = (() => {
       var _PondClient_clearTimeouts;
       var _PondClient_createPublisher;
       var _PondClient_handleAcknowledge;
+      var _PondClient_handleUnauthorized;
       var _PondClient_init;
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.PondClient = void 0;
@@ -1003,10 +1014,18 @@ var LiveUIModule = (() => {
         const channel = (_a = __classPrivateFieldGet(this, _PondClient_channels, "f").get(message.channelName)) !== null && _a !== void 0 ? _a : new channel_1.Channel(__classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_createPublisher).call(this), this._connectionState, message.channelName, {});
         __classPrivateFieldGet(this, _PondClient_channels, "f").set(message.channelName, channel);
         channel.acknowledge(this._broadcaster);
+      }, _PondClient_handleUnauthorized = function _PondClient_handleUnauthorized2(message) {
+        const channel = __classPrivateFieldGet(this, _PondClient_channels, "f").get(message.channelName);
+        if (channel) {
+          const payload = message.payload;
+          channel.decline(payload);
+        }
       }, _PondClient_init = function _PondClient_init2() {
         this._broadcaster.subscribe((message) => {
           if (message.event === pondsocket_common_1.Events.ACKNOWLEDGE) {
             __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_handleAcknowledge).call(this, message);
+          } else if (message.event === pondsocket_common_1.Events.UNAUTHORIZED) {
+            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_handleUnauthorized).call(this, message);
           } else if (message.event === pondsocket_common_1.Events.CONNECTION && message.action === pondsocket_common_1.ServerActions.CONNECT) {
             this._connectionState.publish(types_1.ConnectionState.CONNECTED);
           }
@@ -1036,6 +1055,7 @@ var LiveUIModule = (() => {
       var _SSEClient_clearTimeout;
       var _SSEClient_createPublisher;
       var _SSEClient_handleAcknowledge;
+      var _SSEClient_handleUnauthorized;
       var _SSEClient_init;
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.SSEClient = void 0;
@@ -1202,10 +1222,18 @@ var LiveUIModule = (() => {
         const channel = (_a = __classPrivateFieldGet(this, _SSEClient_channels, "f").get(message.channelName)) !== null && _a !== void 0 ? _a : new channel_1.Channel(__classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_createPublisher).call(this), this._connectionState, message.channelName, {});
         __classPrivateFieldGet(this, _SSEClient_channels, "f").set(message.channelName, channel);
         channel.acknowledge(this._broadcaster);
+      }, _SSEClient_handleUnauthorized = function _SSEClient_handleUnauthorized2(message) {
+        const channel = __classPrivateFieldGet(this, _SSEClient_channels, "f").get(message.channelName);
+        if (channel) {
+          const payload = message.payload;
+          channel.decline(payload);
+        }
       }, _SSEClient_init = function _SSEClient_init2() {
         this._broadcaster.subscribe((message) => {
           if (message.event === pondsocket_common_1.Events.ACKNOWLEDGE) {
             __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_handleAcknowledge).call(this, message);
+          } else if (message.event === pondsocket_common_1.Events.UNAUTHORIZED) {
+            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_handleUnauthorized).call(this, message);
           } else if (message.event === pondsocket_common_1.Events.CONNECTION && message.action === pondsocket_common_1.ServerActions.CONNECT) {
             this._connectionState.publish(types_1.ConnectionState.CONNECTED);
           }
@@ -1879,6 +1907,9 @@ var LiveUIModule = (() => {
         case import_pondsocket_client.ChannelState.CLOSED:
           this.state = "disconnected";
           break;
+        case import_pondsocket_client.ChannelState.DECLINED:
+          this.state = "declined";
+          break;
         case import_pondsocket_client.ChannelState.JOINING:
         case import_pondsocket_client.ChannelState.IDLE:
           this.state = "connecting";
@@ -1962,13 +1993,13 @@ var LiveUIModule = (() => {
           this.replaceNode(node, patch.value);
           break;
         case "addChild":
-          this.addChild(node, patch.index, patch.value, patch.path);
+          this.addChild(node, patch.index, patch.value, patch.path ?? []);
           break;
         case "delChild":
           this.delChild(node, patch.index);
           break;
         case "moveChild":
-          this.moveChild(node, patch.value, patch.path);
+          this.moveChild(node, patch.value, patch.path ?? []);
           break;
       }
     }
@@ -2614,6 +2645,12 @@ var LiveUIModule = (() => {
   };
 
   // src/runtime.ts
+  var RELOAD_JITTER_MIN = 1e3;
+  var RELOAD_JITTER_MAX = 1e4;
+  var MAX_RELOADS = 10;
+  var RELOAD_TRACKING_KEY = "pond_reload_count";
+  var RELOAD_TIMESTAMP_KEY = "pond_reload_timestamp";
+  var RELOAD_WINDOW_MS = 6e4;
   function isResumeOK(msg) {
     return typeof msg === "object" && msg !== null && msg.t === "resume_ok";
   }
@@ -2732,8 +2769,67 @@ var LiveUIModule = (() => {
       this.connectedState = state === "connected";
       if (!wasConnected && this.connectedState) {
         Logger.info("Runtime", "Connected");
+        this.clearReloadTracking();
       } else if (wasConnected && !this.connectedState) {
         Logger.warn("Runtime", "Disconnected");
+      }
+      if (state === "declined") {
+        Logger.warn("Runtime", "Session declined - session expired or not found");
+        this.reloadWithJitter();
+      }
+    }
+    reloadWithJitter() {
+      if (this.shouldEnterFailsafeMode()) {
+        Logger.error("Runtime", "Entering failsafe mode - too many consecutive reloads");
+        this.enterFailsafeMode();
+        return;
+      }
+      this.incrementReloadCount();
+      const jitter = Math.floor(Math.random() * (RELOAD_JITTER_MAX - RELOAD_JITTER_MIN)) + RELOAD_JITTER_MIN;
+      Logger.info("Runtime", `Reloading in ${jitter}ms`);
+      setTimeout(() => {
+        window.location.reload();
+      }, jitter);
+    }
+    shouldEnterFailsafeMode() {
+      try {
+        const lastTimestamp = parseInt(sessionStorage.getItem(RELOAD_TIMESTAMP_KEY) || "0", 10);
+        const reloadCount = parseInt(sessionStorage.getItem(RELOAD_TRACKING_KEY) || "0", 10);
+        const now = Date.now();
+        if (now - lastTimestamp > RELOAD_WINDOW_MS) {
+          return false;
+        }
+        return reloadCount >= MAX_RELOADS;
+      } catch {
+        return false;
+      }
+    }
+    incrementReloadCount() {
+      try {
+        const lastTimestamp = parseInt(sessionStorage.getItem(RELOAD_TIMESTAMP_KEY) || "0", 10);
+        const now = Date.now();
+        if (now - lastTimestamp > RELOAD_WINDOW_MS) {
+          sessionStorage.setItem(RELOAD_TRACKING_KEY, "1");
+        } else {
+          const count = parseInt(sessionStorage.getItem(RELOAD_TRACKING_KEY) || "0", 10);
+          sessionStorage.setItem(RELOAD_TRACKING_KEY, String(count + 1));
+        }
+        sessionStorage.setItem(RELOAD_TIMESTAMP_KEY, String(now));
+      } catch {
+      }
+    }
+    clearReloadTracking() {
+      try {
+        sessionStorage.removeItem(RELOAD_TRACKING_KEY);
+        sessionStorage.removeItem(RELOAD_TIMESTAMP_KEY);
+      } catch {
+      }
+    }
+    enterFailsafeMode() {
+      try {
+        sessionStorage.removeItem(RELOAD_TRACKING_KEY);
+        sessionStorage.removeItem(RELOAD_TIMESTAMP_KEY);
+      } catch {
       }
     }
     applyPatches(patches) {

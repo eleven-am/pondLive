@@ -7,10 +7,6 @@ import (
 type SessionID string
 
 type Config struct {
-	TTL time.Duration
-
-	Clock func() time.Time
-
 	DevMode bool
 
 	ClientAsset string
@@ -19,8 +15,5 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
-	return Config{
-		TTL:   90 * time.Second,
-		Clock: time.Now,
-	}
+	return Config{}
 }
