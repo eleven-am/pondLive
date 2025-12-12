@@ -236,11 +236,24 @@ func (s *Session) HandleScriptMessage(id string, event string, data interface{})
 		return
 	}
 
-	phase := fmt.Sprintf("script:message:%s:%s", id, event)
-	_ = s.withRecovery(phase, func() error {
-		slot.handleMessage(event, data)
-		return nil
-	})
+	defer func() {
+		if r := recover(); r != nil {
+			phase := fmt.Sprintf("script:message:%s:%s", id, event)
+			if s != nil && s.Bus != nil {
+				s.Bus.ReportDiagnostic(protocol.Diagnostic{
+					Phase:      phase,
+					Message:    fmt.Sprintf("panic: %v", r),
+					StackTrace: "",
+					Metadata: map[string]any{
+						"panic_value": r,
+						"session_id":  s.SessionID,
+					},
+				})
+			}
+		}
+	}()
+
+	slot.handleMessage(event, data)
 }
 
 func minifyJS(script string) string {

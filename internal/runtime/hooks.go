@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"runtime/debug"
-	"time"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/work"
@@ -146,18 +145,39 @@ func UseMemo[T any](ctx *Ctx, compute func() T, deps ...any) T {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
 
-	safeCompute := func() (result T, err *ComponentError) {
+	safeCompute := func() (result T, err *Error) {
 		defer func() {
 			if r := recover(); r != nil {
 				stack := string(debug.Stack())
-				err = &ComponentError{
-					Message:     fmt.Sprintf("%v", r),
-					StackTrace:  stack,
-					ComponentID: ctx.instance.ID,
-					Phase:       "memo",
-					HookIndex:   idx,
-					Timestamp:   time.Now(),
+
+				var parentID string
+				if ctx.instance.Parent != nil {
+					parentID = ctx.instance.Parent.ID
 				}
+
+				var sessionID string
+				var devMode bool
+				if ctx.session != nil {
+					sessionID = ctx.session.SessionID
+					devMode = ctx.session.devMode
+				}
+
+				ectx := ErrorContext{
+					SessionID:         sessionID,
+					ComponentID:       ctx.instance.ID,
+					ComponentName:     ctx.instance.ComponentName(),
+					ParentID:          parentID,
+					ComponentPath:     ctx.instance.BuildComponentPath(),
+					ComponentNamePath: ctx.instance.BuildComponentNamePath(),
+					Phase:             "memo",
+					HookIndex:         idx,
+					HookCount:         len(ctx.instance.HookFrame),
+					Props:             ctx.instance.Props,
+					ProviderKeys:      ctx.instance.GetProviderKeys(),
+					DevMode:           devMode,
+				}
+				err = NewComponentErrorWithContext(ErrCodeMemo, fmt.Sprintf("%v", r), stack, ectx)
+				err.Meta["panic_value"] = r
 
 				if ctx.session != nil && ctx.session.devMode && ctx.session.Bus != nil {
 					ctx.session.Bus.ReportDiagnostic(protocol.Diagnostic{
@@ -180,10 +200,7 @@ func UseMemo[T any](ctx *Ctx, compute func() T, deps ...any) T {
 	if idx >= len(ctx.instance.HookFrame) {
 		val, err := safeCompute()
 		if err != nil {
-
-			ctx.instance.mu.Lock()
-			ctx.instance.RenderError = err
-			ctx.instance.mu.Unlock()
+			ctx.instance.setRenderError(err)
 		}
 		cell := &memoCell[T]{val: val, deps: cloneDeps(deps)}
 		ctx.instance.HookFrame = append(ctx.instance.HookFrame, HookSlot{
@@ -201,10 +218,7 @@ func UseMemo[T any](ctx *Ctx, compute func() T, deps ...any) T {
 	if !depsEqual(cell.deps, deps) {
 		val, err := safeCompute()
 		if err != nil {
-
-			ctx.instance.mu.Lock()
-			ctx.instance.RenderError = err
-			ctx.instance.mu.Unlock()
+			ctx.instance.setRenderError(err)
 			return cell.val
 		}
 		cell.val = val
@@ -351,14 +365,14 @@ func depsValueEqual(a, b any) bool {
 	}
 }
 
-func UseErrorBoundary(ctx *Ctx) *ComponentError {
+func UseErrorBoundary(ctx *Ctx) *ErrorBatch {
 	idx := ctx.hookIndex
 	ctx.hookIndex++
 
 	if idx >= len(ctx.instance.HookFrame) {
 		ctx.instance.HookFrame = append(ctx.instance.HookFrame, HookSlot{
 			Type:  HookTypeErrorBoundary,
-			Value: (*ComponentError)(nil),
+			Value: (*ErrorBatch)(nil),
 		})
 	}
 
@@ -367,15 +381,21 @@ func UseErrorBoundary(ctx *Ctx) *ComponentError {
 		panic("runtime: UseErrorBoundary hook mismatch")
 	}
 
-	childErr := ctx.instance.findChildError()
+	renderErrors := ctx.instance.collectChildErrors()
+	effectErrors := ctx.instance.collectChildEffectErrors()
 
-	if childErr != nil {
+	allErrors := append(renderErrors, effectErrors...)
+
+	if len(allErrors) > 0 {
 		ctx.instance.clearChildErrors()
+		ctx.instance.clearChildEffectErrors()
+		batch := NewErrorBatch(allErrors...)
+		slot.Value = batch
+		return batch
 	}
 
-	slot.Value = childErr
-
-	return childErr
+	slot.Value = nil
+	return nil
 }
 
 type channelCell struct {

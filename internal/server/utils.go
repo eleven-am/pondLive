@@ -2,9 +2,6 @@ package server
 
 import (
 	"net/http"
-
-	"github.com/eleven-am/pondlive/internal/protocol"
-	"github.com/eleven-am/pondlive/internal/session"
 )
 
 func cloneHeader(h http.Header) http.Header {
@@ -16,17 +13,4 @@ func cloneHeader(h http.Header) http.Header {
 		clone[k] = append([]string(nil), v...)
 	}
 	return clone
-}
-
-func serverError(sid session.SessionID, code string, err error) protocol.ServerError {
-	msg := ""
-	if err != nil {
-		msg = err.Error()
-	}
-	return protocol.ServerError{
-		T:       "error",
-		SID:     string(sid),
-		Code:    code,
-		Message: msg,
-	}
 }

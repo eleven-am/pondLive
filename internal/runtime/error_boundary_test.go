@@ -25,9 +25,9 @@ func TestUseErrorBoundary_NoError(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	err := UseErrorBoundary(ctx)
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
+	batch := UseErrorBoundary(ctx)
+	if batch.HasErrors() {
+		t.Errorf("expected no errors, got %v", batch.First())
 	}
 }
 
@@ -64,11 +64,12 @@ func TestUseErrorBoundary_RenderError(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	err := UseErrorBoundary(ctx)
-	if err == nil {
+	batch := UseErrorBoundary(ctx)
+	if !batch.HasErrors() {
 		t.Fatal("expected error, got nil")
 	}
 
+	err := batch.First()
 	if err.Message != "intentional panic" {
 		t.Errorf("expected 'intentional panic', got '%s'", err.Message)
 	}
@@ -119,11 +120,12 @@ func TestUseErrorBoundary_MemoError(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	err := UseErrorBoundary(ctx)
-	if err == nil {
+	batch := UseErrorBoundary(ctx)
+	if !batch.HasErrors() {
 		t.Fatal("expected error from memo, got nil")
 	}
 
+	err := batch.First()
 	if err.Message != "memo panic" {
 		t.Errorf("expected 'memo panic', got '%s'", err.Message)
 	}
@@ -147,10 +149,10 @@ func TestErrorBoundary_CatchChildError(t *testing.T) {
 	}
 
 	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		err := UseErrorBoundary(ctx)
-		if err != nil {
+		batch := UseErrorBoundary(ctx)
+		if batch.HasErrors() {
 
-			return &work.Text{Value: "Error: " + err.Message}
+			return &work.Text{Value: "Error: " + batch.First().Message}
 		}
 
 		return nil
@@ -231,13 +233,26 @@ func TestErrorBoundary_MultipleErrors(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	err := UseErrorBoundary(ctx)
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	batch := UseErrorBoundary(ctx)
+	if !batch.HasErrors() {
+		t.Fatal("expected errors, got nil")
 	}
 
-	if err.Message != "error 1" && err.Message != "error 2" {
-		t.Errorf("expected 'error 1' or 'error 2', got '%s'", err.Message)
+	if batch.Count() != 2 {
+		t.Errorf("expected 2 errors, got %d", batch.Count())
+	}
+
+	allErrors := batch.All()
+	messages := make(map[string]bool)
+	for _, err := range allErrors {
+		messages[err.Message] = true
+	}
+
+	if !messages["error 1"] {
+		t.Error("expected 'error 1' in errors")
+	}
+	if !messages["error 2"] {
+		t.Error("expected 'error 2' in errors")
 	}
 }
 
@@ -270,8 +285,8 @@ func TestErrorBoundary_ClearsOnSuccessfulRender(t *testing.T) {
 		hookIndex: 0,
 	}
 
-	err := UseErrorBoundary(ctx)
-	if err == nil {
+	batch := UseErrorBoundary(ctx)
+	if !batch.HasErrors() {
 		t.Fatal("expected error from first render")
 	}
 
@@ -280,9 +295,9 @@ func TestErrorBoundary_ClearsOnSuccessfulRender(t *testing.T) {
 
 	ctx.hookIndex = 0
 
-	err = UseErrorBoundary(ctx)
-	if err != nil {
-		t.Errorf("expected error to be cleared after successful render, got %v", err)
+	batch = UseErrorBoundary(ctx)
+	if batch.HasErrors() {
+		t.Errorf("expected error to be cleared after successful render, got %v", batch.First())
 	}
 }
 
@@ -296,17 +311,17 @@ func TestErrorBoundary_LayeredInnerCatches(t *testing.T) {
 	}
 
 	dashboardComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		err := UseErrorBoundary(ctx)
-		if err != nil {
-			return &work.Text{Value: "Dashboard Error: " + err.Message}
+		batch := UseErrorBoundary(ctx)
+		if batch.HasErrors() {
+			return &work.Text{Value: "Dashboard Error: " + batch.First().Message}
 		}
 		return nil
 	}
 
 	appComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		err := UseErrorBoundary(ctx)
-		if err != nil {
-			return &work.Text{Value: "App Error: " + err.Message}
+		batch := UseErrorBoundary(ctx)
+		if batch.HasErrors() {
+			return &work.Text{Value: "App Error: " + batch.First().Message}
 		}
 		return nil
 	}
@@ -366,9 +381,9 @@ func TestErrorBoundary_LayeredOuterCatchesWhenInnerMissing(t *testing.T) {
 	}
 
 	appComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		err := UseErrorBoundary(ctx)
-		if err != nil {
-			return &work.Text{Value: "App Error: " + err.Message}
+		batch := UseErrorBoundary(ctx)
+		if batch.HasErrors() {
+			return &work.Text{Value: "App Error: " + batch.First().Message}
 		}
 		return nil
 	}
@@ -424,17 +439,17 @@ func TestErrorBoundary_LayeredMultiLevel(t *testing.T) {
 	}
 
 	dashboardComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		err := UseErrorBoundary(ctx)
-		if err != nil {
-			return &work.Text{Value: "Dashboard Error: " + err.Message}
+		batch := UseErrorBoundary(ctx)
+		if batch.HasErrors() {
+			return &work.Text{Value: "Dashboard Error: " + batch.First().Message}
 		}
 		return nil
 	}
 
 	appComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		err := UseErrorBoundary(ctx)
-		if err != nil {
-			return &work.Text{Value: "App Error: " + err.Message}
+		batch := UseErrorBoundary(ctx)
+		if batch.HasErrors() {
+			return &work.Text{Value: "App Error: " + batch.First().Message}
 		}
 		return nil
 	}
@@ -489,6 +504,235 @@ func TestErrorBoundary_LayeredMultiLevel(t *testing.T) {
 	}
 }
 
+func TestErrorBoundary_HasDescendantErrorBubblesUp(t *testing.T) {
+	grandchild := &Instance{
+		ID:        "grandchild",
+		HookFrame: []HookSlot{},
+	}
+
+	child := &Instance{
+		ID:        "child",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{grandchild},
+	}
+	grandchild.Parent = child
+
+	parent := &Instance{
+		ID:        "parent",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{child},
+	}
+	child.Parent = parent
+
+	root := &Instance{
+		ID:        "root",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{parent},
+	}
+	parent.Parent = root
+
+	if root.hasDescendantError || parent.hasDescendantError || child.hasDescendantError {
+		t.Fatal("expected all hasDescendantError flags to be false initially")
+	}
+
+	testErr := &Error{
+		ErrorCode: ErrCodeRender,
+		Message:   "test error",
+		Phase:     "render",
+	}
+	grandchild.setRenderError(testErr)
+
+	if !child.hasDescendantError {
+		t.Error("expected child.hasDescendantError to be true after grandchild error")
+	}
+	if !parent.hasDescendantError {
+		t.Error("expected parent.hasDescendantError to be true after grandchild error")
+	}
+	if !root.hasDescendantError {
+		t.Error("expected root.hasDescendantError to be true after grandchild error")
+	}
+
+	if grandchild.hasDescendantError {
+		t.Error("grandchild should not have hasDescendantError set (error is on self, not descendant)")
+	}
+}
+
+func TestErrorBoundary_HasDescendantErrorStopsAtMarked(t *testing.T) {
+	child := &Instance{
+		ID:        "child",
+		HookFrame: []HookSlot{},
+	}
+
+	parent := &Instance{
+		ID:                 "parent",
+		HookFrame:          []HookSlot{},
+		Children:           []*Instance{child},
+		hasDescendantError: true,
+	}
+	child.Parent = parent
+
+	root := &Instance{
+		ID:                 "root",
+		HookFrame:          []HookSlot{},
+		Children:           []*Instance{parent},
+		hasDescendantError: true,
+	}
+	parent.Parent = root
+
+	testErr := &Error{
+		ErrorCode: ErrCodeRender,
+		Message:   "another error",
+		Phase:     "render",
+	}
+	child.setRenderError(testErr)
+
+	if !parent.hasDescendantError {
+		t.Error("parent.hasDescendantError should still be true")
+	}
+	if !root.hasDescendantError {
+		t.Error("root.hasDescendantError should still be true")
+	}
+}
+
+func TestErrorBoundary_PruningSkipsCleanSubtrees(t *testing.T) {
+	cleanGrandchild := &Instance{
+		ID:        "cleanGrandchild",
+		HookFrame: []HookSlot{},
+	}
+
+	cleanChild := &Instance{
+		ID:        "cleanChild",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{cleanGrandchild},
+	}
+	cleanGrandchild.Parent = cleanChild
+
+	dirtyGrandchild := &Instance{
+		ID:        "dirtyGrandchild",
+		HookFrame: []HookSlot{},
+	}
+
+	dirtyChild := &Instance{
+		ID:        "dirtyChild",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{dirtyGrandchild},
+	}
+	dirtyGrandchild.Parent = dirtyChild
+
+	parent := &Instance{
+		ID:        "parent",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{cleanChild, dirtyChild},
+	}
+	cleanChild.Parent = parent
+	dirtyChild.Parent = parent
+
+	testErr := &Error{
+		ErrorCode: ErrCodeRender,
+		Message:   "dirty error",
+		Phase:     "render",
+	}
+	dirtyGrandchild.setRenderError(testErr)
+
+	if cleanChild.hasDescendantError {
+		t.Error("cleanChild should not have hasDescendantError")
+	}
+	if !dirtyChild.hasDescendantError {
+		t.Error("dirtyChild should have hasDescendantError")
+	}
+	if !parent.hasDescendantError {
+		t.Error("parent should have hasDescendantError")
+	}
+
+	errors := parent.collectChildErrors()
+	if len(errors) != 1 {
+		t.Fatalf("expected 1 error, got %d", len(errors))
+	}
+	if errors[0].Message != "dirty error" {
+		t.Errorf("expected 'dirty error', got '%s'", errors[0].Message)
+	}
+}
+
+func TestErrorBoundary_ClearResetsFlags(t *testing.T) {
+	grandchild := &Instance{
+		ID:        "grandchild",
+		HookFrame: []HookSlot{},
+	}
+
+	child := &Instance{
+		ID:        "child",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{grandchild},
+	}
+	grandchild.Parent = child
+
+	parent := &Instance{
+		ID:        "parent",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{child},
+	}
+	child.Parent = parent
+
+	testErr := &Error{
+		ErrorCode: ErrCodeRender,
+		Message:   "test error",
+		Phase:     "render",
+	}
+	grandchild.setRenderError(testErr)
+
+	if !parent.hasDescendantError || !child.hasDescendantError {
+		t.Fatal("flags should be set before clear")
+	}
+
+	parent.clearChildErrors()
+
+	if parent.hasDescendantError {
+		t.Error("parent.hasDescendantError should be false after clear")
+	}
+	if child.hasDescendantError {
+		t.Error("child.hasDescendantError should be false after clear")
+	}
+	if grandchild.hasDescendantError {
+		t.Error("grandchild.hasDescendantError should be false after clear")
+	}
+	if grandchild.RenderError != nil {
+		t.Error("grandchild.RenderError should be nil after clear")
+	}
+}
+
+func TestErrorBoundary_EffectErrorBubblesUp(t *testing.T) {
+	child := &Instance{
+		ID:        "child",
+		HookFrame: []HookSlot{},
+	}
+
+	parent := &Instance{
+		ID:        "parent",
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{child},
+	}
+	child.Parent = parent
+
+	testErr := &Error{
+		ErrorCode: ErrCodeEffect,
+		Message:   "effect error",
+		Phase:     "effect",
+	}
+	child.setEffectError(testErr)
+
+	if !parent.hasDescendantError {
+		t.Error("parent.hasDescendantError should be true after child effect error")
+	}
+
+	errors := parent.collectChildEffectErrors()
+	if len(errors) != 1 {
+		t.Fatalf("expected 1 effect error, got %d", len(errors))
+	}
+	if errors[0].Message != "effect error" {
+		t.Errorf("expected 'effect error', got '%s'", errors[0].Message)
+	}
+}
+
 func TestErrorBoundary_LayeredSiblingIsolation(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
@@ -503,17 +747,17 @@ func TestErrorBoundary_LayeredSiblingIsolation(t *testing.T) {
 	}
 
 	criticalWrapperComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		err := UseErrorBoundary(ctx)
-		if err != nil {
-			return &work.Text{Value: "Critical Fallback: " + err.Message}
+		batch := UseErrorBoundary(ctx)
+		if batch.HasErrors() {
+			return &work.Text{Value: "Critical Fallback: " + batch.First().Message}
 		}
 		return nil
 	}
 
 	optionalWrapperComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		err := UseErrorBoundary(ctx)
-		if err != nil {
-			return &work.Text{Value: "Optional Fallback: " + err.Message}
+		batch := UseErrorBoundary(ctx)
+		if batch.HasErrors() {
+			return &work.Text{Value: "Optional Fallback: " + batch.First().Message}
 		}
 		return nil
 	}

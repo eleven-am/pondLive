@@ -47,7 +47,7 @@ type ComponentNode struct {
 	InputChildren []Node
 	InputAttrs    []Item
 	Key           string
-	IdentityPtr   uintptr
+	Name          string
 }
 
 type PortalNode struct {

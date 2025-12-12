@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"encoding/json"
-	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -193,7 +192,17 @@ func (b *Bus) SubscriberCount(id Topic) int {
 }
 
 func (b *Bus) ReportDiagnostic(diagnostic Diagnostic) {
-	fmt.Println("TODO: implement diagnostic reporting", diagnostic)
+	b.Publish(TopicDiagnostic, "report", diagnostic)
+}
+
+func (b *Bus) SubscribeToDiagnostics(callback func(Diagnostic)) *Subscription {
+	return b.Subscribe(TopicDiagnostic, func(event string, data interface{}) {
+		if event == "report" {
+			if diag, ok := data.(Diagnostic); ok {
+				callback(diag)
+			}
+		}
+	})
 }
 
 func (b *Bus) unsubscribeWildcard(subID uint64) {

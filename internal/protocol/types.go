@@ -8,9 +8,10 @@ import (
 type Topic string
 
 const (
-	RouteHandler Topic = "router"
-	DOMHandler   Topic = "dom"
-	TopicFrame   Topic = "frame"
+	RouteHandler    Topic = "router"
+	DOMHandler      Topic = "dom"
+	TopicFrame      Topic = "frame"
+	TopicDiagnostic Topic = "diagnostic"
 
 	AckTopic Topic = "ack"
 )
@@ -58,10 +59,19 @@ type Boot struct {
 }
 
 type ServerError struct {
-	T       string `json:"t"`
-	SID     string `json:"sid"`
-	Code    string `json:"code"`
-	Message string `json:"message"`
+	T          string         `json:"t"`
+	SID        string         `json:"sid"`
+	Code       string         `json:"code"`
+	Message    string         `json:"message"`
+	StackTrace string         `json:"stack,omitempty"`
+	Meta       map[string]any `json:"meta,omitempty"`
+}
+
+func (e *ServerError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return e.Message
 }
 
 type Diagnostic struct {

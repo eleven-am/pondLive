@@ -13,6 +13,7 @@ import (
 	"github.com/eleven-am/pondlive/internal/handler"
 	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/route"
+	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/session"
 	"github.com/eleven-am/pondlive/internal/upload"
 	"github.com/eleven-am/pondlive/internal/view"
@@ -50,7 +51,7 @@ type Config struct {
 
 func New(cfg Config) (*App, error) {
 	if cfg.Component == nil {
-		return nil, &AppError{Code: "missing_component", Message: "component is required"}
+		return nil, runtime.NewError(runtime.ErrCodeApp, "component is required")
 	}
 
 	ctx := cfg.Context
@@ -311,13 +312,4 @@ func lastIndexFold(haystack, needle string) int {
 		}
 	}
 	return -1
-}
-
-type AppError struct {
-	Code    string
-	Message string
-}
-
-func (e *AppError) Error() string {
-	return e.Message
 }

@@ -2,8 +2,6 @@ package runtime
 
 import (
 	"context"
-	"fmt"
-	"runtime/debug"
 	"sync"
 	"time"
 
@@ -195,31 +193,6 @@ func (s *Session) ChannelManager() *ChannelManager {
 		s.channelManager = NewChannelManager(s.SessionID, s.Bus)
 	}
 	return s.channelManager
-}
-
-func (s *Session) withRecovery(phase string, fn func() error) error {
-	defer func() {
-		if r := recover(); r != nil {
-			stack := string(debug.Stack())
-			if s != nil && s.Bus != nil {
-				s.Bus.ReportDiagnostic(protocol.Diagnostic{
-					Phase:      phase,
-					Message:    fmt.Sprintf("panic: %v", r),
-					StackTrace: stack,
-					Metadata: map[string]any{
-						"panic_value": r,
-						"session_id":  s.SessionID,
-					},
-				})
-			}
-		}
-	}()
-
-	if s == nil {
-		return fmt.Errorf("runtime: session is nil")
-	}
-
-	return fn()
 }
 
 func (s *Session) cleanupInstanceTree(inst *Instance) {

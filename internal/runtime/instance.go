@@ -2,27 +2,22 @@ package runtime
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"runtime"
+	"strings"
 	"sync"
-	"time"
 
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
 type ComponentNode[P any] func(*Ctx, P, []work.Item) work.Node
 
-type ComponentError struct {
-	Message     string
-	StackTrace  string
-	ComponentID string
-	Phase       string
-	HookIndex   int
-	Timestamp   time.Time
-}
-
 type Instance struct {
-	ID  string
-	Fn  any
-	Key string
+	ID   string
+	Fn   any
+	Key  string
+	Name string
 
 	Props             any
 	PrevProps         any
@@ -56,7 +51,9 @@ type Instance struct {
 	ReferencedChildren map[string]bool
 	NextHandlerIndex   int
 
-	RenderError *ComponentError
+	RenderError        *Error
+	EffectError        *Error
+	hasDescendantError bool
 
 	renderCtx    context.Context
 	cancelRender context.CancelFunc
@@ -100,28 +97,183 @@ func (inst *Instance) RegisterCleanup(fn func()) {
 	inst.cleanupsMu.Unlock()
 }
 
-func (inst *Instance) findChildError() *ComponentError {
+func (inst *Instance) BuildComponentPath() []string {
+	var path []string
+	for current := inst; current != nil; current = current.Parent {
+		path = append([]string{current.ID}, path...)
+	}
+	return path
+}
+
+func (inst *Instance) ComponentName() string {
+	if inst == nil {
+		return ""
+	}
+	if inst.Name != "" {
+		return inst.Name
+	}
+	if inst.Fn == nil {
+		return ""
+	}
+
+	fn := reflect.ValueOf(inst.Fn)
+	if fn.Kind() != reflect.Func {
+		return ""
+	}
+
+	ptr := fn.Pointer()
+	funcInfo := runtime.FuncForPC(ptr)
+	if funcInfo == nil {
+		return ""
+	}
+
+	fullName := funcInfo.Name()
+	if idx := strings.LastIndex(fullName, "."); idx >= 0 {
+		return fullName[idx+1:]
+	}
+	return fullName
+}
+
+func (inst *Instance) BuildComponentNamePath() []string {
+	var path []string
+	for current := inst; current != nil; current = current.Parent {
+		name := current.ComponentName()
+		if name == "" {
+			name = current.ID
+		}
+		path = append([]string{name}, path...)
+	}
+	return path
+}
+
+func (inst *Instance) GetProviderKeys() []string {
+	if inst == nil {
+		return nil
+	}
+	inst.mu.Lock()
+	defer inst.mu.Unlock()
+	var keys []string
+	for key := range inst.Providers {
+		keys = append(keys, fmt.Sprintf("%T", key))
+	}
+	return keys
+}
+
+func (inst *Instance) markAncestorsWithError() {
+	for ancestor := inst.Parent; ancestor != nil; ancestor = ancestor.Parent {
+		ancestor.mu.Lock()
+		if ancestor.hasDescendantError {
+			ancestor.mu.Unlock()
+			break
+		}
+		ancestor.hasDescendantError = true
+		ancestor.mu.Unlock()
+	}
+}
+
+func (inst *Instance) setRenderError(err *Error) {
+	if inst == nil {
+		return
+	}
+	inst.mu.Lock()
+	inst.RenderError = err
+	inst.mu.Unlock()
+
+	if err != nil {
+		inst.markAncestorsWithError()
+	}
+}
+
+func (inst *Instance) collectChildErrors() []*Error {
 	if inst == nil {
 		return nil
 	}
 
+	var errors []*Error
+
 	inst.mu.Lock()
-	if inst.RenderError != nil {
-		err := inst.RenderError
-		inst.mu.Unlock()
-		return err
+	hasError := inst.RenderError != nil
+	hasDescendantError := inst.hasDescendantError
+
+	if hasError {
+		errors = append(errors, inst.RenderError)
 	}
+
+	if !hasDescendantError && !hasError {
+		inst.mu.Unlock()
+		return nil
+	}
+
 	children := make([]*Instance, len(inst.Children))
 	copy(children, inst.Children)
 	inst.mu.Unlock()
 
 	for _, child := range children {
-		if err := child.findChildError(); err != nil {
-			return err
-		}
+		errors = append(errors, child.collectChildErrors()...)
 	}
 
-	return nil
+	return errors
+}
+
+func (inst *Instance) setEffectError(err *Error) {
+	if inst == nil {
+		return
+	}
+	inst.mu.Lock()
+	inst.EffectError = err
+	inst.mu.Unlock()
+
+	if err != nil {
+		inst.markAncestorsWithError()
+	}
+}
+
+func (inst *Instance) collectChildEffectErrors() []*Error {
+	if inst == nil {
+		return nil
+	}
+
+	var errors []*Error
+
+	inst.mu.Lock()
+	hasError := inst.EffectError != nil
+	hasDescendantError := inst.hasDescendantError
+
+	if hasError {
+		errors = append(errors, inst.EffectError)
+	}
+
+	if !hasDescendantError && !hasError {
+		inst.mu.Unlock()
+		return nil
+	}
+
+	children := make([]*Instance, len(inst.Children))
+	copy(children, inst.Children)
+	inst.mu.Unlock()
+
+	for _, child := range children {
+		errors = append(errors, child.collectChildEffectErrors()...)
+	}
+
+	return errors
+}
+
+func (inst *Instance) clearChildEffectErrors() {
+	if inst == nil {
+		return
+	}
+
+	inst.mu.Lock()
+	inst.EffectError = nil
+	inst.hasDescendantError = false
+	children := make([]*Instance, len(inst.Children))
+	copy(children, inst.Children)
+	inst.mu.Unlock()
+
+	for _, child := range children {
+		child.clearChildEffectErrors()
+	}
 }
 
 func (inst *Instance) clearChildErrors() {
@@ -131,6 +283,7 @@ func (inst *Instance) clearChildErrors() {
 
 	inst.mu.Lock()
 	inst.RenderError = nil
+	inst.hasDescendantError = false
 	children := make([]*Instance, len(inst.Children))
 	copy(children, inst.Children)
 	inst.mu.Unlock()

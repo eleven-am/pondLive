@@ -6,7 +6,6 @@ import (
 	"hash/fnv"
 	"reflect"
 	"runtime/debug"
-	"time"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/work"
@@ -47,20 +46,41 @@ func (inst *Instance) Render(sess *Session, parentCtx context.Context) work.Node
 	}
 
 	var node work.Node
-	var renderErr *ComponentError
+	var renderErr *Error
 
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
 				stack := string(debug.Stack())
-				renderErr = &ComponentError{
-					Message:     fmt.Sprintf("%v", r),
-					StackTrace:  stack,
-					ComponentID: inst.ID,
-					Phase:       "render",
-					HookIndex:   -1,
-					Timestamp:   time.Now(),
+
+				var parentID string
+				if inst.Parent != nil {
+					parentID = inst.Parent.ID
 				}
+
+				var sessionID string
+				var devMode bool
+				if sess != nil {
+					sessionID = sess.SessionID
+					devMode = sess.devMode
+				}
+
+				ectx := ErrorContext{
+					SessionID:         sessionID,
+					ComponentID:       inst.ID,
+					ComponentName:     inst.ComponentName(),
+					ParentID:          parentID,
+					ComponentPath:     inst.BuildComponentPath(),
+					ComponentNamePath: inst.BuildComponentNamePath(),
+					Phase:             "render",
+					HookIndex:         -1,
+					HookCount:         len(inst.HookFrame),
+					Props:             inst.Props,
+					ProviderKeys:      inst.GetProviderKeys(),
+					DevMode:           devMode,
+				}
+				renderErr = NewComponentErrorWithContext(ErrCodeRender, fmt.Sprintf("%v", r), stack, ectx)
+				renderErr.Meta["panic_value"] = r
 
 				if sess != nil && sess.devMode && sess.Bus != nil {
 					sess.Bus.ReportDiagnostic(protocol.Diagnostic{
@@ -86,10 +106,7 @@ func (inst *Instance) Render(sess *Session, parentCtx context.Context) work.Node
 	}()
 
 	if renderErr != nil {
-		inst.mu.Lock()
-		inst.RenderError = renderErr
-		inst.mu.Unlock()
-
+		inst.setRenderError(renderErr)
 		inst.WorkTree = nil
 		return nil
 	}

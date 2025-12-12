@@ -9,6 +9,7 @@ import (
 	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/metadata"
 	"github.com/eleven-am/pondlive/internal/metatags"
+	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/styles"
 )
@@ -17,7 +18,13 @@ type (
 	Ctx                       = runtime.Ctx
 	Ref[T any]                = runtime.Ref[T]
 	StateOpt[T any]           = runtime.StateOpt[T]
-	ComponentError            = runtime.ComponentError
+	Error                     = runtime.Error
+	ErrorCode                 = runtime.ErrorCode
+	ErrorBatch                = runtime.ErrorBatch
+	PondError                 = runtime.PondError
+	ServerError               = protocol.ServerError
+	StackFrame                = runtime.StackFrame
+	FrameCategory             = runtime.FrameCategory
 	ElementRef                = runtime.ElementRef
 	Context[T any]            = runtime.Context[T]
 	ScriptHandle              = runtime.ScriptHandle
@@ -36,6 +43,23 @@ type (
 	CookieOptions             = headers.CookieOptions
 	Document                  = document.Document
 	EventOptions              = metadata.EventOptions
+)
+
+const (
+	FrameUser     = runtime.FrameUser
+	FramePondLive = runtime.FramePondLive
+	FrameRuntime  = runtime.FrameRuntime
+
+	ErrCodeRender        = runtime.ErrCodeRender
+	ErrCodeMemo          = runtime.ErrCodeMemo
+	ErrCodeEffect        = runtime.ErrCodeEffect
+	ErrCodeEffectCleanup = runtime.ErrCodeEffectCleanup
+	ErrCodeHandler       = runtime.ErrCodeHandler
+	ErrCodeValidation    = runtime.ErrCodeValidation
+	ErrCodeApp           = runtime.ErrCodeApp
+	ErrCodeSession       = runtime.ErrCodeSession
+	ErrCodeNetwork       = runtime.ErrCodeNetwork
+	ErrCodeTimeout       = runtime.ErrCodeTimeout
 )
 
 func CreateContext[T any](defaultValue T) *Context[T] {
@@ -78,7 +102,7 @@ func UseEffect(ctx *Ctx, fn func() func(), deps ...any) {
 	runtime.UseEffect(ctx, fn, deps...)
 }
 
-func UseErrorBoundary(ctx *Ctx) *ComponentError {
+func UseErrorBoundary(ctx *Ctx) *ErrorBatch {
 	return runtime.UseErrorBoundary(ctx)
 }
 

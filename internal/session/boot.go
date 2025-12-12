@@ -2,6 +2,7 @@ package session
 
 import (
 	"github.com/eleven-am/pondlive/internal/document"
+	"github.com/eleven-am/pondlive/internal/errors"
 	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/metatags"
 	"github.com/eleven-am/pondlive/internal/portal"
@@ -15,6 +16,7 @@ type bootProps struct {
 	requestState *headers.RequestState
 	component    Component
 	ClientAsset  string
+	DevMode      bool
 }
 
 func wrapComponent(component Component) func(*runtime.Ctx, any, []work.Item) work.Node {
@@ -41,7 +43,10 @@ func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Item) work.Node {
 								},
 							},
 							document.BodyElement(ctx,
-								work.Component(app),
+								errors.Provider(ctx,
+									errors.Props{DevMode: props.DevMode},
+									work.Component(app),
+								),
 								portal.Target(),
 								&work.Element{
 									Tag: "script",
@@ -59,7 +64,7 @@ func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Item) work.Node {
 	)
 }
 
-func loadBootComponent(liveSession *LiveSession, component Component, clientAsset string) func(*runtime.Ctx, any, []work.Item) work.Node {
+func loadBootComponent(liveSession *LiveSession, component Component, clientAsset string, devMode bool) func(*runtime.Ctx, any, []work.Item) work.Node {
 	return func(ctx *runtime.Ctx, _ any, children []work.Item) work.Node {
 		var requestState *headers.RequestState
 		if liveSession != nil {
@@ -80,6 +85,7 @@ func loadBootComponent(liveSession *LiveSession, component Component, clientAsse
 			requestState: requestState,
 			component:    component,
 			ClientAsset:  clientAsset,
+			DevMode:      devMode,
 		}
 
 		return bootComponent(ctx, boot, children)

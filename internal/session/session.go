@@ -45,7 +45,7 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 
 	rootInst := &runtime.Instance{
 		ID:        "root",
-		Fn:        loadBootComponent(sess, root, effectiveCfg.ClientAsset),
+		Fn:        loadBootComponent(sess, root, effectiveCfg.ClientAsset, effectiveCfg.DevMode),
 		HookFrame: []runtime.HookSlot{},
 		Children:  []*runtime.Instance{},
 	}

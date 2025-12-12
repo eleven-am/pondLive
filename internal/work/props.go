@@ -78,6 +78,21 @@ func Style(property, value string) Item {
 	return styleItem{property: property, value: value}
 }
 
+type stylesItem map[string]string
+
+func (s stylesItem) ApplyTo(el *Element) {
+	if el.Style == nil {
+		el.Style = make(map[string]string)
+	}
+	for k, v := range s {
+		el.Style[k] = v
+	}
+}
+
+func Styles(styles map[string]string) Item {
+	return stylesItem(styles)
+}
+
 type keyItem struct {
 	value string
 }

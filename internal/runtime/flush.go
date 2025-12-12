@@ -4,9 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
+	"strings"
 
+	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/view/diff"
 )
+
+type effectErrorRecord struct {
+	instance  *Instance
+	hookIndex int
+	err       *Error
+	phase     string
+}
 
 func (s *Session) SetAutoFlush(fn func()) {
 	if s == nil {
@@ -382,26 +392,39 @@ func (s *Session) runEffectsOutsideLock(effects []effectTask, cleanups []cleanup
 		return
 	}
 
+	var effectErrors []*effectErrorRecord
+
 	for _, task := range cleanups {
 		if task.fn != nil {
-			phase := fmt.Sprintf("effect:cleanup:%s", task.instance.ID)
-			_ = s.withRecovery(phase, func() error {
+			err := s.runWithEffectRecovery("cleanup", task.instance, -1, func() {
 				task.fn()
-				return nil
 			})
+			if err != nil {
+				effectErrors = append(effectErrors, &effectErrorRecord{
+					instance:  task.instance,
+					hookIndex: -1,
+					err:       err,
+					phase:     "cleanup",
+				})
+			}
 		}
 	}
 
 	for _, task := range effects {
 		if task.fn != nil {
-			phase := fmt.Sprintf("effect:run:%s:%d", task.instance.ID, task.hookIndex)
 			var cleanup func()
-			_ = s.withRecovery(phase, func() error {
+			err := s.runWithEffectRecovery("run", task.instance, task.hookIndex, func() {
 				cleanup = task.fn()
-				return nil
 			})
 
-			if cleanup != nil && task.instance != nil && task.hookIndex < len(task.instance.HookFrame) {
+			if err != nil {
+				effectErrors = append(effectErrors, &effectErrorRecord{
+					instance:  task.instance,
+					hookIndex: task.hookIndex,
+					err:       err,
+					phase:     "run",
+				})
+			} else if cleanup != nil && task.instance != nil && task.hookIndex < len(task.instance.HookFrame) {
 				task.instance.mu.Lock()
 				if slot := task.instance.HookFrame[task.hookIndex]; slot.Type == HookTypeEffect {
 					if cell, ok := slot.Value.(*effectCell); ok {
@@ -412,4 +435,100 @@ func (s *Session) runEffectsOutsideLock(effects []effectTask, cleanups []cleanup
 			}
 		}
 	}
+
+	if len(effectErrors) > 0 {
+		s.propagateEffectErrors(effectErrors)
+	}
+}
+
+func (s *Session) runWithEffectRecovery(phase string, inst *Instance, hookIndex int, fn func()) *Error {
+	var compErr *Error
+
+	defer func() {
+		if r := recover(); r != nil {
+			stack := string(debug.Stack())
+			code := ErrCodeEffect
+			if strings.Contains(phase, "cleanup") {
+				code = ErrCodeEffectCleanup
+			}
+
+			fullPhase := fmt.Sprintf("effect:%s:%s", phase, inst.ID)
+			if hookIndex >= 0 {
+				fullPhase = fmt.Sprintf("effect:%s:%s:%d", phase, inst.ID, hookIndex)
+			}
+
+			var parentID string
+			if inst.Parent != nil {
+				parentID = inst.Parent.ID
+			}
+
+			ectx := ErrorContext{
+				SessionID:         s.SessionID,
+				ComponentID:       inst.ID,
+				ComponentName:     inst.ComponentName(),
+				ParentID:          parentID,
+				ComponentPath:     inst.BuildComponentPath(),
+				ComponentNamePath: inst.BuildComponentNamePath(),
+				Phase:             fullPhase,
+				HookIndex:         hookIndex,
+				HookCount:         len(inst.HookFrame),
+				Props:             inst.Props,
+				ProviderKeys:      inst.GetProviderKeys(),
+				DevMode:           s.devMode,
+			}
+			compErr = NewComponentErrorWithContext(code, fmt.Sprintf("%v", r), stack, ectx)
+			compErr.Meta["panic_value"] = r
+
+			if s.Bus != nil {
+				s.Bus.ReportDiagnostic(protocol.Diagnostic{
+					Phase:      fullPhase,
+					Message:    fmt.Sprintf("panic: %v", r),
+					StackTrace: stack,
+					Metadata: map[string]any{
+						"component_id": inst.ID,
+						"hook_index":   hookIndex,
+						"panic_value":  r,
+					},
+				})
+			}
+		}
+	}()
+
+	fn()
+	return compErr
+}
+
+func (s *Session) propagateEffectErrors(errors []*effectErrorRecord) {
+	if s == nil || len(errors) == 0 {
+		return
+	}
+
+	affectedAncestors := make(map[*Instance]struct{})
+
+	for _, errRec := range errors {
+		errRec.instance.setEffectError(errRec.err)
+
+		for ancestor := errRec.instance.Parent; ancestor != nil; ancestor = ancestor.Parent {
+			if s.hasErrorBoundary(ancestor) {
+				affectedAncestors[ancestor] = struct{}{}
+				break
+			}
+		}
+	}
+
+	for ancestor := range affectedAncestors {
+		s.MarkDirty(ancestor)
+	}
+}
+
+func (s *Session) hasErrorBoundary(inst *Instance) bool {
+	if inst == nil {
+		return false
+	}
+	for _, slot := range inst.HookFrame {
+		if slot.Type == HookTypeErrorBoundary {
+			return true
+		}
+	}
+	return false
 }

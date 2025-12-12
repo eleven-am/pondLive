@@ -77,6 +77,10 @@ func Style(property, value string) Item {
 	return styleItem{property: property, value: value}
 }
 
+func InlineStyles(styles map[string]string) Item {
+	return work.Styles(styles)
+}
+
 type keyItem struct {
 	value string
 }

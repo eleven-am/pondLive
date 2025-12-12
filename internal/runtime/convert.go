@@ -120,6 +120,7 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 	}
 
 	inst := parent.EnsureChild(s, comp.Fn, comp.Key, comp.Props, comp.InputChildren)
+	inst.Name = comp.Name
 	inst.InputAttrs = comp.InputAttrs
 	inst.ParentContextEpoch = parent.CombinedContextEpoch
 	inst.CombinedContextEpochs = inst.buildCombinedContextEpochs()
