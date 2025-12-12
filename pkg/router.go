@@ -1,7 +1,10 @@
 package pkg
 
 import (
+	"net/url"
+
 	"github.com/eleven-am/pondlive/internal/router"
+	"github.com/eleven-am/pondlive/internal/work"
 )
 
 var (
@@ -63,6 +66,10 @@ func UseSearchParam(ctx *Ctx, key string) (string, func(string)) {
 	return router.UseSearchParam(ctx, key)
 }
 
+func UseSearchParams(ctx *Ctx) url.Values {
+	return router.UseSearchParams(ctx)
+}
+
 func UseMatched(ctx *Ctx) bool {
 	return router.UseMatched(ctx)
 }
@@ -76,12 +83,7 @@ func NavLink(ctx *Ctx, props NavLinkProps, children ...Item) Node {
 }
 
 func Route(ctx *Ctx, props RouteProps, children ...Item) Node {
-	nodes := make([]Node, 0, len(children))
-	for _, item := range children {
-		if node, ok := item.(Node); ok {
-			nodes = append(nodes, node)
-		}
-	}
+	nodes := work.ItemsToNodes(children)
 	return router.Route(ctx, props, nodes...)
 }
 
