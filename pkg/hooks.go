@@ -1,7 +1,6 @@
 package pkg
 
 import (
-	"log"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -157,10 +156,7 @@ func UseHydrated(ctx *Ctx, fn func() func(), deps ...any) {
 
 	allDeps := append([]any{isLive}, deps...)
 
-	log.Printf("[UseHydrated] isLive=%v wasLiveOnMount=%v", isLive, wasLiveOnMount.Current)
-
 	runtime.UseEffect(ctx, func() func() {
-		log.Printf("[UseHydrated effect] isLive=%v wasLiveOnMount=%v", isLive, wasLiveOnMount.Current)
 		if !isLive {
 			return nil
 		}

@@ -106,14 +106,16 @@ func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport 
 	entry.transport = transport
 	entry.connID = connID
 	r.connections[connID] = entry
-	entry.session.SetTransport(transport)
+	sess := entry.session
 	r.mu.Unlock()
 
 	for _, rel := range releases {
 		rel.release()
 	}
 
-	return entry.session, nil
+	sess.SetTransport(transport)
+
+	return sess, nil
 }
 
 func (r *SessionRegistry) Detach(connID string) {

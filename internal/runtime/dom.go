@@ -3,7 +3,6 @@ package runtime
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -62,19 +61,14 @@ func (m *domRequestManager) releaseRequest(id string) {
 }
 
 func (m *domRequestManager) handleResponse(resp protocol.DOMResponsePayload) {
-	log.Printf("[handleResponse] received requestId=%s values=%v error=%s", resp.RequestID, resp.Values, resp.Error)
 	m.mu.Lock()
 	ch, ok := m.pending[resp.RequestID]
-	pendingCount := len(m.pending)
 	m.mu.Unlock()
 
-	log.Printf("[handleResponse] pending=%d found=%v requestId=%s", pendingCount, ok, resp.RequestID)
 	if ok && ch != nil {
 		select {
 		case ch <- resp:
-			log.Printf("[handleResponse] sent to channel requestId=%s", resp.RequestID)
 		default:
-			log.Printf("[handleResponse] channel blocked requestId=%s", resp.RequestID)
 		}
 	}
 }
@@ -153,21 +147,16 @@ func (c *Ctx) Query(ref *ElementRef, selectors ...string) (map[string]any, error
 	requestID, ch := mgr.allocateRequest()
 	defer mgr.releaseRequest(requestID)
 
-	log.Printf("[Query] sending query requestId=%s ref=%s selectors=%v", requestID, ref.RefID(), selectors)
-
 	c.session.Bus.PublishDOMQuery(protocol.DOMQueryPayload{
 		RequestID: requestID,
 		Ref:       ref.RefID(),
 		Selectors: selectors,
 	})
 
-	log.Printf("[Query] waiting for response requestId=%s", requestID)
 	resp, err := mgr.wait(ch)
 	if err != nil {
-		log.Printf("[Query] error requestId=%s err=%v", requestID, err)
 		return nil, err
 	}
-	log.Printf("[Query] got response requestId=%s values=%v", requestID, resp.Values)
 
 	if resp.Error != "" {
 		return nil, errors.New(resp.Error)

@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
@@ -161,16 +160,12 @@ func (e *Endpoint) onEvt(ctx *pond.EventContext) error {
 		return err
 	}
 
-	log.Printf("[onEvt] received type=%s action=%s sid=%s", evt.Type, evt.Action, evt.SID)
-
 	sess, transport, ok := e.getSession(ctx, evt.SID)
 	if !ok || sess == nil {
-		log.Printf("[onEvt] session not found sid=%s", evt.SID)
 		return nil
 	}
 
 	if bus := sess.Bus(); bus != nil {
-		log.Printf("[onEvt] publishing to bus type=%s action=%s", evt.Type, evt.Action)
 		bus.Publish(evt.Type, evt.Action, evt.Payload)
 	}
 
