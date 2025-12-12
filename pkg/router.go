@@ -13,13 +13,15 @@ var (
 )
 
 type (
-	Location      = router.Location
-	MatchState    = router.MatchState
-	Match         = router.Match
-	RouteProps    = router.RouteProps
-	LinkProps     = router.LinkProps
-	NavLinkProps  = router.NavLinkProps
-	RedirectProps = router.RedirectProps
+	Location        = router.Location
+	MatchState      = router.MatchState
+	Match           = router.Match
+	RouteProps      = router.RouteProps
+	LinkProps       = router.LinkProps
+	NavLinkProps    = router.NavLinkProps
+	RedirectProps   = router.RedirectProps
+	Router          = router.Router
+	NavigationEvent = router.NavigationEvent
 )
 
 func Navigate(ctx *Ctx, href string) {
@@ -97,4 +99,8 @@ func Redirect(ctx *Ctx, props RedirectProps) Node {
 
 func Outlet(ctx *Ctx) Node {
 	return router.Outlet(ctx)
+}
+
+func UseRouter(ctx *Ctx) *Router {
+	return router.UseRouter(ctx)
 }

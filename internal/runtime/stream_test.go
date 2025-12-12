@@ -441,3 +441,45 @@ func TestUseStreamMoveExistingKey(t *testing.T) {
 		t.Errorf("unexpected order: %v", items)
 	}
 }
+
+func TestUseStreamInsertBeforeNonExistentKey(t *testing.T) {
+	inst := &Instance{ID: "test", HookFrame: []HookSlot{}}
+	sess := &Session{DirtyQueue: []*Instance{}, DirtySet: make(map[*Instance]struct{})}
+	ctx := &Ctx{instance: inst, session: sess, hookIndex: 0}
+
+	initial := []StreamItem[string]{{Key: "a", Value: "A"}, {Key: "c", Value: "C"}}
+	_, handle := UseStream(ctx, func(item StreamItem[string]) work.Node {
+		return &work.Element{Tag: "div"}
+	}, initial...)
+
+	result := handle.InsertBefore("nonexistent", StreamItem[string]{Key: "b", Value: "B"})
+	if result {
+		t.Error("expected InsertBefore to return false for non-existent key")
+	}
+
+	items := handle.Items()
+	if len(items) != 2 {
+		t.Errorf("expected 2 items unchanged, got %d", len(items))
+	}
+}
+
+func TestUseStreamInsertAfterNonExistentKey(t *testing.T) {
+	inst := &Instance{ID: "test", HookFrame: []HookSlot{}}
+	sess := &Session{DirtyQueue: []*Instance{}, DirtySet: make(map[*Instance]struct{})}
+	ctx := &Ctx{instance: inst, session: sess, hookIndex: 0}
+
+	initial := []StreamItem[string]{{Key: "a", Value: "A"}, {Key: "c", Value: "C"}}
+	_, handle := UseStream(ctx, func(item StreamItem[string]) work.Node {
+		return &work.Element{Tag: "div"}
+	}, initial...)
+
+	result := handle.InsertAfter("nonexistent", StreamItem[string]{Key: "b", Value: "B"})
+	if result {
+		t.Error("expected InsertAfter to return false for non-existent key")
+	}
+
+	items := handle.Items()
+	if len(items) != 2 {
+		t.Errorf("expected 2 items unchanged, got %d", len(items))
+	}
+}

@@ -848,3 +848,255 @@ func TestPruneUnreferencedChildrenConcurrentSafety(t *testing.T) {
 	<-done
 	<-done
 }
+
+func TestHasErrorBoundary(t *testing.T) {
+	sess := &Session{}
+
+	t.Run("returns false for nil instance", func(t *testing.T) {
+		if sess.hasErrorBoundary(nil) {
+			t.Error("expected false for nil instance")
+		}
+	})
+
+	t.Run("returns false for instance without error boundary", func(t *testing.T) {
+		inst := &Instance{
+			ID:        "test",
+			HookFrame: []HookSlot{},
+		}
+		if sess.hasErrorBoundary(inst) {
+			t.Error("expected false for empty hook frame")
+		}
+	})
+
+	t.Run("returns false for instance with other hooks", func(t *testing.T) {
+		inst := &Instance{
+			ID: "test",
+			HookFrame: []HookSlot{
+				{Type: HookTypeState, Value: nil},
+				{Type: HookTypeEffect, Value: nil},
+				{Type: HookTypeMemo, Value: nil},
+			},
+		}
+		if sess.hasErrorBoundary(inst) {
+			t.Error("expected false when no error boundary hook")
+		}
+	})
+
+	t.Run("returns true for instance with error boundary", func(t *testing.T) {
+		inst := &Instance{
+			ID: "test",
+			HookFrame: []HookSlot{
+				{Type: HookTypeState, Value: nil},
+				{Type: HookTypeErrorBoundary, Value: nil},
+				{Type: HookTypeEffect, Value: nil},
+			},
+		}
+		if !sess.hasErrorBoundary(inst) {
+			t.Error("expected true when error boundary hook is present")
+		}
+	})
+}
+
+func TestPropagateEffectErrors(t *testing.T) {
+	t.Run("nil session", func(t *testing.T) {
+		var sess *Session
+		sess.propagateEffectErrors(nil)
+	})
+
+	t.Run("empty errors", func(t *testing.T) {
+		sess := &Session{}
+		sess.propagateEffectErrors([]*effectErrorRecord{})
+	})
+
+	t.Run("marks ancestor with error boundary dirty", func(t *testing.T) {
+		sess := &Session{
+			DirtyQueue: []*Instance{},
+			DirtySet:   make(map[*Instance]struct{}),
+		}
+
+		parent := &Instance{
+			ID: "parent",
+			HookFrame: []HookSlot{
+				{Type: HookTypeErrorBoundary, Value: nil},
+			},
+		}
+
+		child := &Instance{
+			ID:        "child",
+			Parent:    parent,
+			HookFrame: []HookSlot{},
+		}
+
+		errRec := &effectErrorRecord{
+			instance:  child,
+			hookIndex: 0,
+			err:       &Error{Message: "test error"},
+			phase:     "run",
+		}
+
+		sess.propagateEffectErrors([]*effectErrorRecord{errRec})
+
+		if _, ok := sess.DirtySet[parent]; !ok {
+			t.Error("expected parent with error boundary to be marked dirty")
+		}
+	})
+
+	t.Run("sets effect error on instance", func(t *testing.T) {
+		sess := &Session{
+			DirtyQueue: []*Instance{},
+			DirtySet:   make(map[*Instance]struct{}),
+		}
+
+		inst := &Instance{
+			ID:        "test",
+			HookFrame: []HookSlot{},
+		}
+
+		testErr := &Error{Message: "test error"}
+		errRec := &effectErrorRecord{
+			instance:  inst,
+			hookIndex: 0,
+			err:       testErr,
+			phase:     "run",
+		}
+
+		sess.propagateEffectErrors([]*effectErrorRecord{errRec})
+
+		if inst.EffectError != testErr {
+			t.Error("expected effect error to be set on instance")
+		}
+	})
+}
+
+func TestRunEffectsOutsideLockNilSession(t *testing.T) {
+	var sess *Session
+	sess.runEffectsOutsideLock(nil, nil)
+}
+
+func TestCollectDirtyComponentsLockedNilSession(t *testing.T) {
+	var sess *Session
+	result := sess.collectDirtyComponentsLocked()
+	if result != nil {
+		t.Errorf("expected nil for nil session, got %v", result)
+	}
+}
+
+func TestMarkDirtyNilSession(t *testing.T) {
+	var sess *Session
+	sess.MarkDirty(&Instance{ID: "test"})
+}
+
+func TestMarkDirtyNilInstance(t *testing.T) {
+	sess := &Session{
+		DirtyQueue: []*Instance{},
+		DirtySet:   make(map[*Instance]struct{}),
+	}
+	sess.MarkDirty(nil)
+	if len(sess.DirtyQueue) != 0 {
+		t.Error("expected empty dirty queue")
+	}
+}
+
+func TestDetectAndCleanupUnmountedNilSession(t *testing.T) {
+	var sess *Session
+	sess.detectAndCleanupUnmounted()
+}
+
+func TestRunPendingEffectsNilSession(t *testing.T) {
+	var sess *Session
+	sess.runPendingEffects()
+}
+
+func TestRunWithEffectRecoveryNoPanic(t *testing.T) {
+	sess := &Session{SessionID: "test-sess"}
+	inst := &Instance{ID: "test-comp", HookFrame: []HookSlot{}}
+
+	called := false
+	err := sess.runWithEffectRecovery("run", inst, 0, func() {
+		called = true
+	})
+
+	if !called {
+		t.Error("expected function to be called")
+	}
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+}
+
+func TestRunWithEffectRecoveryRecoversPanic(t *testing.T) {
+	sess := &Session{SessionID: "test-sess"}
+	inst := &Instance{ID: "test-comp", HookFrame: []HookSlot{}}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("panic should have been recovered by runWithEffectRecovery")
+		}
+	}()
+
+	sess.runWithEffectRecovery("run", inst, 0, func() {
+		panic("test panic")
+	})
+}
+
+func TestRunWithEffectRecoveryCleanupPhaseRecoversPanic(t *testing.T) {
+	sess := &Session{SessionID: "test-sess"}
+	inst := &Instance{ID: "test-comp", HookFrame: []HookSlot{}}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("cleanup panic should have been recovered")
+		}
+	}()
+
+	sess.runWithEffectRecovery("cleanup", inst, 0, func() {
+		panic("cleanup panic")
+	})
+}
+
+func TestRunWithEffectRecoveryNegativeHookIndexRecoversPanic(t *testing.T) {
+	sess := &Session{SessionID: "test-sess"}
+	inst := &Instance{ID: "test-comp", HookFrame: []HookSlot{}}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("panic should have been recovered")
+		}
+	}()
+
+	sess.runWithEffectRecovery("run", inst, -1, func() {
+		panic("test panic")
+	})
+}
+
+func TestRunWithEffectRecoveryWithParentRecoversPanic(t *testing.T) {
+	sess := &Session{SessionID: "test-sess"}
+	parent := &Instance{ID: "parent-comp"}
+	inst := &Instance{ID: "test-comp", Parent: parent, HookFrame: []HookSlot{}}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("panic should have been recovered")
+		}
+	}()
+
+	sess.runWithEffectRecovery("run", inst, 0, func() {
+		panic("test panic")
+	})
+}
+
+func TestRunWithEffectRecoveryWithBusRecoversPanic(t *testing.T) {
+	bus := protocol.NewBus()
+	sess := &Session{SessionID: "test-sess", Bus: bus}
+	inst := &Instance{ID: "test-comp", HookFrame: []HookSlot{}}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("panic should have been recovered")
+		}
+	}()
+
+	sess.runWithEffectRecovery("run", inst, 0, func() {
+		panic("test panic with bus")
+	})
+}

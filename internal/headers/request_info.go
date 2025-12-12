@@ -1,6 +1,7 @@
 package headers
 
 import (
+	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -381,8 +382,10 @@ func (s *RequestState) Clone() *RequestState {
 
 func (s *RequestState) NotifyChange() {
 	if s == nil || s.setState == nil {
+		log.Printf("[NotifyChange] skipping - s=%v setState=%v", s != nil, s != nil && s.setState != nil)
 		return
 	}
+	log.Printf("[NotifyChange] calling setState isLive=%v", s.IsLive())
 	clone := s.Clone()
 	s.setState(clone)
 }

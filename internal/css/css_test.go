@@ -322,3 +322,169 @@ func TestEmptyComponentIDNoTrailingDash(t *testing.T) {
 		t.Fatalf("selector should not have any dashes with empty componentID, got %q", sel)
 	}
 }
+
+func TestParseKeyframes(t *testing.T) {
+	cssInput := `@keyframes fadeIn {
+		0% { opacity: 0; }
+		100% { opacity: 1; }
+	}`
+	ss := ParseAndScope(cssInput, "kf-comp")
+	if len(ss.Keyframes) != 1 {
+		t.Fatalf("expected 1 keyframes block, got %d", len(ss.Keyframes))
+	}
+	kf := ss.Keyframes[0]
+	hash := hashComponent("kf-comp")
+	if !strings.Contains(kf.Name, "fadeIn-"+hash) {
+		t.Fatalf("expected keyframes name to be scoped, got %q", kf.Name)
+	}
+	if len(kf.Steps) != 2 {
+		t.Fatalf("expected 2 steps, got %d", len(kf.Steps))
+	}
+	if kf.Steps[0].Selector != "0%" || kf.Steps[1].Selector != "100%" {
+		t.Fatalf("unexpected step selectors: %q, %q", kf.Steps[0].Selector, kf.Steps[1].Selector)
+	}
+}
+
+func TestParseKeyframesEmptyComponentID(t *testing.T) {
+	cssInput := `@keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }`
+	ss := ParseAndScope(cssInput, "")
+	if len(ss.Keyframes) != 1 {
+		t.Fatalf("expected 1 keyframes block, got %d", len(ss.Keyframes))
+	}
+	if ss.Keyframes[0].Name != "slideIn" {
+		t.Fatalf("expected keyframes name unchanged with empty componentID, got %q", ss.Keyframes[0].Name)
+	}
+}
+
+func TestSerializeKeyframes(t *testing.T) {
+	cssInput := `@keyframes bounce { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }`
+	ss := ParseAndScope(cssInput, "bounce-comp")
+	out := ss.Serialize()
+	if !strings.Contains(out, "@keyframes bounce-") {
+		t.Fatalf("expected @keyframes in serialized output, got %q", out)
+	}
+	if !strings.Contains(out, "0%") || !strings.Contains(out, "50%") || !strings.Contains(out, "100%") {
+		t.Fatalf("expected step selectors in output, got %q", out)
+	}
+	if !strings.Contains(out, "transform: scale") {
+		t.Fatalf("expected transform property in output, got %q", out)
+	}
+}
+
+func TestParseMultipleKeyframes(t *testing.T) {
+	cssInput := `
+		@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+		@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+		.btn { color: red; }
+	`
+	ss := ParseAndScope(cssInput, "multi-kf")
+	if len(ss.Keyframes) != 2 {
+		t.Fatalf("expected 2 keyframes blocks, got %d", len(ss.Keyframes))
+	}
+	if len(ss.Rules) != 1 {
+		t.Fatalf("expected 1 regular rule, got %d", len(ss.Rules))
+	}
+}
+
+func TestKeyframesWithMediaQuery(t *testing.T) {
+	cssInput := `
+		@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+		@media screen { .card { margin: 0; } }
+	`
+	ss := ParseAndScope(cssInput, "mixed")
+	if len(ss.Keyframes) != 1 {
+		t.Fatalf("expected 1 keyframes block, got %d", len(ss.Keyframes))
+	}
+	if len(ss.MediaRules) != 1 {
+		t.Fatalf("expected 1 media rule, got %d", len(ss.MediaRules))
+	}
+}
+
+func TestSerializeMediaRules(t *testing.T) {
+	cssInput := `@media (min-width: 768px) { .container { max-width: 720px; padding: 1rem; } }`
+	ss := ParseAndScope(cssInput, "media-ser")
+	out := ss.Serialize()
+	if !strings.Contains(out, "@media (min-width: 768px)") {
+		t.Fatalf("expected media query in output, got %q", out)
+	}
+	if !strings.Contains(out, "max-width: 720px") || !strings.Contains(out, "padding: 1rem") {
+		t.Fatalf("expected properties in media rule output, got %q", out)
+	}
+}
+
+func TestSerializeMultipleMediaRules(t *testing.T) {
+	cssInput := `
+		@media screen { .a { color: red; } }
+		@media print { .b { color: black; } }
+	`
+	ss := ParseAndScope(cssInput, "multi-media")
+	out := ss.Serialize()
+	if !strings.Contains(out, "@media screen") {
+		t.Fatalf("expected @media screen in output, got %q", out)
+	}
+	if !strings.Contains(out, "@media print") {
+		t.Fatalf("expected @media print in output, got %q", out)
+	}
+}
+
+func TestSerializeCompleteStylesheet(t *testing.T) {
+	cssInput := `
+		.btn { color: blue; background: white; }
+		@media screen { .card { margin: 1rem; } }
+		@keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+		@supports (display: grid) { .grid { display: grid; } }
+	`
+	ss := ParseAndScope(cssInput, "complete")
+	out := ss.Serialize()
+	if !strings.Contains(out, "color: blue") {
+		t.Fatalf("expected regular rule in output, got %q", out)
+	}
+	if !strings.Contains(out, "@media screen") {
+		t.Fatalf("expected media rule in output, got %q", out)
+	}
+	if !strings.Contains(out, "@keyframes fadeIn-") {
+		t.Fatalf("expected keyframes in output, got %q", out)
+	}
+	if !strings.Contains(out, "@supports") {
+		t.Fatalf("expected @supports block in output, got %q", out)
+	}
+}
+
+func TestSerializeOtherBlocksWithNewline(t *testing.T) {
+	cssInput := `@supports (display: flex) { .flex { display: flex; } }`
+	ss := ParseAndScope(cssInput, "other")
+	out := ss.Serialize()
+	if !strings.Contains(out, "@supports (display: flex)") {
+		t.Fatalf("expected @supports preserved, got %q", out)
+	}
+}
+
+func TestJoinPropsWithDecls(t *testing.T) {
+	cssInput := `.test { background: red; background: blue; color: green; }`
+	ss := ParseAndScope(cssInput, "decl-test")
+	if len(ss.Rules) != 1 {
+		t.Fatalf("expected 1 rule, got %d", len(ss.Rules))
+	}
+	if len(ss.Rules[0].Decls) != 3 {
+		t.Fatalf("expected 3 declarations, got %d", len(ss.Rules[0].Decls))
+	}
+	out := ss.Serialize()
+	if !strings.Contains(out, "background: red; background: blue; color: green") {
+		t.Fatalf("expected declaration order preserved, got %q", out)
+	}
+}
+
+func TestKeyframeStepsUseDecls(t *testing.T) {
+	cssInput := `@keyframes test { 0% { opacity: 0; transform: scale(0); } 100% { opacity: 1; transform: scale(1); } }`
+	ss := ParseAndScope(cssInput, "kf-decls")
+	if len(ss.Keyframes) != 1 {
+		t.Fatalf("expected 1 keyframes, got %d", len(ss.Keyframes))
+	}
+	kf := ss.Keyframes[0]
+	if len(kf.Steps) != 2 {
+		t.Fatalf("expected 2 steps, got %d", len(kf.Steps))
+	}
+	if len(kf.Steps[0].Decls) != 2 {
+		t.Fatalf("expected 2 declarations in first step, got %d", len(kf.Steps[0].Decls))
+	}
+}

@@ -554,3 +554,201 @@ func TestUseUploadOnChange(t *testing.T) {
 		t.Errorf("expected size 4096, got %d", event.Size)
 	}
 }
+
+func TestUploadHandleProgressNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	progress := handle.Progress()
+	if progress.Loaded != 0 || progress.Total != 0 {
+		t.Errorf("expected zero progress for nil handle, got %v", progress)
+	}
+}
+
+func TestUploadHandleProgressNilProgressGetter(t *testing.T) {
+	handle := &UploadHandle{
+		progressGetter: nil,
+	}
+	progress := handle.Progress()
+	if progress.Loaded != 0 || progress.Total != 0 {
+		t.Errorf("expected zero progress for nil progressGetter, got %v", progress)
+	}
+}
+
+func TestUploadHandleAcceptNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.Accept(UploadConfig{MaxSize: 1024})
+}
+
+func TestUploadHandleAcceptNilSession(t *testing.T) {
+	handle := &UploadHandle{
+		session: nil,
+	}
+	handle.Accept(UploadConfig{MaxSize: 1024})
+}
+
+func TestUploadHandleAcceptNilRegistry(t *testing.T) {
+	handle := &UploadHandle{
+		session: &Session{UploadRegistry: nil},
+	}
+	handle.Accept(UploadConfig{MaxSize: 1024})
+}
+
+func TestUploadHandleAttachToNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.AttachTo(&work.Element{Tag: "input"})
+}
+
+func TestUploadHandleAttachToNilScript(t *testing.T) {
+	handle := &UploadHandle{
+		script: nil,
+	}
+	handle.AttachTo(&work.Element{Tag: "input"})
+}
+
+func TestUploadHandleOnReadyNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.OnReady(func(name string, size int64, fileType string) {})
+}
+
+func TestUploadHandleOnReadyNilScript(t *testing.T) {
+	handle := &UploadHandle{
+		script: nil,
+	}
+	handle.OnReady(func(name string, size int64, fileType string) {})
+}
+
+func TestUploadHandleOnChangeNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.OnChange(func(e UploadEvent) {})
+}
+
+func TestUploadHandleOnChangeNilScript(t *testing.T) {
+	handle := &UploadHandle{
+		script: nil,
+	}
+	handle.OnChange(func(e UploadEvent) {})
+}
+
+func TestUploadHandleOnProgressNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.OnProgress(func(loaded, total int64) {})
+}
+
+func TestUploadHandleOnProgressNilScript(t *testing.T) {
+	handle := &UploadHandle{
+		script: nil,
+	}
+	handle.OnProgress(func(loaded, total int64) {})
+}
+
+func TestUploadHandleOnErrorNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.OnError(func(err string) {})
+}
+
+func TestUploadHandleOnErrorNilScript(t *testing.T) {
+	handle := &UploadHandle{
+		script: nil,
+	}
+	handle.OnError(func(err string) {})
+}
+
+func TestUploadHandleOnCancelledNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.OnCancelled(func() {})
+}
+
+func TestUploadHandleOnCancelledNilScript(t *testing.T) {
+	handle := &UploadHandle{
+		script: nil,
+	}
+	handle.OnCancelled(func() {})
+}
+
+func TestUploadHandleCancelNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.Cancel()
+}
+
+func TestUploadHandleCancelNilScript(t *testing.T) {
+	handle := &UploadHandle{
+		script: nil,
+	}
+	handle.Cancel()
+}
+
+func TestUploadHandleOnCompleteNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.OnComplete(func(info upload.FileInfo) error { return nil })
+}
+
+func TestUploadHandleOnCompleteNilSession(t *testing.T) {
+	handle := &UploadHandle{
+		session: nil,
+	}
+	handle.OnComplete(func(info upload.FileInfo) error { return nil })
+}
+
+func TestUploadHandleOnCompleteNilRegistry(t *testing.T) {
+	handle := &UploadHandle{
+		session: &Session{UploadRegistry: nil},
+	}
+	handle.OnComplete(func(info upload.FileInfo) error { return nil })
+}
+
+func TestUploadHandleSendStartNilHandle(t *testing.T) {
+	var handle *UploadHandle
+	handle.sendStart()
+}
+
+func TestUploadHandleSendStartNilScript(t *testing.T) {
+	handle := &UploadHandle{
+		script: nil,
+	}
+	handle.sendStart()
+}
+
+func TestUploadHandleSendStartWithConfig(t *testing.T) {
+	inst := &Instance{
+		ID:        "test-comp",
+		HookFrame: []HookSlot{},
+	}
+	sess := &Session{
+		Scripts:        make(map[string]*scriptSlot),
+		Bus:            protocol.NewBus(),
+		UploadRegistry: upload.NewRegistry(),
+	}
+	ctx := &Ctx{
+		instance:  inst,
+		session:   sess,
+		hookIndex: 0,
+	}
+
+	handle := UseUpload(ctx)
+	handle.Accept(UploadConfig{
+		MaxSize:  2048,
+		Accept:   []string{"image/*"},
+		Multiple: true,
+	})
+
+	var receivedData interface{}
+	done := make(chan struct{})
+	scriptTopic := protocol.Topic("script:" + handle.script.slot.id)
+	sess.Bus.Subscribe(scriptTopic, func(action string, data interface{}) {
+		if action == "send" {
+			receivedData = data
+			close(done)
+		}
+	})
+
+	handle.sendStart()
+
+	select {
+	case <-done:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for start message")
+	}
+
+	if receivedData == nil {
+		t.Fatal("expected to receive data")
+	}
+}

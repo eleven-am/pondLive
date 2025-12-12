@@ -1,6 +1,11 @@
 package runtime
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"github.com/eleven-am/pondlive/internal/protocol"
+)
 
 func TestCtxComponentID(t *testing.T) {
 	t.Run("returns instance ID", func(t *testing.T) {
@@ -90,6 +95,109 @@ func TestCtxComponentDepth(t *testing.T) {
 		got := ctx.ComponentDepth()
 		if got != 0 {
 			t.Errorf("ComponentDepth() with nil instance = %d, want 0", got)
+		}
+	})
+}
+
+func TestCtxContext(t *testing.T) {
+	t.Run("returns goCtx when set", func(t *testing.T) {
+		goCtx := context.WithValue(context.Background(), "key", "value")
+		ctx := &Ctx{goCtx: goCtx}
+
+		got := ctx.Context()
+		if got.Value("key") != "value" {
+			t.Error("Context() should return the underlying goCtx")
+		}
+	})
+
+	t.Run("returns Background for nil goCtx", func(t *testing.T) {
+		ctx := &Ctx{goCtx: nil}
+		got := ctx.Context()
+		if got == nil {
+			t.Error("Context() should not return nil")
+		}
+	})
+
+	t.Run("returns Background for nil ctx", func(t *testing.T) {
+		var ctx *Ctx
+		got := ctx.Context()
+		if got == nil {
+			t.Error("Context() on nil ctx should not return nil")
+		}
+	})
+}
+
+func TestGetBus(t *testing.T) {
+	t.Run("returns bus from session", func(t *testing.T) {
+		bus := protocol.NewBus()
+		sess := &Session{Bus: bus}
+		ctx := &Ctx{session: sess}
+
+		got := GetBus(ctx)
+		if got != bus {
+			t.Error("GetBus() should return the session bus")
+		}
+	})
+
+	t.Run("returns nil for nil ctx", func(t *testing.T) {
+		got := GetBus(nil)
+		if got != nil {
+			t.Error("GetBus(nil) should return nil")
+		}
+	})
+
+	t.Run("returns nil for nil session", func(t *testing.T) {
+		ctx := &Ctx{session: nil}
+		got := GetBus(ctx)
+		if got != nil {
+			t.Error("GetBus() with nil session should return nil")
+		}
+	})
+}
+
+func TestNewCtxForTest(t *testing.T) {
+	inst := &Instance{ID: "test-inst"}
+	sess := &Session{SessionID: "test-sess"}
+
+	ctx := NewCtxForTest(inst, sess)
+	if ctx == nil {
+		t.Fatal("NewCtxForTest should return non-nil ctx")
+	}
+	if ctx.instance != inst {
+		t.Error("ctx.instance should be set")
+	}
+	if ctx.session != sess {
+		t.Error("ctx.session should be set")
+	}
+	if ctx.goCtx == nil {
+		t.Error("ctx.goCtx should be initialized")
+	}
+}
+
+func TestCtxSessionID(t *testing.T) {
+	t.Run("returns session ID", func(t *testing.T) {
+		sess := &Session{SessionID: "sess-123"}
+		ctx := &Ctx{session: sess}
+
+		got := ctx.SessionID()
+		if got != "sess-123" {
+			t.Errorf("SessionID() = %q, want %q", got, "sess-123")
+		}
+	})
+
+	t.Run("returns empty for nil ctx", func(t *testing.T) {
+		var ctx *Ctx
+		got := ctx.SessionID()
+		if got != "" {
+			t.Errorf("SessionID() on nil ctx = %q, want empty string", got)
+		}
+	})
+
+	t.Run("returns empty for nil session", func(t *testing.T) {
+		ctx := &Ctx{session: nil}
+		got := ctx.SessionID()
+		if got != "" {
+			t.Errorf("SessionID() with nil session = %q, want empty string", got)
 		}
 	})
 }

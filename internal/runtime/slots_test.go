@@ -1167,3 +1167,48 @@ func TestSetSlot_ReplacesExisting(t *testing.T) {
 		t.Errorf("expected slot name to appear once in order, got %d", count)
 	}
 }
+
+func TestSlotRendererRenderNilSlots(t *testing.T) {
+	sr := &SlotRenderer{slots: nil}
+	result := sr.Render("test")
+	if _, ok := result.(*work.Fragment); !ok {
+		t.Error("expected Fragment result for nil slots")
+	}
+}
+
+func TestSlotRendererRenderWithFallback(t *testing.T) {
+	sr := &SlotRenderer{slots: nil}
+	fallback := &work.Element{Tag: "fallback"}
+	result := sr.Render("test", fallback)
+	if result != fallback {
+		t.Error("expected fallback when slots is nil")
+	}
+}
+
+func TestSlotRendererHasNilSlots(t *testing.T) {
+	sr := &SlotRenderer{slots: nil}
+	if sr.Has("test") {
+		t.Error("expected Has to return false for nil slots")
+	}
+}
+
+func TestSlotRendererNamesNilSlots(t *testing.T) {
+	sr := &SlotRenderer{slots: nil}
+	if sr.Names() != nil {
+		t.Error("expected Names to return nil for nil slots")
+	}
+}
+
+func TestScopedSlotRendererHasNilSlots(t *testing.T) {
+	sr := &ScopedSlotRenderer[string]{slots: nil}
+	if sr.Has("test") {
+		t.Error("expected Has to return false for nil slots")
+	}
+}
+
+func TestScopedSlotRendererNamesNilSlots(t *testing.T) {
+	sr := &ScopedSlotRenderer[string]{slots: nil}
+	if sr.Names() != nil {
+		t.Error("expected Names to return nil for nil slots")
+	}
+}

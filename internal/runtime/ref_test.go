@@ -331,3 +331,139 @@ func TestElementRefResetAttachmentOnNilRef(t *testing.T) {
 
 	ref.ResetAttachment()
 }
+
+func TestElementRefEvents(t *testing.T) {
+	ref := &ElementRef{
+		id:       "test-ref",
+		handlers: make(map[string][]work.Handler),
+	}
+
+	ref.AddHandler("click", work.Handler{Fn: func(evt work.Event) work.Updates { return nil }})
+	ref.AddHandler("input", work.Handler{Fn: func(evt work.Event) work.Updates { return nil }})
+	ref.AddHandler("blur", work.Handler{Fn: func(evt work.Event) work.Updates { return nil }})
+
+	events := ref.Events()
+	if len(events) != 3 {
+		t.Errorf("expected 3 events, got %d", len(events))
+	}
+
+	eventMap := make(map[string]bool)
+	for _, e := range events {
+		eventMap[e] = true
+	}
+
+	if !eventMap["click"] || !eventMap["input"] || !eventMap["blur"] {
+		t.Error("expected all events to be present")
+	}
+}
+
+func TestElementRefEventsEmpty(t *testing.T) {
+	ref := &ElementRef{
+		id:       "test-ref",
+		handlers: make(map[string][]work.Handler),
+	}
+
+	events := ref.Events()
+	if events != nil {
+		t.Errorf("expected nil events, got %v", events)
+	}
+}
+
+func TestElementRefEventsNil(t *testing.T) {
+	var ref *ElementRef
+	events := ref.Events()
+	if events != nil {
+		t.Error("expected nil events for nil ref")
+	}
+}
+
+func TestElementRefEventsSkipsEmptySlices(t *testing.T) {
+	ref := &ElementRef{
+		id: "test-ref",
+		handlers: map[string][]work.Handler{
+			"click": {{Fn: func(evt work.Event) work.Updates { return nil }}},
+			"empty": {},
+		},
+	}
+
+	events := ref.Events()
+	if len(events) != 1 {
+		t.Errorf("expected 1 event, got %d", len(events))
+	}
+	if events[0] != "click" {
+		t.Errorf("expected 'click', got %q", events[0])
+	}
+}
+
+func TestElementRefAttachTo(t *testing.T) {
+	ref := &ElementRef{
+		id:       "test-ref",
+		handlers: make(map[string][]work.Handler),
+	}
+
+	ref.AddHandler("click", work.Handler{
+		EventOptions: metadata.EventOptions{Prevent: true},
+		Fn:           func(evt work.Event) work.Updates { return nil },
+	})
+
+	el := &work.Element{Tag: "button"}
+
+	ref.AttachTo(el)
+
+	if el.RefID != "test-ref" {
+		t.Errorf("expected RefID 'test-ref', got %q", el.RefID)
+	}
+
+	if el.Handlers == nil {
+		t.Fatal("expected Handlers to be initialized")
+	}
+
+	if _, ok := el.Handlers["click"]; !ok {
+		t.Error("expected 'click' handler to be attached")
+	}
+}
+
+func TestElementRefAttachToNilRef(t *testing.T) {
+	var ref *ElementRef
+	el := &work.Element{Tag: "button"}
+
+	ref.AttachTo(el)
+
+	if el.RefID != "" {
+		t.Errorf("expected empty RefID, got %q", el.RefID)
+	}
+}
+
+func TestElementRefAttachToNilElement(t *testing.T) {
+	ref := &ElementRef{
+		id:       "test-ref",
+		handlers: make(map[string][]work.Handler),
+	}
+
+	ref.AttachTo(nil)
+}
+
+func TestElementRefAttachToMultipleEvents(t *testing.T) {
+	ref := &ElementRef{
+		id:       "test-ref",
+		handlers: make(map[string][]work.Handler),
+	}
+
+	ref.AddHandler("click", work.Handler{Fn: func(evt work.Event) work.Updates { return nil }})
+	ref.AddHandler("input", work.Handler{Fn: func(evt work.Event) work.Updates { return nil }})
+
+	el := &work.Element{Tag: "input"}
+
+	ref.AttachTo(el)
+
+	if len(el.Handlers) != 2 {
+		t.Errorf("expected 2 handlers, got %d", len(el.Handlers))
+	}
+
+	if _, ok := el.Handlers["click"]; !ok {
+		t.Error("expected 'click' handler")
+	}
+	if _, ok := el.Handlers["input"]; !ok {
+		t.Error("expected 'input' handler")
+	}
+}

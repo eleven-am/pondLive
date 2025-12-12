@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestSSRTransportSend(t *testing.T) {
@@ -241,5 +242,69 @@ func TestSSRTransportBufferLimit(t *testing.T) {
 	}
 	if err := transport.Send("t2", "e2", nil); err == nil {
 		t.Fatalf("expected buffer limit error")
+	}
+}
+
+func TestSSRTransportRequestState(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	transport := NewSSRTransport(req)
+
+	state := transport.RequestState()
+	if state == nil {
+		t.Fatal("expected RequestState to be non-nil")
+	}
+
+	if state.Path() != "/test" {
+		t.Errorf("expected path /test, got %s", state.Path())
+	}
+}
+
+func TestSSRTransportRequestStateNil(t *testing.T) {
+	var transport *SSRTransport
+
+	state := transport.RequestState()
+	if state != nil {
+		t.Error("expected nil RequestState for nil transport")
+	}
+}
+
+func TestSSRTransportSetMaxAge(t *testing.T) {
+	transport := NewSSRTransport(nil)
+
+	transport.SetMaxAge(5 * time.Second)
+
+	var nilTransport *SSRTransport
+	nilTransport.SetMaxAge(time.Second)
+}
+
+func TestSSRTransportTrimExpired(t *testing.T) {
+	transport := NewSSRTransport(nil)
+	transport.SetMaxAge(time.Minute)
+
+	_ = transport.Send("topic", "event", nil)
+	_ = transport.Send("topic", "event", nil)
+
+	transport.TrimExpired(time.Now())
+
+	msgs := transport.Messages()
+	if len(msgs) != 2 {
+		t.Errorf("expected 2 messages, got %d", len(msgs))
+	}
+
+	var nilTransport *SSRTransport
+	nilTransport.TrimExpired(time.Now())
+}
+
+func TestSSRTransportTrimExpiredNoMaxAge(t *testing.T) {
+	transport := NewSSRTransport(nil)
+	transport.SetMaxAge(0)
+
+	_ = transport.Send("topic", "event", nil)
+
+	transport.TrimExpired(time.Now())
+
+	msgs := transport.Messages()
+	if len(msgs) != 1 {
+		t.Errorf("expected 1 message, got %d", len(msgs))
 	}
 }

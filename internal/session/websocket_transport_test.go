@@ -444,3 +444,48 @@ func TestWebSocketTransportConcurrentSend(t *testing.T) {
 		t.Errorf("expected 1000 messages, got %d", transport.LastSeq())
 	}
 }
+
+func TestWebSocketTransportRequestState(t *testing.T) {
+	sender := &mockSender{}
+	transport := NewWebSocketTransport(sender, "user123", nil)
+
+	state := transport.RequestState()
+	if state == nil {
+		t.Fatal("expected RequestState to be non-nil")
+	}
+}
+
+func TestWebSocketTransportRequestStateNil(t *testing.T) {
+	var transport *WebSocketTransport
+
+	state := transport.RequestState()
+	if state != nil {
+		t.Error("expected nil RequestState for nil transport")
+	}
+}
+
+func TestWebSocketTransportUpdateRequestState(t *testing.T) {
+	sender := &mockSender{}
+	headers := http.Header{"Cookie": []string{"test=value"}}
+	transport := NewWebSocketTransport(sender, "user123", headers)
+
+	ssrTransport := NewSSRTransport(nil)
+	oldState := ssrTransport.RequestState()
+
+	transport.UpdateRequestState(oldState)
+
+	newState := transport.RequestState()
+	if newState != oldState {
+		t.Error("expected RequestState to be updated")
+	}
+
+	if !newState.IsLive() {
+		t.Error("expected RequestState to be marked live after update")
+	}
+}
+
+func TestWebSocketTransportUpdateRequestStateNil(t *testing.T) {
+	var transport *WebSocketTransport
+
+	transport.UpdateRequestState(nil)
+}

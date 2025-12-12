@@ -469,6 +469,141 @@ func TestRegistryRangeEmpty(t *testing.T) {
 	}
 }
 
+func TestRegistryConnectionForSessionNotFound(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	_, _, ok := reg.ConnectionForSession("nonexistent")
+	if ok {
+		t.Error("expected false for nonexistent session")
+	}
+}
+
+func TestRegistryConnectionForSessionNoConnection(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
+	defer sess.Close()
+
+	reg.Put(sess)
+
+	connID, transport, ok := reg.ConnectionForSession("test-session")
+	if ok {
+		t.Error("expected false for session with no connection")
+	}
+	if connID != "" {
+		t.Errorf("expected empty connID, got %s", connID)
+	}
+	if transport != nil {
+		t.Error("expected nil transport")
+	}
+}
+
+func TestRegistryRemoveWithConnection(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
+	defer sess.Close()
+
+	reg.Put(sess)
+
+	transport := &mockTransport{}
+	_, _ = reg.Attach("test-session", "conn-1", transport)
+
+	reg.Remove("test-session")
+
+	_, ok := reg.Lookup("test-session")
+	if ok {
+		t.Error("expected session to be removed")
+	}
+
+	_, _, ok = reg.LookupByConnection("conn-1")
+	if ok {
+		t.Error("expected connection to be cleaned up")
+	}
+}
+
+func TestRegistryLookupWithConnectionNoSession(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	sess, transport, ok := reg.LookupWithConnection("nonexistent", "conn-1")
+	if ok {
+		t.Error("expected false for nonexistent session")
+	}
+	if sess != nil {
+		t.Error("expected nil session")
+	}
+	if transport != nil {
+		t.Error("expected nil transport")
+	}
+}
+
+func TestRegistryAttachConnIDAlreadyBoundToOther(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	sess1 := session.NewLiveSession("sess-1", 1, dummyComponent, nil)
+	sess2 := session.NewLiveSession("sess-2", 1, dummyComponent, nil)
+	defer sess1.Close()
+	defer sess2.Close()
+
+	reg.Put(sess1)
+	reg.Put(sess2)
+
+	transport1 := &mockTransport{}
+	transport2 := &mockTransport{}
+
+	_, err := reg.Attach("sess-1", "conn-shared", transport1)
+	if err != nil {
+		t.Fatalf("first attach failed: %v", err)
+	}
+
+	_, err = reg.Attach("sess-2", "conn-shared", transport2)
+	if err != nil {
+		t.Fatalf("second attach failed: %v", err)
+	}
+
+	transport1.mu.Lock()
+	closed := transport1.closed
+	transport1.mu.Unlock()
+	if !closed {
+		t.Error("expected first transport to be closed when connID reused")
+	}
+
+	_, foundTransport, ok := reg.LookupByConnection("conn-shared")
+	if !ok {
+		t.Fatal("expected to find connection")
+	}
+	if foundTransport != transport2 {
+		t.Error("expected second transport to be bound")
+	}
+}
+
+func TestRegistryAttachEmptyConnID(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
+	defer sess.Close()
+	reg.Put(sess)
+
+	transport := &mockTransport{}
+	_, err := reg.Attach("test-session", "", transport)
+	if err == nil {
+		t.Error("expected error for empty connID")
+	}
+}
+
+func TestRegistryAttachNilTransport(t *testing.T) {
+	reg := NewSessionRegistry()
+
+	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
+	defer sess.Close()
+	reg.Put(sess)
+
+	_, err := reg.Attach("test-session", "conn-1", nil)
+	if err == nil {
+		t.Error("expected error for nil transport")
+	}
+}
+
 func TestRegistryRangeConcurrent(t *testing.T) {
 	reg := NewSessionRegistry()
 

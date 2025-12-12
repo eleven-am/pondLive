@@ -56,6 +56,7 @@ func Forward(ctx *runtime.Ctx) {
 func navigate(ctx *runtime.Ctx, href string, replace bool) {
 	requestState := headers.UseRequestState(ctx)
 	currentLoc, setLocation := locationCtx.UseContext(ctx)
+	emitter := emitterCtx.UseContextValue(ctx)
 	bus := runtime.GetBus(ctx)
 
 	if bus == nil || requestState == nil || !requestState.IsLive() {
@@ -84,6 +85,17 @@ func navigate(ctx *runtime.Ctx, href string, replace bool) {
 
 	target := resolveHref(currentLoc, href)
 	target = canonicalizeLocation(target)
+
+	if emitter != nil {
+		emitter.Emit("beforeNavigate", NavigationEvent{
+			From:         currentLoc,
+			To:           target,
+			PathChanged:  currentLoc.Path != target.Path,
+			HashChanged:  currentLoc.Hash != target.Hash,
+			QueryChanged: currentLoc.Query.Encode() != target.Query.Encode(),
+			Replace:      replace,
+		})
+	}
 
 	if setLocation != nil {
 		setLocation(target)

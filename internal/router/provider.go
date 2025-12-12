@@ -10,7 +10,6 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-// Provide sets up router contexts and live navigation handling.
 var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Item) work.Node {
 	requestState := headers.UseRequestState(ctx)
 
@@ -29,6 +28,27 @@ var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Item) wor
 
 	loc, setLoc := locationCtx.UseProvider(ctx, canonicalizeLocation(initialLoc))
 	routeBaseCtx.UseProvider(ctx, "/")
+
+	emitterRef := runtime.UseRef(ctx, NewRouterEventEmitter())
+	emitterCtx.UseProvider(ctx, emitterRef.Current)
+
+	prevLocRef := runtime.UseRef(ctx, loc)
+
+	runtime.UseEffect(ctx, func() func() {
+		prev := prevLocRef.Current
+		if !locationEqual(prev, loc) {
+			emitterRef.Current.Emit("navigated", NavigationEvent{
+				From:         prev,
+				To:           loc,
+				PathChanged:  prev.Path != loc.Path,
+				HashChanged:  prev.Hash != loc.Hash,
+				QueryChanged: prev.Query.Encode() != loc.Query.Encode(),
+				Replace:      false,
+			})
+			prevLocRef.Current = loc
+		}
+		return nil
+	}, loc)
 
 	bus := runtime.GetBus(ctx)
 	runtime.UseEffect(ctx, func() func() {
@@ -49,6 +69,14 @@ var Provide = runtime.Component(func(ctx *runtime.Ctx, children []work.Item) wor
 			newLoc = canonicalizeLocation(newLoc)
 
 			if !route.LocEqual(loc, newLoc) {
+				emitterRef.Current.Emit("beforeNavigate", NavigationEvent{
+					From:         loc,
+					To:           newLoc,
+					PathChanged:  loc.Path != newLoc.Path,
+					HashChanged:  loc.Hash != newLoc.Hash,
+					QueryChanged: loc.Query.Encode() != newLoc.Query.Encode(),
+					Replace:      false,
+				})
 				setLoc(newLoc)
 			}
 		})

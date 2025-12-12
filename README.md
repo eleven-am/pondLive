@@ -140,10 +140,14 @@ func main() {
 - `UseStyles`: scoped CSS.
 - `UseMetaTags`: set meta tags.
 - `UseHeaders`, `UseCookie`: manage response headers/cookies.
+- `UseDocument`: document-level settings.
+- `UseErrorBoundary`: access error batch for error handling UI.
+- `UseHydrated`: runs effect only after WebSocket connection is established.
+- `UsePresence`: manage presence animations and timed visibility.
 
 ## Routing
 
-PondLive includes a server-side router that handles URL changes without full page reloads.
+PondLive includes a server-side router that handles URL changes without full page reloads. Route components receive both the context and a `Match` object containing route parameters.
 
 ```go
 func App(ctx *pkg.Ctx) pkg.Node {
@@ -153,6 +157,15 @@ func App(ctx *pkg.Ctx) pkg.Node {
         pkg.Route(ctx, pkg.RouteProps{Path: "/about", Component: About}),
         pkg.Route(ctx, pkg.RouteProps{Path: "/users/:id", Component: UserProfile}),
     )
+}
+
+func Home(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
+    return pkg.Div(pkg.Text("Welcome"))
+}
+
+func UserProfile(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
+    userID, _ := match.Param("id")
+    return pkg.Div(pkg.Textf("User: %s", userID))
 }
 ```
 
@@ -195,7 +208,7 @@ return pkg.Div(pkg.Attach(script), pkg.Text("I have JS attached"))
 
 ## State and Session
 - State is per-session, in memory on the server.
-- Options: `WithSessionTTL`, `WithDOMTimeout`, `WithDevMode`, `WithIDGenerator`, `WithContext`.
+- Options: `WithDevMode`, `WithDOMTimeout`, `WithIDGenerator`, `WithContext`, `WithPubSub`.
 - Session IDs default to random; can be overridden.
 
 ## Styling and Meta

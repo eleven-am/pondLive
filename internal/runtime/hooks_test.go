@@ -876,3 +876,55 @@ func TestUseEffectNilDepsHasDepsFalse(t *testing.T) {
 		t.Error("expected hasDeps to be false for nil deps (no deps passed)")
 	}
 }
+
+func TestUseChannelNilCtx(t *testing.T) {
+	ch := UseChannel(nil, "test-channel")
+	if ch != nil {
+		t.Error("expected nil channel for nil ctx")
+	}
+}
+
+func TestUseChannelNilInstance(t *testing.T) {
+	ctx := &Ctx{instance: nil, session: &Session{}}
+	ch := UseChannel(ctx, "test-channel")
+	if ch != nil {
+		t.Error("expected nil channel for nil instance")
+	}
+}
+
+func TestUseChannelNilSession(t *testing.T) {
+	ctx := &Ctx{instance: &Instance{ID: "test"}, session: nil}
+	ch := UseChannel(ctx, "test-channel")
+	if ch != nil {
+		t.Error("expected nil channel for nil session")
+	}
+}
+
+func TestUseChannelNilChannelManager(t *testing.T) {
+	inst := &Instance{ID: "test", HookFrame: []HookSlot{}}
+	sess := &Session{}
+	ctx := &Ctx{instance: inst, session: sess, hookIndex: 0}
+	ch := UseChannel(ctx, "test-channel")
+	if ch != nil {
+		t.Error("expected nil channel when ChannelManager is nil")
+	}
+}
+
+func TestUseChannelHookMismatch(t *testing.T) {
+	inst := &Instance{
+		ID:        "test-comp",
+		HookFrame: []HookSlot{},
+	}
+	sess := &Session{DirtyQueue: []*Instance{}}
+	ctx := &Ctx{instance: inst, session: sess, hookIndex: 0}
+
+	UseState[int](ctx, 0)
+
+	ctx.hookIndex = 0
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for UseChannel hook mismatch")
+		}
+	}()
+	UseChannel(ctx, "test-channel")
+}

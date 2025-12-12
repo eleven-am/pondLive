@@ -1,6 +1,10 @@
 package server
 
 import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/eleven-am/pondlive/internal/headers"
@@ -742,6 +746,234 @@ func TestAppLookupUploadCallback(t *testing.T) {
 	})
 }
 
+func TestEscapeJSON(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`{"key": "value"}`, `{"key": "value"}`},
+		{`<script></script>`, `<script><\/script>`},
+		{`</body>`, `<\/body>`},
+		{`test</test`, `test<\/test`},
+		{`no slash tags`, `no slash tags`},
+		{`multiple </a></b></c>`, `multiple <\/a><\/b><\/c>`},
+	}
+
+	for _, tc := range tests {
+		result := escapeJSON(tc.input)
+		if result != tc.expected {
+			t.Errorf("escapeJSON(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}
+
+func TestLastIndexFold(t *testing.T) {
+	tests := []struct {
+		haystack string
+		needle   string
+		expected int
+	}{
+		{"hello</body>world", "</body>", 5},
+		{"hello</BODY>world", "</body>", 5},
+		{"hello</Body>world", "</body>", 5},
+		{"<body></body></BODY>", "</body>", 13},
+		{"no match here", "</body>", -1},
+		{"short", "</body>", -1},
+		{"", "</body>", -1},
+		{"test", "", -1},
+		{"</body>", "</body>", 0},
+	}
+
+	for _, tc := range tests {
+		result := lastIndexFold(tc.haystack, tc.needle)
+		if result != tc.expected {
+			t.Errorf("lastIndexFold(%q, %q) = %d, want %d", tc.haystack, tc.needle, result, tc.expected)
+		}
+	}
+}
+
+func TestDecorateDocument(t *testing.T) {
+	t.Run("injects before closing body", func(t *testing.T) {
+		doc := "<html><body><div>content</div></body></html>"
+		boot := []byte(`{"state":"test"}`)
+		result := decorateDocument(doc, boot)
+
+		if !strings.Contains(result, `<script id="live-boot"`) {
+			t.Error("expected boot script in result")
+		}
+		if !strings.Contains(result, `{"state":"test"}`) {
+			t.Error("expected boot JSON in result")
+		}
+		bodyIdx := strings.Index(result, "</body>")
+		scriptIdx := strings.Index(result, `<script id="live-boot"`)
+		if scriptIdx > bodyIdx {
+			t.Error("expected script before </body>")
+		}
+	})
+
+	t.Run("case insensitive body tag", func(t *testing.T) {
+		doc := "<html><BODY>content</BODY></html>"
+		boot := []byte(`{"test":true}`)
+		result := decorateDocument(doc, boot)
+
+		if !strings.Contains(result, `<script id="live-boot"`) {
+			t.Error("expected boot script in result")
+		}
+	})
+
+	t.Run("appends if no body tag", func(t *testing.T) {
+		doc := "<html><div>content</div></html>"
+		boot := []byte(`{"test":true}`)
+		result := decorateDocument(doc, boot)
+
+		if !strings.HasSuffix(result, "</script>") {
+			t.Error("expected script appended at end")
+		}
+	})
+
+	t.Run("escapes JSON closing tags", func(t *testing.T) {
+		doc := "<html><body></body></html>"
+		boot := []byte(`{"html":"</script>"}`)
+		result := decorateDocument(doc, boot)
+
+		if strings.Contains(result, `</script>"}`) {
+			t.Error("expected </script> to be escaped in JSON")
+		}
+	})
+}
+
+func TestDefaultSessionID(t *testing.T) {
+	t.Run("generates valid session ID", func(t *testing.T) {
+		id, err := defaultSessionID(nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if id == "" {
+			t.Error("expected non-empty session ID")
+		}
+		if len(id) < 20 {
+			t.Errorf("expected longer session ID, got %d chars", len(id))
+		}
+	})
+
+	t.Run("generates unique IDs", func(t *testing.T) {
+		ids := make(map[session.SessionID]bool)
+		for i := 0; i < 100; i++ {
+			id, err := defaultSessionID(nil)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if ids[id] {
+				t.Errorf("duplicate session ID: %s", id)
+			}
+			ids[id] = true
+		}
+	})
+}
+
+func TestCloneSessionConfig(t *testing.T) {
+	t.Run("clones non-nil config", func(t *testing.T) {
+		original := &session.Config{
+			ClientAsset: "/test.js",
+		}
+		clone := cloneSessionConfig(original)
+
+		if clone.ClientAsset != original.ClientAsset {
+			t.Error("expected same ClientAsset")
+		}
+	})
+
+	t.Run("returns empty config for nil", func(t *testing.T) {
+		clone := cloneSessionConfig(nil)
+		if clone.ClientAsset != "" {
+			t.Errorf("expected empty config for nil input, got ClientAsset=%q", clone.ClientAsset)
+		}
+	})
+}
+
+func TestAppMux(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	app, err := New(Config{Component: component})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	mux := app.Mux()
+	if mux == nil {
+		t.Error("expected non-nil mux")
+	}
+}
+
+func TestAppHandler(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	app, err := New(Config{Component: component})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	handler := app.Handler()
+	if handler == nil {
+		t.Error("expected non-nil handler")
+	}
+}
+
+func TestAppHandlerFunc(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	app, err := New(Config{Component: component})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	handlerFunc := app.HandlerFunc()
+	if handlerFunc == nil {
+		t.Error("expected non-nil handler func")
+	}
+}
+
+func TestAppServer(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	app, err := New(Config{Component: component})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	server := app.Server(":0")
+	if server == nil {
+		t.Error("expected non-nil server")
+	}
+	if server.Addr != ":0" {
+		t.Errorf("expected addr :0, got %s", server.Addr)
+	}
+}
+
+func TestAppRegistry(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	app, err := New(Config{Component: component})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	registry := app.Registry()
+	if registry == nil {
+		t.Error("expected non-nil registry")
+	}
+}
+
 func TestAppRemoveUploadCallback(t *testing.T) {
 	component := func(ctx *runtime.Ctx) work.Node {
 		return &work.Element{Tag: "div"}
@@ -800,4 +1032,518 @@ func TestAppRemoveUploadCallback(t *testing.T) {
 
 		app.removeUploadCallback("any-token")
 	})
+}
+
+func TestCloneHeader(t *testing.T) {
+	t.Run("clones headers", func(t *testing.T) {
+		original := http.Header{
+			"Content-Type":  {"application/json"},
+			"Authorization": {"Bearer token"},
+		}
+
+		clone := cloneHeader(original)
+
+		if clone.Get("Content-Type") != "application/json" {
+			t.Error("expected Content-Type to be cloned")
+		}
+		if clone.Get("Authorization") != "Bearer token" {
+			t.Error("expected Authorization to be cloned")
+		}
+	})
+
+	t.Run("clone is independent", func(t *testing.T) {
+		original := http.Header{
+			"X-Test": {"value1"},
+		}
+
+		clone := cloneHeader(original)
+		clone.Set("X-Test", "modified")
+
+		if original.Get("X-Test") != "value1" {
+			t.Error("original should not be affected by clone modification")
+		}
+	})
+
+	t.Run("nil returns empty header", func(t *testing.T) {
+		clone := cloneHeader(nil)
+		if clone == nil {
+			t.Error("expected non-nil header for nil input")
+		}
+		if len(clone) != 0 {
+			t.Error("expected empty header")
+		}
+	})
+
+	t.Run("multi-value headers", func(t *testing.T) {
+		original := http.Header{
+			"Accept": {"text/html", "application/json", "text/plain"},
+		}
+
+		clone := cloneHeader(original)
+
+		values := clone["Accept"]
+		if len(values) != 3 {
+			t.Errorf("expected 3 Accept values, got %d", len(values))
+		}
+
+		original["Accept"][0] = "modified"
+		if clone["Accept"][0] == "modified" {
+			t.Error("clone values should not be affected by original modification")
+		}
+	})
+}
+
+func TestRegisterEndpointEdgeCases(t *testing.T) {
+	t.Run("nil server returns error", func(t *testing.T) {
+		_, err := Register(nil, "/live", NewSessionRegistry())
+		if err == nil {
+			t.Error("expected error for nil server")
+		}
+	})
+
+	t.Run("nil registry returns error", func(t *testing.T) {
+		component := func(ctx *runtime.Ctx) work.Node {
+			return &work.Element{Tag: "div"}
+		}
+
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		_, err = Register(app.pondManager, "/test", nil)
+		if err == nil {
+			t.Error("expected error for nil registry")
+		}
+	})
+}
+
+func TestPondChannelName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"my-channel", "pondlive:my-channel"},
+		{"", "pondlive:"},
+		{"test:channel", "pondlive:test:channel"},
+	}
+
+	for _, tc := range tests {
+		result := PondChannelName(tc.input)
+		if result != tc.expected {
+			t.Errorf("PondChannelName(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}
+
+func TestExtractAppChannelName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"pondlive:my-channel", "my-channel"},
+		{"pondlive:", ""},
+		{"pondlive:test:channel", "test:channel"},
+		{"other:channel", ""},
+		{"", ""},
+		{"my-channel", ""},
+	}
+
+	for _, tc := range tests {
+		result := extractAppChannelName(tc.input)
+		if result != tc.expected {
+			t.Errorf("extractAppChannelName(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}
+
+func TestNewAppConfigurations(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	t.Run("nil component returns error", func(t *testing.T) {
+		_, err := New(Config{Component: nil})
+		if err == nil {
+			t.Error("expected error for nil component")
+		}
+	})
+
+	t.Run("custom client asset", func(t *testing.T) {
+		app, err := New(Config{
+			Component:   component,
+			ClientAsset: "/custom/path.js",
+		})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+		if app.clientAsset != "/custom/path.js" {
+			t.Errorf("expected custom client asset, got %s", app.clientAsset)
+		}
+	})
+
+	t.Run("empty client asset uses default", func(t *testing.T) {
+		app, err := New(Config{
+			Component:   component,
+			ClientAsset: "   ",
+		})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+		if app.clientAsset != "/static/pondlive.js" {
+			t.Errorf("expected default client asset, got %s", app.clientAsset)
+		}
+	})
+
+	t.Run("dev mode changes client asset", func(t *testing.T) {
+		app, err := New(Config{
+			Component:     component,
+			SessionConfig: &session.Config{DevMode: true},
+		})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+		if app.clientAsset != "/static/pondlive-dev.js" {
+			t.Errorf("expected dev client asset, got %s", app.clientAsset)
+		}
+	})
+
+	t.Run("custom ID generator", func(t *testing.T) {
+		customGenerator := func(*http.Request) (session.SessionID, error) {
+			return "custom-id", nil
+		}
+
+		app, err := New(Config{
+			Component:   component,
+			IDGenerator: customGenerator,
+		})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		id, _ := app.idGenerator(nil)
+		if id != "custom-id" {
+			t.Errorf("expected custom-id, got %s", id)
+		}
+	})
+
+	t.Run("with upload config", func(t *testing.T) {
+		app, err := New(Config{
+			Component: component,
+			UploadConfig: &upload.Config{
+				StoragePath: t.TempDir(),
+			},
+		})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+		if app.uploadHandler == nil {
+			t.Error("expected upload handler to be set")
+		}
+	})
+
+	t.Run("version defaults to 1", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+		if app.version != 1 {
+			t.Errorf("expected version 1, got %d", app.version)
+		}
+	})
+}
+
+func TestServeSSR(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{
+			Tag: "html",
+			Children: []work.Node{
+				&work.Element{Tag: "head"},
+				&work.Element{
+					Tag: "body",
+					Children: []work.Node{
+						&work.Element{
+							Tag:      "div",
+							Children: []work.Node{&work.Text{Value: "Hello, World!"}},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("basic SSR render", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		resp := rec.Result()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected 200, got %d", resp.StatusCode)
+		}
+
+		body := rec.Body.String()
+		if !strings.Contains(body, "Hello, World!") {
+			t.Error("expected body to contain 'Hello, World!'")
+		}
+		if !strings.Contains(body, `<script id="live-boot"`) {
+			t.Error("expected body to contain boot script")
+		}
+		if !strings.Contains(body, "<!DOCTYPE html>") {
+			t.Error("expected DOCTYPE in response")
+		}
+
+		contentType := resp.Header.Get("Content-Type")
+		if !strings.Contains(contentType, "text/html") {
+			t.Errorf("expected text/html content type, got %s", contentType)
+		}
+
+		cacheControl := resp.Header.Get("Cache-Control")
+		if cacheControl != "no-store" {
+			t.Errorf("expected no-store cache control, got %s", cacheControl)
+		}
+	})
+
+	t.Run("SSR with path", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/test/path?query=value", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		resp := rec.Result()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected 200, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("session ID error", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		app.idGenerator = func(*http.Request) (session.SessionID, error) {
+			return "", nil
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("expected 500, got %d", rec.Code)
+		}
+	})
+
+	t.Run("dev mode config", func(t *testing.T) {
+		app, err := New(Config{
+			Component:     component,
+			SessionConfig: &session.Config{DevMode: true},
+		})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		resp := rec.Result()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected 200, got %d", resp.StatusCode)
+		}
+
+		body := rec.Body.String()
+		if !strings.Contains(body, `"debug":true`) {
+			t.Error("expected debug flag in boot JSON for dev mode")
+		}
+	})
+
+	t.Run("with query params and fragment", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/page?foo=bar&baz=qux#section", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("id generator returns error", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		app.idGenerator = func(*http.Request) (session.SessionID, error) {
+			return "", errors.New("generator error")
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("expected 500, got %d", rec.Code)
+		}
+	})
+
+	t.Run("with redirect in request state", func(t *testing.T) {
+		redirectComponent := func(ctx *runtime.Ctx) work.Node {
+			requestState := headers.UseRequestState(ctx)
+			if requestState != nil {
+				requestState.SetRedirect("/redirected", http.StatusFound)
+			}
+			return &work.Element{Tag: "div"}
+		}
+
+		app, err := New(Config{Component: redirectComponent})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		if rec.Code != http.StatusFound {
+			t.Errorf("expected 302, got %d", rec.Code)
+		}
+
+		location := rec.Header().Get("Location")
+		if location != "/redirected" {
+			t.Errorf("expected redirect to /redirected, got %s", location)
+		}
+	})
+
+	t.Run("version defaults when zero", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		app.version = 0
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("nil returning component", func(t *testing.T) {
+		nilComponent := func(ctx *runtime.Ctx) work.Node {
+			return nil
+		}
+
+		app, err := New(Config{Component: nilComponent})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		if rec.Code == http.StatusOK {
+			t.Log("nil component rendered successfully (boot wrapper provides structure)")
+		}
+	})
+
+	t.Run("negative version defaults to 1", func(t *testing.T) {
+		app, err := New(Config{Component: component})
+		if err != nil {
+			t.Fatalf("failed to create app: %v", err)
+		}
+
+		app.version = -5
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		app.serveSSR(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+	})
+}
+
+func TestBroadcastReturnsError(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	app, err := New(Config{Component: component})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	err = app.Broadcast("test-channel", "test-event", map[string]string{"key": "value"})
+	if err == nil {
+		t.Error("expected error when broadcasting to nonexistent channel")
+	}
+}
+
+func TestNewPubSubLobby(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	app, err := New(Config{Component: component})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	if app.endpoint == nil {
+		t.Fatal("expected endpoint to be created")
+	}
+
+	if app.endpoint.pubsubLobby == nil {
+		t.Fatal("expected pubsub lobby to be created")
+	}
+}
+
+func TestEndpointConfigure(t *testing.T) {
+	component := func(ctx *runtime.Ctx) work.Node {
+		return &work.Element{Tag: "div"}
+	}
+
+	app, err := New(Config{Component: component})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	if app.endpoint.endpoint == nil {
+		t.Fatal("expected pondsocket endpoint to be configured")
+	}
+
+	if app.endpoint.registry == nil {
+		t.Fatal("expected registry to be set")
+	}
 }

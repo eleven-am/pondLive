@@ -565,3 +565,29 @@ func TestScriptHandleOnConcurrentSafety(t *testing.T) {
 		t.Errorf("expected 10 unique event handlers, got %d", subCount)
 	}
 }
+
+func TestScriptHandleIDNilSlot(t *testing.T) {
+	handle := ScriptHandle{slot: nil}
+	if handle.ID() != "" {
+		t.Errorf("expected empty string for nil slot, got %q", handle.ID())
+	}
+}
+
+func TestScriptHandleSendNilSlot(t *testing.T) {
+	handle := ScriptHandle{slot: nil}
+	handle.Send("event", "data")
+}
+
+func TestScriptHandleAttachToNilSlot(t *testing.T) {
+	handle := ScriptHandle{slot: nil}
+	elem := &work.Element{Tag: "div"}
+	handle.AttachTo(elem)
+}
+
+func TestScriptHandleAttachToNilElement(t *testing.T) {
+	inst := &Instance{ID: "test", cleanups: []func(){}}
+	sess := &Session{Scripts: make(map[string]*scriptSlot), Bus: protocol.NewBus()}
+	slot := &scriptSlot{id: "test:s0", sess: sess, instance: inst}
+	handle := ScriptHandle{slot: slot}
+	handle.AttachTo(nil)
+}

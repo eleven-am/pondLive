@@ -117,3 +117,12 @@ type RedirectProps struct {
 	To      string
 	Replace bool
 }
+
+type NavigationEvent struct {
+	From         Location
+	To           Location
+	PathChanged  bool
+	HashChanged  bool
+	QueryChanged bool
+	Replace      bool
+}

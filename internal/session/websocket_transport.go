@@ -54,6 +54,8 @@ func (t *WebSocketTransport) UpdateRequestState(state *headers.RequestState) {
 	t.mu.Lock()
 	t.requestState = state
 	t.mu.Unlock()
+
+	state.NotifyChange()
 }
 
 func (t *WebSocketTransport) RequestInfo() *headers.RequestInfo {

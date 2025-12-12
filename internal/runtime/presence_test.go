@@ -1152,3 +1152,76 @@ func TestUsePresenceDuplicateKeyPanic(t *testing.T) {
 	}
 	UsePresence(ctx, PresentList(items, func(i Item) string { return i.ID }, 100*time.Millisecond))
 }
+
+func TestPresentWhen(t *testing.T) {
+	t.Run("returns single item when true", func(t *testing.T) {
+		input := PresentWhen(true, 100*time.Millisecond)
+		if len(input.Items) != 1 {
+			t.Errorf("expected 1 item when true, got %d", len(input.Items))
+		}
+		if input.Duration != 100*time.Millisecond {
+			t.Errorf("expected duration 100ms, got %v", input.Duration)
+		}
+	})
+
+	t.Run("returns empty when false", func(t *testing.T) {
+		input := PresentWhen(false, 100*time.Millisecond)
+		if len(input.Items) != 0 {
+			t.Errorf("expected 0 items when false, got %d", len(input.Items))
+		}
+	})
+
+	t.Run("with zero duration", func(t *testing.T) {
+		input := PresentWhen(true, 0)
+		if len(input.Items) != 1 {
+			t.Errorf("expected 1 item, got %d", len(input.Items))
+		}
+		if input.Duration != 0 {
+			t.Errorf("expected zero duration, got %v", input.Duration)
+		}
+	})
+
+	t.Run("key function returns _single", func(t *testing.T) {
+		input := PresentWhen(true, 50*time.Millisecond)
+		if input.KeyFunc == nil {
+			t.Fatal("expected KeyFunc to be set")
+		}
+		key := input.KeyFunc(struct{}{})
+		if key != "_single" {
+			t.Errorf("expected key '_single', got %q", key)
+		}
+	})
+}
+
+func TestPresentWhenWithUsePresence(t *testing.T) {
+	inst := &Instance{
+		ID:        "test-comp",
+		HookFrame: []HookSlot{},
+	}
+	sess := &Session{
+		DirtyQueue: []*Instance{},
+		DirtySet:   make(map[*Instance]struct{}),
+	}
+	ctx := &Ctx{
+		instance:  inst,
+		session:   sess,
+		hookIndex: 0,
+	}
+
+	result := UsePresence(ctx, PresentWhen(true, 100*time.Millisecond))
+	if !result.Visible() {
+		t.Error("expected visible when PresentWhen(true)")
+	}
+	if result.IsExiting() {
+		t.Error("expected not exiting")
+	}
+
+	ctx.hookIndex = 0
+	result = UsePresence(ctx, PresentWhen(false, 100*time.Millisecond))
+	if !result.Visible() {
+		t.Error("expected still visible during exit animation")
+	}
+	if !result.IsExiting() {
+		t.Error("expected exiting when toggled to false")
+	}
+}

@@ -628,3 +628,414 @@ func TestDeduplicateStrings(t *testing.T) {
 		})
 	}
 }
+
+func TestIf(t *testing.T) {
+	node := NewText("hello")
+
+	result := If(true, node)
+	if _, ok := result.(*Text); !ok {
+		t.Error("expected node when condition is true")
+	}
+
+	result = If(false, node)
+	if _, ok := result.(noopItem); !ok {
+		t.Error("expected noopItem when condition is false")
+	}
+}
+
+func TestIfFn(t *testing.T) {
+	called := false
+	fn := func() Item {
+		called = true
+		return NewText("hello")
+	}
+
+	result := IfFn(true, fn)
+	if !called {
+		t.Error("expected function to be called when condition is true")
+	}
+	if _, ok := result.(*Text); !ok {
+		t.Error("expected Text when condition is true")
+	}
+
+	called = false
+	result = IfFn(false, fn)
+	if called {
+		t.Error("expected function not to be called when condition is false")
+	}
+	if _, ok := result.(noopItem); !ok {
+		t.Error("expected noopItem when condition is false")
+	}
+
+	result = IfFn(true, nil)
+	if _, ok := result.(noopItem); !ok {
+		t.Error("expected noopItem when function is nil")
+	}
+}
+
+func TestTernary(t *testing.T) {
+	trueNode := NewText("true")
+	falseNode := NewText("false")
+
+	result := Ternary(true, trueNode, falseNode)
+	if text, ok := result.(*Text); !ok || text.Value != "true" {
+		t.Error("expected trueNode when condition is true")
+	}
+
+	result = Ternary(false, trueNode, falseNode)
+	if text, ok := result.(*Text); !ok || text.Value != "false" {
+		t.Error("expected falseNode when condition is false")
+	}
+
+	result = Ternary(true, nil, falseNode)
+	if text, ok := result.(*Text); !ok || text.Value != "false" {
+		t.Error("expected falseNode when trueNode is nil")
+	}
+
+	result = Ternary(false, trueNode, nil)
+	if _, ok := result.(noopItem); !ok {
+		t.Error("expected noopItem when falseNode is nil")
+	}
+}
+
+func TestTernaryFn(t *testing.T) {
+	trueFn := func() Item { return NewText("true") }
+	falseFn := func() Item { return NewText("false") }
+
+	result := TernaryFn(true, trueFn, falseFn)
+	if text, ok := result.(*Text); !ok || text.Value != "true" {
+		t.Error("expected true result when condition is true")
+	}
+
+	result = TernaryFn(false, trueFn, falseFn)
+	if text, ok := result.(*Text); !ok || text.Value != "false" {
+		t.Error("expected false result when condition is false")
+	}
+
+	result = TernaryFn(true, nil, falseFn)
+	if text, ok := result.(*Text); !ok || text.Value != "false" {
+		t.Error("expected false result when trueFn is nil")
+	}
+
+	result = TernaryFn(false, trueFn, nil)
+	if _, ok := result.(noopItem); !ok {
+		t.Error("expected noopItem when falseFn is nil")
+	}
+}
+
+func TestMap(t *testing.T) {
+	items := []string{"a", "b", "c"}
+	result := Map(items, func(s string) Item {
+		return NewText(s)
+	})
+
+	if len(result.Children) != 3 {
+		t.Errorf("expected 3 children, got %d", len(result.Children))
+	}
+
+	result = Map([]string{}, func(s string) Item {
+		return NewText(s)
+	})
+	if len(result.Children) != 0 {
+		t.Error("expected empty fragment for empty slice")
+	}
+
+	result = Map(items, nil)
+	if len(result.Children) != 0 {
+		t.Error("expected empty fragment for nil render function")
+	}
+
+	result = Map(items, func(s string) Item {
+		if s == "b" {
+			return nil
+		}
+		return NewText(s)
+	})
+	if len(result.Children) != 2 {
+		t.Errorf("expected 2 children (skipping nil), got %d", len(result.Children))
+	}
+}
+
+func TestMapIdx(t *testing.T) {
+	items := []string{"a", "b", "c"}
+	result := MapIdx(items, func(i int, s string) Item {
+		return NewTextf("%d:%s", i, s)
+	})
+
+	if len(result.Children) != 3 {
+		t.Errorf("expected 3 children, got %d", len(result.Children))
+	}
+
+	result = MapIdx([]string{}, func(i int, s string) Item {
+		return NewText(s)
+	})
+	if len(result.Children) != 0 {
+		t.Error("expected empty fragment for empty slice")
+	}
+
+	result = MapIdx(items, nil)
+	if len(result.Children) != 0 {
+		t.Error("expected empty fragment for nil render function")
+	}
+}
+
+func TestNodesToItems(t *testing.T) {
+	nodes := []Node{NewText("a"), NewText("b")}
+	items := NodesToItems(nodes)
+
+	if len(items) != 2 {
+		t.Errorf("expected 2 items, got %d", len(items))
+	}
+}
+
+func TestItemsToNodes(t *testing.T) {
+	items := []Item{NewText("a"), ID("test"), NewText("b")}
+	nodes := ItemsToNodes(items)
+
+	if len(nodes) != 2 {
+		t.Errorf("expected 2 nodes (excluding non-Node items), got %d", len(nodes))
+	}
+}
+
+func TestAttrHelpers(t *testing.T) {
+	tests := []struct {
+		name     string
+		item     Item
+		attrName string
+		expected string
+	}{
+		{"Href", Href("/path"), "href", "/path"},
+		{"Src", Src("image.png"), "src", "image.png"},
+		{"Target", Target("_blank"), "target", "_blank"},
+		{"Rel", Rel("noopener"), "rel", "noopener"},
+		{"Title", Title("test"), "title", "test"},
+		{"Alt", Alt("description"), "alt", "description"},
+		{"Type", Type("text"), "type", "text"},
+		{"Value", Value("input"), "value", "input"},
+		{"Name", Name("field"), "name", "field"},
+		{"Placeholder", Placeholder("Enter..."), "placeholder", "Enter..."},
+		{"Data", Data("id", "123"), "data-id", "123"},
+		{"Aria", Aria("label", "Button"), "aria-label", "Button"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			el := &Element{Tag: "div"}
+			tt.item.ApplyTo(el)
+			if el.Attrs[tt.attrName][0] != tt.expected {
+				t.Errorf("expected %s=%s, got %v", tt.attrName, tt.expected, el.Attrs[tt.attrName])
+			}
+		})
+	}
+}
+
+func TestBoolAttrHelpers(t *testing.T) {
+	tests := []struct {
+		name     string
+		item     Item
+		attrName string
+	}{
+		{"Disabled", Disabled(), "disabled"},
+		{"Checked", Checked(), "checked"},
+		{"Required", Required(), "required"},
+		{"Readonly", Readonly(), "readonly"},
+		{"Autofocus", Autofocus(), "autofocus"},
+		{"Autoplay", Autoplay(), "autoplay"},
+		{"Controls", Controls(), "controls"},
+		{"Loop", Loop(), "loop"},
+		{"Muted", Muted(), "muted"},
+		{"Selected", Selected(), "selected"},
+		{"Multiple", Multiple(), "multiple"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			el := &Element{Tag: "input"}
+			tt.item.ApplyTo(el)
+			if _, exists := el.Attrs[tt.attrName]; !exists {
+				t.Errorf("expected %s attribute to be set", tt.attrName)
+			}
+		})
+	}
+}
+
+func TestStylesItem(t *testing.T) {
+	el := &Element{Tag: "div"}
+	styles := Styles(map[string]string{
+		"color":      "red",
+		"background": "blue",
+	})
+	styles.ApplyTo(el)
+
+	if el.Style["color"] != "red" {
+		t.Error("expected color=red")
+	}
+	if el.Style["background"] != "blue" {
+		t.Error("expected background=blue")
+	}
+}
+
+func TestOnEvent(t *testing.T) {
+	el := &Element{Tag: "button"}
+	called := false
+
+	On("click", func(e Event) Updates {
+		called = true
+		return nil
+	}).ApplyTo(el)
+
+	if el.Handlers["click"].Fn == nil {
+		t.Error("expected click handler")
+	}
+
+	el.Handlers["click"].Fn(Event{Name: "click"})
+	if !called {
+		t.Error("expected handler to be called")
+	}
+}
+
+func TestOnWithEvent(t *testing.T) {
+	el := &Element{Tag: "button"}
+
+	OnWith("click", metadata.EventOptions{
+		Prevent: true,
+		Stop:    true,
+	}, func(e Event) Updates {
+		return nil
+	}).ApplyTo(el)
+
+	if !el.Handlers["click"].EventOptions.Prevent {
+		t.Error("expected Prevent option")
+	}
+	if !el.Handlers["click"].EventOptions.Stop {
+		t.Error("expected Stop option")
+	}
+}
+
+func TestAttachNil(t *testing.T) {
+	result := Attach(nil)
+	if _, ok := result.(noopItem); !ok {
+		t.Error("expected noopItem for nil attachment")
+	}
+}
+
+func TestClassWithEmptyStrings(t *testing.T) {
+	el := &Element{Tag: "div"}
+	Class("", "foo", "  ", "bar", "").ApplyTo(el)
+
+	if len(el.Attrs["class"]) != 2 {
+		t.Errorf("expected 2 classes (excluding empty), got %d", len(el.Attrs["class"]))
+	}
+}
+
+func TestNoopItemApplyTo(t *testing.T) {
+	el := &Element{Tag: "div", Children: []Node{}}
+	noop := noopItem{}
+	noop.ApplyTo(el)
+
+	if len(el.Children) != 0 {
+		t.Error("noopItem should not add children")
+	}
+}
+
+func TestSlotMarker(t *testing.T) {
+	child := NewText("content")
+	marker := SlotMarker("default", child)
+
+	frag, ok := marker.(*Fragment)
+	if !ok {
+		t.Fatal("expected SlotMarker to return *Fragment")
+	}
+	if frag.Metadata["slot:name"] != "default" {
+		t.Errorf("expected slot:name 'default', got %v", frag.Metadata["slot:name"])
+	}
+	if len(frag.Children) != 1 {
+		t.Errorf("expected 1 child, got %d", len(frag.Children))
+	}
+}
+
+func TestScopedSlotMarker(t *testing.T) {
+	fn := func(data string) Node {
+		return NewText(data)
+	}
+	marker := ScopedSlotMarker("items", fn)
+
+	frag, ok := marker.(*Fragment)
+	if !ok {
+		t.Fatal("expected ScopedSlotMarker to return *Fragment")
+	}
+	if frag.Metadata["scoped-slot:name"] != "items" {
+		t.Errorf("expected scoped-slot:name 'items', got %v", frag.Metadata["scoped-slot:name"])
+	}
+	if frag.Metadata["scoped-slot:fn"] == nil {
+		t.Error("expected scoped-slot:fn to be set")
+	}
+}
+
+func TestFragmentApplyTo(t *testing.T) {
+	parent := &Element{Tag: "div"}
+	frag := &Fragment{Children: []Node{NewText("a"), NewText("b")}}
+	frag.ApplyTo(parent)
+
+	if len(parent.Children) != 1 {
+		t.Errorf("expected 1 child (fragment), got %d", len(parent.Children))
+	}
+}
+
+func TestCommentApplyTo(t *testing.T) {
+	parent := &Element{Tag: "div"}
+	comment := &Comment{Value: "test comment"}
+	comment.ApplyTo(parent)
+
+	if len(parent.Children) != 1 {
+		t.Errorf("expected 1 child (comment), got %d", len(parent.Children))
+	}
+}
+
+func TestMergeUpdates(t *testing.T) {
+	t.Run("nil a", func(t *testing.T) {
+		result := mergeUpdates(nil, "b")
+		if result != "b" {
+			t.Error("expected b when a is nil")
+		}
+	})
+
+	t.Run("nil b", func(t *testing.T) {
+		result := mergeUpdates("a", nil)
+		if result != "a" {
+			t.Error("expected a when b is nil")
+		}
+	})
+
+	t.Run("both slices", func(t *testing.T) {
+		a := []Updates{"a1", "a2"}
+		b := []Updates{"b1", "b2"}
+		result := mergeUpdates(a, b)
+		if slice, ok := result.([]Updates); !ok || len(slice) != 4 {
+			t.Error("expected merged slice of 4")
+		}
+	})
+
+	t.Run("a slice b single", func(t *testing.T) {
+		a := []Updates{"a1", "a2"}
+		result := mergeUpdates(a, "b")
+		if slice, ok := result.([]Updates); !ok || len(slice) != 3 {
+			t.Error("expected merged slice of 3")
+		}
+	})
+
+	t.Run("a single b slice", func(t *testing.T) {
+		b := []Updates{"b1", "b2"}
+		result := mergeUpdates("a", b)
+		if slice, ok := result.([]Updates); !ok || len(slice) != 3 {
+			t.Error("expected merged slice of 3")
+		}
+	})
+
+	t.Run("both single", func(t *testing.T) {
+		result := mergeUpdates("a", "b")
+		if slice, ok := result.([]Updates); !ok || len(slice) != 2 {
+			t.Error("expected slice of 2")
+		}
+	})
+}

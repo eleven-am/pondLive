@@ -1136,3 +1136,318 @@ func TestDiffIndexedDuplicateSignatures(t *testing.T) {
 		t.Fatalf("expected 1 add for 'New' item, got %d", addCount)
 	}
 }
+
+func TestIntToStr(t *testing.T) {
+	tests := []struct {
+		input    int
+		expected string
+	}{
+		{0, "0"},
+		{1, "1"},
+		{42, "42"},
+		{100, "100"},
+		{-1, "-1"},
+		{-42, "-42"},
+		{12345, "12345"},
+	}
+	for _, tt := range tests {
+		result := intToStr(tt.input)
+		if result != tt.expected {
+			t.Errorf("intToStr(%d) = %q, expected %q", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestFormatPath(t *testing.T) {
+	tests := []struct {
+		path     []int
+		expected string
+	}{
+		{nil, "[]"},
+		{[]int{}, "[]"},
+		{[]int{0}, "[0]"},
+		{[]int{1, 2, 3}, "[1,2,3]"},
+		{[]int{0, 1}, "[0,1]"},
+		{[]int{10, 20, 30}, "[10,20,30]"},
+	}
+	for _, tt := range tests {
+		result := formatPath(tt.path)
+		if result != tt.expected {
+			t.Errorf("formatPath(%v) = %q, expected %q", tt.path, result, tt.expected)
+		}
+	}
+}
+
+func TestDiffStylesheetModification(t *testing.T) {
+	prev := elementNode("style")
+	prev.Stylesheet = &metadata.Stylesheet{
+		Rules: []metadata.StyleRule{
+			{Selector: ".btn", Props: map[string]string{"color": "red", "padding": "10px"}},
+		},
+	}
+
+	next := elementNode("style")
+	next.Stylesheet = &metadata.Stylesheet{
+		Rules: []metadata.StyleRule{
+			{Selector: ".btn", Props: map[string]string{"color": "blue", "margin": "5px"}},
+		},
+	}
+
+	patches := Diff(prev, next)
+
+	setCount := 0
+	delCount := 0
+	for _, p := range patches {
+		if p.Op == OpSetStyleDecl {
+			setCount++
+		}
+		if p.Op == OpDelStyleDecl {
+			delCount++
+		}
+	}
+
+	if setCount < 2 {
+		t.Fatalf("expected at least 2 set operations (color change, margin add), got %d", setCount)
+	}
+	if delCount < 1 {
+		t.Fatalf("expected at least 1 delete operation (padding removal), got %d", delCount)
+	}
+}
+
+func TestDiffStylesheetRemoval(t *testing.T) {
+	prev := elementNode("style")
+	prev.Stylesheet = &metadata.Stylesheet{
+		Rules: []metadata.StyleRule{
+			{Selector: ".card", Props: map[string]string{"color": "blue", "padding": "1rem"}},
+		},
+	}
+
+	next := elementNode("style")
+
+	patches := Diff(prev, next)
+
+	delCount := 0
+	for _, p := range patches {
+		if p.Op == OpDelStyleDecl {
+			delCount++
+		}
+	}
+
+	if delCount < 2 {
+		t.Fatalf("expected at least 2 delete operations, got %d", delCount)
+	}
+}
+
+func TestDiffStylesheetWithMediaBlocks(t *testing.T) {
+	prev := elementNode("style")
+	prev.Stylesheet = &metadata.Stylesheet{
+		MediaBlocks: []metadata.MediaBlock{
+			{
+				Query: "(min-width: 768px)",
+				Rules: []metadata.StyleRule{
+					{Selector: ".container", Props: map[string]string{"width": "750px"}},
+				},
+			},
+		},
+	}
+
+	next := elementNode("style")
+	next.Stylesheet = &metadata.Stylesheet{
+		MediaBlocks: []metadata.MediaBlock{
+			{
+				Query: "(min-width: 768px)",
+				Rules: []metadata.StyleRule{
+					{Selector: ".container", Props: map[string]string{"width": "720px"}},
+				},
+			},
+		},
+	}
+
+	patches := Diff(prev, next)
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpSetStyleDecl {
+			found = true
+		}
+	}
+
+	if !found {
+		t.Fatalf("expected set operation for media block style change")
+	}
+}
+
+func TestDiffNodeTypeMismatch(t *testing.T) {
+	prev := textNode("hello")
+	next := elementNode("div")
+
+	patches := Diff(prev, next)
+
+	if len(patches) != 1 {
+		t.Fatalf("expected 1 patch, got %d", len(patches))
+	}
+	if patches[0].Op != OpReplaceNode {
+		t.Fatalf("expected replaceNode op, got %s", patches[0].Op)
+	}
+}
+
+func TestDiffTextToComment(t *testing.T) {
+	prev := textNode("text")
+	next := commentNode("comment")
+
+	patches := Diff(prev, next)
+
+	if len(patches) != 1 {
+		t.Fatalf("expected 1 patch, got %d", len(patches))
+	}
+	if patches[0].Op != OpReplaceNode {
+		t.Fatalf("expected replaceNode op for type mismatch, got %s", patches[0].Op)
+	}
+}
+
+func TestDiffHandlersSorting(t *testing.T) {
+	prev := elementNode("button")
+	prev.Handlers = []metadata.HandlerMeta{
+		{Event: "click", Handler: "h1", EventOptions: metadata.EventOptions{Prevent: true}},
+		{Event: "focus", Handler: "h2"},
+	}
+
+	next := elementNode("button")
+	next.Handlers = []metadata.HandlerMeta{
+		{Event: "focus", Handler: "h2"},
+		{Event: "click", Handler: "h1", EventOptions: metadata.EventOptions{Prevent: true}},
+	}
+
+	patches := Diff(prev, next)
+
+	for _, p := range patches {
+		if p.Op == OpSetHandlers {
+			t.Fatalf("same handlers in different order should not produce patch")
+		}
+	}
+}
+
+func TestDiffHandlersOptionChange(t *testing.T) {
+	prev := elementNode("button")
+	prev.Handlers = []metadata.HandlerMeta{
+		{Event: "click", Handler: "h1", EventOptions: metadata.EventOptions{Prevent: false}},
+	}
+
+	next := elementNode("button")
+	next.Handlers = []metadata.HandlerMeta{
+		{Event: "click", Handler: "h1", EventOptions: metadata.EventOptions{Prevent: true}},
+	}
+
+	patches := Diff(prev, next)
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpSetHandlers {
+			found = true
+		}
+	}
+
+	if !found {
+		t.Fatalf("expected setHandlers op when options change")
+	}
+}
+
+func TestNodeTypeOf(t *testing.T) {
+	tests := []struct {
+		node     view.Node
+		expected nodeType
+	}{
+		{textNode("text"), nodeText},
+		{commentNode("comment"), nodeComment},
+		{elementNode("div"), nodeElement},
+		{fragmentNode(), nodeFragment},
+	}
+
+	for _, tt := range tests {
+		result := nodeTypeOf(tt.node)
+		if result != tt.expected {
+			t.Errorf("nodeTypeOf(%T) = %d, expected %d", tt.node, result, tt.expected)
+		}
+	}
+}
+
+func TestFlatten(t *testing.T) {
+	tree := fragmentNode(
+		textNode("hello"),
+		fragmentNode(
+			elementNode("div"),
+			textNode("world"),
+		),
+	)
+
+	result := Flatten(tree)
+	frag, ok := result.(*view.Fragment)
+	if !ok {
+		t.Fatalf("expected Fragment result, got %T", result)
+	}
+
+	if len(frag.Children) != 3 {
+		t.Fatalf("expected 3 children after flatten, got %d", len(frag.Children))
+	}
+}
+
+func TestFlattenSingleElement(t *testing.T) {
+	tree := elementNode("div")
+
+	result := Flatten(tree)
+	elem, ok := result.(*view.Element)
+	if !ok {
+		t.Fatalf("expected Element result, got %T", result)
+	}
+
+	if elem.Tag != "div" {
+		t.Fatalf("expected div element, got %s", elem.Tag)
+	}
+}
+
+func TestFlattenWithNilNode(t *testing.T) {
+	result := Flatten(nil)
+	if result != nil {
+		t.Fatalf("expected nil for nil input, got %v", result)
+	}
+}
+
+func TestExtractMetadataFromElement(t *testing.T) {
+	elem := elementNode("div")
+	elem.Handlers = []metadata.HandlerMeta{
+		{Event: "click", Handler: "h1"},
+	}
+
+	patches := ExtractMetadata(elem)
+
+	found := false
+	for _, p := range patches {
+		if p.Op == OpSetHandlers {
+			found = true
+		}
+	}
+
+	if !found {
+		t.Fatalf("expected SetHandlers patch from element with handlers")
+	}
+}
+
+func TestDiffStylesheetBothEmpty(t *testing.T) {
+	prev := elementNode("style")
+	prev.Stylesheet = &metadata.Stylesheet{
+		Rules: []metadata.StyleRule{},
+	}
+
+	next := elementNode("style")
+	next.Stylesheet = &metadata.Stylesheet{
+		Rules: []metadata.StyleRule{},
+	}
+
+	patches := Diff(prev, next)
+
+	for _, p := range patches {
+		if p.Op == OpSetStyleDecl || p.Op == OpDelStyleDecl {
+			t.Fatalf("empty stylesheets should produce no style patches, got %s", p.Op)
+		}
+	}
+}

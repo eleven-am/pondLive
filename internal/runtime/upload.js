@@ -19,7 +19,7 @@ function upload(element, transport) {
 
         tusPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/tus-js-client@4.2.3/dist/tus.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/lib.es5/browser/index.min.js';
             script.onload = resolve;
             script.onerror = () => reject(new Error('Failed to load tus-js-client'));
             document.head.appendChild(script);
@@ -150,6 +150,7 @@ function upload(element, transport) {
                 pending = null;
                 return;
             }
+
             if (!acceptsFile(f, config.accept)) {
                 transport.send('error', { error: `File type not accepted. Allowed: ${config.accept.join(', ')}` });
                 input.value = '';
@@ -170,6 +171,7 @@ function upload(element, transport) {
             uploadState = resetState();
             return;
         }
+
         const next = uploadState.queue[0];
         uploadState.inProgress = true;
 

@@ -835,3 +835,166 @@ func TestBusSubscribeAllNilSafety(t *testing.T) {
 		t.Error("expected non-nil subscription for nil callback")
 	}
 }
+
+func TestBusClose(t *testing.T) {
+	bus := NewBus()
+
+	bus.Subscribe("topic1", func(event string, data interface{}) {})
+	bus.Subscribe("topic2", func(event string, data interface{}) {})
+	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {})
+
+	if bus.SubscriberCount("topic1") != 1 {
+		t.Error("expected 1 subscriber for topic1")
+	}
+
+	bus.Close()
+
+	if bus.SubscriberCount("topic1") != 0 {
+		t.Error("expected 0 subscribers after Close")
+	}
+	if bus.SubscriberCount("topic2") != 0 {
+		t.Error("expected 0 subscribers after Close")
+	}
+}
+
+func TestBusCloseNil(t *testing.T) {
+	var bus *Bus
+	bus.Close()
+}
+
+func TestBusReportDiagnostic(t *testing.T) {
+	bus := NewBus()
+
+	var received Diagnostic
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	bus.Subscribe(TopicDiagnostic, func(event string, data interface{}) {
+		if event == "report" {
+			if diag, ok := data.(Diagnostic); ok {
+				received = diag
+			}
+		}
+		wg.Done()
+	})
+
+	diag := Diagnostic{
+		Phase:      "render",
+		Message:    "test error",
+		StackTrace: "stack...",
+		Metadata:   map[string]any{"key": "value"},
+	}
+
+	bus.ReportDiagnostic(diag)
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for diagnostic")
+	}
+
+	if received.Phase != "render" {
+		t.Errorf("Phase = %q, want %q", received.Phase, "render")
+	}
+	if received.Message != "test error" {
+		t.Errorf("Message = %q, want %q", received.Message, "test error")
+	}
+}
+
+func TestBusSubscribeToDiagnostics(t *testing.T) {
+	bus := NewBus()
+
+	var received Diagnostic
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	sub := bus.SubscribeToDiagnostics(func(diag Diagnostic) {
+		received = diag
+		wg.Done()
+	})
+
+	if sub == nil {
+		t.Fatal("expected non-nil subscription")
+	}
+
+	bus.ReportDiagnostic(Diagnostic{
+		Phase:   "mount",
+		Message: "mount error",
+	})
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for diagnostic")
+	}
+
+	if received.Phase != "mount" {
+		t.Errorf("Phase = %q, want %q", received.Phase, "mount")
+	}
+}
+
+func TestDecodePayload(t *testing.T) {
+	t.Run("direct type match", func(t *testing.T) {
+		data := "hello"
+		result, ok := DecodePayload[string](data)
+		if !ok {
+			t.Error("expected ok to be true")
+		}
+		if result != "hello" {
+			t.Errorf("result = %q, want %q", result, "hello")
+		}
+	})
+
+	t.Run("json decode struct", func(t *testing.T) {
+		data := map[string]interface{}{
+			"channel": "test",
+			"event":   "msg",
+		}
+		result, ok := DecodePayload[ChannelMessagePayload](data)
+		if !ok {
+			t.Error("expected ok to be true")
+		}
+		if result.Channel != "test" {
+			t.Errorf("Channel = %q, want %q", result.Channel, "test")
+		}
+	})
+
+	t.Run("invalid json", func(t *testing.T) {
+		data := make(chan int)
+		_, ok := DecodePayload[string](data)
+		if ok {
+			t.Error("expected ok to be false for unmarshalable type")
+		}
+	})
+}
+
+func TestServerErrorError(t *testing.T) {
+	t.Run("non-nil error", func(t *testing.T) {
+		err := &ServerError{
+			Code:    "ERR001",
+			Message: "test error message",
+		}
+		if err.Error() != "test error message" {
+			t.Errorf("Error() = %q, want %q", err.Error(), "test error message")
+		}
+	})
+
+	t.Run("nil error", func(t *testing.T) {
+		var err *ServerError
+		if err.Error() != "" {
+			t.Errorf("Error() = %q, want empty string", err.Error())
+		}
+	})
+}

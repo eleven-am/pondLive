@@ -11,6 +11,7 @@ var locationCtx = runtime.CreateContext[Location](Location{Path: "/"}).WithEqual
 var matchCtx = runtime.CreateContext[*MatchState](nil).WithEqual(matchStateEqual)
 var slotsCtx = runtime.CreateContext[map[string]outletRenderer](nil)
 var routeBaseCtx = runtime.CreateContext[string]("/")
+var emitterCtx = runtime.CreateContext[*RouterEventEmitter](nil)
 
 func matchStateEqual(a, b *MatchState) bool {
 	if a == nil && b == nil {

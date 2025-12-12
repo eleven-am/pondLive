@@ -2,6 +2,8 @@ package metatags
 
 import (
 	"testing"
+
+	"github.com/eleven-am/pondlive/internal/work"
 )
 
 func TestGetMergedMetaEmpty(t *testing.T) {
@@ -304,5 +306,58 @@ func TestGetMergedMetaInlineScriptsDeepWins(t *testing.T) {
 
 	if !meta.Scripts[0].Defer {
 		t.Error("Expected deeper component's script to win")
+	}
+}
+
+func TestItemsToNodes(t *testing.T) {
+	tests := []struct {
+		name     string
+		items    []work.Item
+		expected int
+	}{
+		{
+			name:     "empty items",
+			items:    []work.Item{},
+			expected: 0,
+		},
+		{
+			name: "single node",
+			items: []work.Item{
+				&work.Element{Tag: "div"},
+			},
+			expected: 1,
+		},
+		{
+			name: "multiple nodes",
+			items: []work.Item{
+				&work.Element{Tag: "div"},
+				&work.Text{Value: "text"},
+				&work.Fragment{},
+			},
+			expected: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := itemsToNodes(tt.items)
+			if len(result) != tt.expected {
+				t.Errorf("expected %d nodes, got %d", tt.expected, len(result))
+			}
+		})
+	}
+}
+
+func TestItemsToNodesFiltersNonNodes(t *testing.T) {
+	items := []work.Item{
+		&work.Element{Tag: "div"},
+		work.Styles(map[string]string{"color": "red"}),
+		&work.Text{Value: "text"},
+	}
+
+	result := itemsToNodes(items)
+
+	if len(result) != 2 {
+		t.Errorf("expected 2 nodes (style should be filtered), got %d", len(result))
 	}
 }
