@@ -5,7 +5,7 @@ go 1.24.4
 toolchain go1.24.9
 
 require (
-	github.com/eleven-am/pondsocket/go/pondsocket v0.1.6
+	github.com/eleven-am/pondsocket/go/pondsocket v0.1.7
 	github.com/tus/tusd/v2 v2.8.0
 )
 

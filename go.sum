@@ -2,8 +2,8 @@ github.com/Acconut/go-httptest-recorder v1.0.0 h1:TAv2dfnqp/l+SUvIaMAUK4GeN4+wqb
 github.com/Acconut/go-httptest-recorder v1.0.0/go.mod h1:CwQyhTH1kq/gLyWiRieo7c0uokpu3PXeyF/nZjUNtmM=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/eleven-am/pondsocket/go/pondsocket v0.1.6 h1:Ge3sTKrO4eI7nzAubOlyEGVb28qipMSv3M8FhJd8JyE=
-github.com/eleven-am/pondsocket/go/pondsocket v0.1.6/go.mod h1:08qdfnCCHP035fIsaGaK2DkY8IvCfoSSFL5kGEaKkiI=
+github.com/eleven-am/pondsocket/go/pondsocket v0.1.7 h1:92nthLffBBmq4OwrwSfbwLLFwtmA+2QfDuhoB9Wl11I=
+github.com/eleven-am/pondsocket/go/pondsocket v0.1.7/go.mod h1:08qdfnCCHP035fIsaGaK2DkY8IvCfoSSFL5kGEaKkiI=
 github.com/golang/mock v1.6.0 h1:ErTB+efbowRARo13NNdxyJji2egdxLGQhRaY+DUumQc=
 github.com/golang/mock v1.6.0/go.mod h1:p6yTPP+5HYm5mzsMV8JkE6ZKdX+/wYM6Hr+LicevLPs=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
