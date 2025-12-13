@@ -1212,3 +1212,108 @@ func TestScopedSlotRendererNamesNilSlots(t *testing.T) {
 		t.Error("expected Names to return nil for nil slots")
 	}
 }
+
+func TestSlotMapEqualBothNil(t *testing.T) {
+	if !slotMapEqual(nil, nil) {
+		t.Error("expected nil == nil")
+	}
+}
+
+func TestSlotMapEqualOneNil(t *testing.T) {
+	a := &SlotMap{slots: make(map[string][]work.Node), slotOrder: []string{}}
+	if slotMapEqual(a, nil) {
+		t.Error("expected non-nil != nil")
+	}
+	if slotMapEqual(nil, a) {
+		t.Error("expected nil != non-nil")
+	}
+}
+
+func TestSlotMapEqualDifferentSlotOrder(t *testing.T) {
+	a := &SlotMap{
+		slots:     map[string][]work.Node{"a": {}, "b": {}},
+		slotOrder: []string{"a", "b"},
+	}
+	b := &SlotMap{
+		slots:     map[string][]work.Node{"a": {}, "b": {}},
+		slotOrder: []string{"b", "a"},
+	}
+	if slotMapEqual(a, b) {
+		t.Error("expected different slot order to not be equal")
+	}
+}
+
+func TestSlotMapEqualDifferentSlotCount(t *testing.T) {
+	a := &SlotMap{
+		slots:     map[string][]work.Node{"a": {}},
+		slotOrder: []string{"a"},
+	}
+	b := &SlotMap{
+		slots:     map[string][]work.Node{"a": {}, "b": {}},
+		slotOrder: []string{"a"},
+	}
+	if slotMapEqual(a, b) {
+		t.Error("expected different slot count to not be equal")
+	}
+}
+
+func TestSlotMapEqualMissingSlot(t *testing.T) {
+	a := &SlotMap{
+		slots:     map[string][]work.Node{"a": {}},
+		slotOrder: []string{"a"},
+	}
+	b := &SlotMap{
+		slots:     map[string][]work.Node{"b": {}},
+		slotOrder: []string{"a"},
+	}
+	if slotMapEqual(a, b) {
+		t.Error("expected missing slot to not be equal")
+	}
+}
+
+func TestSlotMapEqualDifferentFingerprint(t *testing.T) {
+	a := &SlotMap{
+		slots:     map[string][]work.Node{"a": {&work.Element{Tag: "div"}}},
+		slotOrder: []string{"a"},
+	}
+	b := &SlotMap{
+		slots:     map[string][]work.Node{"a": {&work.Element{Tag: "span"}}},
+		slotOrder: []string{"a"},
+	}
+	if slotMapEqual(a, b) {
+		t.Error("expected different fingerprint to not be equal")
+	}
+}
+
+func TestSlotMapEqualSame(t *testing.T) {
+	a := &SlotMap{
+		slots:     map[string][]work.Node{"a": {&work.Element{Tag: "div", Children: []work.Node{}}}},
+		slotOrder: []string{"a"},
+	}
+	b := &SlotMap{
+		slots:     map[string][]work.Node{"a": {&work.Element{Tag: "div", Children: []work.Node{}}}},
+		slotOrder: []string{"a"},
+	}
+	if !slotMapEqual(a, b) {
+		t.Error("expected same slot maps to be equal")
+	}
+}
+
+func TestFingerprintSliceEmpty(t *testing.T) {
+	result := fingerprintSlice(nil)
+	if result != "" {
+		t.Errorf("expected empty string for nil slice, got %q", result)
+	}
+
+	result = fingerprintSlice([]work.Node{})
+	if result != "" {
+		t.Errorf("expected empty string for empty slice, got %q", result)
+	}
+}
+
+func TestFingerprintNodeNil(t *testing.T) {
+	result := fingerprintNode(nil)
+	if result != "nil" {
+		t.Errorf("expected 'nil' for nil node, got %q", result)
+	}
+}

@@ -591,3 +591,35 @@ func TestScriptHandleAttachToNilElement(t *testing.T) {
 	handle := ScriptHandle{slot: slot}
 	handle.AttachTo(nil)
 }
+
+func TestScriptSlotSendNilSlot(t *testing.T) {
+	var slot *scriptSlot
+	slot.send("event", "data")
+}
+
+func TestScriptSlotSendNilSession(t *testing.T) {
+	slot := &scriptSlot{id: "test:s0", sess: nil}
+	slot.send("event", "data")
+}
+
+func TestScriptSlotSendNilBus(t *testing.T) {
+	sess := &Session{Bus: nil}
+	slot := &scriptSlot{id: "test:s0", sess: sess}
+	slot.send("event", "data")
+}
+
+func TestScriptSlotHandleMessageNilSlot(t *testing.T) {
+	var slot *scriptSlot
+	slot.handleMessage("event", "data")
+}
+
+func TestScriptSlotHandleMessageNilSession(t *testing.T) {
+	slot := &scriptSlot{id: "test:s0", sess: nil}
+	slot.handleMessage("event", "data")
+}
+
+func TestScriptSlotHandleMessageNilBus(t *testing.T) {
+	sess := &Session{Bus: nil}
+	slot := &scriptSlot{id: "test:s0", sess: sess}
+	slot.handleMessage("event", "data")
+}

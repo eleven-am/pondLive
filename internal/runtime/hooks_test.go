@@ -928,3 +928,114 @@ func TestUseChannelHookMismatch(t *testing.T) {
 	}()
 	UseChannel(ctx, "test-channel")
 }
+
+func TestWithEqualNilFunction(t *testing.T) {
+	inst := &Instance{
+		ID:        "test-comp",
+		HookFrame: []HookSlot{},
+	}
+	sess := &Session{
+		DirtyQueue: []*Instance{},
+		DirtySet:   make(map[*Instance]struct{}),
+	}
+	ctx := &Ctx{
+		instance:  inst,
+		session:   sess,
+		hookIndex: 0,
+	}
+
+	val, set := UseState[int](ctx, 5, WithEqual[int](nil))
+	if val != 5 {
+		t.Errorf("expected initial value 5, got %d", val)
+	}
+
+	set(5)
+	if len(sess.DirtyQueue) != 0 {
+		t.Errorf("expected no dirty marking for same value with nil eq (should use default), got %d dirty", len(sess.DirtyQueue))
+	}
+
+	set(10)
+	if len(sess.DirtyQueue) != 1 {
+		t.Errorf("expected 1 dirty for different value, got %d", len(sess.DirtyQueue))
+	}
+}
+
+func TestDepsValueEqualFuncNil(t *testing.T) {
+	var fn1 func()
+	var fn2 func()
+
+	if !depsValueEqual(fn1, fn2) {
+		t.Error("expected two nil funcs to be equal")
+	}
+
+	fn1 = func() {}
+	if depsValueEqual(fn1, fn2) {
+		t.Error("expected non-nil func != nil func")
+	}
+
+	if depsValueEqual(fn2, fn1) {
+		t.Error("expected nil func != non-nil func")
+	}
+}
+
+func TestDepsValueEqualChan(t *testing.T) {
+	var ch1 chan int
+	var ch2 chan int
+
+	if !depsValueEqual(ch1, ch2) {
+		t.Error("expected two nil channels to be equal")
+	}
+
+	ch1 = make(chan int)
+	if depsValueEqual(ch1, ch2) {
+		t.Error("expected non-nil chan != nil chan")
+	}
+
+	if depsValueEqual(ch2, ch1) {
+		t.Error("expected nil chan != non-nil chan")
+	}
+
+	ch3 := ch1
+	if !depsValueEqual(ch1, ch3) {
+		t.Error("expected same chan pointer to be equal")
+	}
+
+	ch4 := make(chan int)
+	if depsValueEqual(ch1, ch4) {
+		t.Error("expected different chan pointers to not be equal")
+	}
+}
+
+func TestDepsValueEqualMapNil(t *testing.T) {
+	var m1 map[string]int
+	var m2 map[string]int
+
+	if !depsValueEqual(m1, m2) {
+		t.Error("expected two nil maps to be equal")
+	}
+
+	m1 = map[string]int{}
+	if depsValueEqual(m1, m2) {
+		t.Error("expected non-nil map != nil map")
+	}
+
+	if depsValueEqual(m2, m1) {
+		t.Error("expected nil map != non-nil map")
+	}
+}
+
+func TestDepsValueEqualDifferentTypes(t *testing.T) {
+	if depsValueEqual(5, "5") {
+		t.Error("expected different types to not be equal")
+	}
+}
+
+func TestDepsValueEqualOneInvalid(t *testing.T) {
+	var nilInterface interface{}
+	if depsValueEqual(nilInterface, 5) {
+		t.Error("expected nil interface != int")
+	}
+	if depsValueEqual(5, nilInterface) {
+		t.Error("expected int != nil interface")
+	}
+}
