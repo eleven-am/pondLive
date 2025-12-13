@@ -390,6 +390,10 @@ func (s *Session) registerHandler(inst *Instance, elem *work.Element, event stri
 		s.allHandlerSubs = make(map[string]*protocol.Subscription)
 	}
 
+	if existingSub, exists := s.allHandlerSubs[handlerID]; exists && existingSub != nil {
+		existingSub.Unsubscribe()
+	}
+
 	sub := s.Bus.SubscribeToHandlerInvoke(handlerID, func(data interface{}) {
 		var event work.Event
 		if payload, ok := data.(map[string]any); ok {

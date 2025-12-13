@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/view"
 	"github.com/eleven-am/pondlive/internal/view/diff"
 )
 
@@ -127,11 +128,24 @@ func (s *Session) Flush() error {
 
 	s.clearCurrentHandlers()
 
-	s.PrevView = s.View
+	oldView := s.View
+	var newView view.Node
+
 	if s.Root.WorkTree != nil {
 		s.Root.NextHandlerIndex = 0
-		s.View = s.convertWorkToView(s.Root.WorkTree, s.Root)
+		newView = s.convertWorkToView(s.Root.WorkTree, s.Root)
 	}
+
+	wasCancelled := s.flushCtx != nil && s.flushCtx.Err() != nil
+
+	if wasCancelled || (newView == nil && oldView != nil) {
+		s.cleanupStaleHandlers()
+		s.mu.Unlock()
+		return nil
+	}
+
+	s.PrevView = oldView
+	s.View = newView
 
 	if len(s.convertRenderErrors) > 0 {
 		s.propagateConvertRenderErrors()

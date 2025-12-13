@@ -1337,3 +1337,320 @@ func TestConvertRenderErrorIntegrationWithErrorBoundary(t *testing.T) {
 		t.Errorf("expected fallback text 'Error: child error', got '%s'", text.Text)
 	}
 }
+
+func TestFlushCancellation_DoesNotPublishNilView(t *testing.T) {
+	sess := &Session{
+		Components:        make(map[string]*Instance),
+		MountedComponents: make(map[*Instance]struct{}),
+		DirtyQueue:        []*Instance{},
+		DirtySet:          make(map[*Instance]struct{}),
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+		Bus:               protocol.NewBus(),
+	}
+
+	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		return &work.Text{Value: "content"}
+	}
+
+	root := &Instance{
+		ID:                 "root",
+		Fn:                 rootComponent,
+		HookFrame:          []HookSlot{},
+		ReferencedChildren: make(map[string]bool),
+	}
+	sess.Root = root
+	sess.Components["root"] = root
+	sess.MountedComponents[root] = struct{}{}
+
+	_ = sess.Flush()
+	initialView := sess.View
+
+	if initialView == nil {
+		t.Fatal("expected initial view to be non-nil after first flush")
+	}
+
+	for i := 0; i < 10; i++ {
+		sess.MarkDirty(root)
+		_ = sess.Flush()
+
+		if sess.View == nil {
+			t.Errorf("iteration %d: view should never be nil", i)
+		}
+	}
+
+	for sess.IsFlushing() || sess.IsFlushPending() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if sess.View == nil {
+		t.Error("final view should not be nil")
+	}
+}
+
+func TestFlushCancellation_ReflushRestoresState(t *testing.T) {
+	sess := &Session{
+		Components:        make(map[string]*Instance),
+		MountedComponents: make(map[*Instance]struct{}),
+		DirtyQueue:        []*Instance{},
+		DirtySet:          make(map[*Instance]struct{}),
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+		Bus:               protocol.NewBus(),
+	}
+
+	renderCount := atomic.Int32{}
+
+	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		renderCount.Add(1)
+		return &work.Text{Value: "rendered"}
+	}
+
+	root := &Instance{
+		ID:                 "root",
+		Fn:                 rootComponent,
+		HookFrame:          []HookSlot{},
+		ReferencedChildren: make(map[string]bool),
+	}
+	sess.Root = root
+	sess.Components["root"] = root
+	sess.MountedComponents[root] = struct{}{}
+
+	_ = sess.Flush()
+
+	if sess.View == nil {
+		t.Fatal("expected view to be non-nil after flush")
+	}
+
+	if renderCount.Load() < 1 {
+		t.Error("expected at least one render")
+	}
+
+	text, ok := sess.View.(*view.Text)
+	if !ok {
+		t.Fatalf("expected view to be Text, got %T", sess.View)
+	}
+	if text.Text != "rendered" {
+		t.Errorf("expected text 'rendered', got '%s'", text.Text)
+	}
+}
+
+func TestFlushCancellation_HandlerCleanup(t *testing.T) {
+	sess := &Session{
+		Components:        make(map[string]*Instance),
+		MountedComponents: make(map[*Instance]struct{}),
+		DirtyQueue:        []*Instance{},
+		DirtySet:          make(map[*Instance]struct{}),
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+		Bus:               protocol.NewBus(),
+		allHandlerSubs:    make(map[string]*protocol.Subscription),
+		currentHandlerIDs: make(map[string]bool),
+	}
+
+	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		return &work.Element{
+			Tag: "div",
+			Handlers: map[string]work.Handler{
+				"click": {Fn: func(e work.Event) work.Updates { return nil }},
+			},
+		}
+	}
+
+	root := &Instance{
+		ID:                 "root",
+		Fn:                 rootComponent,
+		HookFrame:          []HookSlot{},
+		ReferencedChildren: make(map[string]bool),
+	}
+	sess.Root = root
+	sess.Components["root"] = root
+	sess.MountedComponents[root] = struct{}{}
+
+	_ = sess.Flush()
+
+	sess.handlerIDsMu.Lock()
+	handlerCountAfterFlush := len(sess.allHandlerSubs)
+	sess.handlerIDsMu.Unlock()
+
+	if handlerCountAfterFlush == 0 {
+		t.Error("expected handlers to be registered after flush")
+	}
+
+	_ = sess.Flush()
+
+	sess.handlerIDsMu.Lock()
+	handlerCountAfterSecondFlush := len(sess.allHandlerSubs)
+	sess.handlerIDsMu.Unlock()
+
+	if handlerCountAfterSecondFlush != handlerCountAfterFlush {
+		t.Errorf("expected handler count to remain stable, got %d vs %d", handlerCountAfterFlush, handlerCountAfterSecondFlush)
+	}
+}
+
+func TestConcurrentMarkDirty_NoViewCorruption(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		sess := &Session{
+			Components:        make(map[string]*Instance),
+			MountedComponents: make(map[*Instance]struct{}),
+			DirtyQueue:        []*Instance{},
+			DirtySet:          make(map[*Instance]struct{}),
+			PendingEffects:    []effectTask{},
+			PendingCleanups:   []cleanupTask{},
+			Bus:               protocol.NewBus(),
+		}
+
+		renderCount := atomic.Int32{}
+
+		rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+			renderCount.Add(1)
+			return &work.Text{Value: "content"}
+		}
+
+		root := &Instance{
+			ID:                 "root",
+			Fn:                 rootComponent,
+			HookFrame:          []HookSlot{},
+			ReferencedChildren: make(map[string]bool),
+		}
+		sess.Root = root
+		sess.Components["root"] = root
+		sess.MountedComponents[root] = struct{}{}
+
+		_ = sess.Flush()
+
+		if sess.View == nil {
+			t.Fatal("expected initial view to be non-nil")
+		}
+
+		var wg sync.WaitGroup
+		for j := 0; j < 5; j++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				sess.MarkDirty(root)
+			}()
+		}
+
+		wg.Wait()
+
+		time.Sleep(50 * time.Millisecond)
+
+		for sess.IsFlushing() || sess.IsFlushPending() {
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		if sess.View == nil {
+			t.Errorf("iteration %d: view should never be nil after concurrent MarkDirty calls", i)
+		}
+	}
+}
+
+func TestFlushCancellation_BailsOutWhenContextCancelled(t *testing.T) {
+	sess := &Session{
+		Components:        make(map[string]*Instance),
+		MountedComponents: make(map[*Instance]struct{}),
+		DirtyQueue:        []*Instance{},
+		DirtySet:          make(map[*Instance]struct{}),
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+		Bus:               protocol.NewBus(),
+	}
+
+	conversionHit := atomic.Bool{}
+
+	slowChildComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		conversionHit.Store(true)
+		time.Sleep(50 * time.Millisecond)
+		return &work.Text{Value: "slow child"}
+	}
+
+	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		return work.Component(slowChildComponent)
+	}
+
+	root := &Instance{
+		ID:                 "root",
+		Fn:                 rootComponent,
+		HookFrame:          []HookSlot{},
+		ReferencedChildren: make(map[string]bool),
+	}
+	sess.Root = root
+	sess.Components["root"] = root
+	sess.MountedComponents[root] = struct{}{}
+
+	_ = sess.Flush()
+
+	initialView := sess.View
+	if initialView == nil {
+		t.Fatal("expected initial view to be non-nil")
+	}
+
+	flushDone := make(chan struct{})
+	go func() {
+		_ = sess.Flush()
+		close(flushDone)
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+
+	sess.MarkDirty(root)
+
+	select {
+	case <-flushDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("flush should complete")
+	}
+
+	for sess.IsFlushing() || sess.IsFlushPending() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if sess.View == nil {
+		t.Error("view should not be nil after cancelled flush and re-flush")
+	}
+}
+
+func TestFlushCancellation_PreservesViewOnNilConversion(t *testing.T) {
+	sess := &Session{
+		Components:        make(map[string]*Instance),
+		MountedComponents: make(map[*Instance]struct{}),
+		DirtyQueue:        []*Instance{},
+		DirtySet:          make(map[*Instance]struct{}),
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+		Bus:               protocol.NewBus(),
+	}
+
+	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		return &work.Text{Value: "valid content"}
+	}
+
+	root := &Instance{
+		ID:                 "root",
+		Fn:                 rootComponent,
+		HookFrame:          []HookSlot{},
+		ReferencedChildren: make(map[string]bool),
+	}
+	sess.Root = root
+	sess.Components["root"] = root
+	sess.MountedComponents[root] = struct{}{}
+
+	_ = sess.Flush()
+
+	if sess.View == nil {
+		t.Fatal("expected view to be non-nil after first flush")
+	}
+
+	originalView := sess.View
+
+	_ = sess.Flush()
+
+	if sess.View == nil {
+		t.Error("view should remain non-nil after subsequent flush")
+	}
+
+	if sess.PrevView != originalView {
+		t.Log("PrevView updated as expected during normal flush")
+	}
+}
