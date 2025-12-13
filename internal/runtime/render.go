@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"context"
 	"fmt"
 	"hash/fnv"
 	"reflect"
@@ -11,15 +10,10 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-func (inst *Instance) Render(sess *Session, parentCtx context.Context) work.Node {
+func (inst *Instance) Render(sess *Session) work.Node {
 	if inst == nil || inst.Fn == nil {
 		return nil
 	}
-
-	if inst.cancelRender != nil {
-		inst.cancelRender()
-	}
-	inst.renderCtx, inst.cancelRender = context.WithCancel(parentCtx)
 
 	inst.RenderedThisFlush = true
 	inst.Dirty = false
@@ -42,7 +36,6 @@ func (inst *Instance) Render(sess *Session, parentCtx context.Context) work.Node
 		instance:  inst,
 		session:   sess,
 		hookIndex: 0,
-		goCtx:     inst.renderCtx,
 	}
 
 	var node work.Node

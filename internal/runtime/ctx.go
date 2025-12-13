@@ -10,14 +10,13 @@ type Ctx struct {
 	instance  *Instance
 	session   *Session
 	hookIndex int
-	goCtx     context.Context
 }
 
 func (c *Ctx) Context() context.Context {
-	if c == nil || c.goCtx == nil {
+	if c == nil || c.session == nil {
 		return context.Background()
 	}
-	return c.goCtx
+	return c.session.SessionContext()
 }
 
 func GetBus(ctx *Ctx) *protocol.Bus {
@@ -46,7 +45,7 @@ func (c *Ctx) ComponentDepth() int {
 }
 
 func NewCtxForTest(inst *Instance, sess *Session) *Ctx {
-	return &Ctx{instance: inst, session: sess, goCtx: context.Background()}
+	return &Ctx{instance: inst, session: sess}
 }
 
 func (c *Ctx) SessionID() string {
@@ -54,4 +53,11 @@ func (c *Ctx) SessionID() string {
 		return ""
 	}
 	return c.session.SessionID
+}
+
+func (c *Ctx) RenderContext() context.Context {
+	if c == nil || c.session == nil {
+		return context.Background()
+	}
+	return c.session.FlushContext()
 }

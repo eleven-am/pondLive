@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"context"
 	"testing"
 
 	"github.com/eleven-am/pondlive/internal/work"
@@ -56,7 +55,7 @@ func TestUseErrorBoundary_RenderError(t *testing.T) {
 
 	sess.Root = parent
 
-	child.Render(sess, context.Background())
+	child.Render(sess)
 
 	ctx := &Ctx{
 		instance:  parent,
@@ -112,7 +111,7 @@ func TestUseErrorBoundary_MemoError(t *testing.T) {
 
 	sess.Root = parent
 
-	child.Render(sess, context.Background())
+	child.Render(sess)
 
 	ctx := &Ctx{
 		instance:  parent,
@@ -174,9 +173,9 @@ func TestErrorBoundary_CatchChildError(t *testing.T) {
 
 	sess.Root = parent
 
-	child.Render(sess, context.Background())
+	child.Render(sess)
 
-	result := parent.Render(sess, context.Background())
+	result := parent.Render(sess)
 
 	if result == nil {
 		t.Fatal("expected parent to render fallback UI")
@@ -224,8 +223,8 @@ func TestErrorBoundary_MultipleErrors(t *testing.T) {
 
 	sess.Root = parent
 
-	child1.Render(sess, context.Background())
-	child2.Render(sess, context.Background())
+	child1.Render(sess)
+	child2.Render(sess)
 
 	ctx := &Ctx{
 		instance:  parent,
@@ -277,7 +276,7 @@ func TestErrorBoundary_ClearsOnSuccessfulRender(t *testing.T) {
 
 	sess.Root = inst
 
-	inst.Render(sess, context.Background())
+	inst.Render(sess)
 
 	ctx := &Ctx{
 		instance:  inst,
@@ -291,7 +290,7 @@ func TestErrorBoundary_ClearsOnSuccessfulRender(t *testing.T) {
 	}
 
 	shouldPanic = false
-	inst.Render(sess, context.Background())
+	inst.Render(sess)
 
 	ctx.hookIndex = 0
 
@@ -350,9 +349,9 @@ func TestErrorBoundary_LayeredInnerCatches(t *testing.T) {
 
 	sess.Root = app
 
-	widget.Render(sess, context.Background())
-	dashboardResult := dashboard.Render(sess, context.Background())
-	appResult := app.Render(sess, context.Background())
+	widget.Render(sess)
+	dashboardResult := dashboard.Render(sess)
+	appResult := app.Render(sess)
 
 	dashText, ok := dashboardResult.(*work.Text)
 	if !ok {
@@ -412,9 +411,9 @@ func TestErrorBoundary_LayeredOuterCatchesWhenInnerMissing(t *testing.T) {
 
 	sess.Root = app
 
-	widget.Render(sess, context.Background())
-	dashboard.Render(sess, context.Background())
-	appResult := app.Render(sess, context.Background())
+	widget.Render(sess)
+	dashboard.Render(sess)
+	appResult := app.Render(sess)
 
 	appText, ok := appResult.(*work.Text)
 	if !ok {
@@ -486,10 +485,10 @@ func TestErrorBoundary_LayeredMultiLevel(t *testing.T) {
 
 	sess.Root = app
 
-	chart.Render(sess, context.Background())
-	widget.Render(sess, context.Background())
-	dashboardResult := dashboard.Render(sess, context.Background())
-	appResult := app.Render(sess, context.Background())
+	chart.Render(sess)
+	widget.Render(sess)
+	dashboardResult := dashboard.Render(sess)
+	appResult := app.Render(sess)
 
 	dashText, ok := dashboardResult.(*work.Text)
 	if !ok {
@@ -696,7 +695,10 @@ func TestErrorBoundary_ClearResetsFlags(t *testing.T) {
 		t.Error("grandchild.hasDescendantError should be false after clear")
 	}
 	if grandchild.RenderError != nil {
-		t.Error("grandchild.RenderError should be nil after clear")
+		t.Error("grandchild.RenderError should be nil after clear (cleared by boundary)")
+	}
+	if !grandchild.errorHandledByBoundary {
+		t.Error("grandchild.errorHandledByBoundary should be true after clear (prevents infinite loop)")
 	}
 }
 
@@ -805,10 +807,10 @@ func TestErrorBoundary_LayeredSiblingIsolation(t *testing.T) {
 
 	sess.Root = parent
 
-	critical.Render(sess, context.Background())
-	optional.Render(sess, context.Background())
-	criticalWrapperResult := criticalWrapper.Render(sess, context.Background())
-	optionalWrapperResult := optionalWrapper.Render(sess, context.Background())
+	critical.Render(sess)
+	optional.Render(sess)
+	criticalWrapperResult := criticalWrapper.Render(sess)
+	optionalWrapperResult := optionalWrapper.Render(sess)
 
 	criticalText, ok := criticalWrapperResult.(*work.Text)
 	if !ok {

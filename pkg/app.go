@@ -7,10 +7,13 @@ import (
 
 	"github.com/eleven-am/pondlive/internal/server"
 	"github.com/eleven-am/pondlive/internal/session"
+	"github.com/eleven-am/pondlive/internal/upload"
 	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 )
 
 type App = server.App
+
+type UploadConfig = upload.Config
 
 type appConfig struct {
 	clientAsset   string
@@ -18,6 +21,7 @@ type appConfig struct {
 	idGenerator   func(*http.Request) (session.SessionID, error)
 	ctx           context.Context
 	pubsub        pond.PubSub
+	uploadConfig  *upload.Config
 }
 
 type AppOption func(*appConfig)
@@ -58,6 +62,12 @@ func WithPubSub(pubsub PubSub) AppOption {
 	}
 }
 
+func WithUploadConfig(cfg UploadConfig) AppOption {
+	return func(c *appConfig) {
+		c.uploadConfig = &cfg
+	}
+}
+
 func NewApp(component func(*Ctx) Node, opts ...AppOption) (*App, error) {
 	cfg := &appConfig{}
 
@@ -72,6 +82,7 @@ func NewApp(component func(*Ctx) Node, opts ...AppOption) (*App, error) {
 		IDGenerator:   cfg.idGenerator,
 		Context:       cfg.ctx,
 		PubSub:        cfg.pubsub,
+		UploadConfig:  cfg.uploadConfig,
 	}
 
 	return server.New(serverCfg)

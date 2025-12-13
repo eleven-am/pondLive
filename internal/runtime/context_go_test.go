@@ -9,10 +9,11 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-func TestCtxContext_ReturnsContext(t *testing.T) {
+func TestCtxContext_ReturnsSessionContext(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
 	}
+	sess.InitContext()
 
 	inst := &Instance{
 		ID:        "test",
@@ -21,17 +22,20 @@ func TestCtxContext_ReturnsContext(t *testing.T) {
 	}
 	sess.Root = inst
 
-	inst.Render(sess, context.Background())
+	inst.Render(sess)
 
 	ctx := &Ctx{
 		instance: inst,
 		session:  sess,
-		goCtx:    inst.renderCtx,
 	}
 
 	goCtx := ctx.Context()
 	if goCtx == nil {
 		t.Fatal("expected non-nil context")
+	}
+
+	if goCtx != sess.SessionContext() {
+		t.Fatal("expected context to be the session context")
 	}
 
 	select {
@@ -54,23 +58,23 @@ func TestCtxContext_NilCtxReturnsBackground(t *testing.T) {
 	}
 }
 
-func TestCtxContext_NilGoCtxReturnsBackground(t *testing.T) {
+func TestCtxContext_NilSessionReturnsBackground(t *testing.T) {
 	ctx := &Ctx{
 		instance: &Instance{},
-		session:  &Session{},
-		goCtx:    nil,
+		session:  nil,
 	}
 
 	goCtx := ctx.Context()
 	if goCtx != context.Background() {
-		t.Error("expected context.Background() for nil goCtx")
+		t.Error("expected context.Background() for nil session")
 	}
 }
 
-func TestRenderCancelsOnNewRender(t *testing.T) {
+func TestContextSurvivesRerender(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
 	}
+	sess.InitContext()
 
 	var capturedCtx context.Context
 	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
@@ -85,66 +89,34 @@ func TestRenderCancelsOnNewRender(t *testing.T) {
 	}
 	sess.Root = inst
 
-	inst.Render(sess, context.Background())
+	inst.Render(sess)
 	firstCtx := capturedCtx
 
 	select {
 	case <-firstCtx.Done():
-		t.Fatal("first context should not be cancelled yet")
+		t.Fatal("first context should not be cancelled")
 	default:
 	}
 
-	inst.Render(sess, context.Background())
+	inst.Render(sess)
+	secondCtx := capturedCtx
+
+	if firstCtx != secondCtx {
+		t.Fatal("context should be the same across re-renders (session-scoped)")
+	}
 
 	select {
 	case <-firstCtx.Done():
+		t.Fatal("context should NOT be cancelled after re-render")
 	default:
-		t.Fatal("first context should be cancelled after re-render")
 	}
 }
 
-func TestChildContextDerivedFromParent(t *testing.T) {
+func TestContextSurvivesFlush(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
 	}
-
-	parentCtx, parentCancel := context.WithCancel(context.Background())
-	defer parentCancel()
-
-	var capturedCtx context.Context
-	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		capturedCtx = ctx.Context()
-		return nil
-	}
-
-	inst := &Instance{
-		ID:        "child",
-		Fn:        component,
-		HookFrame: []HookSlot{},
-	}
-	sess.Root = inst
-
-	inst.Render(sess, parentCtx)
-
-	select {
-	case <-capturedCtx.Done():
-		t.Fatal("child context should not be cancelled yet")
-	default:
-	}
-
-	parentCancel()
-
-	select {
-	case <-capturedCtx.Done():
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("child context should be cancelled when parent is cancelled")
-	}
-}
-
-func TestFlushCancelsOnNewFlush(t *testing.T) {
-	sess := &Session{
-		Components: make(map[string]*Instance),
-	}
+	sess.InitContext()
 
 	var capturedCtx context.Context
 	var mu sync.Mutex
@@ -173,7 +145,7 @@ func TestFlushCancelsOnNewFlush(t *testing.T) {
 
 	select {
 	case <-firstCtx.Done():
-		t.Fatal("first flush context should not be cancelled yet")
+		t.Fatal("first flush context should not be cancelled")
 	default:
 	}
 
@@ -184,15 +156,16 @@ func TestFlushCancelsOnNewFlush(t *testing.T) {
 
 	select {
 	case <-firstCtx.Done():
+		t.Fatal("context should NOT be cancelled after second flush (session-scoped)")
 	default:
-		t.Fatal("first flush context should be cancelled after second flush")
 	}
 }
 
-func TestSessionCloseCancelsFlushContext(t *testing.T) {
+func TestSessionCloseCancelsContext(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
 	}
+	sess.InitContext()
 
 	var capturedCtx context.Context
 	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
@@ -227,10 +200,11 @@ func TestSessionCloseCancelsFlushContext(t *testing.T) {
 	}
 }
 
-func TestContextPropagatesThroughComponentHierarchy(t *testing.T) {
+func TestAllComponentsShareSessionContext(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
 	}
+	sess.InitContext()
 
 	var parentCapturedCtx, childCapturedCtx context.Context
 
@@ -271,35 +245,48 @@ func TestContextPropagatesThroughComponentHierarchy(t *testing.T) {
 		t.Fatal("child context was not captured")
 	}
 
-	sess.flushCancel()
-
-	select {
-	case <-parentCapturedCtx.Done():
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("parent context should be cancelled")
+	if parentCapturedCtx != childCapturedCtx {
+		t.Fatal("parent and child should share the same session context")
 	}
 
-	select {
-	case <-childCapturedCtx.Done():
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("child context should be cancelled when parent is cancelled")
+	if parentCapturedCtx != sess.SessionContext() {
+		t.Fatal("captured context should be the session context")
 	}
 }
 
-func TestContextWithValuePassesThrough(t *testing.T) {
+func TestSessionContextInitialization(t *testing.T) {
 	sess := &Session{
 		Components: make(map[string]*Instance),
 	}
 
-	type ctxKey string
-	const testKey ctxKey = "test-key"
-	const testValue = "test-value"
+	ctx1 := sess.SessionContext()
+	if ctx1 != context.Background() {
+		t.Fatal("uninitialized session should return Background context")
+	}
 
-	parentCtx := context.WithValue(context.Background(), testKey, testValue)
+	sess.InitContext()
 
-	var capturedCtx context.Context
+	ctx2 := sess.SessionContext()
+	if ctx2 == context.Background() {
+		t.Fatal("initialized session should not return Background context")
+	}
+
+	sess.InitContext()
+	ctx3 := sess.SessionContext()
+	if ctx2 != ctx3 {
+		t.Fatal("calling InitContext twice should not create new context")
+	}
+}
+
+func TestRenderContextCancelledOnRerender(t *testing.T) {
+	sess := &Session{
+		Components: make(map[string]*Instance),
+	}
+	sess.InitContext()
+
+	var capturedRenderCtx context.Context
 	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		capturedCtx = ctx.Context()
+		capturedRenderCtx = ctx.RenderContext()
 		return nil
 	}
 
@@ -310,9 +297,222 @@ func TestContextWithValuePassesThrough(t *testing.T) {
 	}
 	sess.Root = inst
 
-	inst.Render(sess, parentCtx)
+	sess.flushCtx, sess.flushCancel = context.WithCancel(context.Background())
 
-	if capturedCtx.Value(testKey) != testValue {
-		t.Errorf("expected context value %q, got %v", testValue, capturedCtx.Value(testKey))
+	inst.Render(sess)
+	firstRenderCtx := capturedRenderCtx
+
+	if firstRenderCtx != sess.flushCtx {
+		t.Fatal("render context should be the flush context")
+	}
+
+	select {
+	case <-firstRenderCtx.Done():
+		t.Fatal("render context should not be cancelled yet")
+	default:
+	}
+
+	sess.flushCancel()
+
+	select {
+	case <-firstRenderCtx.Done():
+	default:
+		t.Fatal("render context should be cancelled when flush is cancelled")
+	}
+}
+
+func TestMarkDirtyCancelsRenderContext(t *testing.T) {
+	sess := &Session{
+		Components: make(map[string]*Instance),
+	}
+	sess.InitContext()
+
+	renderCount := 0
+	var firstRenderCtx context.Context
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		renderCount++
+		if renderCount == 1 {
+			firstRenderCtx = ctx.RenderContext()
+		}
+		return nil
+	}
+
+	inst := &Instance{
+		ID:        "root",
+		Fn:        component,
+		HookFrame: []HookSlot{},
+	}
+	sess.Root = inst
+
+	err := sess.Flush()
+	if err != nil {
+		t.Fatalf("flush failed: %v", err)
+	}
+
+	if renderCount != 1 {
+		t.Fatalf("expected 1 render, got %d", renderCount)
+	}
+
+	select {
+	case <-firstRenderCtx.Done():
+		t.Fatal("render context should not be cancelled yet")
+	default:
+	}
+
+	sess.MarkDirty(inst)
+
+	select {
+	case <-firstRenderCtx.Done():
+	case <-time.After(100 * time.Millisecond):
+		t.Fatalf("render context should be cancelled after MarkDirty. renderCount=%d", renderCount)
+	}
+}
+
+func TestChildRenderContextCancelledWhenParentMarkedDirty(t *testing.T) {
+	sess := &Session{
+		Components: make(map[string]*Instance),
+	}
+	sess.InitContext()
+
+	var firstParentRenderCtx, firstChildRenderCtx context.Context
+	parentRenderCount := 0
+	childRenderCount := 0
+
+	childComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		childRenderCount++
+		if childRenderCount == 1 {
+			firstChildRenderCtx = ctx.RenderContext()
+		}
+		return nil
+	}
+
+	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		parentRenderCount++
+		if parentRenderCount == 1 {
+			firstParentRenderCtx = ctx.RenderContext()
+		}
+		return &work.ComponentNode{
+			Fn:  childComponent,
+			Key: "child",
+		}
+	}
+
+	parent := &Instance{
+		ID:        "parent",
+		Fn:        parentComponent,
+		HookFrame: []HookSlot{},
+		Children:  []*Instance{},
+	}
+	sess.Root = parent
+	sess.Components = map[string]*Instance{
+		"parent": parent,
+	}
+
+	err := sess.Flush()
+	if err != nil {
+		t.Fatalf("flush failed: %v", err)
+	}
+
+	if firstParentRenderCtx == nil || firstChildRenderCtx == nil {
+		t.Fatal("render contexts were not captured")
+	}
+
+	select {
+	case <-firstChildRenderCtx.Done():
+		t.Fatal("child render context should not be cancelled yet")
+	default:
+	}
+
+	sess.MarkDirty(parent)
+
+	select {
+	case <-firstParentRenderCtx.Done():
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("parent render context should be cancelled after MarkDirty")
+	}
+
+	select {
+	case <-firstChildRenderCtx.Done():
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("child render context should be cancelled when parent is cancelled")
+	}
+}
+
+func TestRenderContextDifferentFromSessionContext(t *testing.T) {
+	sess := &Session{
+		Components: make(map[string]*Instance),
+	}
+	sess.InitContext()
+
+	var capturedSessionCtx, capturedRenderCtx context.Context
+	component := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		capturedSessionCtx = ctx.Context()
+		capturedRenderCtx = ctx.RenderContext()
+		return nil
+	}
+
+	inst := &Instance{
+		ID:        "test",
+		Fn:        component,
+		HookFrame: []HookSlot{},
+	}
+	sess.Root = inst
+
+	err := sess.Flush()
+	if err != nil {
+		t.Fatalf("flush failed: %v", err)
+	}
+
+	if capturedSessionCtx == capturedRenderCtx {
+		t.Fatal("session context and render context should be different")
+	}
+
+	if capturedSessionCtx != sess.SessionContext() {
+		t.Fatal("captured session context should match session.SessionContext()")
+	}
+}
+
+func TestRenderContextNilCtx(t *testing.T) {
+	var ctx *Ctx
+	goCtx := ctx.RenderContext()
+
+	if goCtx == nil {
+		t.Fatal("expected non-nil context")
+	}
+
+	if goCtx != context.Background() {
+		t.Error("expected context.Background() for nil Ctx")
+	}
+}
+
+func TestRenderContextNilSession(t *testing.T) {
+	ctx := &Ctx{
+		instance: &Instance{},
+		session:  nil,
+	}
+
+	goCtx := ctx.RenderContext()
+	if goCtx != context.Background() {
+		t.Error("expected context.Background() for nil session")
+	}
+}
+
+func TestFlushContextNilSession(t *testing.T) {
+	var sess *Session
+	ctx := sess.FlushContext()
+
+	if ctx != context.Background() {
+		t.Error("expected context.Background() for nil session")
+	}
+}
+
+func TestFlushContextNilFlushCtx(t *testing.T) {
+	sess := &Session{
+		flushCtx: nil,
+	}
+	ctx := sess.FlushContext()
+
+	if ctx != context.Background() {
+		t.Error("expected context.Background() for nil flushCtx")
 	}
 }

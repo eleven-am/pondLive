@@ -37,6 +37,10 @@ func devOverlay(batch *runtime.ErrorBatch) work.Node {
 
 func errorItem(err *runtime.Error) work.Node {
 	frames := err.UserFrames()
+	maxFrames := 3
+	if len(frames) > maxFrames {
+		frames = frames[:maxFrames]
+	}
 
 	stackItems := make([]work.Node, 0, len(frames))
 	for _, frame := range frames {
@@ -91,5 +95,35 @@ func buildComponentPath(err *runtime.Error) string {
 		return ""
 	}
 
-	return strings.Join(path, " > ")
+	var filtered []string
+	for _, name := range path {
+		if !isAnonymousFunc(name) {
+			filtered = append(filtered, name)
+		}
+	}
+
+	if len(filtered) == 0 {
+		return ""
+	}
+
+	return strings.Join(filtered, " → ")
+}
+
+func isAnonymousFunc(name string) bool {
+	if name == "" {
+		return true
+	}
+	if strings.HasPrefix(name, "func") {
+		rest := strings.TrimPrefix(name, "func")
+		if rest == "" {
+			return true
+		}
+		for _, c := range rest {
+			if c < '0' || c > '9' {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }

@@ -10,6 +10,13 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
+func (s *Session) trackConvertRenderError(inst *Instance) {
+	if s == nil || inst == nil || inst.RenderError == nil {
+		return
+	}
+	s.convertRenderErrors = append(s.convertRenderErrors, inst)
+}
+
 func (s *Session) convertWorkToView(node work.Node, parent *Instance) view.Node {
 	if node == nil {
 		return nil
@@ -119,11 +126,30 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 		return nil
 	}
 
+	if s.flushCtx != nil {
+		select {
+		case <-s.flushCtx.Done():
+			return nil
+		default:
+		}
+	}
+
 	inst := parent.EnsureChild(s, comp.Fn, comp.Key, comp.Props, comp.InputChildren)
 	inst.Name = comp.Name
 	inst.InputAttrs = comp.InputAttrs
 	inst.ParentContextEpoch = parent.CombinedContextEpoch
 	inst.CombinedContextEpochs = inst.buildCombinedContextEpochs()
+
+	if inst.errorHandledByBoundary && s.hasAncestorErrorBoundary(inst) {
+		propsChanged := !propsEqual(inst.PrevProps, comp.Props)
+		if propsChanged {
+			inst.mu.Lock()
+			inst.errorHandledByBoundary = false
+			inst.mu.Unlock()
+		} else {
+			return nil
+		}
+	}
 
 	needsRender := false
 
@@ -143,8 +169,12 @@ func (s *Session) convertComponent(comp *work.ComponentNode, parent *Instance) v
 
 	if needsRender {
 		s.resetRefsForComponent(inst)
-		inst.Render(s, parent.renderCtx)
+		inst.Render(s)
 		inst.snapshotContextDeps(parent)
+
+		if inst.RenderError != nil {
+			s.trackConvertRenderError(inst)
+		}
 	}
 
 	inst.NextHandlerIndex = 0

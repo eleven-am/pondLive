@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/view"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
@@ -1099,4 +1100,240 @@ func TestRunWithEffectRecoveryWithBusRecoversPanic(t *testing.T) {
 	sess.runWithEffectRecovery("run", inst, 0, func() {
 		panic("test panic with bus")
 	})
+}
+
+func TestPropagateConvertRenderErrorsNilSession(t *testing.T) {
+	var sess *Session
+	sess.propagateConvertRenderErrors()
+}
+
+func TestPropagateConvertRenderErrorsEmptyErrors(t *testing.T) {
+	sess := &Session{
+		convertRenderErrors: []*Instance{},
+	}
+	sess.propagateConvertRenderErrors()
+	if len(sess.convertRenderErrors) != 0 {
+		t.Error("expected convertRenderErrors to be empty after propagation")
+	}
+}
+
+func TestPropagateConvertRenderErrorsMarksAncestorDirty(t *testing.T) {
+	sess := &Session{
+		DirtyQueue: []*Instance{},
+		DirtySet:   make(map[*Instance]struct{}),
+	}
+
+	parent := &Instance{
+		ID: "parent",
+		HookFrame: []HookSlot{
+			{Type: HookTypeErrorBoundary, Value: nil},
+		},
+	}
+
+	child := &Instance{
+		ID:          "child",
+		Parent:      parent,
+		HookFrame:   []HookSlot{},
+		RenderError: &Error{Message: "test error"},
+	}
+
+	sess.convertRenderErrors = []*Instance{child}
+	sess.propagateConvertRenderErrors()
+
+	if _, ok := sess.DirtySet[parent]; !ok {
+		t.Error("expected parent with error boundary to be marked dirty")
+	}
+
+	if sess.convertRenderErrors != nil {
+		t.Error("expected convertRenderErrors to be cleared after propagation")
+	}
+}
+
+func TestPropagateConvertRenderErrorsMultipleErrorsSameAncestor(t *testing.T) {
+	sess := &Session{
+		DirtyQueue: []*Instance{},
+		DirtySet:   make(map[*Instance]struct{}),
+	}
+
+	parent := &Instance{
+		ID: "parent",
+		HookFrame: []HookSlot{
+			{Type: HookTypeErrorBoundary, Value: nil},
+		},
+	}
+
+	child1 := &Instance{
+		ID:          "child1",
+		Parent:      parent,
+		HookFrame:   []HookSlot{},
+		RenderError: &Error{Message: "error 1"},
+	}
+
+	child2 := &Instance{
+		ID:          "child2",
+		Parent:      parent,
+		HookFrame:   []HookSlot{},
+		RenderError: &Error{Message: "error 2"},
+	}
+
+	sess.convertRenderErrors = []*Instance{child1, child2}
+	sess.propagateConvertRenderErrors()
+
+	if _, ok := sess.DirtySet[parent]; !ok {
+		t.Error("expected parent with error boundary to be marked dirty")
+	}
+
+	if len(sess.DirtyQueue) != 1 {
+		t.Errorf("expected parent to be marked dirty only once, got %d", len(sess.DirtyQueue))
+	}
+}
+
+func TestPropagateConvertRenderErrorsNestedErrorBoundaries(t *testing.T) {
+	sess := &Session{
+		DirtyQueue: []*Instance{},
+		DirtySet:   make(map[*Instance]struct{}),
+	}
+
+	grandparent := &Instance{
+		ID: "grandparent",
+		HookFrame: []HookSlot{
+			{Type: HookTypeErrorBoundary, Value: nil},
+		},
+	}
+
+	parent := &Instance{
+		ID:     "parent",
+		Parent: grandparent,
+		HookFrame: []HookSlot{
+			{Type: HookTypeErrorBoundary, Value: nil},
+		},
+	}
+
+	child := &Instance{
+		ID:          "child",
+		Parent:      parent,
+		HookFrame:   []HookSlot{},
+		RenderError: &Error{Message: "test error"},
+	}
+
+	sess.convertRenderErrors = []*Instance{child}
+	sess.propagateConvertRenderErrors()
+
+	if _, ok := sess.DirtySet[parent]; !ok {
+		t.Error("expected inner parent with error boundary to be marked dirty")
+	}
+
+	if _, ok := sess.DirtySet[grandparent]; ok {
+		t.Error("expected grandparent NOT to be marked dirty (inner boundary catches)")
+	}
+}
+
+func TestPropagateConvertRenderErrorsNoErrorBoundary(t *testing.T) {
+	sess := &Session{
+		DirtyQueue: []*Instance{},
+		DirtySet:   make(map[*Instance]struct{}),
+	}
+
+	parent := &Instance{
+		ID:        "parent",
+		HookFrame: []HookSlot{},
+	}
+
+	child := &Instance{
+		ID:          "child",
+		Parent:      parent,
+		HookFrame:   []HookSlot{},
+		RenderError: &Error{Message: "test error"},
+	}
+
+	sess.convertRenderErrors = []*Instance{child}
+	sess.propagateConvertRenderErrors()
+
+	if len(sess.DirtySet) != 0 {
+		t.Error("expected no components marked dirty when no error boundary exists")
+	}
+
+	if sess.convertRenderErrors != nil {
+		t.Error("expected convertRenderErrors to be cleared")
+	}
+}
+
+func TestFlushClearsConvertRenderErrors(t *testing.T) {
+	sess := &Session{
+		Components:        make(map[string]*Instance),
+		MountedComponents: make(map[*Instance]struct{}),
+		DirtyQueue:        []*Instance{},
+		DirtySet:          make(map[*Instance]struct{}),
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+		convertRenderErrors: []*Instance{
+			{ID: "stale", RenderError: &Error{Message: "stale error"}},
+		},
+	}
+
+	inst := &Instance{
+		ID:                 "root",
+		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
+		HookFrame:          []HookSlot{},
+		ReferencedChildren: make(map[string]bool),
+	}
+	sess.Root = inst
+	sess.Components["root"] = inst
+	sess.MountedComponents[inst] = struct{}{}
+
+	_ = sess.Flush()
+
+	if sess.convertRenderErrors != nil {
+		t.Error("expected convertRenderErrors to be cleared at start of Flush")
+	}
+}
+
+func TestConvertRenderErrorIntegrationWithErrorBoundary(t *testing.T) {
+	sess := &Session{
+		Components:        make(map[string]*Instance),
+		MountedComponents: make(map[*Instance]struct{}),
+		DirtyQueue:        []*Instance{},
+		DirtySet:          make(map[*Instance]struct{}),
+		PendingEffects:    []effectTask{},
+		PendingCleanups:   []cleanupTask{},
+	}
+
+	panicChild := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		panic("child error")
+	}
+
+	var capturedError *Error
+	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+		batch := UseErrorBoundary(ctx)
+		if batch.HasErrors() {
+			capturedError = batch.First()
+			return &work.Text{Value: "Error: " + batch.First().Message}
+		}
+		return work.Component(panicChild)
+	}
+
+	root := &Instance{
+		ID: "root",
+		Fn: parentComponent,
+	}
+	sess.Root = root
+	sess.Components["root"] = root
+
+	_ = sess.Flush()
+
+	if capturedError == nil {
+		t.Fatal("expected error to be captured by UseErrorBoundary")
+	}
+
+	if capturedError.Message != "child error" {
+		t.Errorf("expected error message 'child error', got '%s'", capturedError.Message)
+	}
+
+	text, ok := sess.View.(*view.Text)
+	if !ok {
+		t.Fatalf("expected view to be Text (fallback), got %T", sess.View)
+	}
+	if text.Text != "Error: child error" {
+		t.Errorf("expected fallback text 'Error: child error', got '%s'", text.Text)
+	}
 }

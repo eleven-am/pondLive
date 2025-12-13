@@ -92,7 +92,6 @@ func (s *Session) Flush() error {
 		s.flushCancel()
 	}
 	s.flushCtx, s.flushCancel = context.WithCancel(context.Background())
-	flushCtx := s.flushCtx
 
 	s.flushMu.Unlock()
 
@@ -109,6 +108,8 @@ func (s *Session) Flush() error {
 
 	s.mu.Lock()
 
+	s.convertRenderErrors = nil
+
 	dirtyComponents := s.collectDirtyComponentsLocked()
 	isFirstRender := s.PrevView == nil
 
@@ -116,11 +117,11 @@ func (s *Session) Flush() error {
 
 	if isFirstRender {
 		s.resetRefsForComponent(s.Root)
-		s.Root.Render(s, flushCtx)
+		s.Root.Render(s)
 	} else {
 		for _, inst := range dirtyComponents {
 			s.resetRefsForComponent(inst)
-			inst.Render(s, flushCtx)
+			inst.Render(s)
 		}
 	}
 
@@ -130,6 +131,10 @@ func (s *Session) Flush() error {
 	if s.Root.WorkTree != nil {
 		s.Root.NextHandlerIndex = 0
 		s.View = s.convertWorkToView(s.Root.WorkTree, s.Root)
+	}
+
+	if len(s.convertRenderErrors) > 0 {
+		s.propagateConvertRenderErrors()
 	}
 
 	if s.Bus != nil {
@@ -176,6 +181,12 @@ func (s *Session) MarkDirty(inst *Instance) {
 	s.DirtySet[inst] = struct{}{}
 	s.DirtyQueue = append(s.DirtyQueue, inst)
 	s.dirtyMu.Unlock()
+
+	s.flushMu.Lock()
+	if s.flushing && s.flushCancel != nil {
+		s.flushCancel()
+	}
+	s.flushMu.Unlock()
 
 	s.RequestFlush()
 }
@@ -521,12 +532,47 @@ func (s *Session) propagateEffectErrors(errors []*effectErrorRecord) {
 	}
 }
 
+func (s *Session) propagateConvertRenderErrors() {
+	if s == nil || len(s.convertRenderErrors) == 0 {
+		return
+	}
+
+	affectedAncestors := make(map[*Instance]struct{})
+
+	for _, inst := range s.convertRenderErrors {
+		for ancestor := inst.Parent; ancestor != nil; ancestor = ancestor.Parent {
+			if s.hasErrorBoundary(ancestor) {
+				affectedAncestors[ancestor] = struct{}{}
+				break
+			}
+		}
+	}
+
+	s.convertRenderErrors = nil
+
+	for ancestor := range affectedAncestors {
+		s.MarkDirty(ancestor)
+	}
+}
+
 func (s *Session) hasErrorBoundary(inst *Instance) bool {
 	if inst == nil {
 		return false
 	}
 	for _, slot := range inst.HookFrame {
 		if slot.Type == HookTypeErrorBoundary {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Session) hasAncestorErrorBoundary(inst *Instance) bool {
+	if inst == nil {
+		return false
+	}
+	for ancestor := inst.Parent; ancestor != nil; ancestor = ancestor.Parent {
+		if s.hasErrorBoundary(ancestor) {
 			return true
 		}
 	}

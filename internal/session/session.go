@@ -60,6 +60,7 @@ func NewLiveSession(id SessionID, version int, root Component, cfg *Config) *Liv
 		UploadRegistry:    upload.NewRegistry(),
 	}
 
+	rtSession.InitContext()
 	rtSession.SetDevMode(effectiveCfg.DevMode)
 	if effectiveCfg.DOMTimeout > 0 {
 		rtSession.SetDOMTimeout(effectiveCfg.DOMTimeout)

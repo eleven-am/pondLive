@@ -46,6 +46,8 @@ type Session struct {
 	PendingEffects  []effectTask
 	PendingCleanups []cleanupTask
 
+	convertRenderErrors []*Instance
+
 	MountedComponents map[*Instance]struct{}
 
 	PortalViews []view.Node
@@ -61,6 +63,9 @@ type Session struct {
 
 	flushCtx    context.Context
 	flushCancel context.CancelFunc
+
+	sessionCtx    context.Context
+	sessionCancel context.CancelFunc
 
 	mu sync.Mutex
 }
@@ -125,6 +130,12 @@ func (s *Session) Close() {
 		s.flushCtx = nil
 	}
 
+	if s.sessionCancel != nil {
+		s.sessionCancel()
+		s.sessionCancel = nil
+		s.sessionCtx = nil
+	}
+
 	s.cleanupInstanceTree(s.Root)
 
 	for _, task := range s.PendingCleanups {
@@ -181,6 +192,31 @@ func (s *Session) SetDevMode(enabled bool) {
 	s.mu.Lock()
 	s.devMode = enabled
 	s.mu.Unlock()
+}
+
+func (s *Session) InitContext() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.sessionCtx == nil {
+		s.sessionCtx, s.sessionCancel = context.WithCancel(context.Background())
+	}
+}
+
+func (s *Session) SessionContext() context.Context {
+	if s == nil || s.sessionCtx == nil {
+		return context.Background()
+	}
+	return s.sessionCtx
+}
+
+func (s *Session) FlushContext() context.Context {
+	if s == nil || s.flushCtx == nil {
+		return context.Background()
+	}
+	return s.flushCtx
 }
 
 func (s *Session) ChannelManager() *ChannelManager {

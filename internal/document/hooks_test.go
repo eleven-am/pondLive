@@ -1,7 +1,6 @@
 package document
 
 import (
-	"context"
 	"testing"
 
 	"github.com/eleven-am/pondlive/internal/runtime"
@@ -896,7 +895,7 @@ func TestUseDocumentRealHook(t *testing.T) {
 		},
 	}
 	sess.Root = root
-	sess.Root.Render(sess, context.Background())
+	sess.Root.Render(sess)
 
 	err := sess.Flush()
 	if err != nil {

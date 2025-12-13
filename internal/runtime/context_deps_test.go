@@ -6,7 +6,6 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-// Helper to build a session with a root instance.
 func newTestSession(rootFn any) *Session {
 	root := &Instance{
 		ID:        "root",
@@ -21,6 +20,8 @@ func newTestSession(rootFn any) *Session {
 		DirtyQueue: []*Instance{},
 		DirtySet:   make(map[*Instance]struct{}),
 	}
+
+	sess.InitContext()
 
 	return sess
 }
