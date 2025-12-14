@@ -209,7 +209,34 @@ type unmatchedEntry struct {
 	sig   string
 }
 
+func hasCrossPositionSignatureMatch(a, b []view.Node) bool {
+	sigToOldIdx := make(map[string]int)
+	for i, child := range a {
+		if hasStrongIdentity(child) {
+			if sig := nodeSignature(child); sig != "" {
+				sigToOldIdx[sig] = i
+			}
+		}
+	}
+
+	for j, child := range b {
+		if hasStrongIdentity(child) {
+			if sig := nodeSignature(child); sig != "" {
+				if oldIdx, found := sigToOldIdx[sig]; found && oldIdx != j {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
+	if hasCrossPositionSignatureMatch(a, b) {
+		diffChildrenWithKeys(patches, seq, parentPath, a, b, nodeSignature)
+		return
+	}
+
 	matchedOld := make(map[int]bool)
 	matchedNew := make(map[int]bool)
 
@@ -299,11 +326,15 @@ func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []vi
 }
 
 func diffChildrenKeyed(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
+	diffChildrenWithKeys(patches, seq, parentPath, a, b, getKey)
+}
+
+func diffChildrenWithKeys(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node, keyFunc func(view.Node) string) {
 	oldKeys := make(map[string]int)
 	newKeys := make(map[string]int)
 
 	for i, child := range a {
-		if key := getKey(child); key != "" {
+		if key := keyFunc(child); key != "" {
 			if _, exists := oldKeys[key]; exists {
 				handleDuplicateKey("old", key, parentPath)
 			}
@@ -311,7 +342,7 @@ func diffChildrenKeyed(patches *[]Patch, seq *int, parentPath []int, a, b []view
 		}
 	}
 	for i, child := range b {
-		if key := getKey(child); key != "" {
+		if key := keyFunc(child); key != "" {
 			if _, exists := newKeys[key]; exists {
 				handleDuplicateKey("new", key, parentPath)
 			}
@@ -321,7 +352,7 @@ func diffChildrenKeyed(patches *[]Patch, seq *int, parentPath []int, a, b []view
 
 	retained := make(map[int]bool)
 	for _, child := range b {
-		if key := getKey(child); key != "" {
+		if key := keyFunc(child); key != "" {
 			if oldIdx, ok := oldKeys[key]; ok {
 				retained[oldIdx] = true
 			}
@@ -334,9 +365,9 @@ func diffChildrenKeyed(patches *[]Patch, seq *int, parentPath []int, a, b []view
 			continue
 		}
 
-		key := getKey(oldChild)
+		key := keyFunc(oldChild)
 		if key == "" {
-			if oldIdx >= len(b) || getKey(b[oldIdx]) != "" {
+			if oldIdx >= len(b) || keyFunc(b[oldIdx]) != "" {
 				toDelete = append(toDelete, oldIdx)
 			}
 			continue
@@ -350,7 +381,7 @@ func diffChildrenKeyed(patches *[]Patch, seq *int, parentPath []int, a, b []view
 	for i := len(toDelete) - 1; i >= 0; i-- {
 		idx := toDelete[i]
 		var value interface{}
-		if key := getKey(a[idx]); key != "" {
+		if key := keyFunc(a[idx]); key != "" {
 			value = map[string]interface{}{"key": key}
 		}
 		emit(patches, seq, Patch{
@@ -374,7 +405,7 @@ func diffChildrenKeyed(patches *[]Patch, seq *int, parentPath []int, a, b []view
 
 	intermediateKeys := make(map[string]int)
 	for i, child := range intermediate {
-		if key := getKey(child); key != "" {
+		if key := keyFunc(child); key != "" {
 			intermediateKeys[key] = i
 		}
 	}
@@ -384,9 +415,9 @@ func diffChildrenKeyed(patches *[]Patch, seq *int, parentPath []int, a, b []view
 			continue
 		}
 
-		key := getKey(newChild)
+		key := keyFunc(newChild)
 		if key == "" {
-			if newIdx < len(intermediate) && getKey(intermediate[newIdx]) == "" {
+			if newIdx < len(intermediate) && keyFunc(intermediate[newIdx]) == "" {
 				childPath := append(copyPath(parentPath), newIdx)
 				diffNode(patches, seq, childPath, intermediate[newIdx], newChild)
 			} else {

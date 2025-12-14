@@ -1137,6 +1137,132 @@ func TestDiffIndexedDuplicateSignatures(t *testing.T) {
 	}
 }
 
+func TestDiffIndexedCrossPositionSignatureMatch(t *testing.T) {
+	prev := withChildren(elementNode("div"),
+		withAttr(withChildren(elementNode("a"), textNode("Google Cover Letter")), "href", "/applications/google"),
+		withAttr(withChildren(elementNode("a"), textNode("Stripe Cover Letter")), "href", "/applications/stripe"),
+		withAttr(withChildren(elementNode("a"), textNode("Netflix Cover Letter")), "href", "/applications/netflix"),
+	)
+
+	next := withChildren(elementNode("div"),
+		withAttr(withChildren(elementNode("a"), textNode("Master CV")), "href", "/cvs/master"),
+		withAttr(withChildren(elementNode("a"), textNode("Google CV")), "href", "/applications/google"),
+		withAttr(withChildren(elementNode("a"), textNode("Stripe CV")), "href", "/applications/stripe"),
+	)
+
+	patches := Diff(prev, next)
+
+	var moveCount, setTextCount, delCount, addCount int
+	for _, p := range patches {
+		switch p.Op {
+		case OpMoveChild:
+			moveCount++
+		case OpSetText:
+			setTextCount++
+		case OpDelChild:
+			delCount++
+		case OpAddChild:
+			addCount++
+		}
+	}
+
+	if moveCount == 0 {
+		t.Errorf("expected move operations for cross-position signature matches, got %d", moveCount)
+	}
+
+	if setTextCount < 2 {
+		t.Errorf("expected setText operations for content updates, got %d", setTextCount)
+	}
+}
+
+func TestDiffIndexedCrossPositionNoContentCorruption(t *testing.T) {
+	prev := withChildren(elementNode("ul"),
+		withAttr(withChildren(elementNode("li"), textNode("A at 0")), "href", "/a"),
+		withAttr(withChildren(elementNode("li"), textNode("B at 1")), "href", "/b"),
+	)
+
+	next := withChildren(elementNode("ul"),
+		withAttr(withChildren(elementNode("li"), textNode("New at 0")), "href", "/new"),
+		withAttr(withChildren(elementNode("li"), textNode("A at 1")), "href", "/a"),
+	)
+
+	patches := Diff(prev, next)
+
+	setTextPaths := make(map[string]string)
+	for _, p := range patches {
+		if p.Op == OpSetText {
+			pathStr := formatPath(p.Path)
+			setTextPaths[pathStr] = p.Value.(string)
+		}
+	}
+
+	if text, ok := setTextPaths["[0,1,0]"]; ok && text == "A at 1" {
+		t.Errorf("content corruption: setText targeting wrong element path [0,1,0] with value %q", text)
+	}
+}
+
+func TestHasCrossPositionSignatureMatch(t *testing.T) {
+	t.Run("returns true when signature matches at different positions", func(t *testing.T) {
+		a := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/b"),
+		}
+		b := []view.Node{
+			withAttr(elementNode("a"), "href", "/new"),
+			withAttr(elementNode("a"), "href", "/a"),
+		}
+
+		if !hasCrossPositionSignatureMatch(a, b) {
+			t.Error("expected true for cross-position signature match")
+		}
+	})
+
+	t.Run("returns false when signatures match at same positions", func(t *testing.T) {
+		a := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/b"),
+		}
+		b := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/c"),
+		}
+
+		if hasCrossPositionSignatureMatch(a, b) {
+			t.Error("expected false when signatures match at same position")
+		}
+	})
+
+	t.Run("returns false when no signature matches", func(t *testing.T) {
+		a := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/b"),
+		}
+		b := []view.Node{
+			withAttr(elementNode("a"), "href", "/c"),
+			withAttr(elementNode("a"), "href", "/d"),
+		}
+
+		if hasCrossPositionSignatureMatch(a, b) {
+			t.Error("expected false when no signatures match")
+		}
+	})
+
+	t.Run("returns false for elements without strong identity", func(t *testing.T) {
+		a := []view.Node{
+			elementNode("div"),
+			elementNode("span"),
+		}
+		b := []view.Node{
+			elementNode("span"),
+			elementNode("div"),
+		}
+
+		if hasCrossPositionSignatureMatch(a, b) {
+			t.Error("expected false for elements without strong identity")
+		}
+	})
+}
+
 func TestIntToStr(t *testing.T) {
 	tests := []struct {
 		input    int
