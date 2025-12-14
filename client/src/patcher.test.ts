@@ -478,6 +478,59 @@ describe('Patcher', () => {
             expect(items[1].textContent).toBe('1');
             expect(items[2].textContent).toBe('2');
         });
+
+        it('should find SSR element by signature when not in keyedElements', () => {
+            root.innerHTML = '<div><a href="/google">Google</a><a href="/stripe">Stripe</a><a href="/netflix">Netflix</a></div>';
+            const patches: Patch[] = [
+                { seq: 0, path: [0], op: 'addChild', index: 0, value: { tag: 'a', attrs: { href: ['/cvs/master'] }, children: [{ text: 'Master CV' }] } },
+                { seq: 1, path: [0], op: 'moveChild', value: { fromIndex: 0, newIdx: 1, key: 'E:a|href=/google' } },
+            ];
+            patcher.apply(patches);
+
+            const links = root.querySelectorAll('a');
+            expect(links.length).toBe(4);
+            expect(links[0].getAttribute('href')).toBe('/cvs/master');
+            expect(links[1].getAttribute('href')).toBe('/google');
+            expect(links[2].getAttribute('href')).toBe('/stripe');
+            expect(links[3].getAttribute('href')).toBe('/netflix');
+        });
+
+        it('should handle navigation scenario with signature-based moves', () => {
+            root.innerHTML = '<div><a href="/applications/google">Google CL</a><a href="/applications/stripe">Stripe CL</a><a href="/applications/netflix">Netflix CL</a><a href="/applications/apple">Apple CL</a></div>';
+
+            const patches: Patch[] = [
+                { seq: 0, path: [0], op: 'delChild', index: 3 },
+                { seq: 1, path: [0], op: 'addChild', index: 0, value: { tag: 'a', attrs: { href: ['/cvs/master'] }, children: [{ text: 'Master CV' }] } },
+                { seq: 2, path: [0], op: 'moveChild', value: { fromIndex: 0, newIdx: 1, key: 'E:a|href=/applications/google' } },
+                { seq: 3, path: [0], op: 'moveChild', value: { fromIndex: 1, newIdx: 2, key: 'E:a|href=/applications/stripe' } },
+                { seq: 4, path: [0], op: 'moveChild', value: { fromIndex: 2, newIdx: 3, key: 'E:a|href=/applications/netflix' } },
+            ];
+            patcher.apply(patches);
+
+            const links = root.querySelectorAll('a');
+            expect(links.length).toBe(4);
+            expect(links[0].getAttribute('href')).toBe('/cvs/master');
+            expect(links[1].getAttribute('href')).toBe('/applications/google');
+            expect(links[2].getAttribute('href')).toBe('/applications/stripe');
+            expect(links[3].getAttribute('href')).toBe('/applications/netflix');
+        });
+
+        it('should find SSR element by explicit key (K: signature)', () => {
+            root.innerHTML = '<ul><li data-key="item-a">A</li><li data-key="item-b">B</li><li data-key="item-c">C</li></ul>';
+            const patches: Patch[] = [
+                { seq: 0, path: [0], op: 'addChild', index: 0, value: { tag: 'li', attrs: { 'data-key': ['item-new'] }, children: [{ text: 'New' }] } },
+                { seq: 1, path: [0], op: 'moveChild', value: { fromIndex: 0, newIdx: 1, key: 'K:item-a' } },
+                { seq: 2, path: [0], op: 'moveChild', value: { fromIndex: 1, newIdx: 2, key: 'K:item-b' } },
+            ];
+            patcher.apply(patches);
+
+            const items = root.querySelectorAll('li');
+            expect(items.length).toBe(4);
+            expect(items[0].getAttribute('data-key')).toBe('item-new');
+            expect(items[1].getAttribute('data-key')).toBe('item-a');
+            expect(items[2].getAttribute('data-key')).toBe('item-b');
+            expect(items[3].getAttribute('data-key')).toBe('item-c');
+        });
     });
 
     describe('sequencing', () => {

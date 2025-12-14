@@ -407,6 +407,10 @@ export class Patcher {
         if (move.key) {
             const keyId = `${parentPath.join(',')}-${move.key}`;
             child = this.keyedElements.get(keyId) ?? null;
+
+            if (!child) {
+                child = this.findElementBySignature(parent, move.key);
+            }
         }
 
         if (!child) {
@@ -418,6 +422,38 @@ export class Patcher {
         parent.removeChild(child);
         const refChild = parent.childNodes[move.newIdx] ?? null;
         parent.insertBefore(child, refChild);
+    }
+
+    private findElementBySignature(parent: Node, signature: string): Element | null {
+        if (signature.startsWith('K:')) {
+            const key = signature.slice(2);
+            for (let i = 0; i < parent.childNodes.length; i++) {
+                const node = parent.childNodes[i];
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    if ((node as Element).getAttribute('data-key') === key) {
+                        return node as Element;
+                    }
+                }
+            }
+            return null;
+        }
+
+        const match = signature.match(/^E:(\w+)\|(\w+)=(.+)$/);
+        if (!match) return null;
+
+        const [, tag, attr, value] = match;
+
+        for (let i = 0; i < parent.childNodes.length; i++) {
+            const node = parent.childNodes[i];
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node as Element;
+                if (el.tagName.toLowerCase() === tag && el.getAttribute(attr) === value) {
+                    return el;
+                }
+            }
+        }
+
+        return null;
     }
 
     private cleanupTree(node: Node): void {

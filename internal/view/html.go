@@ -94,6 +94,12 @@ func renderElement(b *strings.Builder, el *Element) {
 		b.WriteByte('"')
 	}
 
+	if el.Key != "" {
+		b.WriteString(` data-key="`)
+		b.WriteString(html.EscapeString(el.Key))
+		b.WriteByte('"')
+	}
+
 	b.WriteByte('>')
 
 	if voidElements[el.Tag] {

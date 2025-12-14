@@ -1263,6 +1263,624 @@ func TestHasCrossPositionSignatureMatch(t *testing.T) {
 	})
 }
 
+func makeListItem(href, company, title, date, preview string) *view.Element {
+	return withAttr(withChildren(elementNode("a"),
+		withChildren(elementNode("span"), textNode(company)),
+		withChildren(elementNode("span"), textNode("·")),
+		withChildren(elementNode("span"), textNode(title)),
+		withChildren(elementNode("span"), textNode(date)),
+		withChildren(elementNode("span"), textNode(preview)),
+	), "href", href)
+}
+
+func makeCVItem(href, title, company, exp, skills string) *view.Element {
+	return withAttr(withChildren(elementNode("a"),
+		withChildren(elementNode("span"), textNode(title)),
+		withChildren(elementNode("span"), textNode(company)),
+		withChildren(elementNode("span"), textNode(exp)),
+		withChildren(elementNode("span"), textNode(skills)),
+	), "href", href)
+}
+
+func TestCoverLettersCVsRoundTrip(t *testing.T) {
+	coverLetters := withChildren(elementNode("div"),
+		makeListItem("/applications/google", "Google", "Senior Engineer", "Dec 14", "Dear Google..."),
+		makeListItem("/applications/stripe", "Stripe", "Backend Engineer", "Dec 10", "Dear Stripe..."),
+		makeListItem("/applications/netflix", "Netflix", "Platform Engineer", "Dec 13", "Dear Netflix..."),
+		makeListItem("/applications/apple", "Apple", "iOS Engineer", "Dec 11", "Dear Apple..."),
+		makeListItem("/applications/microsoft", "Microsoft", "Cloud Engineer", "Dec 12", "Dear Microsoft..."),
+		makeListItem("/cover-letters/backend", "Generic", "Backend", "Dec 4", "Dear Hiring Manager..."),
+		makeListItem("/cover-letters/platform", "Generic", "Platform", "Oct 30", "Dear Hiring Team..."),
+	)
+
+	cvs := withChildren(elementNode("div"),
+		makeCVItem("/applications/google", "Senior Engineer", "Google", "5 exp", "20 skills"),
+		makeCVItem("/applications/stripe", "Backend Engineer", "Stripe", "4 exp", "15 skills"),
+		makeCVItem("/applications/netflix", "Platform Engineer", "Netflix", "6 exp", "18 skills"),
+		makeCVItem("/cvs/master", "Master CV", "Various", "8 exp", "25 skills"),
+	)
+
+	t.Log("Cover Letters signatures:")
+	for i, child := range coverLetters.Children {
+		t.Logf("  [%d] sig=%s strongID=%v", i, nodeSignature(child), hasStrongIdentity(child))
+	}
+	t.Log("CVs signatures:")
+	for i, child := range cvs.Children {
+		t.Logf("  [%d] sig=%s strongID=%v", i, nodeSignature(child), hasStrongIdentity(child))
+	}
+	t.Logf("hasCrossPositionSignatureMatch(coverLetters->cvs): %v", hasCrossPositionSignatureMatch(coverLetters.Children, cvs.Children))
+	t.Logf("hasCrossPositionSignatureMatch(cvs->coverLetters): %v", hasCrossPositionSignatureMatch(cvs.Children, coverLetters.Children))
+
+	patches1 := Diff(coverLetters, cvs)
+
+	t.Logf("Cover Letters -> CVs: %d patches", len(patches1))
+	for i, p := range patches1 {
+		idx := ""
+		if p.Index != nil {
+			idx = formatPath([]int{*p.Index})
+		}
+		t.Logf("  [%d] seq=%d op=%s path=%v idx=%s", i, p.Seq, p.Op, p.Path, idx)
+	}
+
+	patches2 := Diff(cvs, coverLetters)
+
+	t.Logf("CVs -> Cover Letters: %d patches", len(patches2))
+	for i, p := range patches2 {
+		idx := ""
+		if p.Index != nil {
+			idx = formatPath([]int{*p.Index})
+		}
+		t.Logf("  [%d] seq=%d op=%s path=%v idx=%s", i, p.Seq, p.Op, p.Path, idx)
+	}
+
+	for _, p := range patches1 {
+		if p.Op == OpSetAttr {
+			t.Logf("CoverLetters->CVs setAttr at path=%v: %v", p.Path, p.Value)
+		}
+	}
+
+	for _, p := range patches2 {
+		if p.Op == OpSetAttr {
+			t.Logf("CVs->CoverLetters setAttr at path=%v: %v", p.Path, p.Value)
+		}
+	}
+}
+
+func TestRoundTripPatchApplication(t *testing.T) {
+	coverLetters := withChildren(elementNode("div"),
+		makeListItem("/google", "Google", "Cover Letter", "Dec 14", "Preview"),
+		makeListItem("/stripe", "Stripe", "Cover Letter", "Dec 10", "Preview"),
+		makeListItem("/netflix", "Netflix", "Cover Letter", "Dec 9", "Preview"),
+		makeListItem("/apple", "Apple", "Cover Letter", "Dec 8", "Preview"),
+	)
+
+	cvs := withChildren(elementNode("div"),
+		makeListItem("/google", "Google", "CV", "Dec 14", "Skills"),
+		makeListItem("/stripe", "Stripe", "CV", "Dec 10", "Skills"),
+		makeListItem("/netflix", "Netflix", "CV", "Dec 9", "Skills"),
+		makeListItem("/cv-789", "CV 789", "CV", "Dec 1", "Skills"),
+	)
+
+	patches := Diff(coverLetters, cvs)
+
+	t.Log("Analyzing patches from Cover Letters -> CVs:")
+	for _, p := range patches {
+		switch p.Op {
+		case OpSetAttr:
+			attrs := p.Value.(map[string][]string)
+			if href, ok := attrs["href"]; ok {
+				t.Logf("  setAttr at path=%v: href=%v", p.Path, href)
+				if len(p.Path) == 1 {
+					pos := p.Path[0]
+					expectedOldHref := ""
+					expectedNewHref := ""
+					switch pos {
+					case 0:
+						expectedOldHref = "/google"
+						expectedNewHref = "/google"
+					case 1:
+						expectedOldHref = "/stripe"
+						expectedNewHref = "/stripe"
+					case 2:
+						expectedOldHref = "/netflix"
+						expectedNewHref = "/netflix"
+					case 3:
+						expectedOldHref = "/apple"
+						expectedNewHref = "/cv-789"
+					}
+					if href[0] != expectedNewHref {
+						t.Errorf("  Position %d: expected new href %q, got %q (was %q)",
+							pos, expectedNewHref, href[0], expectedOldHref)
+					}
+				}
+			}
+		case OpSetText:
+			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
+		case OpDelChild:
+			t.Logf("  delChild at path=%v idx=%d", p.Path, *p.Index)
+		case OpAddChild:
+			t.Logf("  addChild at path=%v idx=%d", p.Path, *p.Index)
+		}
+	}
+
+	setAttrCount := 0
+	for _, p := range patches {
+		if p.Op == OpSetAttr {
+			setAttrCount++
+			if len(p.Path) == 1 && p.Path[0] == 3 {
+				attrs := p.Value.(map[string][]string)
+				if href, ok := attrs["href"]; ok && href[0] == "/cv-789" {
+					t.Log("CORRECT: setAttr at position 3 changes href to /cv-789")
+				}
+			}
+		}
+	}
+
+	if setAttrCount != 1 {
+		t.Errorf("Expected exactly 1 setAttr patch (for position 3), got %d", setAttrCount)
+	}
+
+	for _, p := range patches {
+		if p.Op == OpSetAttr && len(p.Path) == 1 && p.Path[0] < 3 {
+			t.Errorf("UNEXPECTED: setAttr at position %d (should only be at position 3)", p.Path[0])
+		}
+	}
+}
+
+func TestMultipleRoundTripsForCorruption(t *testing.T) {
+	makeState := func(hrefs []string) *view.Element {
+		children := make([]view.Node, len(hrefs))
+		for i, href := range hrefs {
+			children[i] = withAttr(withChildren(elementNode("a"),
+				withChildren(elementNode("span"), textNode("Item "+href)),
+			), "href", href)
+		}
+		return withChildren(elementNode("div"), children...)
+	}
+
+	state1 := makeState([]string{"/a", "/b", "/c", "/d"})
+	state2 := makeState([]string{"/a", "/b", "/c", "/x"})
+	state3 := makeState([]string{"/a", "/b", "/c", "/d"})
+
+	patches1to2 := Diff(state1, state2)
+	patches2to3 := Diff(state2, state3)
+	patches3to1 := Diff(state3, state1)
+
+	t.Logf("State1->State2: %d patches", len(patches1to2))
+	for _, p := range patches1to2 {
+		if p.Op == OpSetAttr {
+			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
+		}
+	}
+
+	t.Logf("State2->State3: %d patches", len(patches2to3))
+	for _, p := range patches2to3 {
+		if p.Op == OpSetAttr {
+			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
+		}
+	}
+
+	t.Logf("State3->State1: %d patches", len(patches3to1))
+	for _, p := range patches3to1 {
+		if p.Op == OpSetAttr {
+			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
+		}
+	}
+
+	for _, p := range patches1to2 {
+		if p.Op == OpSetAttr && len(p.Path) == 1 {
+			pos := p.Path[0]
+			if pos != 3 {
+				t.Errorf("State1->State2: unexpected setAttr at position %d (should only change position 3)", pos)
+			}
+		}
+	}
+
+	for _, p := range patches2to3 {
+		if p.Op == OpSetAttr && len(p.Path) == 1 {
+			pos := p.Path[0]
+			if pos != 3 {
+				t.Errorf("State2->State3: unexpected setAttr at position %d (should only change position 3)", pos)
+			}
+		}
+	}
+}
+
+func TestNestedFragmentDiffing(t *testing.T) {
+	makeNestedPage := func(content string, listItems []string) view.Node {
+		items := make([]view.Node, len(listItems))
+		for i, item := range listItems {
+			items[i] = withAttr(withChildren(elementNode("a"),
+				textNode(item),
+			), "href", "/"+item)
+		}
+
+		return withChildren(elementNode("html"),
+			withChildren(elementNode("head")),
+			withChildren(elementNode("body"),
+				fragmentNode(
+					withChildren(elementNode("div"),
+						textNode(content),
+						withChildren(elementNode("ul"), items...),
+					),
+				),
+			),
+		)
+	}
+
+	coverLetters := makeNestedPage("Cover Letters", []string{"google", "stripe", "netflix", "apple"})
+	cvs := makeNestedPage("CVs", []string{"google", "stripe", "netflix", "cv-789"})
+
+	t.Log("Testing full page diff with nested fragment")
+
+	patches := Diff(coverLetters, cvs)
+	t.Logf("Generated %d patches", len(patches))
+
+	for _, p := range patches {
+		switch p.Op {
+		case OpSetAttr:
+			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
+		case OpSetText:
+			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
+		case OpDelChild:
+			t.Logf("  delChild at path=%v idx=%d", p.Path, *p.Index)
+		case OpAddChild:
+			t.Logf("  addChild at path=%v idx=%d", p.Path, *p.Index)
+		}
+	}
+
+	for _, p := range patches {
+		if p.Op == OpSetAttr {
+			t.Logf("Checking setAttr at path=%v", p.Path)
+			if len(p.Path) >= 3 && p.Path[0] == 1 && p.Path[1] == 0 && p.Path[2] == 1 {
+				pos := p.Path[3]
+				if pos < 3 {
+					t.Errorf("UNEXPECTED: setAttr changes href at position %d (should only change position 3)", pos)
+				}
+			}
+		}
+	}
+}
+
+func TestDiffWithLengthMismatch(t *testing.T) {
+	longList := withChildren(elementNode("div"),
+		withAttr(elementNode("a"), "href", "/a"),
+		withAttr(elementNode("a"), "href", "/b"),
+		withAttr(elementNode("a"), "href", "/c"),
+		withAttr(elementNode("a"), "href", "/d"),
+		withAttr(elementNode("a"), "href", "/e"),
+		withAttr(elementNode("a"), "href", "/f"),
+	)
+
+	shortList := withChildren(elementNode("div"),
+		withAttr(elementNode("a"), "href", "/a"),
+		withAttr(elementNode("a"), "href", "/b"),
+		withAttr(elementNode("a"), "href", "/c"),
+		withAttr(elementNode("a"), "href", "/x"),
+	)
+
+	t.Log("Long -> Short list")
+	patches1 := Diff(longList, shortList)
+	for _, p := range patches1 {
+		switch p.Op {
+		case OpSetAttr:
+			attrs := p.Value.(map[string][]string)
+			if href, ok := attrs["href"]; ok {
+				t.Logf("  setAttr at path=%v: href=%v", p.Path, href)
+			}
+		case OpDelChild:
+			t.Logf("  delChild at path=%v idx=%d", p.Path, *p.Index)
+		}
+	}
+
+	setAttrPositions := []int{}
+	delChildIndices := []int{}
+	for _, p := range patches1 {
+		if p.Op == OpSetAttr && len(p.Path) == 1 {
+			setAttrPositions = append(setAttrPositions, p.Path[0])
+		}
+		if p.Op == OpDelChild && p.Index != nil {
+			delChildIndices = append(delChildIndices, *p.Index)
+		}
+	}
+
+	t.Logf("setAttr positions: %v", setAttrPositions)
+	t.Logf("delChild indices: %v", delChildIndices)
+
+	if len(setAttrPositions) != 1 || setAttrPositions[0] != 3 {
+		t.Errorf("Expected setAttr only at position 3, got positions: %v", setAttrPositions)
+	}
+
+	expectedDeletes := []int{5, 4}
+	if len(delChildIndices) != len(expectedDeletes) {
+		t.Errorf("Expected %d deletes, got %d: %v", len(expectedDeletes), len(delChildIndices), delChildIndices)
+	}
+}
+
+func TestPatchApplicationSimulation(t *testing.T) {
+	type mockNode struct {
+		tag      string
+		href     string
+		text     string
+		children []*mockNode
+	}
+
+	var resolvePath func(root *mockNode, path []int) *mockNode
+	resolvePath = func(root *mockNode, path []int) *mockNode {
+		node := root
+		for _, idx := range path {
+			if idx >= len(node.children) {
+				return nil
+			}
+			node = node.children[idx]
+		}
+		return node
+	}
+
+	applySetAttr := func(root *mockNode, path []int, attrs map[string][]string) {
+		node := resolvePath(root, path)
+		if node == nil {
+			t.Logf("WARNING: Path %v not found", path)
+			return
+		}
+		if href, ok := attrs["href"]; ok && len(href) > 0 {
+			node.href = href[0]
+		}
+	}
+
+	applySetText := func(root *mockNode, path []int, text string) {
+		node := resolvePath(root, path)
+		if node == nil {
+			t.Logf("WARNING: Path %v not found", path)
+			return
+		}
+		node.text = text
+	}
+
+	coverLettersView := withChildren(elementNode("div"),
+		withChildren(withAttr(elementNode("a"), "href", "/google"), textNode("Google Cover Letter")),
+		withChildren(withAttr(elementNode("a"), "href", "/stripe"), textNode("Stripe Cover Letter")),
+		withChildren(withAttr(elementNode("a"), "href", "/netflix"), textNode("Netflix Cover Letter")),
+		withChildren(withAttr(elementNode("a"), "href", "/apple"), textNode("Apple Cover Letter")),
+	)
+
+	cvsView := withChildren(elementNode("div"),
+		withChildren(withAttr(elementNode("a"), "href", "/google"), textNode("Google CV")),
+		withChildren(withAttr(elementNode("a"), "href", "/stripe"), textNode("Stripe CV")),
+		withChildren(withAttr(elementNode("a"), "href", "/netflix"), textNode("Netflix CV")),
+		withChildren(withAttr(elementNode("a"), "href", "/cv-789"), textNode("CV 789")),
+	)
+
+	mockDOM := &mockNode{
+		tag: "div",
+		children: []*mockNode{
+			{tag: "a", href: "/google", children: []*mockNode{{text: "Google Cover Letter"}}},
+			{tag: "a", href: "/stripe", children: []*mockNode{{text: "Stripe Cover Letter"}}},
+			{tag: "a", href: "/netflix", children: []*mockNode{{text: "Netflix Cover Letter"}}},
+			{tag: "a", href: "/apple", children: []*mockNode{{text: "Apple Cover Letter"}}},
+		},
+	}
+
+	patches := Diff(coverLettersView, cvsView)
+
+	t.Logf("Generated %d patches for Cover Letters -> CVs", len(patches))
+	for _, p := range patches {
+		t.Logf("  %s at path=%v value=%v", p.Op, p.Path, p.Value)
+	}
+
+	for _, p := range patches {
+		switch p.Op {
+		case OpSetAttr:
+			if attrs, ok := p.Value.(map[string][]string); ok {
+				applySetAttr(mockDOM, p.Path, attrs)
+				t.Logf("Applied setAttr at %v: %v", p.Path, attrs)
+			}
+		case OpSetText:
+			if text, ok := p.Value.(string); ok {
+				applySetText(mockDOM, p.Path, text)
+				t.Logf("Applied setText at %v: %s", p.Path, text)
+			}
+		}
+	}
+
+	t.Log("\nFinal mock DOM state:")
+	for i, child := range mockDOM.children {
+		textContent := ""
+		if len(child.children) > 0 {
+			textContent = child.children[0].text
+		}
+		t.Logf("  Position %d: href=%s text=%q", i, child.href, textContent)
+	}
+
+	expectedHrefs := []string{"/google", "/stripe", "/netflix", "/cv-789"}
+	expectedTexts := []string{"Google CV", "Stripe CV", "Netflix CV", "CV 789"}
+
+	for i := 0; i < 4; i++ {
+		if mockDOM.children[i].href != expectedHrefs[i] {
+			t.Errorf("Position %d: href mismatch - got %s, expected %s", i, mockDOM.children[i].href, expectedHrefs[i])
+		}
+		if mockDOM.children[i].children[0].text != expectedTexts[i] {
+			t.Errorf("Position %d: text mismatch - got %s, expected %s", i, mockDOM.children[i].children[0].text, expectedTexts[i])
+		}
+	}
+}
+
+func TestDOMIndexOffsetBug(t *testing.T) {
+	type mockNode struct {
+		tag      string
+		href     string
+		text     string
+		children []*mockNode
+	}
+
+	var resolvePath func(root *mockNode, path []int) *mockNode
+	resolvePath = func(root *mockNode, path []int) *mockNode {
+		node := root
+		for _, idx := range path {
+			if idx >= len(node.children) {
+				return nil
+			}
+			node = node.children[idx]
+		}
+		return node
+	}
+
+	coverLettersView := withChildren(elementNode("div"),
+		withChildren(withAttr(elementNode("a"), "href", "/google"), textNode("Google")),
+		withChildren(withAttr(elementNode("a"), "href", "/stripe"), textNode("Stripe")),
+		withChildren(withAttr(elementNode("a"), "href", "/netflix"), textNode("Netflix")),
+		withChildren(withAttr(elementNode("a"), "href", "/apple"), textNode("Apple")),
+	)
+
+	cvsView := withChildren(elementNode("div"),
+		withChildren(withAttr(elementNode("a"), "href", "/google"), textNode("Google")),
+		withChildren(withAttr(elementNode("a"), "href", "/stripe"), textNode("Stripe")),
+		withChildren(withAttr(elementNode("a"), "href", "/netflix"), textNode("Netflix")),
+		withChildren(withAttr(elementNode("a"), "href", "/cv-789"), textNode("CV-789")),
+	)
+
+	correctDOM := &mockNode{
+		tag: "div",
+		children: []*mockNode{
+			{tag: "a", href: "/google", children: []*mockNode{{text: "Google"}}},
+			{tag: "a", href: "/stripe", children: []*mockNode{{text: "Stripe"}}},
+			{tag: "a", href: "/netflix", children: []*mockNode{{text: "Netflix"}}},
+			{tag: "a", href: "/apple", children: []*mockNode{{text: "Apple"}}},
+		},
+	}
+
+	brokenDOM := &mockNode{
+		tag: "div",
+		children: []*mockNode{
+			{tag: "#text", text: " "},
+			{tag: "a", href: "/google", children: []*mockNode{{text: "Google"}}},
+			{tag: "a", href: "/stripe", children: []*mockNode{{text: "Stripe"}}},
+			{tag: "a", href: "/netflix", children: []*mockNode{{text: "Netflix"}}},
+			{tag: "a", href: "/apple", children: []*mockNode{{text: "Apple"}}},
+		},
+	}
+
+	patches := Diff(coverLettersView, cvsView)
+
+	t.Log("=== Patches generated ===")
+	for _, p := range patches {
+		t.Logf("  %s at path=%v", p.Op, p.Path)
+	}
+
+	t.Log("\n=== Applying to CORRECT DOM (no extra nodes) ===")
+	for _, p := range patches {
+		if p.Op == OpSetAttr {
+			if attrs, ok := p.Value.(map[string][]string); ok {
+				node := resolvePath(correctDOM, p.Path)
+				if node != nil {
+					if href, exists := attrs["href"]; exists && len(href) > 0 {
+						node.href = href[0]
+					}
+				}
+			}
+		}
+	}
+	t.Log("Result:")
+	for i, child := range correctDOM.children {
+		t.Logf("  Position %d: href=%s", i, child.href)
+	}
+
+	t.Log("\n=== Applying to BROKEN DOM (extra whitespace node at start) ===")
+	for _, p := range patches {
+		if p.Op == OpSetAttr {
+			if attrs, ok := p.Value.(map[string][]string); ok {
+				node := resolvePath(brokenDOM, p.Path)
+				if node != nil {
+					if href, exists := attrs["href"]; exists && len(href) > 0 {
+						t.Logf("Setting href=%s on node at path %v (tag=%s)", href[0], p.Path, node.tag)
+						node.href = href[0]
+					}
+				}
+			}
+		}
+	}
+	t.Log("Result:")
+	for i, child := range brokenDOM.children {
+		if child.tag == "#text" {
+			t.Logf("  Position %d: [whitespace text node]", i)
+		} else {
+			t.Logf("  Position %d: href=%s", i, child.href)
+		}
+	}
+
+	correctHref := correctDOM.children[3].href
+	if correctHref != "/cv-789" {
+		t.Errorf("Correct DOM: position 3 should have /cv-789, got %s", correctHref)
+	}
+
+	brokenNode := brokenDOM.children[3]
+	if brokenNode.tag == "a" && brokenNode.href == "/cv-789" {
+		t.Log("INTERESTING: In broken DOM, position 3 is Netflix element and got cv-789 href!")
+		t.Log("This demonstrates how an off-by-one error in the DOM causes corruption")
+	}
+}
+
+func TestNavigationPatchSequence(t *testing.T) {
+	makePage := func(pageType string, items []string) *view.Element {
+		children := make([]view.Node, len(items))
+		for i, item := range items {
+			children[i] = withChildren(
+				withAttr(elementNode("a"), "href", "/"+item),
+				textNode(item+" "+pageType),
+			)
+		}
+		return withChildren(elementNode("div"), children...)
+	}
+
+	coverLetters := makePage("Cover Letter", []string{"google", "stripe", "netflix", "apple"})
+	cvs := makePage("CV", []string{"google", "stripe", "netflix", "cv-789"})
+	resumes := makePage("Resume", []string{"google", "stripe", "netflix", "resume-001"})
+
+	t.Log("=== Navigation 1: Cover Letters -> CVs ===")
+	patches1 := Diff(coverLetters, cvs)
+	t.Logf("Generated %d patches", len(patches1))
+
+	setAttrPaths1 := [][]int{}
+	for _, p := range patches1 {
+		if p.Op == OpSetAttr {
+			setAttrPaths1 = append(setAttrPaths1, p.Path)
+			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
+		} else if p.Op == OpSetText {
+			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
+		}
+	}
+
+	t.Log("\n=== Navigation 2: CVs -> Resumes ===")
+	patches2 := Diff(cvs, resumes)
+	t.Logf("Generated %d patches", len(patches2))
+
+	for _, p := range patches2 {
+		if p.Op == OpSetAttr {
+			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
+		} else if p.Op == OpSetText {
+			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
+		}
+	}
+
+	t.Log("\n=== Navigation 3: Resumes -> Cover Letters ===")
+	patches3 := Diff(resumes, coverLetters)
+	t.Logf("Generated %d patches", len(patches3))
+
+	for _, p := range patches3 {
+		if p.Op == OpSetAttr {
+			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
+		} else if p.Op == OpSetText {
+			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
+		}
+	}
+
+	for _, path := range setAttrPaths1 {
+		if len(path) == 1 && path[0] < 3 {
+			t.Errorf("UNEXPECTED: setAttr modifies position %d (should only modify position 3)", path[0])
+		}
+	}
+}
+
 func TestIntToStr(t *testing.T) {
 	tests := []struct {
 		input    int
@@ -1574,6 +2192,113 @@ func TestDiffStylesheetBothEmpty(t *testing.T) {
 	for _, p := range patches {
 		if p.Op == OpSetStyleDecl || p.Op == OpDelStyleDecl {
 			t.Fatalf("empty stylesheets should produce no style patches, got %s", p.Op)
+		}
+	}
+}
+
+func TestUniqueHrefsNoShift(t *testing.T) {
+	makeLink := func(href string) *view.Element {
+		return withAttr(elementNode("a"), "href", href)
+	}
+
+	prev := withChildren(elementNode("div"),
+		makeLink("/cover-letters/1"),
+		makeLink("/cover-letters/2"),
+		makeLink("/cover-letters/3"),
+		makeLink("/cover-letters/4"),
+	)
+
+	next := withChildren(elementNode("div"),
+		makeLink("/cvs/1"),
+		makeLink("/cvs/2"),
+		makeLink("/cvs/3"),
+		makeLink("/cvs/4"),
+	)
+
+	patches := Diff(prev, next)
+
+	t.Logf("Total patches: %d", len(patches))
+
+	hrefPatches := make(map[int]string)
+	for _, p := range patches {
+		if p.Op == OpSetAttr {
+			if len(p.Path) >= 1 {
+				childIdx := p.Path[len(p.Path)-1]
+				if attrs, ok := p.Value.(map[string][]string); ok {
+					if href, exists := attrs["href"]; exists && len(href) > 0 {
+						hrefPatches[childIdx] = href[0]
+						t.Logf("setAttr at path=%v, href=%s", p.Path, href[0])
+					}
+				}
+			}
+		}
+	}
+
+	expected := map[int]string{
+		0: "/cvs/1",
+		1: "/cvs/2",
+		2: "/cvs/3",
+		3: "/cvs/4",
+	}
+
+	for idx, expectedHref := range expected {
+		if actual, ok := hrefPatches[idx]; ok {
+			if actual != expectedHref {
+				t.Errorf("Position %d: expected href=%s, got href=%s (SHIFT DETECTED!)", idx, expectedHref, actual)
+			}
+		} else {
+			t.Errorf("Position %d: no setAttr patch found, expected href=%s", idx, expectedHref)
+		}
+	}
+}
+
+func TestUniqueHrefsWithNestedStructure(t *testing.T) {
+	makeListItem := func(href, title, date string) *view.Element {
+		return withChildren(elementNode("li"),
+			withChildren(withAttr(elementNode("a"), "href", href),
+				textNode(title),
+			),
+			withChildren(elementNode("span"),
+				textNode(date),
+			),
+		)
+	}
+
+	prev := withChildren(elementNode("ul"),
+		makeListItem("/cover-letters/1", "CL 1", "Dec 10"),
+		makeListItem("/cover-letters/2", "CL 2", "Dec 11"),
+		makeListItem("/cover-letters/3", "CL 3", "Dec 12"),
+		makeListItem("/cover-letters/4", "CL 4", "Dec 13"),
+	)
+
+	next := withChildren(elementNode("ul"),
+		makeListItem("/cvs/1", "CV 1", "Dec 14"),
+		makeListItem("/cvs/2", "CV 2", "Dec 15"),
+		makeListItem("/cvs/3", "CV 3", "Dec 16"),
+		makeListItem("/cvs/4", "CV 4", "Dec 17"),
+	)
+
+	patches := Diff(prev, next)
+
+	t.Logf("Total patches: %d", len(patches))
+
+	for _, p := range patches {
+		if p.Op == OpSetAttr {
+			if attrs, ok := p.Value.(map[string][]string); ok {
+				if href, exists := attrs["href"]; exists {
+					t.Logf("setAttr href=%s at path=%v", href[0], p.Path)
+					if len(p.Path) >= 2 {
+						liIdx := p.Path[0]
+						expectedHref := []string{"/cvs/1", "/cvs/2", "/cvs/3", "/cvs/4"}[liIdx]
+						if href[0] != expectedHref {
+							t.Errorf("SHIFT BUG: li[%d] got href=%s, expected %s", liIdx, href[0], expectedHref)
+						}
+					}
+				}
+			}
+		}
+		if p.Op == OpSetText {
+			t.Logf("setText value=%v at path=%v", p.Value, p.Path)
 		}
 	}
 }
