@@ -224,7 +224,6 @@ func (a *App) serveSSR(w http.ResponseWriter, r *http.Request) {
 	}
 
 	documentHTML := view.RenderHTML(rtSession.View)
-
 	pathParts := route.NormalizeParts(r.URL.Path)
 	location := route.Location{
 		Path:  pathParts.Path,
