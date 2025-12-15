@@ -13,10 +13,7 @@ type Ctx struct {
 }
 
 func (c *Ctx) Context() context.Context {
-	if c == nil || c.session == nil {
-		return context.Background()
-	}
-	return c.session.SessionContext()
+	return context.Background()
 }
 
 func GetBus(ctx *Ctx) *protocol.Bus {
@@ -53,11 +50,4 @@ func (c *Ctx) SessionID() string {
 		return ""
 	}
 	return c.session.SessionID
-}
-
-func (c *Ctx) RenderContext() context.Context {
-	if c == nil || c.session == nil {
-		return context.Background()
-	}
-	return c.session.FlushContext()
 }

@@ -209,34 +209,82 @@ type unmatchedEntry struct {
 	sig   string
 }
 
+func isAssetElement(n view.Node) bool {
+	elem, ok := n.(*view.Element)
+	if !ok {
+		return false
+	}
+	switch elem.Tag {
+	case "script", "style", "link":
+		return true
+	default:
+		return false
+	}
+}
+
 func hasCrossPositionSignatureMatch(a, b []view.Node) bool {
 	sigToOldIdx := make(map[string]int)
+	strongCountOld := 0
 	for i, child := range a {
-		if hasStrongIdentity(child) {
+		if hasStrongIdentity(child) && !isAssetElement(child) {
+			strongCountOld++
 			if sig := nodeSignature(child); sig != "" {
 				sigToOldIdx[sig] = i
 			}
 		}
 	}
 
+	crossPositionMatches := 0
+	strongCountNew := 0
 	for j, child := range b {
-		if hasStrongIdentity(child) {
+		if hasStrongIdentity(child) && !isAssetElement(child) {
+			strongCountNew++
 			if sig := nodeSignature(child); sig != "" {
 				if oldIdx, found := sigToOldIdx[sig]; found && oldIdx != j {
-					return true
+					crossPositionMatches++
 				}
 			}
 		}
 	}
-	return false
+
+	if crossPositionMatches == 0 {
+		return false
+	}
+
+	minLen := len(a)
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+	if minLen == 0 {
+		return false
+	}
+
+	minStrongCount := strongCountOld
+	if strongCountNew < minStrongCount {
+		minStrongCount = strongCountNew
+	}
+
+	strongRatio := float64(minStrongCount) / float64(minLen)
+
+	if crossPositionMatches >= 2 {
+		return strongRatio >= 0.25
+	}
+
+	return strongRatio >= 0.5
+}
+
+func strongSignature(n view.Node) string {
+	if !hasStrongIdentity(n) {
+		return ""
+	}
+	return nodeSignature(n)
 }
 
 func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
 	if hasCrossPositionSignatureMatch(a, b) {
-		diffChildrenWithKeys(patches, seq, parentPath, a, b, nodeSignature)
+		diffChildrenWithKeys(patches, seq, parentPath, a, b, strongSignature)
 		return
 	}
-
 	matchedOld := make(map[int]bool)
 	matchedNew := make(map[int]bool)
 
@@ -245,6 +293,9 @@ func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []vi
 		if hasStrongIdentity(child) {
 			sig := nodeSignature(child)
 			if sig != "" {
+				if _, exists := sigToOldIdx[sig]; exists {
+					continue
+				}
 				sigToOldIdx[sig] = i
 			}
 		}
@@ -277,10 +328,10 @@ func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []vi
 		}
 
 		var childA, childB view.Node
-		if i < len(a) && !matchedOld[i] {
+		if i < len(a) {
 			childA = a[i]
 		}
-		if i < len(b) && !matchedNew[i] {
+		if i < len(b) {
 			childB = b[i]
 		}
 
@@ -290,6 +341,29 @@ func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []vi
 			childPath := append(copyPath(parentPath), i)
 			diffNode(patches, seq, childPath, childA, childB)
 		}
+	}
+
+	var unmatchedOldIndices []int
+	for i := 0; i < len(a); i++ {
+		if !matchedOld[i] && !hasStrongIdentity(a[i]) {
+			unmatchedOldIndices = append(unmatchedOldIndices, i)
+		}
+	}
+
+	var unmatchedNewIndices []int
+	for j := 0; j < len(b); j++ {
+		if !matchedNew[j] && !hasStrongIdentity(b[j]) {
+			unmatchedNewIndices = append(unmatchedNewIndices, j)
+		}
+	}
+
+	for k := 0; k < len(unmatchedOldIndices) && k < len(unmatchedNewIndices); k++ {
+		oldIdx := unmatchedOldIndices[k]
+		newIdx := unmatchedNewIndices[k]
+		matchedOld[oldIdx] = true
+		matchedNew[newIdx] = true
+		childPath := append(copyPath(parentPath), newIdx)
+		diffNode(patches, seq, childPath, a[oldIdx], b[newIdx])
 	}
 
 	var toDelete []int

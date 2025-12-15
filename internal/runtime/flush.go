@@ -1,16 +1,16 @@
 package runtime
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"runtime/debug"
 	"strings"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
-	"github.com/eleven-am/pondlive/internal/view"
 	"github.com/eleven-am/pondlive/internal/view/diff"
 )
+
+const maxRenderIterations = 100
 
 type effectErrorRecord struct {
 	instance  *Instance
@@ -88,12 +88,6 @@ func (s *Session) Flush() error {
 	}
 	s.flushing = true
 	s.pendingFlush = false
-
-	if s.flushCancel != nil {
-		s.flushCancel()
-	}
-	s.flushCtx, s.flushCancel = context.WithCancel(context.Background())
-
 	s.flushMu.Unlock()
 
 	defer func() {
@@ -109,46 +103,51 @@ func (s *Session) Flush() error {
 
 	s.mu.Lock()
 
-	s.convertRenderErrors = nil
-
-	dirtyComponents := s.collectDirtyComponentsLocked()
 	isFirstRender := s.PrevView == nil
-
 	s.clearRenderedFlags(s.Root)
 
-	if isFirstRender {
-		s.resetRefsForComponent(s.Root)
-		s.Root.Render(s)
-	} else {
-		for _, inst := range dirtyComponents {
+	iteration := 0
+	for {
+		if iteration >= maxRenderIterations {
+			if s.Bus != nil {
+				s.Bus.ReportDiagnostic(protocol.Diagnostic{
+					Phase:   "flush:render-loop",
+					Message: "max render iterations exceeded, possible infinite loop",
+				})
+			}
+			break
+		}
+		iteration++
+
+		dirty := s.collectDirtyComponentsLocked()
+
+		if isFirstRender {
+			s.resetRefsForComponent(s.Root)
+			s.Root.Render(s)
+			isFirstRender = false
+			continue
+		}
+
+		if len(dirty) == 0 {
+			break
+		}
+
+		for _, inst := range dirty {
 			s.resetRefsForComponent(inst)
 			inst.Render(s)
 		}
 	}
 
+	s.flushMu.Lock()
+	s.pendingFlush = false
+	s.flushMu.Unlock()
+
 	s.clearCurrentHandlers()
 
-	oldView := s.View
-	var newView view.Node
-
+	s.PrevView = s.View
 	if s.Root.WorkTree != nil {
 		s.Root.NextHandlerIndex = 0
-		newView = s.convertWorkToView(s.Root.WorkTree, s.Root)
-	}
-
-	wasCancelled := s.flushCtx != nil && s.flushCtx.Err() != nil
-
-	if wasCancelled || (newView == nil && oldView != nil) {
-		s.cleanupStaleHandlers()
-		s.mu.Unlock()
-		return nil
-	}
-
-	s.PrevView = oldView
-	s.View = newView
-
-	if len(s.convertRenderErrors) > 0 {
-		s.propagateConvertRenderErrors()
+		s.View = s.convertWorkToView(s.Root.WorkTree, s.Root)
 	}
 
 	if s.Bus != nil {
@@ -195,12 +194,6 @@ func (s *Session) MarkDirty(inst *Instance) {
 	s.DirtySet[inst] = struct{}{}
 	s.DirtyQueue = append(s.DirtyQueue, inst)
 	s.dirtyMu.Unlock()
-
-	s.flushMu.Lock()
-	if s.flushing && s.flushCancel != nil {
-		s.flushCancel()
-	}
-	s.flushMu.Unlock()
 
 	s.RequestFlush()
 }
@@ -546,47 +539,12 @@ func (s *Session) propagateEffectErrors(errors []*effectErrorRecord) {
 	}
 }
 
-func (s *Session) propagateConvertRenderErrors() {
-	if s == nil || len(s.convertRenderErrors) == 0 {
-		return
-	}
-
-	affectedAncestors := make(map[*Instance]struct{})
-
-	for _, inst := range s.convertRenderErrors {
-		for ancestor := inst.Parent; ancestor != nil; ancestor = ancestor.Parent {
-			if s.hasErrorBoundary(ancestor) {
-				affectedAncestors[ancestor] = struct{}{}
-				break
-			}
-		}
-	}
-
-	s.convertRenderErrors = nil
-
-	for ancestor := range affectedAncestors {
-		s.MarkDirty(ancestor)
-	}
-}
-
 func (s *Session) hasErrorBoundary(inst *Instance) bool {
 	if inst == nil {
 		return false
 	}
 	for _, slot := range inst.HookFrame {
 		if slot.Type == HookTypeErrorBoundary {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *Session) hasAncestorErrorBoundary(inst *Instance) bool {
-	if inst == nil {
-		return false
-	}
-	for ancestor := inst.Parent; ancestor != nil; ancestor = ancestor.Parent {
-		if s.hasErrorBoundary(ancestor) {
 			return true
 		}
 	}

@@ -50,10 +50,9 @@ type Instance struct {
 	ReferencedChildren map[string]bool
 	NextHandlerIndex   int
 
-	RenderError            *Error
-	EffectError            *Error
-	hasDescendantError     bool
-	errorHandledByBoundary bool
+	RenderError        *Error
+	EffectError        *Error
+	hasDescendantError bool
 
 	cleanups   []func()
 	cleanupsMu sync.Mutex
@@ -189,8 +188,16 @@ func (inst *Instance) collectChildErrors() []*Error {
 	var errors []*Error
 
 	inst.mu.Lock()
-	if inst.RenderError != nil {
+	hasError := inst.RenderError != nil
+	hasDescendantError := inst.hasDescendantError
+
+	if hasError {
 		errors = append(errors, inst.RenderError)
+	}
+
+	if !hasDescendantError && !hasError {
+		inst.mu.Unlock()
+		return nil
 	}
 
 	children := make([]*Instance, len(inst.Children))
@@ -225,8 +232,16 @@ func (inst *Instance) collectChildEffectErrors() []*Error {
 	var errors []*Error
 
 	inst.mu.Lock()
-	if inst.EffectError != nil {
+	hasError := inst.EffectError != nil
+	hasDescendantError := inst.hasDescendantError
+
+	if hasError {
 		errors = append(errors, inst.EffectError)
+	}
+
+	if !hasDescendantError && !hasError {
+		inst.mu.Unlock()
+		return nil
 	}
 
 	children := make([]*Instance, len(inst.Children))
@@ -246,11 +261,8 @@ func (inst *Instance) clearChildEffectErrors() {
 	}
 
 	inst.mu.Lock()
+	inst.EffectError = nil
 	inst.hasDescendantError = false
-	if inst.EffectError != nil {
-		inst.errorHandledByBoundary = true
-		inst.EffectError = nil
-	}
 	children := make([]*Instance, len(inst.Children))
 	copy(children, inst.Children)
 	inst.mu.Unlock()
@@ -266,11 +278,8 @@ func (inst *Instance) clearChildErrors() {
 	}
 
 	inst.mu.Lock()
+	inst.RenderError = nil
 	inst.hasDescendantError = false
-	if inst.RenderError != nil {
-		inst.errorHandledByBoundary = true
-		inst.RenderError = nil
-	}
 	children := make([]*Instance, len(inst.Children))
 	copy(children, inst.Children)
 	inst.mu.Unlock()

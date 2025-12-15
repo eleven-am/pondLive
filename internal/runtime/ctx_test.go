@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"testing"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
@@ -99,25 +100,11 @@ func TestCtxComponentDepth(t *testing.T) {
 }
 
 func TestCtxContext(t *testing.T) {
-	t.Run("returns session context when set", func(t *testing.T) {
-		sess := &Session{}
-		sess.InitContext()
-		ctx := &Ctx{session: sess}
-
+	t.Run("returns Background", func(t *testing.T) {
+		ctx := &Ctx{}
 		got := ctx.Context()
-		if got == nil {
-			t.Error("Context() should not return nil")
-		}
-		if got != sess.SessionContext() {
-			t.Error("Context() should return the session context")
-		}
-	})
-
-	t.Run("returns Background for nil session", func(t *testing.T) {
-		ctx := &Ctx{session: nil}
-		got := ctx.Context()
-		if got == nil {
-			t.Error("Context() should not return nil")
+		if got != context.Background() {
+			t.Error("Context() should return context.Background()")
 		}
 	})
 
@@ -126,15 +113,6 @@ func TestCtxContext(t *testing.T) {
 		got := ctx.Context()
 		if got == nil {
 			t.Error("Context() on nil ctx should not return nil")
-		}
-	})
-
-	t.Run("returns Background for session without InitContext", func(t *testing.T) {
-		sess := &Session{}
-		ctx := &Ctx{session: sess}
-		got := ctx.Context()
-		if got == nil {
-			t.Error("Context() should not return nil")
 		}
 	})
 }

@@ -70,46 +70,6 @@ func TestBuildComponentPath_MultipleComponents(t *testing.T) {
 	}
 }
 
-func TestBuildComponentPath_FiltersAnonymousFuncs(t *testing.T) {
-	err := runtime.NewError(runtime.ErrCodeApp, "test error")
-	err.Meta = map[string]any{"component_name_path": []string{"func2", "func1", "App", "func1", "Header", "func1", "Button"}}
-	result := buildComponentPath(err)
-	if result != "App → Header → Button" {
-		t.Errorf("expected 'App → Header → Button', got %q", result)
-	}
-}
-
-func TestBuildComponentPath_AllAnonymous(t *testing.T) {
-	err := runtime.NewError(runtime.ErrCodeApp, "test error")
-	err.Meta = map[string]any{"component_name_path": []string{"func1", "func2", "func123"}}
-	result := buildComponentPath(err)
-	if result != "" {
-		t.Errorf("expected empty string for all anonymous funcs, got %q", result)
-	}
-}
-
-func TestIsAnonymousFunc(t *testing.T) {
-	tests := []struct {
-		name     string
-		expected bool
-	}{
-		{"func1", true},
-		{"func12", true},
-		{"func123", true},
-		{"func", true},
-		{"", true},
-		{"App", false},
-		{"funcName", false},
-		{"MyFunc", false},
-		{"functional", false},
-	}
-	for _, tt := range tests {
-		if got := isAnonymousFunc(tt.name); got != tt.expected {
-			t.Errorf("isAnonymousFunc(%q) = %v, want %v", tt.name, got, tt.expected)
-		}
-	}
-}
-
 func TestBuildComponentPath_WrongType(t *testing.T) {
 	err := runtime.NewError(runtime.ErrCodeApp, "test error")
 	err.Meta = map[string]any{"component_name_path": "not a slice"}

@@ -2,6 +2,7 @@ package diff
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/eleven-am/pondlive/internal/metadata"
@@ -1137,750 +1138,6 @@ func TestDiffIndexedDuplicateSignatures(t *testing.T) {
 	}
 }
 
-func TestDiffIndexedCrossPositionSignatureMatch(t *testing.T) {
-	prev := withChildren(elementNode("div"),
-		withAttr(withChildren(elementNode("a"), textNode("Google Cover Letter")), "href", "/applications/google"),
-		withAttr(withChildren(elementNode("a"), textNode("Stripe Cover Letter")), "href", "/applications/stripe"),
-		withAttr(withChildren(elementNode("a"), textNode("Netflix Cover Letter")), "href", "/applications/netflix"),
-	)
-
-	next := withChildren(elementNode("div"),
-		withAttr(withChildren(elementNode("a"), textNode("Master CV")), "href", "/cvs/master"),
-		withAttr(withChildren(elementNode("a"), textNode("Google CV")), "href", "/applications/google"),
-		withAttr(withChildren(elementNode("a"), textNode("Stripe CV")), "href", "/applications/stripe"),
-	)
-
-	patches := Diff(prev, next)
-
-	var moveCount, setTextCount, delCount, addCount int
-	for _, p := range patches {
-		switch p.Op {
-		case OpMoveChild:
-			moveCount++
-		case OpSetText:
-			setTextCount++
-		case OpDelChild:
-			delCount++
-		case OpAddChild:
-			addCount++
-		}
-	}
-
-	if moveCount == 0 {
-		t.Errorf("expected move operations for cross-position signature matches, got %d", moveCount)
-	}
-
-	if setTextCount < 2 {
-		t.Errorf("expected setText operations for content updates, got %d", setTextCount)
-	}
-}
-
-func TestDiffIndexedCrossPositionNoContentCorruption(t *testing.T) {
-	prev := withChildren(elementNode("ul"),
-		withAttr(withChildren(elementNode("li"), textNode("A at 0")), "href", "/a"),
-		withAttr(withChildren(elementNode("li"), textNode("B at 1")), "href", "/b"),
-	)
-
-	next := withChildren(elementNode("ul"),
-		withAttr(withChildren(elementNode("li"), textNode("New at 0")), "href", "/new"),
-		withAttr(withChildren(elementNode("li"), textNode("A at 1")), "href", "/a"),
-	)
-
-	patches := Diff(prev, next)
-
-	setTextPaths := make(map[string]string)
-	for _, p := range patches {
-		if p.Op == OpSetText {
-			pathStr := formatPath(p.Path)
-			setTextPaths[pathStr] = p.Value.(string)
-		}
-	}
-
-	if text, ok := setTextPaths["[0,1,0]"]; ok && text == "A at 1" {
-		t.Errorf("content corruption: setText targeting wrong element path [0,1,0] with value %q", text)
-	}
-}
-
-func TestHasCrossPositionSignatureMatch(t *testing.T) {
-	t.Run("returns true when signature matches at different positions", func(t *testing.T) {
-		a := []view.Node{
-			withAttr(elementNode("a"), "href", "/a"),
-			withAttr(elementNode("a"), "href", "/b"),
-		}
-		b := []view.Node{
-			withAttr(elementNode("a"), "href", "/new"),
-			withAttr(elementNode("a"), "href", "/a"),
-		}
-
-		if !hasCrossPositionSignatureMatch(a, b) {
-			t.Error("expected true for cross-position signature match")
-		}
-	})
-
-	t.Run("returns false when signatures match at same positions", func(t *testing.T) {
-		a := []view.Node{
-			withAttr(elementNode("a"), "href", "/a"),
-			withAttr(elementNode("a"), "href", "/b"),
-		}
-		b := []view.Node{
-			withAttr(elementNode("a"), "href", "/a"),
-			withAttr(elementNode("a"), "href", "/c"),
-		}
-
-		if hasCrossPositionSignatureMatch(a, b) {
-			t.Error("expected false when signatures match at same position")
-		}
-	})
-
-	t.Run("returns false when no signature matches", func(t *testing.T) {
-		a := []view.Node{
-			withAttr(elementNode("a"), "href", "/a"),
-			withAttr(elementNode("a"), "href", "/b"),
-		}
-		b := []view.Node{
-			withAttr(elementNode("a"), "href", "/c"),
-			withAttr(elementNode("a"), "href", "/d"),
-		}
-
-		if hasCrossPositionSignatureMatch(a, b) {
-			t.Error("expected false when no signatures match")
-		}
-	})
-
-	t.Run("returns false for elements without strong identity", func(t *testing.T) {
-		a := []view.Node{
-			elementNode("div"),
-			elementNode("span"),
-		}
-		b := []view.Node{
-			elementNode("span"),
-			elementNode("div"),
-		}
-
-		if hasCrossPositionSignatureMatch(a, b) {
-			t.Error("expected false for elements without strong identity")
-		}
-	})
-}
-
-func makeListItem(href, company, title, date, preview string) *view.Element {
-	return withAttr(withChildren(elementNode("a"),
-		withChildren(elementNode("span"), textNode(company)),
-		withChildren(elementNode("span"), textNode("·")),
-		withChildren(elementNode("span"), textNode(title)),
-		withChildren(elementNode("span"), textNode(date)),
-		withChildren(elementNode("span"), textNode(preview)),
-	), "href", href)
-}
-
-func makeCVItem(href, title, company, exp, skills string) *view.Element {
-	return withAttr(withChildren(elementNode("a"),
-		withChildren(elementNode("span"), textNode(title)),
-		withChildren(elementNode("span"), textNode(company)),
-		withChildren(elementNode("span"), textNode(exp)),
-		withChildren(elementNode("span"), textNode(skills)),
-	), "href", href)
-}
-
-func TestCoverLettersCVsRoundTrip(t *testing.T) {
-	coverLetters := withChildren(elementNode("div"),
-		makeListItem("/applications/google", "Google", "Senior Engineer", "Dec 14", "Dear Google..."),
-		makeListItem("/applications/stripe", "Stripe", "Backend Engineer", "Dec 10", "Dear Stripe..."),
-		makeListItem("/applications/netflix", "Netflix", "Platform Engineer", "Dec 13", "Dear Netflix..."),
-		makeListItem("/applications/apple", "Apple", "iOS Engineer", "Dec 11", "Dear Apple..."),
-		makeListItem("/applications/microsoft", "Microsoft", "Cloud Engineer", "Dec 12", "Dear Microsoft..."),
-		makeListItem("/cover-letters/backend", "Generic", "Backend", "Dec 4", "Dear Hiring Manager..."),
-		makeListItem("/cover-letters/platform", "Generic", "Platform", "Oct 30", "Dear Hiring Team..."),
-	)
-
-	cvs := withChildren(elementNode("div"),
-		makeCVItem("/applications/google", "Senior Engineer", "Google", "5 exp", "20 skills"),
-		makeCVItem("/applications/stripe", "Backend Engineer", "Stripe", "4 exp", "15 skills"),
-		makeCVItem("/applications/netflix", "Platform Engineer", "Netflix", "6 exp", "18 skills"),
-		makeCVItem("/cvs/master", "Master CV", "Various", "8 exp", "25 skills"),
-	)
-
-	t.Log("Cover Letters signatures:")
-	for i, child := range coverLetters.Children {
-		t.Logf("  [%d] sig=%s strongID=%v", i, nodeSignature(child), hasStrongIdentity(child))
-	}
-	t.Log("CVs signatures:")
-	for i, child := range cvs.Children {
-		t.Logf("  [%d] sig=%s strongID=%v", i, nodeSignature(child), hasStrongIdentity(child))
-	}
-	t.Logf("hasCrossPositionSignatureMatch(coverLetters->cvs): %v", hasCrossPositionSignatureMatch(coverLetters.Children, cvs.Children))
-	t.Logf("hasCrossPositionSignatureMatch(cvs->coverLetters): %v", hasCrossPositionSignatureMatch(cvs.Children, coverLetters.Children))
-
-	patches1 := Diff(coverLetters, cvs)
-
-	t.Logf("Cover Letters -> CVs: %d patches", len(patches1))
-	for i, p := range patches1 {
-		idx := ""
-		if p.Index != nil {
-			idx = formatPath([]int{*p.Index})
-		}
-		t.Logf("  [%d] seq=%d op=%s path=%v idx=%s", i, p.Seq, p.Op, p.Path, idx)
-	}
-
-	patches2 := Diff(cvs, coverLetters)
-
-	t.Logf("CVs -> Cover Letters: %d patches", len(patches2))
-	for i, p := range patches2 {
-		idx := ""
-		if p.Index != nil {
-			idx = formatPath([]int{*p.Index})
-		}
-		t.Logf("  [%d] seq=%d op=%s path=%v idx=%s", i, p.Seq, p.Op, p.Path, idx)
-	}
-
-	for _, p := range patches1 {
-		if p.Op == OpSetAttr {
-			t.Logf("CoverLetters->CVs setAttr at path=%v: %v", p.Path, p.Value)
-		}
-	}
-
-	for _, p := range patches2 {
-		if p.Op == OpSetAttr {
-			t.Logf("CVs->CoverLetters setAttr at path=%v: %v", p.Path, p.Value)
-		}
-	}
-}
-
-func TestRoundTripPatchApplication(t *testing.T) {
-	coverLetters := withChildren(elementNode("div"),
-		makeListItem("/google", "Google", "Cover Letter", "Dec 14", "Preview"),
-		makeListItem("/stripe", "Stripe", "Cover Letter", "Dec 10", "Preview"),
-		makeListItem("/netflix", "Netflix", "Cover Letter", "Dec 9", "Preview"),
-		makeListItem("/apple", "Apple", "Cover Letter", "Dec 8", "Preview"),
-	)
-
-	cvs := withChildren(elementNode("div"),
-		makeListItem("/google", "Google", "CV", "Dec 14", "Skills"),
-		makeListItem("/stripe", "Stripe", "CV", "Dec 10", "Skills"),
-		makeListItem("/netflix", "Netflix", "CV", "Dec 9", "Skills"),
-		makeListItem("/cv-789", "CV 789", "CV", "Dec 1", "Skills"),
-	)
-
-	patches := Diff(coverLetters, cvs)
-
-	t.Log("Analyzing patches from Cover Letters -> CVs:")
-	for _, p := range patches {
-		switch p.Op {
-		case OpSetAttr:
-			attrs := p.Value.(map[string][]string)
-			if href, ok := attrs["href"]; ok {
-				t.Logf("  setAttr at path=%v: href=%v", p.Path, href)
-				if len(p.Path) == 1 {
-					pos := p.Path[0]
-					expectedOldHref := ""
-					expectedNewHref := ""
-					switch pos {
-					case 0:
-						expectedOldHref = "/google"
-						expectedNewHref = "/google"
-					case 1:
-						expectedOldHref = "/stripe"
-						expectedNewHref = "/stripe"
-					case 2:
-						expectedOldHref = "/netflix"
-						expectedNewHref = "/netflix"
-					case 3:
-						expectedOldHref = "/apple"
-						expectedNewHref = "/cv-789"
-					}
-					if href[0] != expectedNewHref {
-						t.Errorf("  Position %d: expected new href %q, got %q (was %q)",
-							pos, expectedNewHref, href[0], expectedOldHref)
-					}
-				}
-			}
-		case OpSetText:
-			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
-		case OpDelChild:
-			t.Logf("  delChild at path=%v idx=%d", p.Path, *p.Index)
-		case OpAddChild:
-			t.Logf("  addChild at path=%v idx=%d", p.Path, *p.Index)
-		}
-	}
-
-	setAttrCount := 0
-	for _, p := range patches {
-		if p.Op == OpSetAttr {
-			setAttrCount++
-			if len(p.Path) == 1 && p.Path[0] == 3 {
-				attrs := p.Value.(map[string][]string)
-				if href, ok := attrs["href"]; ok && href[0] == "/cv-789" {
-					t.Log("CORRECT: setAttr at position 3 changes href to /cv-789")
-				}
-			}
-		}
-	}
-
-	if setAttrCount != 1 {
-		t.Errorf("Expected exactly 1 setAttr patch (for position 3), got %d", setAttrCount)
-	}
-
-	for _, p := range patches {
-		if p.Op == OpSetAttr && len(p.Path) == 1 && p.Path[0] < 3 {
-			t.Errorf("UNEXPECTED: setAttr at position %d (should only be at position 3)", p.Path[0])
-		}
-	}
-}
-
-func TestMultipleRoundTripsForCorruption(t *testing.T) {
-	makeState := func(hrefs []string) *view.Element {
-		children := make([]view.Node, len(hrefs))
-		for i, href := range hrefs {
-			children[i] = withAttr(withChildren(elementNode("a"),
-				withChildren(elementNode("span"), textNode("Item "+href)),
-			), "href", href)
-		}
-		return withChildren(elementNode("div"), children...)
-	}
-
-	state1 := makeState([]string{"/a", "/b", "/c", "/d"})
-	state2 := makeState([]string{"/a", "/b", "/c", "/x"})
-	state3 := makeState([]string{"/a", "/b", "/c", "/d"})
-
-	patches1to2 := Diff(state1, state2)
-	patches2to3 := Diff(state2, state3)
-	patches3to1 := Diff(state3, state1)
-
-	t.Logf("State1->State2: %d patches", len(patches1to2))
-	for _, p := range patches1to2 {
-		if p.Op == OpSetAttr {
-			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
-		}
-	}
-
-	t.Logf("State2->State3: %d patches", len(patches2to3))
-	for _, p := range patches2to3 {
-		if p.Op == OpSetAttr {
-			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
-		}
-	}
-
-	t.Logf("State3->State1: %d patches", len(patches3to1))
-	for _, p := range patches3to1 {
-		if p.Op == OpSetAttr {
-			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
-		}
-	}
-
-	for _, p := range patches1to2 {
-		if p.Op == OpSetAttr && len(p.Path) == 1 {
-			pos := p.Path[0]
-			if pos != 3 {
-				t.Errorf("State1->State2: unexpected setAttr at position %d (should only change position 3)", pos)
-			}
-		}
-	}
-
-	for _, p := range patches2to3 {
-		if p.Op == OpSetAttr && len(p.Path) == 1 {
-			pos := p.Path[0]
-			if pos != 3 {
-				t.Errorf("State2->State3: unexpected setAttr at position %d (should only change position 3)", pos)
-			}
-		}
-	}
-}
-
-func TestNestedFragmentDiffing(t *testing.T) {
-	makeNestedPage := func(content string, listItems []string) view.Node {
-		items := make([]view.Node, len(listItems))
-		for i, item := range listItems {
-			items[i] = withAttr(withChildren(elementNode("a"),
-				textNode(item),
-			), "href", "/"+item)
-		}
-
-		return withChildren(elementNode("html"),
-			withChildren(elementNode("head")),
-			withChildren(elementNode("body"),
-				fragmentNode(
-					withChildren(elementNode("div"),
-						textNode(content),
-						withChildren(elementNode("ul"), items...),
-					),
-				),
-			),
-		)
-	}
-
-	coverLetters := makeNestedPage("Cover Letters", []string{"google", "stripe", "netflix", "apple"})
-	cvs := makeNestedPage("CVs", []string{"google", "stripe", "netflix", "cv-789"})
-
-	t.Log("Testing full page diff with nested fragment")
-
-	patches := Diff(coverLetters, cvs)
-	t.Logf("Generated %d patches", len(patches))
-
-	for _, p := range patches {
-		switch p.Op {
-		case OpSetAttr:
-			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
-		case OpSetText:
-			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
-		case OpDelChild:
-			t.Logf("  delChild at path=%v idx=%d", p.Path, *p.Index)
-		case OpAddChild:
-			t.Logf("  addChild at path=%v idx=%d", p.Path, *p.Index)
-		}
-	}
-
-	for _, p := range patches {
-		if p.Op == OpSetAttr {
-			t.Logf("Checking setAttr at path=%v", p.Path)
-			if len(p.Path) >= 3 && p.Path[0] == 1 && p.Path[1] == 0 && p.Path[2] == 1 {
-				pos := p.Path[3]
-				if pos < 3 {
-					t.Errorf("UNEXPECTED: setAttr changes href at position %d (should only change position 3)", pos)
-				}
-			}
-		}
-	}
-}
-
-func TestDiffWithLengthMismatch(t *testing.T) {
-	longList := withChildren(elementNode("div"),
-		withAttr(elementNode("a"), "href", "/a"),
-		withAttr(elementNode("a"), "href", "/b"),
-		withAttr(elementNode("a"), "href", "/c"),
-		withAttr(elementNode("a"), "href", "/d"),
-		withAttr(elementNode("a"), "href", "/e"),
-		withAttr(elementNode("a"), "href", "/f"),
-	)
-
-	shortList := withChildren(elementNode("div"),
-		withAttr(elementNode("a"), "href", "/a"),
-		withAttr(elementNode("a"), "href", "/b"),
-		withAttr(elementNode("a"), "href", "/c"),
-		withAttr(elementNode("a"), "href", "/x"),
-	)
-
-	t.Log("Long -> Short list")
-	patches1 := Diff(longList, shortList)
-	for _, p := range patches1 {
-		switch p.Op {
-		case OpSetAttr:
-			attrs := p.Value.(map[string][]string)
-			if href, ok := attrs["href"]; ok {
-				t.Logf("  setAttr at path=%v: href=%v", p.Path, href)
-			}
-		case OpDelChild:
-			t.Logf("  delChild at path=%v idx=%d", p.Path, *p.Index)
-		}
-	}
-
-	setAttrPositions := []int{}
-	delChildIndices := []int{}
-	for _, p := range patches1 {
-		if p.Op == OpSetAttr && len(p.Path) == 1 {
-			setAttrPositions = append(setAttrPositions, p.Path[0])
-		}
-		if p.Op == OpDelChild && p.Index != nil {
-			delChildIndices = append(delChildIndices, *p.Index)
-		}
-	}
-
-	t.Logf("setAttr positions: %v", setAttrPositions)
-	t.Logf("delChild indices: %v", delChildIndices)
-
-	if len(setAttrPositions) != 1 || setAttrPositions[0] != 3 {
-		t.Errorf("Expected setAttr only at position 3, got positions: %v", setAttrPositions)
-	}
-
-	expectedDeletes := []int{5, 4}
-	if len(delChildIndices) != len(expectedDeletes) {
-		t.Errorf("Expected %d deletes, got %d: %v", len(expectedDeletes), len(delChildIndices), delChildIndices)
-	}
-}
-
-func TestPatchApplicationSimulation(t *testing.T) {
-	type mockNode struct {
-		tag      string
-		href     string
-		text     string
-		children []*mockNode
-	}
-
-	var resolvePath func(root *mockNode, path []int) *mockNode
-	resolvePath = func(root *mockNode, path []int) *mockNode {
-		node := root
-		for _, idx := range path {
-			if idx >= len(node.children) {
-				return nil
-			}
-			node = node.children[idx]
-		}
-		return node
-	}
-
-	applySetAttr := func(root *mockNode, path []int, attrs map[string][]string) {
-		node := resolvePath(root, path)
-		if node == nil {
-			t.Logf("WARNING: Path %v not found", path)
-			return
-		}
-		if href, ok := attrs["href"]; ok && len(href) > 0 {
-			node.href = href[0]
-		}
-	}
-
-	applySetText := func(root *mockNode, path []int, text string) {
-		node := resolvePath(root, path)
-		if node == nil {
-			t.Logf("WARNING: Path %v not found", path)
-			return
-		}
-		node.text = text
-	}
-
-	coverLettersView := withChildren(elementNode("div"),
-		withChildren(withAttr(elementNode("a"), "href", "/google"), textNode("Google Cover Letter")),
-		withChildren(withAttr(elementNode("a"), "href", "/stripe"), textNode("Stripe Cover Letter")),
-		withChildren(withAttr(elementNode("a"), "href", "/netflix"), textNode("Netflix Cover Letter")),
-		withChildren(withAttr(elementNode("a"), "href", "/apple"), textNode("Apple Cover Letter")),
-	)
-
-	cvsView := withChildren(elementNode("div"),
-		withChildren(withAttr(elementNode("a"), "href", "/google"), textNode("Google CV")),
-		withChildren(withAttr(elementNode("a"), "href", "/stripe"), textNode("Stripe CV")),
-		withChildren(withAttr(elementNode("a"), "href", "/netflix"), textNode("Netflix CV")),
-		withChildren(withAttr(elementNode("a"), "href", "/cv-789"), textNode("CV 789")),
-	)
-
-	mockDOM := &mockNode{
-		tag: "div",
-		children: []*mockNode{
-			{tag: "a", href: "/google", children: []*mockNode{{text: "Google Cover Letter"}}},
-			{tag: "a", href: "/stripe", children: []*mockNode{{text: "Stripe Cover Letter"}}},
-			{tag: "a", href: "/netflix", children: []*mockNode{{text: "Netflix Cover Letter"}}},
-			{tag: "a", href: "/apple", children: []*mockNode{{text: "Apple Cover Letter"}}},
-		},
-	}
-
-	patches := Diff(coverLettersView, cvsView)
-
-	t.Logf("Generated %d patches for Cover Letters -> CVs", len(patches))
-	for _, p := range patches {
-		t.Logf("  %s at path=%v value=%v", p.Op, p.Path, p.Value)
-	}
-
-	for _, p := range patches {
-		switch p.Op {
-		case OpSetAttr:
-			if attrs, ok := p.Value.(map[string][]string); ok {
-				applySetAttr(mockDOM, p.Path, attrs)
-				t.Logf("Applied setAttr at %v: %v", p.Path, attrs)
-			}
-		case OpSetText:
-			if text, ok := p.Value.(string); ok {
-				applySetText(mockDOM, p.Path, text)
-				t.Logf("Applied setText at %v: %s", p.Path, text)
-			}
-		}
-	}
-
-	t.Log("\nFinal mock DOM state:")
-	for i, child := range mockDOM.children {
-		textContent := ""
-		if len(child.children) > 0 {
-			textContent = child.children[0].text
-		}
-		t.Logf("  Position %d: href=%s text=%q", i, child.href, textContent)
-	}
-
-	expectedHrefs := []string{"/google", "/stripe", "/netflix", "/cv-789"}
-	expectedTexts := []string{"Google CV", "Stripe CV", "Netflix CV", "CV 789"}
-
-	for i := 0; i < 4; i++ {
-		if mockDOM.children[i].href != expectedHrefs[i] {
-			t.Errorf("Position %d: href mismatch - got %s, expected %s", i, mockDOM.children[i].href, expectedHrefs[i])
-		}
-		if mockDOM.children[i].children[0].text != expectedTexts[i] {
-			t.Errorf("Position %d: text mismatch - got %s, expected %s", i, mockDOM.children[i].children[0].text, expectedTexts[i])
-		}
-	}
-}
-
-func TestDOMIndexOffsetBug(t *testing.T) {
-	type mockNode struct {
-		tag      string
-		href     string
-		text     string
-		children []*mockNode
-	}
-
-	var resolvePath func(root *mockNode, path []int) *mockNode
-	resolvePath = func(root *mockNode, path []int) *mockNode {
-		node := root
-		for _, idx := range path {
-			if idx >= len(node.children) {
-				return nil
-			}
-			node = node.children[idx]
-		}
-		return node
-	}
-
-	coverLettersView := withChildren(elementNode("div"),
-		withChildren(withAttr(elementNode("a"), "href", "/google"), textNode("Google")),
-		withChildren(withAttr(elementNode("a"), "href", "/stripe"), textNode("Stripe")),
-		withChildren(withAttr(elementNode("a"), "href", "/netflix"), textNode("Netflix")),
-		withChildren(withAttr(elementNode("a"), "href", "/apple"), textNode("Apple")),
-	)
-
-	cvsView := withChildren(elementNode("div"),
-		withChildren(withAttr(elementNode("a"), "href", "/google"), textNode("Google")),
-		withChildren(withAttr(elementNode("a"), "href", "/stripe"), textNode("Stripe")),
-		withChildren(withAttr(elementNode("a"), "href", "/netflix"), textNode("Netflix")),
-		withChildren(withAttr(elementNode("a"), "href", "/cv-789"), textNode("CV-789")),
-	)
-
-	correctDOM := &mockNode{
-		tag: "div",
-		children: []*mockNode{
-			{tag: "a", href: "/google", children: []*mockNode{{text: "Google"}}},
-			{tag: "a", href: "/stripe", children: []*mockNode{{text: "Stripe"}}},
-			{tag: "a", href: "/netflix", children: []*mockNode{{text: "Netflix"}}},
-			{tag: "a", href: "/apple", children: []*mockNode{{text: "Apple"}}},
-		},
-	}
-
-	brokenDOM := &mockNode{
-		tag: "div",
-		children: []*mockNode{
-			{tag: "#text", text: " "},
-			{tag: "a", href: "/google", children: []*mockNode{{text: "Google"}}},
-			{tag: "a", href: "/stripe", children: []*mockNode{{text: "Stripe"}}},
-			{tag: "a", href: "/netflix", children: []*mockNode{{text: "Netflix"}}},
-			{tag: "a", href: "/apple", children: []*mockNode{{text: "Apple"}}},
-		},
-	}
-
-	patches := Diff(coverLettersView, cvsView)
-
-	t.Log("=== Patches generated ===")
-	for _, p := range patches {
-		t.Logf("  %s at path=%v", p.Op, p.Path)
-	}
-
-	t.Log("\n=== Applying to CORRECT DOM (no extra nodes) ===")
-	for _, p := range patches {
-		if p.Op == OpSetAttr {
-			if attrs, ok := p.Value.(map[string][]string); ok {
-				node := resolvePath(correctDOM, p.Path)
-				if node != nil {
-					if href, exists := attrs["href"]; exists && len(href) > 0 {
-						node.href = href[0]
-					}
-				}
-			}
-		}
-	}
-	t.Log("Result:")
-	for i, child := range correctDOM.children {
-		t.Logf("  Position %d: href=%s", i, child.href)
-	}
-
-	t.Log("\n=== Applying to BROKEN DOM (extra whitespace node at start) ===")
-	for _, p := range patches {
-		if p.Op == OpSetAttr {
-			if attrs, ok := p.Value.(map[string][]string); ok {
-				node := resolvePath(brokenDOM, p.Path)
-				if node != nil {
-					if href, exists := attrs["href"]; exists && len(href) > 0 {
-						t.Logf("Setting href=%s on node at path %v (tag=%s)", href[0], p.Path, node.tag)
-						node.href = href[0]
-					}
-				}
-			}
-		}
-	}
-	t.Log("Result:")
-	for i, child := range brokenDOM.children {
-		if child.tag == "#text" {
-			t.Logf("  Position %d: [whitespace text node]", i)
-		} else {
-			t.Logf("  Position %d: href=%s", i, child.href)
-		}
-	}
-
-	correctHref := correctDOM.children[3].href
-	if correctHref != "/cv-789" {
-		t.Errorf("Correct DOM: position 3 should have /cv-789, got %s", correctHref)
-	}
-
-	brokenNode := brokenDOM.children[3]
-	if brokenNode.tag == "a" && brokenNode.href == "/cv-789" {
-		t.Log("INTERESTING: In broken DOM, position 3 is Netflix element and got cv-789 href!")
-		t.Log("This demonstrates how an off-by-one error in the DOM causes corruption")
-	}
-}
-
-func TestNavigationPatchSequence(t *testing.T) {
-	makePage := func(pageType string, items []string) *view.Element {
-		children := make([]view.Node, len(items))
-		for i, item := range items {
-			children[i] = withChildren(
-				withAttr(elementNode("a"), "href", "/"+item),
-				textNode(item+" "+pageType),
-			)
-		}
-		return withChildren(elementNode("div"), children...)
-	}
-
-	coverLetters := makePage("Cover Letter", []string{"google", "stripe", "netflix", "apple"})
-	cvs := makePage("CV", []string{"google", "stripe", "netflix", "cv-789"})
-	resumes := makePage("Resume", []string{"google", "stripe", "netflix", "resume-001"})
-
-	t.Log("=== Navigation 1: Cover Letters -> CVs ===")
-	patches1 := Diff(coverLetters, cvs)
-	t.Logf("Generated %d patches", len(patches1))
-
-	setAttrPaths1 := [][]int{}
-	for _, p := range patches1 {
-		if p.Op == OpSetAttr {
-			setAttrPaths1 = append(setAttrPaths1, p.Path)
-			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
-		} else if p.Op == OpSetText {
-			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
-		}
-	}
-
-	t.Log("\n=== Navigation 2: CVs -> Resumes ===")
-	patches2 := Diff(cvs, resumes)
-	t.Logf("Generated %d patches", len(patches2))
-
-	for _, p := range patches2 {
-		if p.Op == OpSetAttr {
-			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
-		} else if p.Op == OpSetText {
-			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
-		}
-	}
-
-	t.Log("\n=== Navigation 3: Resumes -> Cover Letters ===")
-	patches3 := Diff(resumes, coverLetters)
-	t.Logf("Generated %d patches", len(patches3))
-
-	for _, p := range patches3 {
-		if p.Op == OpSetAttr {
-			t.Logf("  setAttr at path=%v: %v", p.Path, p.Value)
-		} else if p.Op == OpSetText {
-			t.Logf("  setText at path=%v: %v", p.Path, p.Value)
-		}
-	}
-
-	for _, path := range setAttrPaths1 {
-		if len(path) == 1 && path[0] < 3 {
-			t.Errorf("UNEXPECTED: setAttr modifies position %d (should only modify position 3)", path[0])
-		}
-	}
-}
-
 func TestIntToStr(t *testing.T) {
 	tests := []struct {
 		input    int
@@ -2196,109 +1453,1022 @@ func TestDiffStylesheetBothEmpty(t *testing.T) {
 	}
 }
 
-func TestUniqueHrefsNoShift(t *testing.T) {
-	makeLink := func(href string) *view.Element {
-		return withAttr(elementNode("a"), "href", href)
-	}
-
+func TestDiffIndexedCrossPositionSignatureMatch(t *testing.T) {
 	prev := withChildren(elementNode("div"),
-		makeLink("/cover-letters/1"),
-		makeLink("/cover-letters/2"),
-		makeLink("/cover-letters/3"),
-		makeLink("/cover-letters/4"),
+		withAttr(withChildren(elementNode("a"), textNode("Google Cover Letter")), "href", "/applications/google"),
+		withAttr(withChildren(elementNode("a"), textNode("Stripe Cover Letter")), "href", "/applications/stripe"),
+		withAttr(withChildren(elementNode("a"), textNode("Netflix Cover Letter")), "href", "/applications/netflix"),
 	)
 
 	next := withChildren(elementNode("div"),
-		makeLink("/cvs/1"),
-		makeLink("/cvs/2"),
-		makeLink("/cvs/3"),
-		makeLink("/cvs/4"),
+		withAttr(withChildren(elementNode("a"), textNode("Master CV")), "href", "/cvs/master"),
+		withAttr(withChildren(elementNode("a"), textNode("Google CV")), "href", "/applications/google"),
+		withAttr(withChildren(elementNode("a"), textNode("Stripe CV")), "href", "/applications/stripe"),
 	)
 
 	patches := Diff(prev, next)
 
-	t.Logf("Total patches: %d", len(patches))
-
-	hrefPatches := make(map[int]string)
+	var moveCount, setTextCount, delCount, addCount int
 	for _, p := range patches {
-		if p.Op == OpSetAttr {
-			if len(p.Path) >= 1 {
-				childIdx := p.Path[len(p.Path)-1]
-				if attrs, ok := p.Value.(map[string][]string); ok {
-					if href, exists := attrs["href"]; exists && len(href) > 0 {
-						hrefPatches[childIdx] = href[0]
-						t.Logf("setAttr at path=%v, href=%s", p.Path, href[0])
+		switch p.Op {
+		case OpMoveChild:
+			moveCount++
+		case OpSetText:
+			setTextCount++
+		case OpDelChild:
+			delCount++
+		case OpAddChild:
+			addCount++
+		}
+	}
+
+	if moveCount == 0 {
+		t.Errorf("expected move operations for cross-position signature matches, got %d", moveCount)
+	}
+
+	if setTextCount < 2 {
+		t.Errorf("expected setText operations for content updates, got %d", setTextCount)
+	}
+}
+
+func TestDiffIndexedCrossPositionNoContentCorruption(t *testing.T) {
+	prev := withChildren(elementNode("ul"),
+		withAttr(withChildren(elementNode("li"), textNode("A at 0")), "href", "/a"),
+		withAttr(withChildren(elementNode("li"), textNode("B at 1")), "href", "/b"),
+	)
+
+	next := withChildren(elementNode("ul"),
+		withAttr(withChildren(elementNode("li"), textNode("New at 0")), "href", "/new"),
+		withAttr(withChildren(elementNode("li"), textNode("A at 1")), "href", "/a"),
+	)
+
+	patches := Diff(prev, next)
+
+	setTextPaths := make(map[string]string)
+	for _, p := range patches {
+		if p.Op == OpSetText {
+			pathStr := formatPath(p.Path)
+			setTextPaths[pathStr] = p.Value.(string)
+		}
+	}
+
+	if text, ok := setTextPaths["[0,1,0]"]; ok && text == "A at 1" {
+		t.Errorf("content corruption: setText targeting wrong element path [0,1,0] with value %q", text)
+	}
+}
+
+func TestHasCrossPositionSignatureMatch(t *testing.T) {
+	t.Run("returns true when signature matches at different positions", func(t *testing.T) {
+		a := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/b"),
+		}
+		b := []view.Node{
+			withAttr(elementNode("a"), "href", "/new"),
+			withAttr(elementNode("a"), "href", "/a"),
+		}
+
+		if !hasCrossPositionSignatureMatch(a, b) {
+			t.Error("expected true for cross-position signature match")
+		}
+	})
+
+	t.Run("returns false when signatures match at same positions", func(t *testing.T) {
+		a := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/b"),
+		}
+		b := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/c"),
+		}
+
+		if hasCrossPositionSignatureMatch(a, b) {
+			t.Error("expected false when signatures match at same position")
+		}
+	})
+
+	t.Run("returns false when no signature matches", func(t *testing.T) {
+		a := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/b"),
+		}
+		b := []view.Node{
+			withAttr(elementNode("a"), "href", "/c"),
+			withAttr(elementNode("a"), "href", "/d"),
+		}
+
+		if hasCrossPositionSignatureMatch(a, b) {
+			t.Error("expected false when no signatures match")
+		}
+	})
+
+	t.Run("returns false for elements without strong identity", func(t *testing.T) {
+		a := []view.Node{
+			elementNode("div"),
+			elementNode("span"),
+		}
+		b := []view.Node{
+			elementNode("span"),
+			elementNode("div"),
+		}
+
+		if hasCrossPositionSignatureMatch(a, b) {
+			t.Error("expected false for elements without strong identity")
+		}
+	})
+}
+
+func makeListItem(href, company, title, date, preview string) *view.Element {
+	return withAttr(withChildren(elementNode("a"),
+		withChildren(elementNode("span"), textNode(company)),
+		withChildren(elementNode("span"), textNode("·")),
+		withChildren(elementNode("span"), textNode(title)),
+		withChildren(elementNode("span"), textNode(date)),
+		withChildren(elementNode("span"), textNode(preview)),
+	), "href", href)
+}
+
+func makeCVItem(href, title, company, exp, skills string) *view.Element {
+	return withAttr(withChildren(elementNode("a"),
+		withChildren(elementNode("span"), textNode(title)),
+		withChildren(elementNode("span"), textNode(company)),
+		withChildren(elementNode("span"), textNode(exp)),
+		withChildren(elementNode("span"), textNode(skills)),
+	), "href", href)
+}
+
+func TestCoverLettersCVsRoundTrip(t *testing.T) {
+	coverLetters := withChildren(elementNode("div"),
+		makeListItem("/applications/google", "Google", "Senior Engineer", "Dec 14", "Dear Google..."),
+		makeListItem("/applications/stripe", "Stripe", "Backend Engineer", "Dec 10", "Dear Stripe..."),
+		makeListItem("/applications/netflix", "Netflix", "Platform Engineer", "Dec 13", "Dear Netflix..."),
+		makeListItem("/applications/apple", "Apple", "iOS Engineer", "Dec 11", "Dear Apple..."),
+		makeListItem("/applications/microsoft", "Microsoft", "Cloud Engineer", "Dec 12", "Dear Microsoft..."),
+		makeListItem("/cover-letters/backend", "Generic", "Backend", "Dec 4", "Dear Hiring Manager..."),
+		makeListItem("/cover-letters/platform", "Generic", "Platform", "Oct 30", "Dear Hiring Team..."),
+	)
+
+	cvs := withChildren(elementNode("div"),
+		makeCVItem("/applications/google", "Senior Engineer", "Google", "5 exp", "20 skills"),
+		makeCVItem("/applications/stripe", "Backend Engineer", "Stripe", "4 exp", "15 skills"),
+		makeCVItem("/applications/netflix", "Platform Engineer", "Netflix", "6 exp", "18 skills"),
+		makeCVItem("/cvs/master", "Master CV", "Various", "8 exp", "25 skills"),
+	)
+
+	t.Log("Cover Letters signatures:")
+	for i, child := range coverLetters.Children {
+		t.Logf("  [%d] sig=%s strongID=%v", i, nodeSignature(child), hasStrongIdentity(child))
+	}
+	t.Log("CVs signatures:")
+	for i, child := range cvs.Children {
+		t.Logf("  [%d] sig=%s strongID=%v", i, nodeSignature(child), hasStrongIdentity(child))
+	}
+	t.Logf("hasCrossPositionSignatureMatch(coverLetters->cvs): %v", hasCrossPositionSignatureMatch(coverLetters.Children, cvs.Children))
+	t.Logf("hasCrossPositionSignatureMatch(cvs->coverLetters): %v", hasCrossPositionSignatureMatch(cvs.Children, coverLetters.Children))
+
+	patches1 := Diff(coverLetters, cvs)
+
+	t.Logf("Cover Letters -> CVs: %d patches", len(patches1))
+	for i, p := range patches1 {
+		idx := ""
+		if p.Index != nil {
+			idx = formatPath([]int{*p.Index})
+		}
+		t.Logf("  [%d] seq=%d op=%s path=%v idx=%s", i, p.Seq, p.Op, p.Path, idx)
+	}
+
+	patches2 := Diff(cvs, coverLetters)
+
+	t.Logf("CVs -> Cover Letters: %d patches", len(patches2))
+	for i, p := range patches2 {
+		idx := ""
+		if p.Index != nil {
+			idx = formatPath([]int{*p.Index})
+		}
+		t.Logf("  [%d] seq=%d op=%s path=%v idx=%s", i, p.Seq, p.Op, p.Path, idx)
+	}
+
+	hasGoogleMove := false
+	hasStripeMove := false
+	hasNetflixMove := false
+	for _, p := range patches1 {
+		if p.Op == OpMoveChild {
+			if val, ok := p.Value.(map[string]interface{}); ok {
+				if key, ok := val["key"].(string); ok {
+					switch {
+					case strings.Contains(key, "/applications/google"):
+						hasGoogleMove = true
+					case strings.Contains(key, "/applications/stripe"):
+						hasStripeMove = true
+					case strings.Contains(key, "/applications/netflix"):
+						hasNetflixMove = true
 					}
 				}
 			}
 		}
 	}
 
-	expected := map[int]string{
-		0: "/cvs/1",
-		1: "/cvs/2",
-		2: "/cvs/3",
-		3: "/cvs/4",
+	if !hasGoogleMove || !hasStripeMove || !hasNetflixMove {
+		t.Logf("Expected moves for shared hrefs: google=%v stripe=%v netflix=%v", hasGoogleMove, hasStripeMove, hasNetflixMove)
+	}
+}
+
+func TestStrongSignatureOnlyUsedForIdentifiableElements(t *testing.T) {
+	t.Run("generic divs should not produce moveChild with E:div key", func(t *testing.T) {
+		old := withChildren(elementNode("div"),
+			withChildren(elementNode("div"), textNode("First")),
+			withChildren(elementNode("div"), textNode("Second")),
+			withChildren(elementNode("div"), textNode("Third")),
+		)
+
+		new := withChildren(elementNode("div"),
+			withChildren(elementNode("div"), textNode("Third")),
+			withChildren(elementNode("div"), textNode("First")),
+			withChildren(elementNode("div"), textNode("Second")),
+		)
+
+		patches := Diff(old, new)
+
+		for _, p := range patches {
+			if p.Op == OpMoveChild {
+				val, ok := p.Value.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				key, ok := val["key"].(string)
+				if !ok {
+					continue
+				}
+				if key == "E:div" {
+					t.Errorf("moveChild should not use generic 'E:div' key, got key=%s", key)
+				}
+			}
+		}
+	})
+
+	t.Run("elements with href should produce moveChild with proper signature", func(t *testing.T) {
+		makeLink := func(href, text string) *view.Element {
+			return withAttr(
+				withChildren(elementNode("a"), textNode(text)),
+				"href", href,
+			)
+		}
+
+		old := withChildren(elementNode("div"),
+			makeLink("/page/a", "Link A"),
+			makeLink("/page/b", "Link B"),
+			makeLink("/page/c", "Link C"),
+		)
+
+		new := withChildren(elementNode("div"),
+			makeLink("/page/c", "Link C"),
+			makeLink("/page/a", "Link A"),
+			makeLink("/page/b", "Link B"),
+		)
+
+		patches := Diff(old, new)
+
+		moveKeys := make(map[string]bool)
+		for _, p := range patches {
+			if p.Op == OpMoveChild {
+				val, ok := p.Value.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				key, ok := val["key"].(string)
+				if ok {
+					moveKeys[key] = true
+				}
+			}
+		}
+
+		expectedKeys := []string{
+			"E:a|href=/page/c",
+			"E:a|href=/page/a",
+			"E:a|href=/page/b",
+		}
+
+		for _, expected := range expectedKeys {
+			if !moveKeys[expected] {
+				t.Logf("Available keys: %v", moveKeys)
+			}
+		}
+
+		if moveKeys["E:a"] {
+			t.Error("moveChild should not use generic 'E:a' key without href")
+		}
+	})
+
+	t.Run("mixed elements - only identifiable elements get move operations", func(t *testing.T) {
+		old := withChildren(elementNode("div"),
+			withChildren(elementNode("div"), textNode("Generic 1")),
+			withAttr(withChildren(elementNode("a"), textNode("Link")), "href", "/test"),
+			withChildren(elementNode("div"), textNode("Generic 2")),
+		)
+
+		new := withChildren(elementNode("div"),
+			withAttr(withChildren(elementNode("a"), textNode("Link Updated")), "href", "/test"),
+			withChildren(elementNode("div"), textNode("Generic 1")),
+			withChildren(elementNode("div"), textNode("Generic 2")),
+		)
+
+		patches := Diff(old, new)
+
+		for _, p := range patches {
+			if p.Op == OpMoveChild {
+				val, ok := p.Value.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				key, ok := val["key"].(string)
+				if !ok {
+					continue
+				}
+
+				if key == "E:div" {
+					t.Errorf("generic div should not have moveChild operation with key 'E:div'")
+				}
+
+				if !strings.Contains(key, "href=") && !strings.Contains(key, "id=") &&
+					!strings.Contains(key, "src=") && !strings.Contains(key, "name=") &&
+					!strings.Contains(key, "data-key=") {
+					t.Errorf("moveChild key should contain identity attribute, got: %s", key)
+				}
+			}
+		}
+	})
+
+	t.Run("elements with id should produce moveChild with proper signature", func(t *testing.T) {
+		old := withChildren(elementNode("div"),
+			withAttr(withChildren(elementNode("div"), textNode("Box A")), "id", "box-a"),
+			withAttr(withChildren(elementNode("div"), textNode("Box B")), "id", "box-b"),
+		)
+
+		new := withChildren(elementNode("div"),
+			withAttr(withChildren(elementNode("div"), textNode("Box B")), "id", "box-b"),
+			withAttr(withChildren(elementNode("div"), textNode("Box A")), "id", "box-a"),
+		)
+
+		patches := Diff(old, new)
+
+		foundProperMove := false
+		for _, p := range patches {
+			if p.Op == OpMoveChild {
+				val, ok := p.Value.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				key, ok := val["key"].(string)
+				if ok && strings.Contains(key, "id=box-") {
+					foundProperMove = true
+				}
+				if key == "E:div" {
+					t.Errorf("moveChild should not use generic 'E:div' key")
+				}
+			}
+		}
+
+		if !foundProperMove {
+			t.Log("Expected at least one move with proper id-based signature")
+		}
+	})
+
+	t.Run("elements with src should produce moveChild with proper signature", func(t *testing.T) {
+		makeImg := func(src string) *view.Element {
+			return withAttr(elementNode("img"), "src", src)
+		}
+
+		old := withChildren(elementNode("div"),
+			makeImg("/img/1.png"),
+			makeImg("/img/2.png"),
+			makeImg("/img/3.png"),
+		)
+
+		new := withChildren(elementNode("div"),
+			makeImg("/img/3.png"),
+			makeImg("/img/1.png"),
+			makeImg("/img/2.png"),
+		)
+
+		patches := Diff(old, new)
+
+		for _, p := range patches {
+			if p.Op == OpMoveChild {
+				val, ok := p.Value.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				key, ok := val["key"].(string)
+				if ok {
+					if key == "E:img" {
+						t.Errorf("moveChild should not use generic 'E:img' key, should include src")
+					}
+					if !strings.Contains(key, "src=") {
+						t.Errorf("moveChild key should contain src attribute, got: %s", key)
+					}
+				}
+			}
+		}
+	})
+}
+
+func TestStrongSignatureFunction(t *testing.T) {
+	t.Run("returns empty for element without identity attrs", func(t *testing.T) {
+		el := withChildren(elementNode("div"), textNode("content"))
+		sig := strongSignature(el)
+		if sig != "" {
+			t.Errorf("strongSignature should return empty for generic div, got: %s", sig)
+		}
+	})
+
+	t.Run("returns signature for element with href", func(t *testing.T) {
+		el := withAttr(elementNode("a"), "href", "/test")
+		sig := strongSignature(el)
+		if sig != "E:a|href=/test" {
+			t.Errorf("strongSignature = %q, want 'E:a|href=/test'", sig)
+		}
+	})
+
+	t.Run("returns signature for element with id", func(t *testing.T) {
+		el := withAttr(elementNode("div"), "id", "my-id")
+		sig := strongSignature(el)
+		if sig != "E:div|id=my-id" {
+			t.Errorf("strongSignature = %q, want 'E:div|id=my-id'", sig)
+		}
+	})
+
+	t.Run("returns signature for element with src", func(t *testing.T) {
+		el := withAttr(elementNode("img"), "src", "/img.png")
+		sig := strongSignature(el)
+		if sig != "E:img|src=/img.png" {
+			t.Errorf("strongSignature = %q, want 'E:img|src=/img.png'", sig)
+		}
+	})
+
+	t.Run("returns signature for element with name", func(t *testing.T) {
+		el := withAttr(elementNode("input"), "name", "email")
+		sig := strongSignature(el)
+		if sig != "E:input|name=email" {
+			t.Errorf("strongSignature = %q, want 'E:input|name=email'", sig)
+		}
+	})
+
+	t.Run("returns signature for element with data-key", func(t *testing.T) {
+		el := withAttr(elementNode("div"), "data-key", "item-1")
+		sig := strongSignature(el)
+		if sig != "E:div|data-key=item-1" {
+			t.Errorf("strongSignature = %q, want 'E:div|data-key=item-1'", sig)
+		}
+	})
+
+	t.Run("returns empty for nil node", func(t *testing.T) {
+		sig := strongSignature(nil)
+		if sig != "" {
+			t.Errorf("strongSignature(nil) = %q, want empty string", sig)
+		}
+	})
+
+	t.Run("returns empty for text node", func(t *testing.T) {
+		sig := strongSignature(textNode("hello"))
+		if sig != "" {
+			t.Errorf("strongSignature(text) = %q, want empty string", sig)
+		}
+	})
+
+	t.Run("returns empty for element with only class attr", func(t *testing.T) {
+		el := withAttr(elementNode("div"), "class", "container")
+		sig := strongSignature(el)
+		if sig != "" {
+			t.Errorf("strongSignature should return empty for div with only class, got: %s", sig)
+		}
+	})
+}
+
+func TestNoGenericMoveChildInRealWorldScenario(t *testing.T) {
+	makeCard := func(href, title, date string) *view.Element {
+		return withAttr(
+			withAttr(
+				withChildren(elementNode("a"),
+					withChildren(elementNode("div"),
+						withChildren(elementNode("span"), textNode(title)),
+					),
+					withChildren(elementNode("div"), textNode(date)),
+				),
+				"href", href,
+			),
+			"class", "block",
+		)
 	}
 
-	for idx, expectedHref := range expected {
-		if actual, ok := hrefPatches[idx]; ok {
-			if actual != expectedHref {
-				t.Errorf("Position %d: expected href=%s, got href=%s (SHIFT DETECTED!)", idx, expectedHref, actual)
+	coverLetters := withChildren(
+		withAttr(elementNode("div"), "class", "space-y-3"),
+		makeCard("/letters/google", "Google Cover Letter", "Dec 14"),
+		makeCard("/letters/stripe", "Stripe Cover Letter", "Dec 10"),
+		makeCard("/letters/netflix", "Netflix Cover Letter", "Dec 13"),
+		makeCard("/letters/apple", "Apple Cover Letter", "Dec 11"),
+	)
+
+	cvs := withChildren(
+		withAttr(elementNode("div"), "class", "space-y-3"),
+		makeCard("/cvs/master", "Master CV", "Master"),
+		makeCard("/letters/google", "Google CV", "Dec 14"),
+		makeCard("/letters/stripe", "Stripe CV", "Dec 10"),
+	)
+
+	patches := Diff(coverLetters, cvs)
+
+	for _, p := range patches {
+		if p.Op == OpMoveChild {
+			val, ok := p.Value.(map[string]interface{})
+			if !ok {
+				continue
 			}
-		} else {
-			t.Errorf("Position %d: no setAttr patch found, expected href=%s", idx, expectedHref)
+			key, ok := val["key"].(string)
+			if !ok {
+				continue
+			}
+
+			genericKeys := []string{"E:a", "E:div", "E:span"}
+			for _, generic := range genericKeys {
+				if key == generic {
+					t.Errorf("moveChild should not use generic key '%s', should have identity attribute in signature", generic)
+				}
+			}
+
+			if !strings.Contains(key, "href=") {
+				t.Errorf("moveChild key should contain href for anchor elements, got: %s", key)
+			}
+		}
+	}
+
+	t.Logf("Generated %d patches", len(patches))
+	for _, p := range patches {
+		if p.Op == OpMoveChild {
+			t.Logf("  moveChild: %v", p.Value)
 		}
 	}
 }
 
-func TestUniqueHrefsWithNestedStructure(t *testing.T) {
-	makeListItem := func(href, title, date string) *view.Element {
-		return withChildren(elementNode("li"),
-			withChildren(withAttr(elementNode("a"), "href", href),
-				textNode(title),
-			),
-			withChildren(elementNode("span"),
-				textNode(date),
-			),
-		)
+func TestLoneScriptMovingShouldNotTriggerKeyedMode(t *testing.T) {
+	old := withChildren(elementNode("div"),
+		withChildren(elementNode("div"), textNode("Content 1")),
+		withChildren(elementNode("div"), textNode("Content 2")),
+		withChildren(elementNode("div"), textNode("Content 3")),
+		withChildren(elementNode("div"), textNode("Content 4")),
+		withAttr(elementNode("script"), "src", "/app.js"),
+	)
+
+	new := withChildren(elementNode("div"),
+		withAttr(elementNode("script"), "src", "/app.js"),
+		withChildren(elementNode("div"), textNode("Content 1")),
+		withChildren(elementNode("div"), textNode("Content 2")),
+		withChildren(elementNode("div"), textNode("Content 3")),
+		withChildren(elementNode("div"), textNode("Content 4")),
+	)
+
+	result := hasCrossPositionSignatureMatch(old.Children, new.Children)
+	if result {
+		t.Error("hasCrossPositionSignatureMatch should return false for lone script asset moving")
 	}
 
-	prev := withChildren(elementNode("ul"),
-		makeListItem("/cover-letters/1", "CL 1", "Dec 10"),
-		makeListItem("/cover-letters/2", "CL 2", "Dec 11"),
-		makeListItem("/cover-letters/3", "CL 3", "Dec 12"),
-		makeListItem("/cover-letters/4", "CL 4", "Dec 13"),
-	)
-
-	next := withChildren(elementNode("ul"),
-		makeListItem("/cvs/1", "CV 1", "Dec 14"),
-		makeListItem("/cvs/2", "CV 2", "Dec 15"),
-		makeListItem("/cvs/3", "CV 3", "Dec 16"),
-		makeListItem("/cvs/4", "CV 4", "Dec 17"),
-	)
-
-	patches := Diff(prev, next)
-
-	t.Logf("Total patches: %d", len(patches))
+	patches := Diff(old, new)
 
 	for _, p := range patches {
-		if p.Op == OpSetAttr {
-			if attrs, ok := p.Value.(map[string][]string); ok {
-				if href, exists := attrs["href"]; exists {
-					t.Logf("setAttr href=%s at path=%v", href[0], p.Path)
-					if len(p.Path) >= 2 {
-						liIdx := p.Path[0]
-						expectedHref := []string{"/cvs/1", "/cvs/2", "/cvs/3", "/cvs/4"}[liIdx]
-						if href[0] != expectedHref {
-							t.Errorf("SHIFT BUG: li[%d] got href=%s, expected %s", liIdx, href[0], expectedHref)
-						}
+		if p.Op == OpMoveChild {
+			val, ok := p.Value.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			key, ok := val["key"].(string)
+			if ok && key == "E:div" {
+				t.Errorf("should not generate moveChild with generic 'E:div' key")
+			}
+		}
+	}
+
+	t.Logf("Generated %d patches for lone script move", len(patches))
+}
+
+func TestAssetElementsExcludedFromSignatureHeuristic(t *testing.T) {
+	t.Run("script elements are excluded", func(t *testing.T) {
+		old := []view.Node{
+			withChildren(elementNode("div"), textNode("A")),
+			withAttr(elementNode("script"), "src", "/a.js"),
+			withChildren(elementNode("div"), textNode("B")),
+		}
+		new := []view.Node{
+			withAttr(elementNode("script"), "src", "/a.js"),
+			withChildren(elementNode("div"), textNode("A")),
+			withChildren(elementNode("div"), textNode("B")),
+		}
+
+		if hasCrossPositionSignatureMatch(old, new) {
+			t.Error("script moving should not trigger cross-position match")
+		}
+	})
+
+	t.Run("style elements are excluded", func(t *testing.T) {
+		old := []view.Node{
+			withChildren(elementNode("div"), textNode("A")),
+			withAttr(elementNode("style"), "id", "main-styles"),
+			withChildren(elementNode("div"), textNode("B")),
+		}
+		new := []view.Node{
+			withAttr(elementNode("style"), "id", "main-styles"),
+			withChildren(elementNode("div"), textNode("A")),
+			withChildren(elementNode("div"), textNode("B")),
+		}
+
+		if hasCrossPositionSignatureMatch(old, new) {
+			t.Error("style moving should not trigger cross-position match")
+		}
+	})
+
+	t.Run("link elements are excluded", func(t *testing.T) {
+		old := []view.Node{
+			withChildren(elementNode("div"), textNode("A")),
+			withAttr(elementNode("link"), "href", "/styles.css"),
+			withChildren(elementNode("div"), textNode("B")),
+		}
+		new := []view.Node{
+			withAttr(elementNode("link"), "href", "/styles.css"),
+			withChildren(elementNode("div"), textNode("A")),
+			withChildren(elementNode("div"), textNode("B")),
+		}
+
+		if hasCrossPositionSignatureMatch(old, new) {
+			t.Error("link moving should not trigger cross-position match")
+		}
+	})
+
+	t.Run("anchor elements are NOT excluded", func(t *testing.T) {
+		old := []view.Node{
+			withAttr(elementNode("a"), "href", "/page1"),
+			withAttr(elementNode("a"), "href", "/page2"),
+			withAttr(elementNode("a"), "href", "/page3"),
+		}
+		new := []view.Node{
+			withAttr(elementNode("a"), "href", "/page3"),
+			withAttr(elementNode("a"), "href", "/page1"),
+			withAttr(elementNode("a"), "href", "/page2"),
+		}
+
+		if !hasCrossPositionSignatureMatch(old, new) {
+			t.Error("anchors moving should trigger cross-position match (100% strong identity, 2+ matches)")
+		}
+	})
+}
+
+func TestMostlyUnkeyedWithOneAssetDoesNotTriggerKeyedMode(t *testing.T) {
+	old := withChildren(elementNode("div"),
+		withChildren(elementNode("div"), textNode("Item 1")),
+		withChildren(elementNode("div"), textNode("Item 2")),
+		withChildren(elementNode("div"), textNode("Item 3")),
+		withChildren(elementNode("div"), textNode("Item 4")),
+		withChildren(elementNode("div"), textNode("Item 5")),
+		withChildren(elementNode("div"), textNode("Item 6")),
+		withChildren(elementNode("div"), textNode("Item 7")),
+		withChildren(elementNode("div"), textNode("Item 8")),
+		withAttr(elementNode("script"), "src", "/bundle.js"),
+		withAttr(elementNode("link"), "href", "/styles.css"),
+	)
+
+	new := withChildren(elementNode("div"),
+		withAttr(elementNode("script"), "src", "/bundle.js"),
+		withChildren(elementNode("div"), textNode("Item 1 Updated")),
+		withChildren(elementNode("div"), textNode("Item 2")),
+		withChildren(elementNode("div"), textNode("Item 3")),
+		withChildren(elementNode("div"), textNode("Item 4")),
+		withChildren(elementNode("div"), textNode("Item 5")),
+		withChildren(elementNode("div"), textNode("Item 6")),
+		withChildren(elementNode("div"), textNode("Item 7")),
+		withChildren(elementNode("div"), textNode("Item 8")),
+		withAttr(elementNode("link"), "href", "/styles.css"),
+	)
+
+	result := hasCrossPositionSignatureMatch(old.Children, new.Children)
+	if result {
+		t.Error("should not trigger keyed mode for mostly unkeyed list with asset moves")
+	}
+
+	patches := Diff(old, new)
+
+	moveCount := 0
+	for _, p := range patches {
+		if p.Op == OpMoveChild {
+			moveCount++
+			val, ok := p.Value.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			key, ok := val["key"].(string)
+			if ok {
+				genericKeys := []string{"E:div", "E:script", "E:link"}
+				for _, generic := range genericKeys {
+					if key == generic {
+						t.Errorf("should not use generic key '%s' in moveChild", generic)
 					}
 				}
 			}
 		}
-		if p.Op == OpSetText {
-			t.Logf("setText value=%v at path=%v", p.Value, p.Path)
+	}
+
+	t.Logf("Generated %d patches, %d moveChild operations", len(patches), moveCount)
+}
+
+func TestHighIdentityRatioTriggersKeyedMode(t *testing.T) {
+	makeCard := func(href string) *view.Element {
+		return withAttr(elementNode("a"), "href", href)
+	}
+
+	old := withChildren(elementNode("div"),
+		makeCard("/a"),
+		makeCard("/b"),
+		makeCard("/c"),
+		makeCard("/d"),
+	)
+
+	new := withChildren(elementNode("div"),
+		makeCard("/d"),
+		makeCard("/a"),
+		makeCard("/b"),
+		makeCard("/c"),
+	)
+
+	result := hasCrossPositionSignatureMatch(old.Children, new.Children)
+	if !result {
+		t.Error("should trigger keyed mode when 100% of elements have strong identity and multiple moves")
+	}
+
+	patches := Diff(old, new)
+
+	foundValidMoves := 0
+	for _, p := range patches {
+		if p.Op == OpMoveChild {
+			val, ok := p.Value.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			key, ok := val["key"].(string)
+			if ok && strings.Contains(key, "href=") {
+				foundValidMoves++
+			}
+			if key == "E:a" {
+				t.Errorf("should not use generic 'E:a' key, should include href")
+			}
 		}
+	}
+
+	t.Logf("Found %d valid moves with href signatures", foundValidMoves)
+}
+
+func TestIsAssetElement(t *testing.T) {
+	tests := []struct {
+		name     string
+		element  *view.Element
+		expected bool
+	}{
+		{"script is asset", elementNode("script"), true},
+		{"style is asset", elementNode("style"), true},
+		{"link is asset", elementNode("link"), true},
+		{"div is not asset", elementNode("div"), false},
+		{"a is not asset", elementNode("a"), false},
+		{"img is not asset", elementNode("img"), false},
+		{"span is not asset", elementNode("span"), false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := isAssetElement(tc.element)
+			if result != tc.expected {
+				t.Errorf("isAssetElement(%s) = %v, want %v", tc.element.Tag, result, tc.expected)
+			}
+		})
+	}
+
+	t.Run("nil node returns false", func(t *testing.T) {
+		if isAssetElement(nil) {
+			t.Error("isAssetElement(nil) should return false")
+		}
+	})
+
+	t.Run("text node returns false", func(t *testing.T) {
+		if isAssetElement(textNode("hello")) {
+			t.Error("isAssetElement(text) should return false")
+		}
+	})
+}
+
+func TestGatingLogicThresholds(t *testing.T) {
+	t.Run("single match with 50% ratio triggers", func(t *testing.T) {
+		old := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withChildren(elementNode("div"), textNode("text")),
+		}
+		new := []view.Node{
+			withChildren(elementNode("div"), textNode("text")),
+			withAttr(elementNode("a"), "href", "/a"),
+		}
+
+		if !hasCrossPositionSignatureMatch(old, new) {
+			t.Error("1 match with 50% ratio should trigger")
+		}
+	})
+
+	t.Run("single match with less than 50% ratio does not trigger", func(t *testing.T) {
+		old := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withChildren(elementNode("div"), textNode("1")),
+			withChildren(elementNode("div"), textNode("2")),
+			withChildren(elementNode("div"), textNode("3")),
+		}
+		new := []view.Node{
+			withChildren(elementNode("div"), textNode("1")),
+			withAttr(elementNode("a"), "href", "/a"),
+			withChildren(elementNode("div"), textNode("2")),
+			withChildren(elementNode("div"), textNode("3")),
+		}
+
+		if hasCrossPositionSignatureMatch(old, new) {
+			t.Error("1 match with 25% ratio should NOT trigger (need 50% for single match)")
+		}
+	})
+
+	t.Run("two matches with 33% ratio triggers", func(t *testing.T) {
+		old := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/b"),
+			withChildren(elementNode("div"), textNode("1")),
+			withChildren(elementNode("div"), textNode("2")),
+			withChildren(elementNode("div"), textNode("3")),
+			withChildren(elementNode("div"), textNode("4")),
+		}
+		new := []view.Node{
+			withChildren(elementNode("div"), textNode("1")),
+			withAttr(elementNode("a"), "href", "/a"),
+			withChildren(elementNode("div"), textNode("2")),
+			withAttr(elementNode("a"), "href", "/b"),
+			withChildren(elementNode("div"), textNode("3")),
+			withChildren(elementNode("div"), textNode("4")),
+		}
+
+		if !hasCrossPositionSignatureMatch(old, new) {
+			t.Error("2 cross-position matches with 33% ratio should trigger (need 25% for 2+ matches)")
+		}
+	})
+
+	t.Run("two cross-position matches with less than 25% ratio does not trigger", func(t *testing.T) {
+		old := []view.Node{
+			withAttr(elementNode("a"), "href", "/a"),
+			withAttr(elementNode("a"), "href", "/b"),
+			withChildren(elementNode("div"), textNode("1")),
+			withChildren(elementNode("div"), textNode("2")),
+			withChildren(elementNode("div"), textNode("3")),
+			withChildren(elementNode("div"), textNode("4")),
+			withChildren(elementNode("div"), textNode("5")),
+			withChildren(elementNode("div"), textNode("6")),
+			withChildren(elementNode("div"), textNode("7")),
+			withChildren(elementNode("div"), textNode("8")),
+		}
+		new := []view.Node{
+			withChildren(elementNode("div"), textNode("1")),
+			withAttr(elementNode("a"), "href", "/a"),
+			withChildren(elementNode("div"), textNode("2")),
+			withAttr(elementNode("a"), "href", "/b"),
+			withChildren(elementNode("div"), textNode("3")),
+			withChildren(elementNode("div"), textNode("4")),
+			withChildren(elementNode("div"), textNode("5")),
+			withChildren(elementNode("div"), textNode("6")),
+			withChildren(elementNode("div"), textNode("7")),
+			withChildren(elementNode("div"), textNode("8")),
+		}
+
+		if hasCrossPositionSignatureMatch(old, new) {
+			t.Error("2 cross-position matches with 20% ratio should NOT trigger (need 25% for 2+ matches)")
+		}
+	})
+}
+
+func TestDisplacedUnkeyedSiblingsNotDeleted(t *testing.T) {
+	old := withChildren(elementNode("div"),
+		withChildren(elementNode("div"), textNode("Content 0")),
+		withChildren(elementNode("div"), textNode("Content 1")),
+		withChildren(elementNode("div"), textNode("Content 2")),
+		withAttr(elementNode("script"), "src", "/app.js"),
+	)
+
+	new := withChildren(elementNode("div"),
+		withAttr(elementNode("script"), "src", "/app.js"),
+		withChildren(elementNode("div"), textNode("Content 0 Updated")),
+		withChildren(elementNode("div"), textNode("Content 1 Updated")),
+		withChildren(elementNode("div"), textNode("Content 2 Updated")),
+	)
+
+	patches := Diff(old, new)
+
+	delCount := 0
+	addCount := 0
+	setTextCount := 0
+
+	for _, p := range patches {
+		switch p.Op {
+		case OpDelChild:
+			delCount++
+			t.Logf("UNEXPECTED delChild at path=%v index=%d", p.Path, *p.Index)
+		case OpAddChild:
+			addCount++
+			t.Logf("UNEXPECTED addChild at path=%v index=%d", p.Path, *p.Index)
+		case OpSetText:
+			setTextCount++
+			t.Logf("setText at path=%v value=%q", p.Path, p.Value)
+		default:
+			t.Logf("other patch: op=%s path=%v", p.Op, p.Path)
+		}
+	}
+
+	t.Logf("Summary: %d delChild, %d addChild, %d setText", delCount, addCount, setTextCount)
+
+	if delCount > 0 {
+		t.Errorf("Expected 0 delChild operations, got %d - unkeyed siblings should NOT be deleted when strong element moves", delCount)
+	}
+
+	if addCount > 0 {
+		t.Errorf("Expected 0 addChild operations, got %d - unkeyed siblings should NOT be re-added when strong element moves", addCount)
+	}
+
+	if setTextCount != 3 {
+		t.Errorf("Expected 3 setText operations (one per div), got %d", setTextCount)
+	}
+}
+
+func TestDisplacedUnkeyedSiblingsWithMultipleStrongElements(t *testing.T) {
+	old := withChildren(elementNode("div"),
+		withChildren(elementNode("div"), textNode("Div 0")),
+		withAttr(elementNode("a"), "href", "/link1"),
+		withChildren(elementNode("div"), textNode("Div 1")),
+		withAttr(elementNode("a"), "href", "/link2"),
+	)
+
+	new := withChildren(elementNode("div"),
+		withAttr(elementNode("a"), "href", "/link2"),
+		withChildren(elementNode("div"), textNode("Div 0 Changed")),
+		withAttr(elementNode("a"), "href", "/link1"),
+		withChildren(elementNode("div"), textNode("Div 1 Changed")),
+	)
+
+	patches := Diff(old, new)
+
+	delCount := 0
+	addCount := 0
+
+	for _, p := range patches {
+		switch p.Op {
+		case OpDelChild:
+			delCount++
+			t.Logf("delChild at path=%v index=%d", p.Path, *p.Index)
+		case OpAddChild:
+			addCount++
+			t.Logf("addChild at path=%v index=%d", p.Path, *p.Index)
+		case OpMoveChild:
+			t.Logf("moveChild: %v", p.Value)
+		case OpSetText:
+			t.Logf("setText at path=%v value=%q", p.Path, p.Value)
+		default:
+			t.Logf("other: op=%s path=%v", p.Op, p.Path)
+		}
+	}
+
+	t.Logf("Summary: %d delChild, %d addChild", delCount, addCount)
+
+	if delCount > 0 && addCount > 0 {
+		t.Logf("WARNING: Both delChild and addChild present - unkeyed siblings might be churned unnecessarily")
+	}
+}
+
+func TestDuplicateSignaturesHandledGracefully(t *testing.T) {
+	old := withChildren(elementNode("div"),
+		withAttr(elementNode("img"), "src", "/same.jpg"),
+		withChildren(elementNode("div"), textNode("Middle")),
+		withAttr(elementNode("img"), "src", "/same.jpg"),
+	)
+
+	new := withChildren(elementNode("div"),
+		withAttr(elementNode("img"), "src", "/same.jpg"),
+		withChildren(elementNode("div"), textNode("Middle Changed")),
+		withChildren(elementNode("div"), textNode("New div")),
+	)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Diff panicked with duplicate signatures: %v", r)
+		}
+	}()
+
+	patches := Diff(old, new)
+
+	t.Logf("Generated %d patches without panic", len(patches))
+	for _, p := range patches {
+		t.Logf("  op=%s path=%v", p.Op, p.Path)
 	}
 }

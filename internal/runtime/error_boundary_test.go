@@ -695,10 +695,7 @@ func TestErrorBoundary_ClearResetsFlags(t *testing.T) {
 		t.Error("grandchild.hasDescendantError should be false after clear")
 	}
 	if grandchild.RenderError != nil {
-		t.Error("grandchild.RenderError should be nil after clear (cleared by boundary)")
-	}
-	if !grandchild.errorHandledByBoundary {
-		t.Error("grandchild.errorHandledByBoundary should be true after clear (prevents infinite loop)")
+		t.Error("grandchild.RenderError should be nil after clear")
 	}
 }
 

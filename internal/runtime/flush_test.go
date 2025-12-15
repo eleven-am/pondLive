@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
-	"github.com/eleven-am/pondlive/internal/view"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
@@ -1102,163 +1101,7 @@ func TestRunWithEffectRecoveryWithBusRecoversPanic(t *testing.T) {
 	})
 }
 
-func TestPropagateConvertRenderErrorsNilSession(t *testing.T) {
-	var sess *Session
-	sess.propagateConvertRenderErrors()
-}
-
-func TestPropagateConvertRenderErrorsEmptyErrors(t *testing.T) {
-	sess := &Session{
-		convertRenderErrors: []*Instance{},
-	}
-	sess.propagateConvertRenderErrors()
-	if len(sess.convertRenderErrors) != 0 {
-		t.Error("expected convertRenderErrors to be empty after propagation")
-	}
-}
-
-func TestPropagateConvertRenderErrorsMarksAncestorDirty(t *testing.T) {
-	sess := &Session{
-		DirtyQueue: []*Instance{},
-		DirtySet:   make(map[*Instance]struct{}),
-	}
-
-	parent := &Instance{
-		ID: "parent",
-		HookFrame: []HookSlot{
-			{Type: HookTypeErrorBoundary, Value: nil},
-		},
-	}
-
-	child := &Instance{
-		ID:          "child",
-		Parent:      parent,
-		HookFrame:   []HookSlot{},
-		RenderError: &Error{Message: "test error"},
-	}
-
-	sess.convertRenderErrors = []*Instance{child}
-	sess.propagateConvertRenderErrors()
-
-	if _, ok := sess.DirtySet[parent]; !ok {
-		t.Error("expected parent with error boundary to be marked dirty")
-	}
-
-	if sess.convertRenderErrors != nil {
-		t.Error("expected convertRenderErrors to be cleared after propagation")
-	}
-}
-
-func TestPropagateConvertRenderErrorsMultipleErrorsSameAncestor(t *testing.T) {
-	sess := &Session{
-		DirtyQueue: []*Instance{},
-		DirtySet:   make(map[*Instance]struct{}),
-	}
-
-	parent := &Instance{
-		ID: "parent",
-		HookFrame: []HookSlot{
-			{Type: HookTypeErrorBoundary, Value: nil},
-		},
-	}
-
-	child1 := &Instance{
-		ID:          "child1",
-		Parent:      parent,
-		HookFrame:   []HookSlot{},
-		RenderError: &Error{Message: "error 1"},
-	}
-
-	child2 := &Instance{
-		ID:          "child2",
-		Parent:      parent,
-		HookFrame:   []HookSlot{},
-		RenderError: &Error{Message: "error 2"},
-	}
-
-	sess.convertRenderErrors = []*Instance{child1, child2}
-	sess.propagateConvertRenderErrors()
-
-	if _, ok := sess.DirtySet[parent]; !ok {
-		t.Error("expected parent with error boundary to be marked dirty")
-	}
-
-	if len(sess.DirtyQueue) != 1 {
-		t.Errorf("expected parent to be marked dirty only once, got %d", len(sess.DirtyQueue))
-	}
-}
-
-func TestPropagateConvertRenderErrorsNestedErrorBoundaries(t *testing.T) {
-	sess := &Session{
-		DirtyQueue: []*Instance{},
-		DirtySet:   make(map[*Instance]struct{}),
-	}
-
-	grandparent := &Instance{
-		ID: "grandparent",
-		HookFrame: []HookSlot{
-			{Type: HookTypeErrorBoundary, Value: nil},
-		},
-	}
-
-	parent := &Instance{
-		ID:     "parent",
-		Parent: grandparent,
-		HookFrame: []HookSlot{
-			{Type: HookTypeErrorBoundary, Value: nil},
-		},
-	}
-
-	child := &Instance{
-		ID:          "child",
-		Parent:      parent,
-		HookFrame:   []HookSlot{},
-		RenderError: &Error{Message: "test error"},
-	}
-
-	sess.convertRenderErrors = []*Instance{child}
-	sess.propagateConvertRenderErrors()
-
-	if _, ok := sess.DirtySet[parent]; !ok {
-		t.Error("expected inner parent with error boundary to be marked dirty")
-	}
-
-	if _, ok := sess.DirtySet[grandparent]; ok {
-		t.Error("expected grandparent NOT to be marked dirty (inner boundary catches)")
-	}
-}
-
-func TestPropagateConvertRenderErrorsNoErrorBoundary(t *testing.T) {
-	sess := &Session{
-		DirtyQueue: []*Instance{},
-		DirtySet:   make(map[*Instance]struct{}),
-	}
-
-	parent := &Instance{
-		ID:        "parent",
-		HookFrame: []HookSlot{},
-	}
-
-	child := &Instance{
-		ID:          "child",
-		Parent:      parent,
-		HookFrame:   []HookSlot{},
-		RenderError: &Error{Message: "test error"},
-	}
-
-	sess.convertRenderErrors = []*Instance{child}
-	sess.propagateConvertRenderErrors()
-
-	if len(sess.DirtySet) != 0 {
-		t.Error("expected no components marked dirty when no error boundary exists")
-	}
-
-	if sess.convertRenderErrors != nil {
-		t.Error("expected convertRenderErrors to be cleared")
-	}
-}
-
-func TestFlushClearsConvertRenderErrors(t *testing.T) {
+func TestMidRenderDirtyBatchedIntoSingleFlush(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
 		MountedComponents: make(map[*Instance]struct{}),
@@ -1266,79 +1109,54 @@ func TestFlushClearsConvertRenderErrors(t *testing.T) {
 		DirtySet:          make(map[*Instance]struct{}),
 		PendingEffects:    []effectTask{},
 		PendingCleanups:   []cleanupTask{},
-		convertRenderErrors: []*Instance{
-			{ID: "stale", RenderError: &Error{Message: "stale error"}},
-		},
 	}
 
-	inst := &Instance{
-		ID:                 "root",
-		Fn:                 func(*Ctx, any, []work.Item) work.Node { return nil },
+	renderCountA := atomic.Int32{}
+	renderCountB := atomic.Int32{}
+
+	instB := &Instance{
+		ID: "instB",
+		Fn: func(*Ctx, any, []work.Item) work.Node {
+			renderCountB.Add(1)
+			return &work.Text{Value: "B"}
+		},
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
-	sess.Root = inst
-	sess.Components["root"] = inst
-	sess.MountedComponents[inst] = struct{}{}
 
-	_ = sess.Flush()
-
-	if sess.convertRenderErrors != nil {
-		t.Error("expected convertRenderErrors to be cleared at start of Flush")
-	}
-}
-
-func TestConvertRenderErrorIntegrationWithErrorBoundary(t *testing.T) {
-	sess := &Session{
-		Components:        make(map[string]*Instance),
-		MountedComponents: make(map[*Instance]struct{}),
-		DirtyQueue:        []*Instance{},
-		DirtySet:          make(map[*Instance]struct{}),
-		PendingEffects:    []effectTask{},
-		PendingCleanups:   []cleanupTask{},
-	}
-
-	panicChild := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		panic("child error")
-	}
-
-	var capturedError *Error
-	parentComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		batch := UseErrorBoundary(ctx)
-		if batch.HasErrors() {
-			capturedError = batch.First()
-			return &work.Text{Value: "Error: " + batch.First().Message}
-		}
-		return work.Component(panicChild)
-	}
-
-	root := &Instance{
+	instA := &Instance{
 		ID: "root",
-		Fn: parentComponent,
+		Fn: func(*Ctx, any, []work.Item) work.Node {
+			count := renderCountA.Add(1)
+			if count == 1 {
+				sess.MarkDirty(instB)
+			}
+			return &work.Text{Value: "A"}
+		},
+		HookFrame:          []HookSlot{},
+		Children:           []*Instance{instB},
+		ReferencedChildren: make(map[string]bool),
 	}
-	sess.Root = root
-	sess.Components["root"] = root
+	instA.ReferencedChildren["instB"] = true
+	instB.Parent = instA
+
+	sess.Root = instA
+	sess.Components["root"] = instA
+	sess.Components["instB"] = instB
+	sess.MountedComponents[instA] = struct{}{}
+	sess.MountedComponents[instB] = struct{}{}
 
 	_ = sess.Flush()
 
-	if capturedError == nil {
-		t.Fatal("expected error to be captured by UseErrorBoundary")
+	if renderCountA.Load() != 1 {
+		t.Errorf("instA should render once, got %d", renderCountA.Load())
 	}
-
-	if capturedError.Message != "child error" {
-		t.Errorf("expected error message 'child error', got '%s'", capturedError.Message)
-	}
-
-	text, ok := sess.View.(*view.Text)
-	if !ok {
-		t.Fatalf("expected view to be Text (fallback), got %T", sess.View)
-	}
-	if text.Text != "Error: child error" {
-		t.Errorf("expected fallback text 'Error: child error', got '%s'", text.Text)
+	if renderCountB.Load() != 1 {
+		t.Errorf("instB should render once (batched), got %d", renderCountB.Load())
 	}
 }
 
-func TestFlushCancellation_DoesNotPublishNilView(t *testing.T) {
+func TestCascadingDirtyBatchedIntoSingleFlush(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
 		MountedComponents: make(map[*Instance]struct{}),
@@ -1346,49 +1164,76 @@ func TestFlushCancellation_DoesNotPublishNilView(t *testing.T) {
 		DirtySet:          make(map[*Instance]struct{}),
 		PendingEffects:    []effectTask{},
 		PendingCleanups:   []cleanupTask{},
-		Bus:               protocol.NewBus(),
 	}
 
-	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		return &work.Text{Value: "content"}
-	}
+	renderCountA := atomic.Int32{}
+	renderCountB := atomic.Int32{}
+	renderCountC := atomic.Int32{}
 
-	root := &Instance{
-		ID:                 "root",
-		Fn:                 rootComponent,
+	instC := &Instance{
+		ID: "instC",
+		Fn: func(*Ctx, any, []work.Item) work.Node {
+			renderCountC.Add(1)
+			return &work.Text{Value: "C"}
+		},
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
-	sess.Root = root
-	sess.Components["root"] = root
-	sess.MountedComponents[root] = struct{}{}
+
+	instB := &Instance{
+		ID: "instB",
+		Fn: func(*Ctx, any, []work.Item) work.Node {
+			count := renderCountB.Add(1)
+			if count == 1 {
+				sess.MarkDirty(instC)
+			}
+			return &work.Text{Value: "B"}
+		},
+		HookFrame:          []HookSlot{},
+		Children:           []*Instance{instC},
+		ReferencedChildren: make(map[string]bool),
+	}
+	instB.ReferencedChildren["instC"] = true
+	instC.Parent = instB
+
+	instA := &Instance{
+		ID: "root",
+		Fn: func(*Ctx, any, []work.Item) work.Node {
+			count := renderCountA.Add(1)
+			if count == 1 {
+				sess.MarkDirty(instB)
+			}
+			return &work.Text{Value: "A"}
+		},
+		HookFrame:          []HookSlot{},
+		Children:           []*Instance{instB},
+		ReferencedChildren: make(map[string]bool),
+	}
+	instA.ReferencedChildren["instB"] = true
+	instB.Parent = instA
+
+	sess.Root = instA
+	sess.Components["root"] = instA
+	sess.Components["instB"] = instB
+	sess.Components["instC"] = instC
+	sess.MountedComponents[instA] = struct{}{}
+	sess.MountedComponents[instB] = struct{}{}
+	sess.MountedComponents[instC] = struct{}{}
 
 	_ = sess.Flush()
-	initialView := sess.View
 
-	if initialView == nil {
-		t.Fatal("expected initial view to be non-nil after first flush")
+	if renderCountA.Load() != 1 {
+		t.Errorf("instA should render once, got %d", renderCountA.Load())
 	}
-
-	for i := 0; i < 10; i++ {
-		sess.MarkDirty(root)
-		_ = sess.Flush()
-
-		if sess.View == nil {
-			t.Errorf("iteration %d: view should never be nil", i)
-		}
+	if renderCountB.Load() != 1 {
+		t.Errorf("instB should render once (batched), got %d", renderCountB.Load())
 	}
-
-	for sess.IsFlushing() || sess.IsFlushPending() {
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	if sess.View == nil {
-		t.Error("final view should not be nil")
+	if renderCountC.Load() != 1 {
+		t.Errorf("instC should render once (batched via cascade), got %d", renderCountC.Load())
 	}
 }
 
-func TestFlushCancellation_ReflushRestoresState(t *testing.T) {
+func TestInfiniteLoopProtection(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
 		MountedComponents: make(map[*Instance]struct{}),
@@ -1401,217 +1246,44 @@ func TestFlushCancellation_ReflushRestoresState(t *testing.T) {
 
 	renderCount := atomic.Int32{}
 
-	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		renderCount.Add(1)
-		return &work.Text{Value: "rendered"}
-	}
-
-	root := &Instance{
-		ID:                 "root",
-		Fn:                 rootComponent,
-		HookFrame:          []HookSlot{},
-		ReferencedChildren: make(map[string]bool),
-	}
-	sess.Root = root
-	sess.Components["root"] = root
-	sess.MountedComponents[root] = struct{}{}
-
-	_ = sess.Flush()
-
-	if sess.View == nil {
-		t.Fatal("expected view to be non-nil after flush")
-	}
-
-	if renderCount.Load() < 1 {
-		t.Error("expected at least one render")
-	}
-
-	text, ok := sess.View.(*view.Text)
-	if !ok {
-		t.Fatalf("expected view to be Text, got %T", sess.View)
-	}
-	if text.Text != "rendered" {
-		t.Errorf("expected text 'rendered', got '%s'", text.Text)
-	}
-}
-
-func TestFlushCancellation_HandlerCleanup(t *testing.T) {
-	sess := &Session{
-		Components:        make(map[string]*Instance),
-		MountedComponents: make(map[*Instance]struct{}),
-		DirtyQueue:        []*Instance{},
-		DirtySet:          make(map[*Instance]struct{}),
-		PendingEffects:    []effectTask{},
-		PendingCleanups:   []cleanupTask{},
-		Bus:               protocol.NewBus(),
-		allHandlerSubs:    make(map[string]*protocol.Subscription),
-		currentHandlerIDs: make(map[string]bool),
-	}
-
-	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		return &work.Element{
-			Tag: "div",
-			Handlers: map[string]work.Handler{
-				"click": {Fn: func(e work.Event) work.Updates { return nil }},
-			},
-		}
-	}
-
-	root := &Instance{
-		ID:                 "root",
-		Fn:                 rootComponent,
-		HookFrame:          []HookSlot{},
-		ReferencedChildren: make(map[string]bool),
-	}
-	sess.Root = root
-	sess.Components["root"] = root
-	sess.MountedComponents[root] = struct{}{}
-
-	_ = sess.Flush()
-
-	sess.handlerIDsMu.Lock()
-	handlerCountAfterFlush := len(sess.allHandlerSubs)
-	sess.handlerIDsMu.Unlock()
-
-	if handlerCountAfterFlush == 0 {
-		t.Error("expected handlers to be registered after flush")
-	}
-
-	_ = sess.Flush()
-
-	sess.handlerIDsMu.Lock()
-	handlerCountAfterSecondFlush := len(sess.allHandlerSubs)
-	sess.handlerIDsMu.Unlock()
-
-	if handlerCountAfterSecondFlush != handlerCountAfterFlush {
-		t.Errorf("expected handler count to remain stable, got %d vs %d", handlerCountAfterFlush, handlerCountAfterSecondFlush)
-	}
-}
-
-func TestConcurrentMarkDirty_NoViewCorruption(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		sess := &Session{
-			Components:        make(map[string]*Instance),
-			MountedComponents: make(map[*Instance]struct{}),
-			DirtyQueue:        []*Instance{},
-			DirtySet:          make(map[*Instance]struct{}),
-			PendingEffects:    []effectTask{},
-			PendingCleanups:   []cleanupTask{},
-			Bus:               protocol.NewBus(),
-		}
-
-		renderCount := atomic.Int32{}
-
-		rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
+	var inst *Instance
+	inst = &Instance{
+		ID: "root",
+		Fn: func(*Ctx, any, []work.Item) work.Node {
 			renderCount.Add(1)
-			return &work.Text{Value: "content"}
-		}
-
-		root := &Instance{
-			ID:                 "root",
-			Fn:                 rootComponent,
-			HookFrame:          []HookSlot{},
-			ReferencedChildren: make(map[string]bool),
-		}
-		sess.Root = root
-		sess.Components["root"] = root
-		sess.MountedComponents[root] = struct{}{}
-
-		_ = sess.Flush()
-
-		if sess.View == nil {
-			t.Fatal("expected initial view to be non-nil")
-		}
-
-		var wg sync.WaitGroup
-		for j := 0; j < 5; j++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				sess.MarkDirty(root)
-			}()
-		}
-
-		wg.Wait()
-
-		time.Sleep(50 * time.Millisecond)
-
-		for sess.IsFlushing() || sess.IsFlushPending() {
-			time.Sleep(10 * time.Millisecond)
-		}
-
-		if sess.View == nil {
-			t.Errorf("iteration %d: view should never be nil after concurrent MarkDirty calls", i)
-		}
-	}
-}
-
-func TestFlushCancellation_BailsOutWhenContextCancelled(t *testing.T) {
-	sess := &Session{
-		Components:        make(map[string]*Instance),
-		MountedComponents: make(map[*Instance]struct{}),
-		DirtyQueue:        []*Instance{},
-		DirtySet:          make(map[*Instance]struct{}),
-		PendingEffects:    []effectTask{},
-		PendingCleanups:   []cleanupTask{},
-		Bus:               protocol.NewBus(),
-	}
-
-	conversionHit := atomic.Bool{}
-
-	slowChildComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		conversionHit.Store(true)
-		time.Sleep(50 * time.Millisecond)
-		return &work.Text{Value: "slow child"}
-	}
-
-	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		return work.Component(slowChildComponent)
-	}
-
-	root := &Instance{
-		ID:                 "root",
-		Fn:                 rootComponent,
+			sess.MarkDirty(inst)
+			return &work.Text{Value: "looping"}
+		},
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
-	sess.Root = root
-	sess.Components["root"] = root
-	sess.MountedComponents[root] = struct{}{}
 
-	_ = sess.Flush()
+	sess.Root = inst
+	sess.Components["root"] = inst
+	sess.MountedComponents[inst] = struct{}{}
 
-	initialView := sess.View
-	if initialView == nil {
-		t.Fatal("expected initial view to be non-nil")
-	}
-
-	flushDone := make(chan struct{})
+	done := make(chan struct{})
 	go func() {
 		_ = sess.Flush()
-		close(flushDone)
+		close(done)
 	}()
 
-	time.Sleep(10 * time.Millisecond)
-
-	sess.MarkDirty(root)
-
 	select {
-	case <-flushDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("flush should complete")
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Flush should have terminated due to max iterations guard")
 	}
 
-	for sess.IsFlushing() || sess.IsFlushPending() {
-		time.Sleep(10 * time.Millisecond)
+	if renderCount.Load() > maxRenderIterations+5 {
+		t.Errorf("render loop should be capped around %d iterations, got %d", maxRenderIterations, renderCount.Load())
 	}
 
-	if sess.View == nil {
-		t.Error("view should not be nil after cancelled flush and re-flush")
+	if renderCount.Load() < maxRenderIterations-5 {
+		t.Errorf("expected close to %d iterations before guard kicks in, got %d", maxRenderIterations, renderCount.Load())
 	}
 }
 
-func TestFlushCancellation_PreservesViewOnNilConversion(t *testing.T) {
+func TestRenderLoopStopsWhenNoDirty(t *testing.T) {
 	sess := &Session{
 		Components:        make(map[string]*Instance),
 		MountedComponents: make(map[*Instance]struct{}),
@@ -1619,38 +1291,27 @@ func TestFlushCancellation_PreservesViewOnNilConversion(t *testing.T) {
 		DirtySet:          make(map[*Instance]struct{}),
 		PendingEffects:    []effectTask{},
 		PendingCleanups:   []cleanupTask{},
-		Bus:               protocol.NewBus(),
 	}
 
-	rootComponent := func(ctx *Ctx, _ any, _ []work.Item) work.Node {
-		return &work.Text{Value: "valid content"}
-	}
+	renderCount := atomic.Int32{}
 
-	root := &Instance{
-		ID:                 "root",
-		Fn:                 rootComponent,
+	inst := &Instance{
+		ID: "root",
+		Fn: func(*Ctx, any, []work.Item) work.Node {
+			renderCount.Add(1)
+			return &work.Text{Value: "done"}
+		},
 		HookFrame:          []HookSlot{},
 		ReferencedChildren: make(map[string]bool),
 	}
-	sess.Root = root
-	sess.Components["root"] = root
-	sess.MountedComponents[root] = struct{}{}
+
+	sess.Root = inst
+	sess.Components["root"] = inst
+	sess.MountedComponents[inst] = struct{}{}
 
 	_ = sess.Flush()
 
-	if sess.View == nil {
-		t.Fatal("expected view to be non-nil after first flush")
-	}
-
-	originalView := sess.View
-
-	_ = sess.Flush()
-
-	if sess.View == nil {
-		t.Error("view should remain non-nil after subsequent flush")
-	}
-
-	if sess.PrevView != originalView {
-		t.Log("PrevView updated as expected during normal flush")
+	if renderCount.Load() != 1 {
+		t.Errorf("expected exactly 1 render when no mid-render dirties, got %d", renderCount.Load())
 	}
 }
