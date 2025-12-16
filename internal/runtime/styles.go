@@ -70,7 +70,7 @@ func convertStylesheet(parsed *css.Stylesheet) *metadata.Stylesheet {
 	for _, rule := range parsed.Rules {
 		stylesheet.Rules = append(stylesheet.Rules, metadata.StyleRule{
 			Selector: rule.Selector,
-			Props:    rule.Props,
+			Decls:    convertDecls(rule.Decls),
 		})
 	}
 
@@ -81,11 +81,37 @@ func convertStylesheet(parsed *css.Stylesheet) *metadata.Stylesheet {
 		for _, rule := range media.Rules {
 			block.Rules = append(block.Rules, metadata.StyleRule{
 				Selector: rule.Selector,
-				Props:    rule.Props,
+				Decls:    convertDecls(rule.Decls),
 			})
 		}
 		stylesheet.MediaBlocks = append(stylesheet.MediaBlocks, block)
 	}
 
+	for _, kf := range parsed.Keyframes {
+		block := metadata.KeyframesBlock{
+			Name: kf.Name,
+		}
+		for _, step := range kf.Steps {
+			block.Steps = append(block.Steps, metadata.KeyframesStep{
+				Selector: step.Selector,
+				Decls:    convertDecls(step.Decls),
+			})
+		}
+		stylesheet.Keyframes = append(stylesheet.Keyframes, block)
+	}
+
+	stylesheet.OtherBlocks = append(stylesheet.OtherBlocks, parsed.OtherBlocks...)
+
 	return stylesheet
+}
+
+func convertDecls(decls []css.Declaration) []metadata.Declaration {
+	result := make([]metadata.Declaration, len(decls))
+	for i, d := range decls {
+		result[i] = metadata.Declaration{
+			Property: d.Property,
+			Value:    d.Value,
+		}
+	}
+	return result
 }

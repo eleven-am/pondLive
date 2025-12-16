@@ -184,7 +184,7 @@ func TestRenderHTML_Element_WithStylesheet(t *testing.T) {
 			Rules: []metadata.StyleRule{
 				{
 					Selector: ".test",
-					Props:    map[string]string{"color": "red"},
+					Decls:    []metadata.Declaration{{Property: "color", Value: "red"}},
 				},
 			},
 		},
@@ -205,7 +205,7 @@ func TestRenderHTML_Element_WithStylesheet_MediaQueries(t *testing.T) {
 					Rules: []metadata.StyleRule{
 						{
 							Selector: ".mobile",
-							Props:    map[string]string{"display": "block"},
+							Decls:    []metadata.Declaration{{Property: "display", Value: "block"}},
 						},
 					},
 				},
@@ -229,23 +229,23 @@ func TestEscapeCSSForHTML(t *testing.T) {
 	}
 }
 
-func TestWriteProps_Empty(t *testing.T) {
+func TestWriteDecls_Empty(t *testing.T) {
 	var b strings.Builder
-	writeProps(&b, nil)
+	writeDecls(&b, nil)
 	if b.Len() != 0 {
-		t.Errorf("expected empty output for nil props, got %q", b.String())
+		t.Errorf("expected empty output for nil decls, got %q", b.String())
 	}
 }
 
-func TestWriteProps_Multiple(t *testing.T) {
+func TestWriteDecls_Multiple(t *testing.T) {
 	var b strings.Builder
-	writeProps(&b, map[string]string{"a": "1", "b": "2"})
+	writeDecls(&b, []metadata.Declaration{
+		{Property: "a", Value: "1"},
+		{Property: "b", Value: "2"},
+	})
 	result := b.String()
-	if !strings.Contains(result, "a:1") {
-		t.Errorf("expected a:1, got %q", result)
-	}
-	if !strings.Contains(result, "b:2") {
-		t.Errorf("expected b:2, got %q", result)
+	if result != "a:1;b:2" {
+		t.Errorf("expected a:1;b:2, got %q", result)
 	}
 }
 

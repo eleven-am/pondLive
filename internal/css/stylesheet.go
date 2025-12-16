@@ -5,11 +5,8 @@ type Declaration struct {
 	Value    string
 }
 
-type PropertyMap map[string]string
-
 type SelectorBlock struct {
 	Selector string
-	Props    PropertyMap
 	Decls    []Declaration
 }
 
@@ -33,6 +30,5 @@ type KeyframesBlock struct {
 
 type KeyframesStep struct {
 	Selector string
-	Props    PropertyMap
 	Decls    []Declaration
 }

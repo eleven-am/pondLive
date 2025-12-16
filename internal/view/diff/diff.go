@@ -162,239 +162,31 @@ func diffChildren(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node
 	diffChildrenIndexed(patches, seq, parentPath, a, b)
 }
 
-func hasStrongIdentity(n view.Node) bool {
-	elem, ok := n.(*view.Element)
-	if !ok {
-		return false
-	}
-	if elem.Attrs == nil {
-		return false
-	}
-	identityAttrs := []string{"id", "src", "href", "name", "data-key"}
-	for _, k := range identityAttrs {
-		if v, ok := elem.Attrs[k]; ok && len(v) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-func nodeSignature(n view.Node) string {
-	if n == nil {
-		return ""
-	}
-
-	switch node := n.(type) {
-	case *view.Element:
-		sig := "E:" + node.Tag
-		attrs := node.Attrs
-		if attrs != nil {
-			keys := []string{"id", "src", "href", "name", "data-key"}
-			for _, k := range keys {
-				if v, ok := attrs[k]; ok && len(v) > 0 {
-					sig += "|" + k + "=" + v[0]
-				}
-			}
-		}
-		return sig
-
-	default:
-		return ""
-	}
-}
-
-type unmatchedEntry struct {
-	index int
-	node  view.Node
-	sig   string
-}
-
-func isAssetElement(n view.Node) bool {
-	elem, ok := n.(*view.Element)
-	if !ok {
-		return false
-	}
-	switch elem.Tag {
-	case "script", "style", "link":
-		return true
-	default:
-		return false
-	}
-}
-
-func hasCrossPositionSignatureMatch(a, b []view.Node) bool {
-	sigToOldIdx := make(map[string]int)
-	strongCountOld := 0
-	for i, child := range a {
-		if hasStrongIdentity(child) && !isAssetElement(child) {
-			strongCountOld++
-			if sig := nodeSignature(child); sig != "" {
-				sigToOldIdx[sig] = i
-			}
-		}
-	}
-
-	crossPositionMatches := 0
-	strongCountNew := 0
-	for j, child := range b {
-		if hasStrongIdentity(child) && !isAssetElement(child) {
-			strongCountNew++
-			if sig := nodeSignature(child); sig != "" {
-				if oldIdx, found := sigToOldIdx[sig]; found && oldIdx != j {
-					crossPositionMatches++
-				}
-			}
-		}
-	}
-
-	if crossPositionMatches == 0 {
-		return false
-	}
-
+func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
 	minLen := len(a)
 	if len(b) < minLen {
 		minLen = len(b)
 	}
-	if minLen == 0 {
-		return false
+
+	for i := 0; i < minLen; i++ {
+		childPath := append(copyPath(parentPath), i)
+		diffNode(patches, seq, childPath, a[i], b[i])
 	}
 
-	minStrongCount := strongCountOld
-	if strongCountNew < minStrongCount {
-		minStrongCount = strongCountNew
-	}
-
-	strongRatio := float64(minStrongCount) / float64(minLen)
-
-	if crossPositionMatches >= 2 {
-		return strongRatio >= 0.25
-	}
-
-	return strongRatio >= 0.5
-}
-
-func strongSignature(n view.Node) string {
-	if !hasStrongIdentity(n) {
-		return ""
-	}
-	return nodeSignature(n)
-}
-
-func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
-	if hasCrossPositionSignatureMatch(a, b) {
-		diffChildrenWithKeys(patches, seq, parentPath, a, b, strongSignature)
-		return
-	}
-	matchedOld := make(map[int]bool)
-	matchedNew := make(map[int]bool)
-
-	sigToOldIdx := make(map[string]int)
-	for i, child := range a {
-		if hasStrongIdentity(child) {
-			sig := nodeSignature(child)
-			if sig != "" {
-				if _, exists := sigToOldIdx[sig]; exists {
-					continue
-				}
-				sigToOldIdx[sig] = i
-			}
-		}
-	}
-
-	for j, childB := range b {
-		if !hasStrongIdentity(childB) {
-			continue
-		}
-		sigB := nodeSignature(childB)
-		if sigB == "" {
-			continue
-		}
-		if oldIdx, found := sigToOldIdx[sigB]; found && !matchedOld[oldIdx] {
-			matchedOld[oldIdx] = true
-			matchedNew[j] = true
-			childPath := append(copyPath(parentPath), j)
-			diffNode(patches, seq, childPath, a[oldIdx], childB)
-		}
-	}
-
-	m := len(a)
-	if len(b) > m {
-		m = len(b)
-	}
-
-	for i := 0; i < m; i++ {
-		if matchedOld[i] || matchedNew[i] {
-			continue
-		}
-
-		var childA, childB view.Node
-		if i < len(a) {
-			childA = a[i]
-		}
-		if i < len(b) {
-			childB = b[i]
-		}
-
-		if childA != nil && childB != nil {
-			matchedOld[i] = true
-			matchedNew[i] = true
-			childPath := append(copyPath(parentPath), i)
-			diffNode(patches, seq, childPath, childA, childB)
-		}
-	}
-
-	var unmatchedOldIndices []int
-	for i := 0; i < len(a); i++ {
-		if !matchedOld[i] && !hasStrongIdentity(a[i]) {
-			unmatchedOldIndices = append(unmatchedOldIndices, i)
-		}
-	}
-
-	var unmatchedNewIndices []int
-	for j := 0; j < len(b); j++ {
-		if !matchedNew[j] && !hasStrongIdentity(b[j]) {
-			unmatchedNewIndices = append(unmatchedNewIndices, j)
-		}
-	}
-
-	for k := 0; k < len(unmatchedOldIndices) && k < len(unmatchedNewIndices); k++ {
-		oldIdx := unmatchedOldIndices[k]
-		newIdx := unmatchedNewIndices[k]
-		matchedOld[oldIdx] = true
-		matchedNew[newIdx] = true
-		childPath := append(copyPath(parentPath), newIdx)
-		diffNode(patches, seq, childPath, a[oldIdx], b[newIdx])
-	}
-
-	var toDelete []int
-	for i := 0; i < len(a); i++ {
-		if !matchedOld[i] {
-			toDelete = append(toDelete, i)
-		}
-	}
-
-	var toAdd []unmatchedEntry
-	for j := 0; j < len(b); j++ {
-		if !matchedNew[j] {
-			toAdd = append(toAdd, unmatchedEntry{index: j, node: b[j]})
-		}
-	}
-
-	sort.Sort(sort.Reverse(sort.IntSlice(toDelete)))
-	for _, idx := range toDelete {
+	for i := len(a) - 1; i >= minLen; i-- {
 		emit(patches, seq, Patch{
 			Path:  copyPath(parentPath),
 			Op:    OpDelChild,
-			Index: intPtr(idx),
+			Index: intPtr(i),
 		})
 	}
 
-	for _, entry := range toAdd {
+	for i := minLen; i < len(b); i++ {
 		emit(patches, seq, Patch{
 			Path:  copyPath(parentPath),
 			Op:    OpAddChild,
-			Index: intPtr(entry.index),
-			Value: entry.node,
+			Index: intPtr(i),
+			Value: b[i],
 		})
 	}
 }
@@ -718,17 +510,32 @@ func stylesheetToMap(ss *metadata.Stylesheet) map[string]map[string]string {
 	result := make(map[string]map[string]string)
 
 	for _, rule := range ss.Rules {
-		result[rule.Selector] = rule.Props
+		result[rule.Selector] = declsToMap(rule.Decls)
 	}
 
 	for _, media := range ss.MediaBlocks {
 		for _, rule := range media.Rules {
 			key := "@media " + media.Query + " " + rule.Selector
-			result[key] = rule.Props
+			result[key] = declsToMap(rule.Decls)
+		}
+	}
+
+	for _, kf := range ss.Keyframes {
+		for _, step := range kf.Steps {
+			key := "@keyframes " + kf.Name + " " + step.Selector
+			result[key] = declsToMap(step.Decls)
 		}
 	}
 
 	return result
+}
+
+func declsToMap(decls []metadata.Declaration) map[string]string {
+	m := make(map[string]string, len(decls))
+	for _, d := range decls {
+		m[d.Property] = d.Value
+	}
+	return m
 }
 
 func copyPath(path []int) []int {

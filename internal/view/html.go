@@ -114,7 +114,7 @@ func renderElement(b *strings.Builder, el *Element) {
 		}
 	}
 
-	if el.Stylesheet != nil && (len(el.Stylesheet.Rules) > 0 || len(el.Stylesheet.MediaBlocks) > 0) {
+	if el.Stylesheet != nil && (len(el.Stylesheet.Rules) > 0 || len(el.Stylesheet.MediaBlocks) > 0 || len(el.Stylesheet.Keyframes) > 0 || len(el.Stylesheet.OtherBlocks) > 0) {
 		renderStylesheet(b, el.Stylesheet)
 	}
 
@@ -131,7 +131,7 @@ func renderStylesheet(b *strings.Builder, ss *metadata.Stylesheet) {
 	for _, rule := range ss.Rules {
 		b.WriteString(escapeCSSForHTML(rule.Selector))
 		b.WriteString("{")
-		writeProps(b, rule.Props)
+		writeDecls(b, rule.Decls)
 		b.WriteString("}")
 	}
 
@@ -142,10 +142,27 @@ func renderStylesheet(b *strings.Builder, ss *metadata.Stylesheet) {
 		for _, rule := range media.Rules {
 			b.WriteString(escapeCSSForHTML(rule.Selector))
 			b.WriteString("{")
-			writeProps(b, rule.Props)
+			writeDecls(b, rule.Decls)
 			b.WriteString("}")
 		}
 		b.WriteString("}")
+	}
+
+	for _, kf := range ss.Keyframes {
+		b.WriteString("@keyframes ")
+		b.WriteString(escapeCSSForHTML(kf.Name))
+		b.WriteString("{")
+		for _, step := range kf.Steps {
+			b.WriteString(escapeCSSForHTML(step.Selector))
+			b.WriteString("{")
+			writeDecls(b, step.Decls)
+			b.WriteString("}")
+		}
+		b.WriteString("}")
+	}
+
+	for _, other := range ss.OtherBlocks {
+		b.WriteString(escapeCSSForHTML(other))
 	}
 }
 
@@ -153,23 +170,13 @@ func escapeCSSForHTML(s string) string {
 	return strings.ReplaceAll(s, "</", "<\\/")
 }
 
-func writeProps(b *strings.Builder, props map[string]string) {
-	if len(props) == 0 {
-		return
-	}
-
-	keys := make([]string, 0, len(props))
-	for k := range props {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for i, k := range keys {
+func writeDecls(b *strings.Builder, decls []metadata.Declaration) {
+	for i, d := range decls {
 		if i > 0 {
 			b.WriteByte(';')
 		}
-		b.WriteString(escapeCSSForHTML(k))
+		b.WriteString(escapeCSSForHTML(d.Property))
 		b.WriteByte(':')
-		b.WriteString(escapeCSSForHTML(props[k]))
+		b.WriteString(escapeCSSForHTML(d.Value))
 	}
 }

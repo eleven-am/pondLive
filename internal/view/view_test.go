@@ -96,8 +96,8 @@ func TestElementWithStylesheet(t *testing.T) {
 			Rules: []metadata.StyleRule{
 				{
 					Selector: ".card",
-					Props: map[string]string{
-						"padding": "16px",
+					Decls: []metadata.Declaration{
+						{Property: "padding", Value: "16px"},
 					},
 				},
 			},

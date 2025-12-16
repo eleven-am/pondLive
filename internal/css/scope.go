@@ -3,7 +3,6 @@ package css
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"sort"
 	"strings"
 )
 
@@ -29,7 +28,7 @@ func scope(parsed *parsedCSS, hash string) *Stylesheet {
 
 func scopeRule(r rule, hash string) []SelectorBlock {
 	selectors := splitSelectors(r.selector)
-	props, decls := parseDeclarations(r.declarations)
+	decls := parseDeclarations(r.declarations)
 	blocks := make([]SelectorBlock, 0, len(selectors))
 	for _, sel := range selectors {
 		sel = strings.TrimSpace(sel)
@@ -38,7 +37,6 @@ func scopeRule(r rule, hash string) []SelectorBlock {
 		}
 		blocks = append(blocks, SelectorBlock{
 			Selector: scopeSelector(sel, hash),
-			Props:    props,
 			Decls:    decls,
 		})
 	}
@@ -76,8 +74,7 @@ func splitSelectors(selector string) []string {
 	return selectors
 }
 
-func parseDeclarations(decl string) (PropertyMap, []Declaration) {
-	props := PropertyMap{}
+func parseDeclarations(decl string) []Declaration {
 	var decls []Declaration
 
 	parts := splitDeclarations(decl)
@@ -91,10 +88,9 @@ func parseDeclarations(decl string) (PropertyMap, []Declaration) {
 		if key == "" || value == "" {
 			continue
 		}
-		props[key] = value
 		decls = append(decls, Declaration{Property: key, Value: value})
 	}
-	return props, decls
+	return decls
 }
 
 func splitDeclarations(decl string) []string {
@@ -215,16 +211,15 @@ func scopeKeyframes(kf keyframesBlock, hash string) KeyframesBlock {
 	if hash != "" && name != "" {
 		name = name + "-" + hash
 	}
-	blocks := make([]KeyframesStep, 0, len(kf.blocks))
+	steps := make([]KeyframesStep, 0, len(kf.blocks))
 	for _, step := range kf.blocks {
-		props, decls := parseDeclarations(step.declarations)
-		blocks = append(blocks, KeyframesStep{
+		decls := parseDeclarations(step.declarations)
+		steps = append(steps, KeyframesStep{
 			Selector: step.selector,
-			Props:    props,
 			Decls:    decls,
 		})
 	}
-	return KeyframesBlock{Name: name, Steps: blocks}
+	return KeyframesBlock{Name: name, Steps: steps}
 }
 
 func scopeSimpleSelector(sel, hash string) (string, bool) {
@@ -327,80 +322,4 @@ func hashComponent(componentID string) string {
 	}
 	h := sha256.Sum256([]byte(componentID))
 	return hex.EncodeToString(h[:])[:8]
-}
-
-func (ss *Stylesheet) Serialize() string {
-	var b strings.Builder
-	for _, rule := range ss.Rules {
-		b.WriteString(rule.Selector)
-		b.WriteString(" { ")
-		b.WriteString(joinProps(rule.Props, rule.Decls))
-		b.WriteString(" }\n")
-	}
-	for _, media := range ss.MediaRules {
-		b.WriteString("@media ")
-		b.WriteString(media.Query)
-		b.WriteString(" {\n")
-		for _, rule := range media.Rules {
-			b.WriteString("  ")
-			b.WriteString(rule.Selector)
-			b.WriteString(" { ")
-			b.WriteString(joinProps(rule.Props, rule.Decls))
-			b.WriteString(" }\n")
-		}
-		b.WriteString("}\n")
-	}
-	for _, kf := range ss.Keyframes {
-		b.WriteString("@keyframes ")
-		b.WriteString(kf.Name)
-		b.WriteString(" {\n")
-		for _, step := range kf.Steps {
-			b.WriteString("  ")
-			b.WriteString(step.Selector)
-			b.WriteString(" { ")
-			b.WriteString(joinProps(step.Props, step.Decls))
-			b.WriteString(" }\n")
-		}
-		b.WriteString("}\n")
-	}
-	for _, raw := range ss.OtherBlocks {
-		if strings.TrimSpace(raw) == "" {
-			continue
-		}
-		b.WriteString(raw)
-		if !strings.HasSuffix(raw, "\n") {
-			b.WriteString("\n")
-		}
-	}
-	return b.String()
-}
-
-func joinProps(props PropertyMap, decls []Declaration) string {
-	var b strings.Builder
-	if len(decls) > 0 {
-		for i, d := range decls {
-			if i > 0 {
-				b.WriteString("; ")
-			}
-			b.WriteString(d.Property)
-			b.WriteString(": ")
-			b.WriteString(d.Value)
-		}
-		return b.String()
-	}
-
-	keys := make([]string, 0, len(props))
-	for k := range props {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for i, k := range keys {
-		if i > 0 {
-			b.WriteString("; ")
-		}
-		b.WriteString(k)
-		b.WriteString(": ")
-		b.WriteString(props[k])
-	}
-	return b.String()
 }
