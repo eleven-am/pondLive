@@ -163,6 +163,175 @@ func diffChildren(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node
 }
 
 func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
+	aLen := len(a)
+	bLen := len(b)
+
+	if aLen == 0 && bLen == 0 {
+		return
+	}
+
+	if aLen == 0 {
+		for i := 0; i < bLen; i++ {
+			emit(patches, seq, Patch{
+				Path:  copyPath(parentPath),
+				Op:    OpAddChild,
+				Index: intPtr(i),
+				Value: b[i],
+			})
+		}
+		return
+	}
+
+	if bLen == 0 {
+		for i := aLen - 1; i >= 0; i-- {
+			emit(patches, seq, Patch{
+				Path:  copyPath(parentPath),
+				Op:    OpDelChild,
+				Index: intPtr(i),
+			})
+		}
+		return
+	}
+
+	hasIdentifiableNodes := false
+	for _, node := range a {
+		if getNodeSignature(node) != "" {
+			hasIdentifiableNodes = true
+			break
+		}
+	}
+	if !hasIdentifiableNodes {
+		for _, node := range b {
+			if getNodeSignature(node) != "" {
+				hasIdentifiableNodes = true
+				break
+			}
+		}
+	}
+
+	if !hasIdentifiableNodes {
+		diffChildrenByPosition(patches, seq, parentPath, a, b)
+		return
+	}
+
+	head := 0
+	for head < aLen && head < bLen && signaturesMatch(a[head], b[head]) {
+		childPath := append(copyPath(parentPath), head)
+		diffNode(patches, seq, childPath, a[head], b[head])
+		head++
+	}
+
+	aTail := aLen - 1
+	bTail := bLen - 1
+	for aTail >= head && bTail >= head && signaturesMatch(a[aTail], b[bTail]) {
+		aTail--
+		bTail--
+	}
+
+	oldMiddle := a[head : aTail+1]
+	newMiddle := b[head : bTail+1]
+	oldMiddleLen := len(oldMiddle)
+	newMiddleLen := len(newMiddle)
+
+	if oldMiddleLen == 0 && newMiddleLen == 0 {
+		for i := bTail + 1; i < bLen; i++ {
+			aIdx := aTail + 1 + (i - bTail - 1)
+			childPath := append(copyPath(parentPath), i)
+			diffNode(patches, seq, childPath, a[aIdx], b[i])
+		}
+		return
+	}
+
+	sigToOldIdx := make(map[string][]int)
+	for i, node := range oldMiddle {
+		sig := getNodeSignature(node)
+		if sig != "" {
+			sigToOldIdx[sig] = append(sigToOldIdx[sig], i)
+		}
+	}
+
+	oldIndices := make([]int, newMiddleLen)
+	matchedOld := make(map[int]int)
+	positionMatched := make(map[int]bool)
+
+	for i, node := range newMiddle {
+		sig := getNodeSignature(node)
+		if sig != "" {
+			if indices, ok := sigToOldIdx[sig]; ok && len(indices) > 0 {
+				oldIdx := indices[0]
+				sigToOldIdx[sig] = indices[1:]
+				oldIndices[i] = oldIdx
+				matchedOld[oldIdx] = i
+				continue
+			}
+		}
+		if i < oldMiddleLen && !positionMatched[i] {
+			if _, alreadyMatched := matchedOld[i]; !alreadyMatched {
+				if nodeTypeOf(oldMiddle[i]) == nodeTypeOf(node) && sameTag(oldMiddle[i], node) {
+					oldIndices[i] = i
+					matchedOld[i] = i
+					positionMatched[i] = true
+					continue
+				}
+			}
+		}
+		oldIndices[i] = -1
+	}
+
+	lisIndices := computeLIS(oldIndices)
+	lisSet := make(map[int]bool)
+	for _, idx := range lisIndices {
+		lisSet[idx] = true
+	}
+
+	for i := oldMiddleLen - 1; i >= 0; i-- {
+		if _, matched := matchedOld[i]; !matched {
+			emit(patches, seq, Patch{
+				Path:  copyPath(parentPath),
+				Op:    OpDelChild,
+				Index: intPtr(head + i),
+			})
+		}
+	}
+
+	for i := 0; i < newMiddleLen; i++ {
+		newIdx := head + i
+		oldIdx := oldIndices[i]
+
+		if oldIdx < 0 {
+			emit(patches, seq, Patch{
+				Path:  copyPath(parentPath),
+				Op:    OpAddChild,
+				Index: intPtr(newIdx),
+				Value: newMiddle[i],
+			})
+			continue
+		}
+
+		if !lisSet[i] {
+			emit(patches, seq, Patch{
+				Path:  copyPath(parentPath),
+				Op:    OpMoveChild,
+				Index: intPtr(newIdx),
+				Value: map[string]interface{}{
+					"fromIndex": head + oldIdx,
+					"newIdx":    newIdx,
+				},
+			})
+		}
+
+		childPath := append(copyPath(parentPath), newIdx)
+		diffNode(patches, seq, childPath, oldMiddle[oldIdx], newMiddle[i])
+	}
+
+	for i := bTail + 1; i < bLen; i++ {
+		aIdx := aTail + 1 + (i - bTail - 1)
+		childPath := append(copyPath(parentPath), i)
+		diffNode(patches, seq, childPath, a[aIdx], b[i])
+	}
+}
+
+func diffChildrenByPosition(patches *[]Patch, seq *int, parentPath []int, a, b []view.Node) {
 	minLen := len(a)
 	if len(b) < minLen {
 		minLen = len(b)
@@ -341,6 +510,118 @@ func getKey(n view.Node) string {
 		return elem.Key
 	}
 	return ""
+}
+
+func getNodeSignature(n view.Node) string {
+	if n == nil {
+		return ""
+	}
+	switch node := n.(type) {
+	case *view.Element:
+		sig := "E:" + node.Tag
+		hasIdentifier := false
+		if node.Key != "" {
+			sig += ":key=" + node.Key
+			hasIdentifier = true
+		}
+		if id, ok := node.Attrs["id"]; ok && len(id) > 0 {
+			sig += ":id=" + id[0]
+			hasIdentifier = true
+		}
+		if src, ok := node.Attrs["src"]; ok && len(src) > 0 {
+			sig += ":src=" + src[0]
+			hasIdentifier = true
+		}
+		if href, ok := node.Attrs["href"]; ok && len(href) > 0 {
+			sig += ":href=" + href[0]
+			hasIdentifier = true
+		}
+		if !hasIdentifier {
+			return ""
+		}
+		return sig
+	case *view.Text:
+		return ""
+	case *view.Comment:
+		return ""
+	case *view.Fragment:
+		return ""
+	default:
+		return ""
+	}
+}
+
+func signaturesMatch(a, b view.Node) bool {
+	sigA := getNodeSignature(a)
+	sigB := getNodeSignature(b)
+	if sigA == "" || sigB == "" {
+		return nodeTypeOf(a) == nodeTypeOf(b) && sameTag(a, b)
+	}
+	return sigA == sigB
+}
+
+func sameTag(a, b view.Node) bool {
+	aElem, aOk := a.(*view.Element)
+	bElem, bOk := b.(*view.Element)
+	if aOk && bOk {
+		return aElem.Tag == bElem.Tag
+	}
+	return true
+}
+
+func computeLIS(arr []int) []int {
+	n := len(arr)
+	if n == 0 {
+		return nil
+	}
+
+	tails := make([]int, n)
+	tailIndices := make([]int, n)
+	predecessors := make([]int, n)
+	length := 0
+
+	for i := 0; i < n; i++ {
+		if arr[i] < 0 {
+			predecessors[i] = -1
+			continue
+		}
+
+		lo, hi := 0, length
+		for lo < hi {
+			mid := (lo + hi) / 2
+			if tails[mid] < arr[i] {
+				lo = mid + 1
+			} else {
+				hi = mid
+			}
+		}
+
+		tails[lo] = arr[i]
+		tailIndices[lo] = i
+
+		if lo > 0 {
+			predecessors[i] = tailIndices[lo-1]
+		} else {
+			predecessors[i] = -1
+		}
+
+		if lo+1 > length {
+			length = lo + 1
+		}
+	}
+
+	if length == 0 {
+		return nil
+	}
+
+	result := make([]int, length)
+	k := tailIndices[length-1]
+	for i := length - 1; i >= 0; i-- {
+		result[i] = k
+		k = predecessors[k]
+	}
+
+	return result
 }
 
 func handleDuplicateKey(tree, key string, path []int) {
