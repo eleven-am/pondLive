@@ -130,9 +130,14 @@ func TestUseUploadOnProgress(t *testing.T) {
 		close(done)
 	})
 
-	handle.script.slot.handleMessage("progress", map[string]interface{}{
-		"loaded": float64(500),
-		"total":  float64(1000),
+	topic := protocol.Topic("script:" + handle.script.slot.id + ":progress")
+	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
+		ScriptID: handle.script.slot.id,
+		Event:    "progress",
+		Data: map[string]interface{}{
+			"loaded": float64(500),
+			"total":  float64(1000),
+		},
 	})
 
 	select {
@@ -233,8 +238,13 @@ func TestUseUploadOnError(t *testing.T) {
 		close(done)
 	})
 
-	handle.script.slot.handleMessage("error", map[string]interface{}{
-		"error": "upload failed",
+	topic := protocol.Topic("script:" + handle.script.slot.id + ":error")
+	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
+		ScriptID: handle.script.slot.id,
+		Event:    "error",
+		Data: map[string]interface{}{
+			"error": "upload failed",
+		},
 	})
 
 	select {
@@ -313,7 +323,12 @@ func TestUseUploadOnCancelled(t *testing.T) {
 		close(done)
 	})
 
-	handle.script.slot.handleMessage("cancelled", map[string]interface{}{})
+	topic := protocol.Topic("script:" + handle.script.slot.id + ":cancelled")
+	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
+		ScriptID: handle.script.slot.id,
+		Event:    "cancelled",
+		Data:     map[string]interface{}{},
+	})
 
 	select {
 	case <-done:
@@ -350,9 +365,14 @@ func TestUseUploadProgress(t *testing.T) {
 		t.Error("expected initial progress to be 0")
 	}
 
-	handle.script.slot.handleMessage("progress", map[string]interface{}{
-		"loaded": float64(250),
-		"total":  float64(500),
+	topic := protocol.Topic("script:" + handle.script.slot.id + ":progress")
+	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
+		ScriptID: handle.script.slot.id,
+		Event:    "progress",
+		Data: map[string]interface{}{
+			"loaded": float64(250),
+			"total":  float64(500),
+		},
 	})
 
 	time.Sleep(50 * time.Millisecond)
@@ -485,10 +505,15 @@ func TestUseUploadOnReady(t *testing.T) {
 		close(done)
 	})
 
-	handle.script.slot.handleMessage("ready", map[string]interface{}{
-		"name": "test.pdf",
-		"size": float64(2048),
-		"type": "application/pdf",
+	topic := protocol.Topic("script:" + handle.script.slot.id + ":ready")
+	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
+		ScriptID: handle.script.slot.id,
+		Event:    "ready",
+		Data: map[string]interface{}{
+			"name": "test.pdf",
+			"size": float64(2048),
+			"type": "application/pdf",
+		},
 	})
 
 	select {
@@ -534,11 +559,16 @@ func TestUseUploadOnChange(t *testing.T) {
 		close(done)
 	})
 
-	handle.script.slot.handleMessage("change", map[string]interface{}{
-		"name": "document.pdf",
-		"size": float64(4096),
-		"type": "application/pdf",
-		"path": "/uploads/document.pdf",
+	topic := protocol.Topic("script:" + handle.script.slot.id + ":change")
+	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
+		ScriptID: handle.script.slot.id,
+		Event:    "change",
+		Data: map[string]interface{}{
+			"name": "document.pdf",
+			"size": float64(4096),
+			"type": "application/pdf",
+			"path": "/uploads/document.pdf",
+		},
 	})
 
 	select {

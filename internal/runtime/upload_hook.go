@@ -248,7 +248,7 @@ func UseUpload(ctx *Ctx) *UploadHandle {
 		}
 	}
 
-	cell.script.slot.sess.Bus.Subscribe(protocol.Topic("script:"+cell.script.slot.id), func(action string, data interface{}) {
+	cell.script.slot.sess.Bus.Upsert(protocol.Topic("script:"+cell.script.slot.id+":progress"), func(action string, data interface{}) {
 		if action != string(protocol.ScriptMessageAction) {
 			return
 		}
@@ -256,19 +256,20 @@ func UseUpload(ctx *Ctx) *UploadHandle {
 		if !ok {
 			return
 		}
-
-		switch payload.Event {
-		case "progress":
-			m, ok := payload.Data.(map[string]interface{})
-			if !ok {
-				return
-			}
-			loaded, _ := m["loaded"].(float64)
-			total, _ := m["total"].(float64)
-			cell.progRef.Current = UploadProgress{Loaded: int64(loaded), Total: int64(total)}
-		case "ready":
-			handle.sendStart()
+		m, ok := payload.Data.(map[string]interface{})
+		if !ok {
+			return
 		}
+		loaded, _ := m["loaded"].(float64)
+		total, _ := m["total"].(float64)
+		cell.progRef.Current = UploadProgress{Loaded: int64(loaded), Total: int64(total)}
+	})
+
+	cell.script.slot.sess.Bus.Upsert(protocol.Topic("script:"+cell.script.slot.id+":ready"), func(action string, data interface{}) {
+		if action != string(protocol.ScriptMessageAction) {
+			return
+		}
+		handle.sendStart()
 	})
 
 	return handle

@@ -109,10 +109,8 @@ func (slot *scriptSlot) setEventHandler(event string, fn func(interface{})) {
 		oldSub.Unsubscribe()
 	}
 
-	slot.subs[event] = slot.sess.Bus.SubscribeToScriptMessages(slot.id, func(evt string, data interface{}) {
-		if evt == event {
-			fn(data)
-		}
+	slot.subs[event] = slot.sess.Bus.SubscribeToScriptMessages(slot.id, event, func(data interface{}) {
+		fn(data)
 	})
 
 	if !slot.cleanupRegistered {
@@ -139,16 +137,6 @@ func (slot *scriptSlot) send(event string, data interface{}) {
 	}
 
 	slot.sess.Bus.PublishScriptSend(slot.id, event, data)
-}
-
-func (slot *scriptSlot) handleMessage(event string, data interface{}) {
-	if slot == nil || slot.sess == nil {
-		return
-	}
-
-	if slot.sess.Bus != nil {
-		slot.sess.Bus.PublishScriptMessage(slot.id, event, data)
-	}
 }
 
 func UseScript(ctx *Ctx, script string) ScriptHandle {
@@ -208,17 +196,6 @@ func (s *Session) registerScriptSlot(inst *Instance, index int, script string) *
 	return slot
 }
 
-func (s *Session) findScriptSlot(id string) *scriptSlot {
-	if s == nil || id == "" {
-		return nil
-	}
-
-	s.scriptsMu.RLock()
-	slot := s.Scripts[id]
-	s.scriptsMu.RUnlock()
-	return slot
-}
-
 func (s *Session) unregisterScriptSlot(id string) {
 	if s == nil || id == "" {
 		return
@@ -227,33 +204,6 @@ func (s *Session) unregisterScriptSlot(id string) {
 	s.scriptsMu.Lock()
 	delete(s.Scripts, id)
 	s.scriptsMu.Unlock()
-
-}
-
-func (s *Session) HandleScriptMessage(id string, event string, data interface{}) {
-	slot := s.findScriptSlot(id)
-	if slot == nil {
-		return
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			phase := fmt.Sprintf("script:message:%s:%s", id, event)
-			if s != nil && s.Bus != nil {
-				s.Bus.ReportDiagnostic(protocol.Diagnostic{
-					Phase:      phase,
-					Message:    fmt.Sprintf("panic: %v", r),
-					StackTrace: "",
-					Metadata: map[string]any{
-						"panic_value": r,
-						"session_id":  s.SessionID,
-					},
-				})
-			}
-		}
-	}()
-
-	slot.handleMessage(event, data)
 }
 
 func minifyJS(script string) string {

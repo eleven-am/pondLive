@@ -107,12 +107,16 @@ func TestScriptHandleOn(t *testing.T) {
 		close(done)
 	})
 
-	channelID := protocol.Topic("script:test:s0")
+	channelID := protocol.Topic("script:test:s0:test-event")
 	if sess.Bus.SubscriberCount(channelID) != 1 {
 		t.Errorf("expected 1 subscriber on bus channel, got %d", sess.Bus.SubscriberCount(channelID))
 	}
 
-	slot.handleMessage("test-event", "test-data")
+	sess.Bus.Publish(channelID, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
+		ScriptID: "test:s0",
+		Event:    "test-event",
+		Data:     "test-data",
+	})
 
 	select {
 	case <-done:
@@ -391,51 +395,6 @@ func TestIsIdentifierChar(t *testing.T) {
 	}
 }
 
-func TestSessionHandleScriptMessage(t *testing.T) {
-	inst := &Instance{
-		ID:       "test-comp",
-		cleanups: []func(){},
-	}
-	sess := &Session{
-		Scripts: make(map[string]*scriptSlot),
-		Bus:     protocol.NewBus(),
-	}
-
-	slot := &scriptSlot{
-		id:       "test:s0",
-		sess:     sess,
-		instance: inst,
-	}
-	sess.Scripts["test:s0"] = slot
-
-	callCount := 0
-	done := make(chan struct{})
-	slot.setEventHandler("test-event", func(data interface{}) {
-		callCount++
-		close(done)
-	})
-
-	sess.HandleScriptMessage("test:s0", "test-event", nil)
-
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timeout waiting for handler")
-	}
-
-	if callCount != 1 {
-		t.Errorf("expected handler called once, got %d", callCount)
-	}
-}
-
-func TestSessionHandleScriptMessageNotFound(t *testing.T) {
-	sess := &Session{
-		Scripts: make(map[string]*scriptSlot),
-	}
-
-	sess.HandleScriptMessage("nonexistent", "test-event", nil)
-}
-
 func TestHookScriptMismatch(t *testing.T) {
 	inst := &Instance{
 		ID:        "test-comp",
@@ -459,37 +418,6 @@ func TestHookScriptMismatch(t *testing.T) {
 		}
 	}()
 	UseState[int](ctx, 0)
-}
-
-func TestScriptPanicRecovery(t *testing.T) {
-	inst := &Instance{
-		ID:       "test-comp",
-		cleanups: []func(){},
-	}
-	sess := &Session{
-		Scripts: make(map[string]*scriptSlot),
-		Bus:     protocol.NewBus(),
-	}
-
-	slot := &scriptSlot{
-		id:       "test:s0",
-		sess:     sess,
-		instance: inst,
-	}
-	sess.Scripts["test:s0"] = slot
-
-	handle := ScriptHandle{slot: slot}
-	handle.On("panic-event", func(data interface{}) {
-		panic("intentional panic")
-	})
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Error("expected HandleScriptMessage to recover from panic, but it propagated")
-		}
-	}()
-
-	sess.HandleScriptMessage("test:s0", "panic-event", nil)
 }
 
 func TestScriptCleanupAccumulationFix(t *testing.T) {
@@ -518,7 +446,7 @@ func TestScriptCleanupAccumulationFix(t *testing.T) {
 		t.Errorf("expected 1 cleanup registered, got %d", len(inst.cleanups))
 	}
 
-	channelID := protocol.Topic("script:test:s0")
+	channelID := protocol.Topic("script:test:s0:test-event")
 	if sess.Bus.SubscriberCount(channelID) != 1 {
 		t.Errorf("expected 1 bus subscriber, got %d", sess.Bus.SubscriberCount(channelID))
 	}

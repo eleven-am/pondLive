@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/session"
@@ -166,7 +167,14 @@ func (e *Endpoint) onEvt(ctx *pond.EventContext) error {
 	}
 
 	if bus := sess.Bus(); bus != nil {
-		bus.Publish(evt.Type, evt.Action, evt.Payload)
+		if strings.HasPrefix(string(evt.Type), "script:") && evt.Action == "message" {
+			if payload, ok := protocol.DecodePayload[protocol.ScriptPayload](evt.Payload); ok {
+				topic := protocol.Topic(string(evt.Type) + ":" + payload.Event)
+				bus.Publish(topic, evt.Action, evt.Payload)
+			}
+		} else {
+			bus.Publish(evt.Type, evt.Action, evt.Payload)
+		}
 	}
 
 	if transport != nil {

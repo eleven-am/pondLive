@@ -68,6 +68,7 @@ func countdown(ctx *pkg.Ctx) pkg.Node {
 
 					if (count > 0) {
 						element.innerText = count;
+						transport.send('tick', { remaining: count });
 					} else {
 						element.innerText = 0;
 						transport.send('done', 'Timer finished');
@@ -99,6 +100,9 @@ func countdown(ctx *pkg.Ctx) pkg.Node {
 			};
 		}
 	`)
+
+	timerScript.On("tick", func(data interface{}) {
+	})
 
 	timerScript.On("done", func(data interface{}) {
 		setIsDone(true)

@@ -393,31 +393,6 @@ func TestPublishScriptSend(t *testing.T) {
 	}
 }
 
-func TestPublishScriptMessage(t *testing.T) {
-	bus := NewBus()
-	var received ScriptPayload
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	topic := Topic("script:my-script")
-	bus.Subscribe(topic, func(event string, data interface{}) {
-		if event == string(ScriptMessageAction) {
-			if payload, ok := data.(ScriptPayload); ok {
-				received = payload
-			}
-		}
-		wg.Done()
-	})
-
-	bus.PublishScriptMessage("my-script", "msg-event", "msg-data")
-
-	waitWithTimeout(t, &wg)
-
-	if received.Event != "msg-event" {
-		t.Errorf("Event = %q, want %q", received.Event, "msg-event")
-	}
-}
-
 func TestSubscribeToScript(t *testing.T) {
 	bus := NewBus()
 	var received ScriptPayload
@@ -446,25 +421,25 @@ func TestSubscribeToScript(t *testing.T) {
 
 func TestSubscribeToScriptMessages(t *testing.T) {
 	bus := NewBus()
-	var receivedEvent string
 	var receivedData interface{}
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	sub := bus.SubscribeToScriptMessages("msg-script", func(event string, data interface{}) {
-		receivedEvent = event
+	sub := bus.SubscribeToScriptMessages("msg-script", "hello", func(data interface{}) {
 		receivedData = data
 		wg.Done()
 	})
 	defer sub.Unsubscribe()
 
-	bus.PublishScriptMessage("msg-script", "hello", "world")
+	topic := Topic("script:msg-script:hello")
+	bus.Publish(topic, string(ScriptMessageAction), ScriptPayload{
+		ScriptID: "msg-script",
+		Event:    "hello",
+		Data:     "world",
+	})
 
 	waitWithTimeout(t, &wg)
 
-	if receivedEvent != "hello" {
-		t.Errorf("event = %q, want %q", receivedEvent, "hello")
-	}
 	if receivedData != "world" {
 		t.Errorf("data = %v, want %v", receivedData, "world")
 	}
