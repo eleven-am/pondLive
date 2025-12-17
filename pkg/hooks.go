@@ -12,6 +12,7 @@ import (
 	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/styles"
+	"github.com/eleven-am/pondlive/internal/upload"
 )
 
 type (
@@ -33,6 +34,10 @@ type (
 	SlotRenderer              = runtime.SlotRenderer
 	ScopedSlotRenderer[T any] = runtime.ScopedSlotRenderer[T]
 	UploadHandle              = runtime.UploadHandle
+	UploadHookConfig          = runtime.UploadConfig
+	UploadEvent               = runtime.UploadEvent
+	UploadProgress            = runtime.UploadProgress
+	UploadFileInfo            = upload.FileInfo
 	Styles                    = runtime.Styles
 	StreamItem[T any]         = runtime.StreamItem[T]
 	StreamHandle[T any]       = runtime.StreamHandle[T]

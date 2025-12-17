@@ -19,7 +19,7 @@ function upload(element, transport) {
 
         tusPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/lib.es5/browser/index.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/dist/tus.min.js';
             script.onload = resolve;
             script.onerror = () => reject(new Error('Failed to load tus-js-client'));
             document.head.appendChild(script);
