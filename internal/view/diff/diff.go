@@ -193,29 +193,33 @@ func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []vi
 		return
 	}
 
-	hasIdentifiableNodes := false
-	for _, node := range a {
-		if getNodeSignature(node) != "" {
-			hasIdentifiableNodes = true
-			break
+	sigToOldIdx := make(map[string][]int)
+	hasAnySignatureMatch := false
+
+	for i, node := range a {
+		sig := getNodeSignature(node)
+		if sig != "" {
+			sigToOldIdx[sig] = append(sigToOldIdx[sig], i)
 		}
 	}
-	if !hasIdentifiableNodes {
-		for _, node := range b {
-			if getNodeSignature(node) != "" {
-				hasIdentifiableNodes = true
+
+	for _, node := range b {
+		sig := getNodeSignature(node)
+		if sig != "" {
+			if _, ok := sigToOldIdx[sig]; ok {
+				hasAnySignatureMatch = true
 				break
 			}
 		}
 	}
 
-	if !hasIdentifiableNodes {
+	if !hasAnySignatureMatch {
 		diffChildrenByPosition(patches, seq, parentPath, a, b)
 		return
 	}
 
 	head := 0
-	for head < aLen && head < bLen && signaturesMatch(a[head], b[head]) {
+	for head < aLen && head < bLen && signaturesMatchStrict(a[head], b[head]) {
 		childPath := append(copyPath(parentPath), head)
 		diffNode(patches, seq, childPath, a[head], b[head])
 		head++
@@ -223,7 +227,7 @@ func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []vi
 
 	aTail := aLen - 1
 	bTail := bLen - 1
-	for aTail >= head && bTail >= head && signaturesMatch(a[aTail], b[bTail]) {
+	for aTail >= head && bTail >= head && signaturesMatchStrict(a[aTail], b[bTail]) {
 		aTail--
 		bTail--
 	}
@@ -242,37 +246,26 @@ func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []vi
 		return
 	}
 
-	sigToOldIdx := make(map[string][]int)
+	middleSigToOldIdx := make(map[string][]int)
 	for i, node := range oldMiddle {
 		sig := getNodeSignature(node)
 		if sig != "" {
-			sigToOldIdx[sig] = append(sigToOldIdx[sig], i)
+			middleSigToOldIdx[sig] = append(middleSigToOldIdx[sig], i)
 		}
 	}
 
 	oldIndices := make([]int, newMiddleLen)
-	matchedOld := make(map[int]int)
-	positionMatched := make(map[int]bool)
+	matchedOld := make(map[int]bool)
 
 	for i, node := range newMiddle {
 		sig := getNodeSignature(node)
 		if sig != "" {
-			if indices, ok := sigToOldIdx[sig]; ok && len(indices) > 0 {
+			if indices, ok := middleSigToOldIdx[sig]; ok && len(indices) > 0 {
 				oldIdx := indices[0]
-				sigToOldIdx[sig] = indices[1:]
+				middleSigToOldIdx[sig] = indices[1:]
 				oldIndices[i] = oldIdx
-				matchedOld[oldIdx] = i
+				matchedOld[oldIdx] = true
 				continue
-			}
-		}
-		if i < oldMiddleLen && !positionMatched[i] {
-			if _, alreadyMatched := matchedOld[i]; !alreadyMatched {
-				if nodeTypeOf(oldMiddle[i]) == nodeTypeOf(node) && sameTag(oldMiddle[i], node) {
-					oldIndices[i] = i
-					matchedOld[i] = i
-					positionMatched[i] = true
-					continue
-				}
 			}
 		}
 		oldIndices[i] = -1
@@ -285,7 +278,7 @@ func diffChildrenIndexed(patches *[]Patch, seq *int, parentPath []int, a, b []vi
 	}
 
 	for i := oldMiddleLen - 1; i >= 0; i-- {
-		if _, matched := matchedOld[i]; !matched {
+		if !matchedOld[i] {
 			emit(patches, seq, Patch{
 				Path:  copyPath(parentPath),
 				Op:    OpDelChild,
@@ -558,6 +551,15 @@ func signaturesMatch(a, b view.Node) bool {
 		return nodeTypeOf(a) == nodeTypeOf(b) && sameTag(a, b)
 	}
 	return sigA == sigB
+}
+
+func signaturesMatchStrict(a, b view.Node) bool {
+	sigA := getNodeSignature(a)
+	sigB := getNodeSignature(b)
+	if sigA == "" && sigB == "" {
+		return nodeTypeOf(a) == nodeTypeOf(b) && sameTag(a, b)
+	}
+	return sigA == sigB && sigA != ""
 }
 
 func sameTag(a, b view.Node) bool {
