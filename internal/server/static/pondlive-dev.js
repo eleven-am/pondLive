@@ -2901,6 +2901,9 @@ var LiveUIModule = (() => {
 
   // src/index.ts
   if (typeof window !== "undefined" && typeof document !== "undefined") {
+    if (window.location.href.endsWith("#") && window.location.hash === "") {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => boot());
     } else {

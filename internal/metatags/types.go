@@ -3,14 +3,19 @@ package metatags
 import (
 	"crypto/sha256"
 	"fmt"
+
+	"github.com/eleven-am/pondlive/internal/work"
 )
 
 type Meta struct {
-	Title       string
-	Description string
-	Meta        []MetaTag
-	Links       []LinkTag
-	Scripts     []ScriptTag
+	Title          string
+	Description    string
+	Icon           work.Node
+	IconBackground string
+	IconColor      string
+	Meta           []MetaTag
+	Links          []LinkTag
+	Scripts        []ScriptTag
 }
 
 type metaEntry struct {

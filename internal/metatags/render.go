@@ -7,7 +7,9 @@ import (
 
 var Render = runtime.Component(func(ctx *runtime.Ctx, children []work.Item) work.Node {
 	state := metaCtx.UseContextValue(ctx)
-	metaData := getMergedMeta(state.entries)
+	favicon := faviconCtx.UseContextValue(ctx)
+	entries := state.store.snapshot()
+	metaData := getMergedMeta(entries)
 
 	items := make([]work.Node, 0)
 
@@ -24,6 +26,25 @@ var Render = runtime.Component(func(ctx *runtime.Ctx, children []work.Item) work
 			Content: metaData.Description,
 		})
 		items = append(items, descMeta...)
+	}
+
+	if favicon != nil && favicon.initialized && getWinningIcon(entries) != nil {
+		items = append(items, &work.Element{
+			Tag: "link",
+			Attrs: map[string][]string{
+				"rel":   {"icon"},
+				"type":  {"image/png"},
+				"sizes": {"32x32"},
+				"href":  {favicon.png32URL},
+			},
+		})
+		items = append(items, &work.Element{
+			Tag: "link",
+			Attrs: map[string][]string{
+				"rel":  {"apple-touch-icon"},
+				"href": {favicon.png180URL},
+			},
+		})
 	}
 
 	items = append(items, MetaTags(metaData.Meta...)...)
@@ -131,4 +152,34 @@ func getMergedMeta(entries map[string]metaEntry) *Meta {
 	}
 
 	return result
+}
+
+type iconInfo struct {
+	node       work.Node
+	background string
+	color      string
+}
+
+func getWinningIcon(entries map[string]metaEntry) *iconInfo {
+	var deepestIcon *metaEntry
+
+	for _, entry := range entries {
+		if entry.meta == nil || entry.meta.Icon == nil {
+			continue
+		}
+		if deepestIcon == nil || entry.depth > deepestIcon.depth {
+			entryCopy := entry
+			deepestIcon = &entryCopy
+		}
+	}
+
+	if deepestIcon == nil {
+		return nil
+	}
+
+	return &iconInfo{
+		node:       deepestIcon.meta.Icon,
+		background: deepestIcon.meta.IconBackground,
+		color:      deepestIcon.meta.IconColor,
+	}
 }

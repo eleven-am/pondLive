@@ -1,14 +1,12 @@
 package metatags
 
 import (
-	"maps"
-
 	"github.com/eleven-am/pondlive/internal/runtime"
 )
 
 func UseMetaTags(ctx *runtime.Ctx, meta *Meta) {
-	state := metaCtx.UseContextValue(ctx)
-	if state == nil {
+	funcs := providerCtx.UseContextValue(ctx)
+	if funcs == nil {
 		return
 	}
 
@@ -16,14 +14,10 @@ func UseMetaTags(ctx *runtime.Ctx, meta *Meta) {
 	depth := ctx.ComponentDepth()
 
 	runtime.UseEffect(ctx, func() func() {
-		next := maps.Clone(state.entries)
-		next[componentID] = metaEntry{meta: meta, depth: depth, componentID: componentID}
-		state.setEntries(next)
+		funcs.update(componentID, metaEntry{meta: meta, depth: depth, componentID: componentID})
 
 		return func() {
-			cleaned := maps.Clone(state.entries)
-			delete(cleaned, componentID)
-			state.setEntries(cleaned)
+			funcs.remove(componentID)
 		}
 	}, meta)
 }

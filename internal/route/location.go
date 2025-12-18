@@ -7,9 +7,9 @@ import (
 )
 
 type Location struct {
-	Path  string
-	Query url.Values
-	Hash  string
+	Path  string     `json:"path"`
+	Query url.Values `json:"query"`
+	Hash  string     `json:"hash"`
 }
 
 var ErrMissingRouter = errors.New("router: missing router context")
