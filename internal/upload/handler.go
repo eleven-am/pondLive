@@ -7,12 +7,14 @@ import (
 
 	"github.com/tus/tusd/v2/pkg/filestore"
 	"github.com/tus/tusd/v2/pkg/handler"
+	"golang.org/x/exp/slog"
 )
 
 type Config struct {
 	StoragePath  string
 	MaxSize      int64
 	AllowedTypes []string
+	Logger       *slog.Logger
 }
 
 type LookupFunc func(token string) (UploadCallback, bool)
@@ -48,6 +50,7 @@ func NewHandler(cfg Config, lookup LookupFunc, onRemove func(token string)) (*Ha
 		NotifyCompleteUploads:   true,
 		RespectForwardedHeaders: true,
 		PreUploadCreateCallback: h.preUpload,
+		Logger:                  cfg.Logger,
 	}
 
 	if cfg.MaxSize > 0 {
