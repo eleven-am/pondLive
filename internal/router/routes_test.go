@@ -1,358 +1,250 @@
-package router
+package router_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/router"
+	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/work"
-	"net/url"
-	"sort"
 )
 
-func TestTrieSimpleMatch(t *testing.T) {
-	trie := newRouterTrie()
-
-	entry := routeEntry{pattern: "/about", component: nil}
-	trie.Insert("/about", entry)
-
-	result := trie.Match("/about")
-	if result == nil {
-		t.Fatal("expected match for /about")
-	}
-	if result.Entry.pattern != "/about" {
-		t.Errorf("expected pattern /about, got %s", result.Entry.pattern)
-	}
+func label(name string) func() work.Node {
+	return runtime.Component(func(ctx *runtime.Ctx) work.Node {
+		r := router.UseRouter(ctx)
+		text := runtime.UseComputed(ctx, func() string {
+			params := r.Params.Get()
+			keys := make([]string, 0, len(params))
+			for k, v := range params {
+				keys = append(keys, k+"="+v)
+			}
+			sortStrings(keys)
+			return name + "[" + strings.Join(keys, ",") + "]"
+		})
+		return work.BuildElement("p", work.TextOf(text))
+	})
 }
 
-func TestTrieRootMatch(t *testing.T) {
-	trie := newRouterTrie()
-
-	entry := routeEntry{pattern: "/", component: nil}
-	trie.Insert("/", entry)
-
-	result := trie.Match("/")
-	if result == nil {
-		t.Fatal("expected match for /")
-	}
-	if result.Entry.pattern != "/" {
-		t.Errorf("expected pattern /, got %s", result.Entry.pattern)
-	}
-}
-
-func TestTrieParamExtraction(t *testing.T) {
-	trie := newRouterTrie()
-
-	entry := routeEntry{pattern: "/users/:id", component: nil}
-	trie.Insert("/users/:id", entry)
-
-	result := trie.Match("/users/123")
-	if result == nil {
-		t.Fatal("expected match for /users/123")
-	}
-	if result.Entry.pattern != "/users/:id" {
-		t.Errorf("expected pattern /users/:id, got %s", result.Entry.pattern)
-	}
-	if result.Params["id"] != "123" {
-		t.Errorf("expected param id=123, got %s", result.Params["id"])
-	}
-}
-
-func TestTrieMultipleParams(t *testing.T) {
-	trie := newRouterTrie()
-
-	entry := routeEntry{pattern: "/users/:userId/posts/:postId", component: nil}
-	trie.Insert("/users/:userId/posts/:postId", entry)
-
-	result := trie.Match("/users/42/posts/99")
-	if result == nil {
-		t.Fatal("expected match for /users/42/posts/99")
-	}
-	if result.Params["userId"] != "42" {
-		t.Errorf("expected param userId=42, got %s", result.Params["userId"])
-	}
-	if result.Params["postId"] != "99" {
-		t.Errorf("expected param postId=99, got %s", result.Params["postId"])
-	}
-}
-
-func TestTrieWildcard(t *testing.T) {
-	trie := newRouterTrie()
-
-	entry := routeEntry{pattern: "/files/*path", component: nil}
-	trie.Insert("/files/*path", entry)
-
-	result := trie.Match("/files/documents/report.pdf")
-	if result == nil {
-		t.Fatal("expected match for /files/documents/report.pdf")
-	}
-	if result.Params["path"] != "documents/report.pdf" {
-		t.Errorf("expected param path=documents/report.pdf, got %s", result.Params["path"])
-	}
-	if result.Rest != "/documents/report.pdf" {
-		t.Errorf("expected rest=/documents/report.pdf, got %s", result.Rest)
-	}
-}
-
-func TestTrieStaticBeforeParam(t *testing.T) {
-	trie := newRouterTrie()
-
-	staticEntry := routeEntry{pattern: "/users/new", component: nil}
-	paramEntry := routeEntry{pattern: "/users/:id", component: nil}
-	trie.Insert("/users/new", staticEntry)
-	trie.Insert("/users/:id", paramEntry)
-
-	result := trie.Match("/users/new")
-	if result == nil {
-		t.Fatal("expected match for /users/new")
-	}
-	if result.Entry.pattern != "/users/new" {
-		t.Errorf("expected static pattern /users/new, got %s", result.Entry.pattern)
-	}
-
-	result = trie.Match("/users/123")
-	if result == nil {
-		t.Fatal("expected match for /users/123")
-	}
-	if result.Entry.pattern != "/users/:id" {
-		t.Errorf("expected param pattern /users/:id, got %s", result.Entry.pattern)
-	}
-}
-
-func TestTrieNoMatch(t *testing.T) {
-	trie := newRouterTrie()
-
-	entry := routeEntry{pattern: "/about", component: nil}
-	trie.Insert("/about", entry)
-
-	result := trie.Match("/contact")
-	if result != nil {
-		t.Error("expected no match for /contact")
-	}
-}
-
-func TestTrieNestedPaths(t *testing.T) {
-	trie := newRouterTrie()
-
-	entry1 := routeEntry{pattern: "/app", component: nil}
-	entry2 := routeEntry{pattern: "/app/dashboard", component: nil}
-	entry3 := routeEntry{pattern: "/app/settings", component: nil}
-	trie.Insert("/app", entry1)
-	trie.Insert("/app/dashboard", entry2)
-	trie.Insert("/app/settings", entry3)
-
-	result := trie.Match("/app")
-	if result == nil || result.Entry.pattern != "/app" {
-		t.Error("expected match for /app")
-	}
-
-	result = trie.Match("/app/dashboard")
-	if result == nil || result.Entry.pattern != "/app/dashboard" {
-		t.Error("expected match for /app/dashboard")
-	}
-
-	result = trie.Match("/app/settings")
-	if result == nil || result.Entry.pattern != "/app/settings" {
-		t.Error("expected match for /app/settings")
-	}
-}
-
-func TestNormalizePath(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"", "/"},
-		{"/", "/"},
-		{"about", "/about"},
-		{"/about", "/about"},
-		{"/about/", "/about"},
-		{"//about//", "/about"},
-	}
-
-	for _, tt := range tests {
-		result := normalizePath(tt.input)
-		if result != tt.expected {
-			t.Errorf("normalizePath(%q) = %q, expected %q", tt.input, result, tt.expected)
+func sortStrings(s []string) {
+	for i := 1; i < len(s); i++ {
+		for j := i; j > 0 && s[j] < s[j-1]; j-- {
+			s[j], s[j-1] = s[j-1], s[j]
 		}
 	}
 }
 
-func TestResolveRoutePattern(t *testing.T) {
-	tests := []struct {
-		raw      string
-		base     string
-		expected string
-	}{
-		{"/about", "/", "/about"},
-		{"/", "/app", "/"},
-		{"./dashboard", "/app", "/app/dashboard"},
-		{"./", "/app", "/app"},
-		{"./settings", "/app/*", "/app/settings"},
-	}
+func rendered(h *harness) string { return h.Normalized() }
 
-	for _, tt := range tests {
-		result := resolveRoutePattern(tt.raw, tt.base)
-		if result != tt.expected {
-			t.Errorf("resolveRoutePattern(%q, %q) = %q, expected %q", tt.raw, tt.base, result, tt.expected)
+func TestTheMostSpecificRouteWinsInAnyOrder(t *testing.T) {
+	orders := [][]string{{"fallback", "id", "new", "root"}, {"root", "new", "id", "fallback"}, {"id", "fallback", "root", "new"}}
+	defs := map[string]router.RouteDef{
+		"fallback": router.Route("*", label("fallback")),
+		"id":       router.Route("/users/:id", label("id")),
+		"new":      router.Route("/users/new", label("new")),
+		"root":     router.Route("/", label("root")),
+	}
+	cases := map[string]string{
+		"/users/new": "new[]",
+		"/users/5":   "id[id=5]",
+		"/zzz":       "fallback[]",
+		"/":          "root[]",
+	}
+	for _, order := range orders {
+		for path, want := range cases {
+			h := start(t, path, false, func() work.Node {
+				list := make([]router.RouteDef, len(order))
+				for i, k := range order {
+					list[i] = defs[k]
+				}
+				return router.Routes(list...)
+			})
+			if !strings.Contains(h.SSR, ">"+want+"<") || strings.Count(h.SSR, "<p") != 1 {
+				t.Errorf("order %v path %s: want %s in %s", order, path, want, h.SSR)
+			}
 		}
 	}
 }
 
-func TestCopyParams(t *testing.T) {
-	original := map[string]string{"id": "123", "name": "test"}
-	copied := copyParams(original)
-
-	if copied["id"] != "123" || copied["name"] != "test" {
-		t.Error("copied params don't match original")
+func TestAnExactPathAndASlashStarPathAreDifferentRoutes(t *testing.T) {
+	for _, order := range [][]string{{"exact", "star"}, {"star", "exact"}} {
+		defs := map[string]router.RouteDef{"exact": router.Route("/x", label("exact")), "star": router.Route("/x/*", label("star"))}
+		for path, want := range map[string]string{"/x": "exact[]", "/x/y": "star[]", "/x/y/z": "star[]"} {
+			h := start(t, path, false, func() work.Node { return router.Routes(defs[order[0]], defs[order[1]]) })
+			if !strings.Contains(h.SSR, ">"+want+"<") {
+				t.Errorf("order %v path %s: want %s in %s", order, path, want, h.SSR)
+			}
+		}
 	}
-
-	copied["id"] = "456"
-	if original["id"] != "123" {
-		t.Error("modifying copy affected original")
+	h := start(t, "/x/y", false, func() work.Node { return router.Routes(router.Route("/x", label("exact"))) })
+	if strings.Contains(h.SSR, "<p") {
+		t.Fatalf("an exact path must not match a longer path: %s", h.SSR)
 	}
-}
-
-func TestCopyParamsNil(t *testing.T) {
-	copied := copyParams(nil)
-	if copied == nil {
-		t.Error("expected empty map, got nil")
-	}
-	if len(copied) != 0 {
-		t.Error("expected empty map")
+	h = start(t, "/x", false, func() work.Node { return router.Routes(router.Route("/x/*", label("star"))) })
+	if !strings.Contains(h.SSR, ">star[]<") {
+		t.Fatalf("/x/* must also match /x: %s", h.SSR)
 	}
 }
 
-func TestFingerprintChildren(t *testing.T) {
-	result := fingerprintChildren(nil)
-	if result != "" {
-		t.Errorf("expected empty string for nil children, got %q", result)
+type layoutProbe struct {
+	mounts int
+	router *router.Router
+	count  *runtime.Signal[int]
+}
+
+func orgLayout(lp *layoutProbe, inner func() work.Node) func() work.Node {
+	return runtime.Component(func(ctx *runtime.Ctx) work.Node {
+		mounted(ctx, &lp.mounts)
+		lp.router = router.UseRouter(ctx)
+		lp.count = runtime.UseSignal(ctx, 0)
+		shown := runtime.UseComputed(ctx, func() string { return fmt.Sprint(lp.count.Get()) })
+		org := runtime.UseComputed(ctx, func() string { return "org=" + lp.router.Params.Get()["org"] })
+		return work.BuildElement("div", work.Attribute("id", "layout"),
+			work.BuildElement("b", work.TextOf(shown)),
+			work.BuildElement("i", work.TextOf(org)),
+			inner(),
+		)
+	})
+}
+
+func nested() func() work.Node {
+	return func() work.Node {
+		return router.Routes(
+			router.Route("/members/:id", label("member")),
+			router.Route("/settings", label("settings")),
+			router.Route("*", label("inner-missing")),
+		)
 	}
 }
 
-func TestFingerprintSlots(t *testing.T) {
-	result := fingerprintSlots(nil)
-	if result != "" {
-		t.Errorf("expected empty string for nil children, got %q", result)
+func TestNestedRelativeRoutesFirstRenderAndParamsMergedAcrossLevels(t *testing.T) {
+	var lp layoutProbe
+	h := start(t, "/orgs/acme/members/7", false, func() work.Node {
+		return router.Routes(
+			router.Route("/orgs/:org/*", orgLayout(&lp, nested())),
+			router.Route("*", label("outer-missing")),
+		)
+	})
+	for _, want := range []string{`<i`, ">org=acme<", ">member[id=7,org=acme]<"} {
+		if !strings.Contains(h.SSR, want) {
+			t.Fatalf("missing %q in %s", want, h.SSR)
+		}
+	}
+	if strings.Contains(h.SSR, "missing") {
+		t.Fatalf("a fallback rendered for a path that matches: %s", h.SSR)
 	}
 }
 
-func TestCollectRouteEntriesEmpty(t *testing.T) {
-	entries := collectRouteEntries(nil, "/")
-	if entries != nil {
-		t.Errorf("expected nil for nil input, got %v", entries)
+func TestTheLayoutStaysMountedAndKeepsItsStateAcrossInnerNavigation(t *testing.T) {
+	var lp layoutProbe
+	h := start(t, "/orgs/acme/members/7", true, func() work.Node {
+		return router.Routes(router.Route("/orgs/:org/*", orgLayout(&lp, nested())))
+	})
+	h.Do(func() { lp.count.Set(41) })
+	h.Do(func() { lp.router.Navigate("/orgs/acme/settings") })
+	if !strings.Contains(rendered(h), ">settings[org=acme]<") || strings.Contains(rendered(h), "member[") {
+		t.Fatalf("dom = %s", rendered(h))
+	}
+	h.Do(func() { lp.router.Navigate("/orgs/acme/members/9") })
+	h.Do(func() { lp.router.Navigate("/orgs/globex/members/9") })
+	n := rendered(h)
+	if !strings.Contains(n, ">member[id=9,org=globex]<") || !strings.Contains(n, ">org=globex<") {
+		t.Fatalf("dom = %s", n)
+	}
+	if !strings.Contains(n, ">41<") {
+		t.Fatalf("the layout lost its state: %s", n)
+	}
+	if lp.mounts != 1 {
+		t.Fatalf("the layout was remounted %d times", lp.mounts)
 	}
 }
 
-func TestCollectSlotEntriesEmpty(t *testing.T) {
-	entries := collectSlotEntries(nil, "/")
-	if entries != nil {
-		t.Errorf("expected nil for nil input, got %v", entries)
+func TestEachLevelHasItsOwnFallback(t *testing.T) {
+	var lp layoutProbe
+	build := func() work.Node {
+		return router.Routes(
+			router.Route("/orgs/:org/*", orgLayout(&lp, nested())),
+			router.Route("*", label("outer-missing")),
+		)
+	}
+	h := start(t, "/nope", false, build)
+	if !strings.Contains(h.SSR, ">outer-missing[]<") || strings.Contains(h.SSR, `id="layout"`) {
+		t.Fatalf("outer fallback: %s", h.SSR)
+	}
+	h = start(t, "/orgs/acme/zzz/qqq", false, build)
+	if !strings.Contains(h.SSR, `id="layout"`) || !strings.Contains(h.SSR, ">inner-missing[org=acme]<") || strings.Contains(h.SSR, "outer-missing") {
+		t.Fatalf("inner fallback: %s", h.SSR)
 	}
 }
 
-func TestCollectRouteEntriesNested(t *testing.T) {
-	child := Route(nil, RouteProps{Path: "/child"})
-	parent := Route(nil, RouteProps{Path: "/parent"}, child)
-
-	entries := collectRouteEntries([]work.Node{parent}, "/")
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
+func TestLiveNavigationAcrossLevelsSwapsOnlyWhatChanged(t *testing.T) {
+	var lp layoutProbe
+	var outer probe
+	h := start(t, "/orgs/acme/settings", true, func() work.Node {
+		return router.Routes(
+			router.Route("/orgs/:org/*", orgLayout(&lp, nested())),
+			router.Route("/home", page("home", &outer)),
+			router.Route("*", label("outer-missing")),
+		)
+	})
+	h.Do(func() { lp.router.Navigate("/home") })
+	if strings.Contains(rendered(h), `id="layout"`) || !strings.Contains(rendered(h), "home:") {
+		t.Fatalf("dom = %s", rendered(h))
 	}
-	if entries[0].fullPath == "" {
-		t.Errorf("expected fullPath to be set")
+	h.Do(func() { outer.router.Navigate("/orgs/acme/members/3") })
+	if !strings.Contains(rendered(h), ">member[id=3,org=acme]<") || lp.mounts != 2 {
+		t.Fatalf("mounts=%d dom = %s", lp.mounts, rendered(h))
 	}
-}
-
-func TestCollectRouteEntriesAppendsWildcardForChildren(t *testing.T) {
-	child := Route(nil, RouteProps{Path: "/child"})
-	parent := Route(nil, RouteProps{Path: "/parent"}, child)
-
-	entries := collectRouteEntries([]work.Node{parent}, "/")
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
-	}
-	if entries[0].fullPath != "/parent/*" {
-		t.Fatalf("expected fullPath /parent/*, got %s", entries[0].fullPath)
-	}
-	if len(entries[0].children) != 1 {
-		t.Fatalf("expected 1 child route, got %d", len(entries[0].children))
+	h.Do(func() { outer.router.Navigate("/gone") })
+	if !strings.Contains(rendered(h), ">outer-missing[]<") {
+		t.Fatalf("dom = %s", rendered(h))
 	}
 }
 
-func TestCollectSlotEntriesSetsFullPath(t *testing.T) {
-	r := Route(nil, RouteProps{Path: "/slot-route"})
-	slot := Slot(nil, SlotProps{Name: "main"}, r)
-
-	entries := collectSlotEntries([]work.Node{slot}, "/")
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 slot entry, got %d", len(entries))
+func TestBackAndForwardReRouteInsideTheMountedLayout(t *testing.T) {
+	var lp layoutProbe
+	h := start(t, "/orgs/acme/members/1", true, func() work.Node {
+		return router.Routes(router.Route("/orgs/:org/*", orgLayout(&lp, nested())))
+	})
+	h.Do(func() { lp.count.Set(5) })
+	h.Do(func() { lp.router.Navigate("/orgs/acme/settings") })
+	pop := func(path string) {
+		h.Do(func() {
+			h.S.Bus.Publish(protocol.RouteHandler, string(protocol.RouterPopstateAction), protocol.RouterNavPayload{Path: path})
+		})
 	}
-	if len(entries[0].routes) != 1 {
-		t.Fatalf("expected 1 route in slot, got %d", len(entries[0].routes))
+	pop("/orgs/acme/members/1")
+	if !strings.Contains(rendered(h), ">member[id=1,org=acme]<") || strings.Contains(rendered(h), "settings[") {
+		t.Fatalf("back: %s", rendered(h))
 	}
-	if entries[0].routes[0].fullPath != "/slot-route" {
-		t.Fatalf("expected fullPath /slot-route, got %s", entries[0].routes[0].fullPath)
+	pop("/orgs/acme/settings")
+	if !strings.Contains(rendered(h), ">settings[org=acme]<") {
+		t.Fatalf("forward: %s", rendered(h))
 	}
-}
-
-func TestResolveHrefVariants(t *testing.T) {
-	base := Location{Path: "/base/path", Query: url.Values{"q": []string{"1"}}, Hash: "h"}
-
-	abs := resolveHref(base, "/abs?x=1#z")
-	if abs.Path != "/abs" || abs.Query.Get("x") != "1" || abs.Hash != "z" {
-		t.Fatalf("abs resolve mismatch: %+v", abs)
+	if lp.mounts != 1 || !strings.Contains(rendered(h), ">5<") {
+		t.Fatalf("mounts=%d dom = %s", lp.mounts, rendered(h))
 	}
-
-	hash := resolveHref(base, "#top")
-	if hash.Path != "/base/path" || hash.Hash != "top" {
-		t.Fatalf("hash resolve mismatch: %+v", hash)
-	}
-
-	rel := resolveHref(base, "./child")
-	if rel.Path != "/base/child" {
-		t.Fatalf("rel resolve mismatch: %+v", rel)
-	}
-
-	up := resolveHref(base, "../sibling")
-	if up.Path != "/sibling" {
-		t.Fatalf("up resolve mismatch: %+v", up)
+	h.Do(func() { lp.router.Back(); lp.router.Forward() })
+	if got := h.acts; len(got) < 2 || got[len(got)-2] != string(protocol.RouterBackAction) || got[len(got)-1] != string(protocol.RouterForwardAction) {
+		t.Fatalf("history commands = %v", got)
 	}
 }
 
-func TestCanonicalizeLocationSortsQuery(t *testing.T) {
-	loc := Location{
-		Path: "/p",
-		Query: url.Values{
-			"b": {"2"},
-			"a": {"1"},
-		},
-		Hash: "h",
-	}
-	canon := canonicalizeLocation(loc)
-	keys := []string{}
-	for k := range canon.Query {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	if keys[0] != "a" || keys[1] != "b" {
-		t.Fatalf("expected sorted keys [a b], got %v", keys)
-	}
-}
-
-func TestBuildHref(t *testing.T) {
-	h := buildHref("/p", url.Values{"a": {"1"}}, "hash")
-	if h != "/p?a=1#hash" {
-		t.Fatalf("expected /p?a=1#hash, got %s", h)
-	}
-}
-
-func TestMatchesPrefix(t *testing.T) {
-	if !matchesPrefix("/users/123", "/users") {
-		t.Fatalf("expected /users/123 to match prefix /users")
-	}
-	if matchesPrefix("/users", "/users/123") {
-		t.Fatalf("did not expect /users to match prefix /users/123")
-	}
-	if matchesPrefix("/users2/123", "/users") {
-		t.Fatalf("did not expect /users2/123 to match prefix /users")
+func TestMatchStateDescribesTheRouteAtItsLevel(t *testing.T) {
+	var lp layoutProbe
+	var match *router.MatchState
+	probeMatch := runtime.Component(func(ctx *runtime.Ctx) work.Node {
+		r := router.UseRouter(ctx)
+		runtime.UseEffect(ctx, func() func() { match = r.Match.Peek(); return nil })
+		return &work.Fragment{}
+	})
+	start(t, "/orgs/acme/members/7", true, func() work.Node {
+		return router.Routes(router.Route("/orgs/:org/*", orgLayout(&lp, func() work.Node {
+			return router.Routes(router.Route("/members/:id", probeMatch))
+		})))
+	})
+	if match == nil || !match.Matched || match.Pattern != "/members/:id" || match.Path != "/orgs/acme/members/7" || match.Params["id"] != "7" || match.Params["org"] != "acme" {
+		t.Fatalf("match = %+v", match)
 	}
 }

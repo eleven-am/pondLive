@@ -1,642 +1,198 @@
 package server
 
 import (
+	"errors"
 	"sync"
 	"testing"
+	"time"
 
-	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/session"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-type mockTransport struct {
-	closed bool
-	mu     sync.Mutex
-}
-
-func (m *mockTransport) Send(topic, event string, data any) error { return nil }
-func (m *mockTransport) IsLive() bool                             { return true }
-func (m *mockTransport) Close() error {
-	m.mu.Lock()
-	m.closed = true
-	m.mu.Unlock()
-	return nil
-}
-func (m *mockTransport) RequestInfo() *headers.RequestInfo   { return nil }
-func (m *mockTransport) RequestState() *headers.RequestState { return nil }
-
 func dummyComponent(_ *runtime.Ctx) work.Node {
 	return &work.Element{Tag: "div"}
 }
 
+func newSess(t *testing.T, id string, onClose func(*session.LiveSession, session.CloseReason)) *session.LiveSession {
+	t.Helper()
+	s := session.NewLiveSession(session.SessionID(id), 1, dummyComponent, &session.Config{OnClose: onClose})
+	t.Cleanup(func() { _ = s.Close() })
+	return s
+}
+
+func waitDone(t *testing.T, s *session.LiveSession) {
+	t.Helper()
+	select {
+	case <-s.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("session did not close")
+	}
+}
+
 func TestRegistryBasicOperations(t *testing.T) {
-	reg := NewSessionRegistry()
+	reg := NewSessionRegistry(0, 0)
+	sess := newSess(t, "test-session", reg.sessionClosed)
 
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-
+	if err := reg.Put(sess); err != nil {
+		t.Fatal(err)
+	}
 	found, ok := reg.Lookup("test-session")
-	if !ok {
-		t.Fatal("expected session to be found")
+	if !ok || found != sess {
+		t.Fatal("expected the same session instance")
 	}
-	if found != sess {
-		t.Error("expected same session instance")
-	}
-
-	_, ok = reg.Lookup("nonexistent")
-	if ok {
+	if _, ok = reg.Lookup("nonexistent"); ok {
 		t.Error("expected nonexistent session to not be found")
 	}
+	if err := reg.Put(nil); err == nil {
+		t.Error("Put(nil) must fail")
+	}
 
-	reg.Put(nil)
-
-	reg.Remove("test-session")
-
-	_, ok = reg.Lookup("test-session")
-	if ok {
+	reg.Remove(sess)
+	waitDone(t, sess)
+	if _, ok = reg.Lookup("test-session"); ok {
 		t.Error("expected session to be removed")
 	}
-}
-
-func TestRegistryAttachDetach(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-
-	transport := &mockTransport{}
-	attached, err := reg.Attach("test-session", "conn-1", transport)
-	if err != nil {
-		t.Fatalf("attach failed: %v", err)
-	}
-	if attached != sess {
-		t.Error("expected same session")
-	}
-
-	foundSess, foundTransport, ok := reg.LookupWithConnection("test-session", "conn-1")
-	if !ok {
-		t.Fatal("expected to find session with connection")
-	}
-	if foundSess != sess {
-		t.Error("expected same session")
-	}
-	if foundTransport != transport {
-		t.Error("expected same transport")
-	}
-
-	foundSess, foundTransport, ok = reg.LookupByConnection("conn-1")
-	if !ok {
-		t.Fatal("expected to find by connection")
-	}
-	if foundSess != sess {
-		t.Error("expected same session")
-	}
-	if foundTransport != transport {
-		t.Error("expected same transport")
-	}
-
-	connID, connTransport, ok := reg.ConnectionForSession("test-session")
-	if !ok {
-		t.Fatal("expected to find connection for session")
-	}
-	if connID != "conn-1" {
-		t.Errorf("expected conn-1, got %s", connID)
-	}
-	if connTransport != transport {
-		t.Error("expected same transport")
-	}
-
-	reg.Detach("conn-1")
-
-	_, _, ok = reg.LookupByConnection("conn-1")
-	if ok {
-		t.Error("expected connection to be detached")
-	}
-
-	transport.mu.Lock()
-	closed := transport.closed
-	transport.mu.Unlock()
-	if !closed {
-		t.Error("expected transport to be closed on detach")
+	if sess.CloseReason() != session.ReasonRemoved {
+		t.Errorf("close reason = %v, want removed", sess.CloseReason())
 	}
 }
 
-func TestRegistryAttachReplacesOldTransport(t *testing.T) {
-	reg := NewSessionRegistry()
+func TestRegistryDuplicateIDIsAnExplicitErrorAndKeepsTheOldSession(t *testing.T) {
+	reg := NewSessionRegistry(0, 0)
+	first := newSess(t, "same", reg.sessionClosed)
+	second := newSess(t, "same", reg.sessionClosed)
 
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-
-	transport1 := &mockTransport{}
-	_, err := reg.Attach("test-session", "conn-1", transport1)
-	if err != nil {
-		t.Fatalf("first attach failed: %v", err)
+	if err := reg.Put(first); err != nil {
+		t.Fatal(err)
 	}
-
-	transport2 := &mockTransport{}
-	_, err = reg.Attach("test-session", "conn-2", transport2)
-	if err != nil {
-		t.Fatalf("second attach failed: %v", err)
+	if err := reg.Put(second); !errors.Is(err, ErrDuplicateSession) {
+		t.Fatalf("second Put returned %v, want ErrDuplicateSession", err)
 	}
-
-	transport1.mu.Lock()
-	closed1 := transport1.closed
-	transport1.mu.Unlock()
-	if !closed1 {
-		t.Error("expected old transport to be closed")
+	if got, _ := reg.Lookup("same"); got != first {
+		t.Fatal("the duplicate replaced or paired with the old session")
 	}
-
-	_, _, ok := reg.LookupByConnection("conn-1")
-	if ok {
-		t.Error("expected old connection to be removed")
+	_ = second.Close()
+	if got, _ := reg.Lookup("same"); got != first {
+		t.Fatal("closing the rejected duplicate removed the old session")
 	}
-
-	_, foundTransport, ok := reg.LookupByConnection("conn-2")
-	if !ok {
-		t.Fatal("expected new connection")
-	}
-	if foundTransport != transport2 {
-		t.Error("expected new transport")
+	if reg.Stats().Rejected.Duplicate != 1 {
+		t.Fatalf("stats = %+v", reg.Stats())
 	}
 }
 
-func TestRegistryAttachSessionNotFound(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	transport := &mockTransport{}
-	_, err := reg.Attach("nonexistent", "conn-1", transport)
-	if err != ErrSessionNotFound {
-		t.Errorf("expected ErrSessionNotFound, got %v", err)
+func TestRegistryRemoveIsByIdentity(t *testing.T) {
+	reg := NewSessionRegistry(0, 0)
+	first := newSess(t, "same", reg.sessionClosed)
+	stale := newSess(t, "same", reg.sessionClosed)
+	if err := reg.Put(first); err != nil {
+		t.Fatal(err)
+	}
+	reg.Remove(stale)
+	if got, _ := reg.Lookup("same"); got != first {
+		t.Fatal("Remove(stale) deleted the live session registered under the same id")
 	}
 }
 
-func TestRegistryLookupWithConnectionWrongConn(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-
-	transport := &mockTransport{}
-	_, _ = reg.Attach("test-session", "conn-1", transport)
-
-	foundSess, foundTransport, ok := reg.LookupWithConnection("test-session", "wrong-conn")
-	if ok {
-		t.Error("expected ok to be false for wrong connection")
+func TestRegistryFullRefusesNewSessions(t *testing.T) {
+	reg := NewSessionRegistry(2, 2)
+	a, b, c := newSess(t, "a", reg.sessionClosed), newSess(t, "b", reg.sessionClosed), newSess(t, "c", reg.sessionClosed)
+	if err := reg.Put(a); err != nil {
+		t.Fatal(err)
 	}
-	if foundSess != sess {
-		t.Error("expected session to still be returned")
+	if err := reg.Put(b); err != nil {
+		t.Fatal(err)
 	}
-	if foundTransport != nil {
-		t.Error("expected nil transport for wrong connection")
+	if err := reg.Put(c); !errors.Is(err, ErrRegistryFull) {
+		t.Fatalf("Put over capacity returned %v", err)
+	}
+	reg.Remove(a)
+	if err := reg.Put(c); err != nil {
+		t.Fatalf("capacity must free up after a removal: %v", err)
+	}
+	if st := reg.Stats(); st.Capacity != 2 || st.Rejected.Full != 1 {
+		t.Fatalf("stats = %+v", st)
 	}
 }
 
-func TestRegistryDetachEmptyConnID(t *testing.T) {
-	reg := NewSessionRegistry()
-	reg.Detach("")
-}
-
-func TestRegistryLookupByConnectionEmptyConnID(t *testing.T) {
-	reg := NewSessionRegistry()
-	_, _, ok := reg.LookupByConnection("")
-	if ok {
-		t.Error("expected false for empty connID")
+func TestRegistryClosedRefusesNewSessions(t *testing.T) {
+	reg := NewSessionRegistry(0, 0)
+	reg.Close()
+	if err := reg.Put(newSess(t, "a", reg.sessionClosed)); !errors.Is(err, ErrRegistryClosed) {
+		t.Fatalf("Put after Close returned %v", err)
 	}
 }
 
-func TestLookupWithConnectionRace(t *testing.T) {
-	reg := NewSessionRegistry()
+func TestRegistryStatsCountSessionsPerState(t *testing.T) {
+	reg := NewSessionRegistry(0, 0)
+	pending := newSess(t, "pending", reg.sessionClosed)
+	expiring := newSess(t, "expiring", reg.sessionClosed)
+	_ = reg.Put(pending)
+	_ = reg.Put(expiring)
 
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-
-	done := make(chan struct{})
-	var wg sync.WaitGroup
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
-				select {
-				case <-done:
-					return
-				default:
-				}
-				transport := &mockTransport{}
-				connID := "conn"
-				_, _ = reg.Attach("test-session", connID, transport)
-				reg.Detach(connID)
-			}
-		}(i)
+	if st := reg.Stats(); st.Sessions.Pending != 2 {
+		t.Fatalf("stats = %+v", st)
 	}
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
-				select {
-				case <-done:
-					return
-				default:
-				}
-				reg.LookupWithConnection("test-session", "conn")
-			}
-		}()
+	expiring.RequestClose(session.ReasonPendingExpired)
+	waitDone(t, expiring)
+	st := reg.Stats()
+	if st.Sessions.Pending != 1 || st.Evicted != 1 || st.Closed["pending-expired"] != 1 {
+		t.Fatalf("stats after eviction = %+v", st)
 	}
-
-	wg.Wait()
-	close(done)
-}
-
-func TestLookupByConnectionRace(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-
-	done := make(chan struct{})
-	var wg sync.WaitGroup
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
-				select {
-				case <-done:
-					return
-				default:
-				}
-				transport := &mockTransport{}
-				connID := "conn"
-				_, _ = reg.Attach("test-session", connID, transport)
-				reg.Detach(connID)
-			}
-		}(i)
-	}
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
-				select {
-				case <-done:
-					return
-				default:
-				}
-				reg.LookupByConnection("conn")
-			}
-		}()
-	}
-
-	wg.Wait()
-	close(done)
-}
-
-func TestConnectionForSessionRace(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-
-	done := make(chan struct{})
-	var wg sync.WaitGroup
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
-				select {
-				case <-done:
-					return
-				default:
-				}
-				transport := &mockTransport{}
-				connID := "conn"
-				_, _ = reg.Attach("test-session", connID, transport)
-				reg.Detach(connID)
-			}
-		}(i)
-	}
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
-				select {
-				case <-done:
-					return
-				default:
-				}
-				reg.ConnectionForSession("test-session")
-			}
-		}()
-	}
-
-	wg.Wait()
-	close(done)
-}
-
-func TestRegistryConcurrentPutLookup(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	var wg sync.WaitGroup
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
-				sess := session.NewLiveSession(session.SessionID("sess"), 1, dummyComponent, nil)
-				reg.Put(sess)
-				reg.Lookup(session.SessionID("sess"))
-				reg.Remove(session.SessionID("sess"))
-				sess.Close()
-			}
-		}(i)
-	}
-
-	wg.Wait()
-}
-
-func TestRegistryPutIdempotent(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-	reg.Put(sess)
-
-	found, ok := reg.Lookup("test-session")
-	if !ok {
-		t.Fatal("expected session")
-	}
-	if found != sess {
-		t.Error("expected same session")
-	}
-}
-
-func TestRegistryRemoveNonexistent(t *testing.T) {
-	reg := NewSessionRegistry()
-	reg.Remove("nonexistent")
 }
 
 func TestRegistryRange(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess1 := session.NewLiveSession("sess-1", 1, dummyComponent, nil)
-	sess2 := session.NewLiveSession("sess-2", 1, dummyComponent, nil)
-	sess3 := session.NewLiveSession("sess-3", 1, dummyComponent, nil)
-	defer sess1.Close()
-	defer sess2.Close()
-	defer sess3.Close()
-
-	reg.Put(sess1)
-	reg.Put(sess2)
-	reg.Put(sess3)
+	reg := NewSessionRegistry(0, 0)
+	for _, id := range []string{"sess-1", "sess-2", "sess-3"} {
+		_ = reg.Put(newSess(t, id, reg.sessionClosed))
+	}
 
 	visited := make(map[session.SessionID]bool)
 	reg.Range(func(sess *session.LiveSession) bool {
 		visited[sess.ID()] = true
 		return true
 	})
-
 	if len(visited) != 3 {
 		t.Errorf("expected 3 sessions, got %d", len(visited))
 	}
-	if !visited["sess-1"] || !visited["sess-2"] || !visited["sess-3"] {
-		t.Error("expected all sessions to be visited")
-	}
-}
-
-func TestRegistryRangeEarlyExit(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess1 := session.NewLiveSession("sess-1", 1, dummyComponent, nil)
-	sess2 := session.NewLiveSession("sess-2", 1, dummyComponent, nil)
-	sess3 := session.NewLiveSession("sess-3", 1, dummyComponent, nil)
-	defer sess1.Close()
-	defer sess2.Close()
-	defer sess3.Close()
-
-	reg.Put(sess1)
-	reg.Put(sess2)
-	reg.Put(sess3)
 
 	count := 0
-	reg.Range(func(sess *session.LiveSession) bool {
+	reg.Range(func(*session.LiveSession) bool {
 		count++
 		return false
 	})
-
 	if count != 1 {
 		t.Errorf("expected early exit after 1, got %d", count)
 	}
 }
 
-func TestRegistryRangeEmpty(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	count := 0
-	reg.Range(func(sess *session.LiveSession) bool {
-		count++
-		return true
-	})
-
-	if count != 0 {
-		t.Errorf("expected 0 sessions, got %d", count)
-	}
-}
-
-func TestRegistryConnectionForSessionNotFound(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	_, _, ok := reg.ConnectionForSession("nonexistent")
-	if ok {
-		t.Error("expected false for nonexistent session")
-	}
-}
-
-func TestRegistryConnectionForSessionNoConnection(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-
-	connID, transport, ok := reg.ConnectionForSession("test-session")
-	if ok {
-		t.Error("expected false for session with no connection")
-	}
-	if connID != "" {
-		t.Errorf("expected empty connID, got %s", connID)
-	}
-	if transport != nil {
-		t.Error("expected nil transport")
-	}
-}
-
-func TestRegistryRemoveWithConnection(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	reg.Put(sess)
-
-	transport := &mockTransport{}
-	_, _ = reg.Attach("test-session", "conn-1", transport)
-
-	reg.Remove("test-session")
-
-	_, ok := reg.Lookup("test-session")
-	if ok {
-		t.Error("expected session to be removed")
-	}
-
-	_, _, ok = reg.LookupByConnection("conn-1")
-	if ok {
-		t.Error("expected connection to be cleaned up")
-	}
-}
-
-func TestRegistryLookupWithConnectionNoSession(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess, transport, ok := reg.LookupWithConnection("nonexistent", "conn-1")
-	if ok {
-		t.Error("expected false for nonexistent session")
-	}
-	if sess != nil {
-		t.Error("expected nil session")
-	}
-	if transport != nil {
-		t.Error("expected nil transport")
-	}
-}
-
-func TestRegistryAttachConnIDAlreadyBoundToOther(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess1 := session.NewLiveSession("sess-1", 1, dummyComponent, nil)
-	sess2 := session.NewLiveSession("sess-2", 1, dummyComponent, nil)
-	defer sess1.Close()
-	defer sess2.Close()
-
-	reg.Put(sess1)
-	reg.Put(sess2)
-
-	transport1 := &mockTransport{}
-	transport2 := &mockTransport{}
-
-	_, err := reg.Attach("sess-1", "conn-shared", transport1)
-	if err != nil {
-		t.Fatalf("first attach failed: %v", err)
-	}
-
-	_, err = reg.Attach("sess-2", "conn-shared", transport2)
-	if err != nil {
-		t.Fatalf("second attach failed: %v", err)
-	}
-
-	transport1.mu.Lock()
-	closed := transport1.closed
-	transport1.mu.Unlock()
-	if !closed {
-		t.Error("expected first transport to be closed when connID reused")
-	}
-
-	_, foundTransport, ok := reg.LookupByConnection("conn-shared")
-	if !ok {
-		t.Fatal("expected to find connection")
-	}
-	if foundTransport != transport2 {
-		t.Error("expected second transport to be bound")
-	}
-}
-
-func TestRegistryAttachEmptyConnID(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-	reg.Put(sess)
-
-	transport := &mockTransport{}
-	_, err := reg.Attach("test-session", "", transport)
-	if err == nil {
-		t.Error("expected error for empty connID")
-	}
-}
-
-func TestRegistryAttachNilTransport(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-	reg.Put(sess)
-
-	_, err := reg.Attach("test-session", "conn-1", nil)
-	if err == nil {
-		t.Error("expected error for nil transport")
-	}
-}
-
-func TestRegistryRangeConcurrent(t *testing.T) {
-	reg := NewSessionRegistry()
-
-	sess := session.NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-	reg.Put(sess)
-
+func TestRegistryConcurrentPutRemoveRange(t *testing.T) {
+	reg := NewSessionRegistry(0, 0)
 	var wg sync.WaitGroup
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
+	for i := 0; i < 8; i++ {
+		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
-				reg.Range(func(s *session.LiveSession) bool {
-					return true
-				})
+			for j := 0; j < 50; j++ {
+				s := session.NewLiveSession("shared", 1, dummyComponent, &session.Config{OnClose: reg.sessionClosed})
+				if reg.Put(s) == nil {
+					reg.Lookup("shared")
+					reg.Remove(s)
+				}
+				_ = s.Close()
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				reg.Range(func(*session.LiveSession) bool { return true })
+				_ = reg.Stats()
 			}
 		}()
 	}
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
-				s := session.NewLiveSession(session.SessionID("temp"), 1, dummyComponent, nil)
-				reg.Put(s)
-				reg.Remove(session.SessionID("temp"))
-				s.Close()
-			}
-		}(i)
-	}
-
 	wg.Wait()
+	if reg.Len() != 0 {
+		t.Fatalf("%d sessions leaked in the registry", reg.Len())
+	}
 }

@@ -1,2911 +1,662 @@
-package router
+package router_test
 
 import (
+	"fmt"
+	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/route"
+	"github.com/eleven-am/pondlive/internal/router"
 	"github.com/eleven-am/pondlive/internal/runtime"
+	"github.com/eleven-am/pondlive/internal/runtime/runtimetest"
 	"github.com/eleven-am/pondlive/internal/work"
+	"golang.org/x/net/html"
 )
 
-func TestNewRouterEventEmitter(t *testing.T) {
-	e := NewRouterEventEmitter()
-	if e == nil {
-		t.Fatal("expected non-nil emitter")
-	}
-	if e.subscribers == nil {
-		t.Error("expected subscribers map to be initialized")
-	}
+type harness struct {
+	*runtimetest.App
+	req *headers.RequestState
+
+	mu   sync.Mutex
+	navs []protocol.RouterNavPayload
+	acts []string
 }
 
-func TestRouterEventEmitter_Subscribe(t *testing.T) {
-	e := NewRouterEventEmitter()
-	called := false
+func newRequest(path string, live bool) *headers.RequestState {
+	u, _ := url.Parse(path)
+	info := &headers.RequestInfo{Path: u.Path, Query: u.Query(), Headers: http.Header{}}
+	req := headers.NewRequestState(info)
+	req.SetIsLive(live)
+	return req
+}
 
-	sub := e.Subscribe("test", func(evt NavigationEvent) {
-		called = true
+func start(t *testing.T, path string, live bool, body func() work.Node) *harness {
+	t.Helper()
+	h := &harness{req: newRequest(path, live)}
+	root := func(*runtime.Ctx) work.Node {
+		return headers.Provider(headers.ProviderProps{
+			State: h.req,
+			Children: router.Provider(router.ProviderProps{
+				Children: work.BuildElement("main", body()),
+			}),
+		})
+	}
+	h.App = runtimetest.New(t, root)
+	if live {
+		h.On(func() { h.S.SetConnected(true) })
+		h.Sync()
+	}
+	h.S.Bus.SubscribeAll(func(topic protocol.Topic, event string, data interface{}) {
+		if topic != protocol.RouteHandler {
+			return
+		}
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.acts = append(h.acts, event)
+		if payload, ok := data.(protocol.RouterNavPayload); ok {
+			h.navs = append(h.navs, payload)
+		}
 	})
-
-	if sub == nil {
-		t.Fatal("expected non-nil subscription")
-	}
-	if !sub.active {
-		t.Error("expected subscription to be active")
-	}
-	if sub.event != "test" {
-		t.Errorf("expected event 'test', got %q", sub.event)
-	}
-
-	e.Emit("test", NavigationEvent{})
-
-	if !called {
-		t.Error("expected callback to be called")
-	}
+	return h
 }
 
-func TestRouterEventEmitter_Emit_NoSubscribers(t *testing.T) {
-	e := NewRouterEventEmitter()
-	e.Emit("nonexistent", NavigationEvent{})
-}
-
-func TestRouterEventEmitter_Emit_InactiveSubscription(t *testing.T) {
-	e := NewRouterEventEmitter()
-	called := false
-
-	sub := e.Subscribe("test", func(evt NavigationEvent) {
-		called = true
-	})
-
-	sub.Unsubscribe()
-	e.Emit("test", NavigationEvent{})
-
-	if called {
-		t.Error("expected callback not to be called after unsubscribe")
-	}
-}
-
-func TestSubscription_Unsubscribe(t *testing.T) {
-	e := NewRouterEventEmitter()
-	sub := e.Subscribe("test", func(evt NavigationEvent) {})
-
-	if !sub.active {
-		t.Error("expected subscription to be active initially")
-	}
-
-	sub.Unsubscribe()
-
-	if sub.active {
-		t.Error("expected subscription to be inactive after unsubscribe")
-	}
-}
-
-func TestSubscription_Unsubscribe_Nil(t *testing.T) {
-	var sub *Subscription
-	sub.Unsubscribe()
-}
-
-func TestRouterEventEmitter_Cleanup(t *testing.T) {
-	e := NewRouterEventEmitter()
-
-	sub1 := e.Subscribe("test", func(evt NavigationEvent) {})
-	sub2 := e.Subscribe("test", func(evt NavigationEvent) {})
-
-	sub1.Unsubscribe()
-
-	e.cleanup()
-
-	e.mu.RLock()
-	subs := e.subscribers["test"]
-	e.mu.RUnlock()
-
-	if len(subs) != 1 {
-		t.Errorf("expected 1 active subscription after cleanup, got %d", len(subs))
-	}
-	if subs[0] != sub2 {
-		t.Error("expected sub2 to remain")
-	}
-}
-
-func TestRouterEventEmitter_Concurrent(t *testing.T) {
-	e := NewRouterEventEmitter()
-	var wg sync.WaitGroup
-	var count int
-	var mu sync.Mutex
-
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			e.Subscribe("test", func(evt NavigationEvent) {
-				mu.Lock()
-				count++
-				mu.Unlock()
-			})
-		}()
-	}
-
-	wg.Wait()
-
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			e.Emit("test", NavigationEvent{})
-		}()
-	}
-
-	wg.Wait()
-
-	mu.Lock()
-	if count < 10 {
-		t.Errorf("expected at least 10 calls, got %d", count)
-	}
-	mu.Unlock()
-}
-
-func TestMatch_Param(t *testing.T) {
-	m := Match{
-		params: map[string]string{"id": "123", "name": "test"},
-	}
-
-	val, err := m.Param("id")
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if val != "123" {
-		t.Errorf("expected '123', got %q", val)
-	}
-}
-
-func TestMatch_Param_NotFound(t *testing.T) {
-	m := Match{
-		params: map[string]string{"id": "123"},
-	}
-
-	_, err := m.Param("other")
-	if err != ErrParamNotFound {
-		t.Errorf("expected ErrParamNotFound, got %v", err)
-	}
-}
-
-func TestMatch_Param_NilParams(t *testing.T) {
-	m := Match{}
-
-	_, err := m.Param("id")
-	if err != ErrParamNotFound {
-		t.Errorf("expected ErrParamNotFound, got %v", err)
-	}
-}
-
-func TestMatch_QueryParam(t *testing.T) {
-	m := Match{
-		query: url.Values{"page": {"1"}, "sort": {"asc"}},
-	}
-
-	val, err := m.QueryParam("page")
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if val != "1" {
-		t.Errorf("expected '1', got %q", val)
-	}
-}
-
-func TestMatch_QueryParam_EmptyValue(t *testing.T) {
-	m := Match{
-		query: url.Values{"empty": {""}},
-	}
-
-	val, err := m.QueryParam("empty")
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if val != "" {
-		t.Errorf("expected empty string, got %q", val)
-	}
-}
-
-func TestMatch_QueryParam_NotFound(t *testing.T) {
-	m := Match{
-		query: url.Values{"page": {"1"}},
-	}
-
-	_, err := m.QueryParam("other")
-	if err != ErrQueryParamNotFound {
-		t.Errorf("expected ErrQueryParamNotFound, got %v", err)
-	}
-}
-
-func TestMatch_QueryParam_NilQuery(t *testing.T) {
-	m := Match{}
-
-	_, err := m.QueryParam("page")
-	if err != ErrQueryParamNotFound {
-		t.Errorf("expected ErrQueryParamNotFound, got %v", err)
-	}
-}
-
-func TestMatch_QueryValues(t *testing.T) {
-	m := Match{
-		query: url.Values{"tags": {"go", "rust", "python"}},
-	}
-
-	vals, err := m.QueryValues("tags")
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if len(vals) != 3 {
-		t.Errorf("expected 3 values, got %d", len(vals))
-	}
-}
-
-func TestMatch_QueryValues_NotFound(t *testing.T) {
-	m := Match{
-		query: url.Values{"tags": {"go"}},
-	}
-
-	_, err := m.QueryValues("other")
-	if err != ErrQueryParamNotFound {
-		t.Errorf("expected ErrQueryParamNotFound, got %v", err)
-	}
-}
-
-func TestMatch_QueryValues_NilQuery(t *testing.T) {
-	m := Match{}
-
-	_, err := m.QueryValues("tags")
-	if err != ErrQueryParamNotFound {
-		t.Errorf("expected ErrQueryParamNotFound, got %v", err)
-	}
-}
-
-func TestMatchStateEqual(t *testing.T) {
-	a := &MatchState{Matched: true, Pattern: "/test", Path: "/test"}
-	b := &MatchState{Matched: true, Pattern: "/test", Path: "/test"}
-
-	if !matchStateEqual(a, b) {
-		t.Error("expected equal match states to return true")
-	}
-}
-
-func TestMatchStateEqual_Different(t *testing.T) {
-	a := &MatchState{Matched: true, Pattern: "/test", Path: "/test"}
-	b := &MatchState{Matched: false, Pattern: "/test", Path: "/test"}
-
-	if matchStateEqual(a, b) {
-		t.Error("expected different match states to return false")
-	}
-}
-
-func TestMatchStateEqual_NilCases(t *testing.T) {
-	a := &MatchState{Matched: true}
-
-	if !matchStateEqual(nil, nil) {
-		t.Error("expected nil == nil to return true")
-	}
-	if matchStateEqual(a, nil) {
-		t.Error("expected a != nil to return false")
-	}
-	if matchStateEqual(nil, a) {
-		t.Error("expected nil != a to return false")
-	}
-}
-
-func TestLocationEqual(t *testing.T) {
-	a := Location{Path: "/test", Hash: "#section"}
-	b := Location{Path: "/test", Hash: "#section"}
-
-	if !locationEqual(a, b) {
-		t.Error("expected equal locations to return true")
-	}
-}
-
-func TestLocationEqual_Different(t *testing.T) {
-	a := Location{Path: "/test", Hash: "#section1"}
-	b := Location{Path: "/test", Hash: "#section2"}
-
-	if locationEqual(a, b) {
-		t.Error("expected different locations to return false")
-	}
-}
-
-func TestCloneLocation(t *testing.T) {
-	original := Location{
-		Path:  "/test",
-		Hash:  "#section",
-		Query: url.Values{"a": {"1"}},
-	}
-
-	clone := cloneLocation(original)
-
-	if clone.Path != original.Path {
-		t.Error("expected same path")
-	}
-	if clone.Hash != original.Hash {
-		t.Error("expected same hash")
-	}
-
-	original.Query["a"] = []string{"modified"}
-	if clone.Query.Get("a") == "modified" {
-		t.Error("clone should not be affected by original modification")
-	}
-}
-
-func TestNormalizeHash(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"section", "section"},
-		{"#section", "section"},
-		{"", ""},
-		{"#", ""},
-	}
-
-	for _, tc := range tests {
-		result := normalizeHash(tc.input)
-		if result != tc.expected {
-			t.Errorf("normalizeHash(%q) = %q, want %q", tc.input, result, tc.expected)
-		}
-	}
-}
-
-func TestCanonicalizeValues(t *testing.T) {
-	input := url.Values{
-		"b": {"2"},
-		"a": {"1"},
-		"c": {"3", "4"},
-	}
-
-	result := canonicalizeValues(input)
-
-	if result.Get("a") != "1" {
-		t.Error("expected a=1")
-	}
-	if result.Get("b") != "2" {
-		t.Error("expected b=2")
-	}
-	if vals := result["c"]; len(vals) != 2 || vals[0] != "3" || vals[1] != "4" {
-		t.Error("expected c=[3,4]")
-	}
-}
-
-func TestCanonicalizeValues_Nil(t *testing.T) {
-	result := canonicalizeValues(nil)
-	if result == nil {
-		t.Error("expected non-nil result for nil input")
-	}
-}
-
-func TestResolveHref_Absolute(t *testing.T) {
-	current := Location{Path: "/current", Query: url.Values{"x": {"1"}}}
-	result := resolveHref(current, "/absolute?y=2#hash")
-
-	if result.Path != "/absolute" {
-		t.Errorf("expected path '/absolute', got %q", result.Path)
-	}
-	if result.Query.Get("y") != "2" {
-		t.Errorf("expected query y=2, got %v", result.Query)
-	}
-	if result.Hash != "hash" {
-		t.Errorf("expected hash 'hash', got %q", result.Hash)
-	}
-}
-
-func TestResolveHref_HashOnly(t *testing.T) {
-	current := Location{Path: "/current", Query: url.Values{"x": {"1"}}}
-	result := resolveHref(current, "#section")
-
-	if result.Path != "/current" {
-		t.Errorf("expected path '/current', got %q", result.Path)
-	}
-	if result.Hash != "section" {
-		t.Errorf("expected hash 'section', got %q", result.Hash)
-	}
-}
-
-func TestResolveHref_Empty(t *testing.T) {
-	current := Location{Path: "/current", Query: url.Values{"x": {"1"}}}
-	result := resolveHref(current, "")
-
-	if result.Path != "/current" {
-		t.Errorf("expected path '/current', got %q", result.Path)
-	}
-}
-
-func TestResolveHref_Relative(t *testing.T) {
-	current := Location{Path: "/users/123"}
-	result := resolveHref(current, "./edit")
-
-	if result.Path != "/users/edit" {
-		t.Errorf("expected path '/users/edit', got %q", result.Path)
-	}
-}
-
-func TestResolveHref_ParentRelative(t *testing.T) {
-	current := Location{Path: "/users/123/edit"}
-	result := resolveHref(current, "../profile")
-
-	if result.Path != "/users/profile" {
-		t.Errorf("expected path '/users/profile', got %q", result.Path)
-	}
-}
-
-func TestJoinRelativePath(t *testing.T) {
-	tests := []struct {
-		base     string
-		rel      string
-		expected string
-	}{
-		{"/", "/child", "/child"},
-		{"/parent", "/", "/parent"},
-		{"/parent", "/child", "/parent/child"},
-		{"/parent/*wildcard", "/child", "/parent/child"},
-	}
-
-	for _, tc := range tests {
-		result := joinRelativePath(tc.base, tc.rel)
-		if result != tc.expected {
-			t.Errorf("joinRelativePath(%q, %q) = %q, want %q", tc.base, tc.rel, result, tc.expected)
-		}
-	}
-}
-
-func TestTrimWildcardSuffix(t *testing.T) {
-	tests := []struct {
-		path     string
-		expected string
-	}{
-		{"", "/"},
-		{"/", "/"},
-		{"/users", "/users"},
-		{"/users/*", "/users"},
-		{"/users/*rest", "/users"},
-		{"/a/b/*c", "/a/b"},
-	}
-
-	for _, tc := range tests {
-		result := trimWildcardSuffix(tc.path)
-		if result != tc.expected {
-			t.Errorf("trimWildcardSuffix(%q) = %q, want %q", tc.path, result, tc.expected)
-		}
-	}
-}
-
-func TestCloneValues(t *testing.T) {
-	original := url.Values{"a": {"1", "2"}, "b": {"3"}}
-	clone := cloneValues(original)
-
-	original["a"][0] = "modified"
-	if clone["a"][0] == "modified" {
-		t.Error("clone should not be affected by original modification")
-	}
-}
-
-func TestCloneValues_Empty(t *testing.T) {
-	result := cloneValues(url.Values{})
-	if result == nil {
-		t.Error("expected non-nil result for empty input")
-	}
-}
-
-func TestCanonicalizeList(t *testing.T) {
-	tests := []struct {
-		input    []string
-		expected []string
-	}{
-		{nil, []string{}},
-		{[]string{}, []string{}},
-		{[]string{" b ", "a"}, []string{"a", "b"}},
-		{[]string{"c", "a", "b"}, []string{"a", "b", "c"}},
-	}
-
-	for _, tc := range tests {
-		result := canonicalizeList(tc.input)
-		if len(result) != len(tc.expected) {
-			t.Errorf("canonicalizeList(%v) length = %d, want %d", tc.input, len(result), len(tc.expected))
+func (h *harness) idOf(tag, attr, contains string) uint32 {
+	h.T.Helper()
+	for _, id := range h.Model.IDs() {
+		n := h.Model.Node(id)
+		if n == nil || n.Type != html.ElementNode || n.Data != tag {
 			continue
 		}
-		for i := range result {
-			if result[i] != tc.expected[i] {
-				t.Errorf("canonicalizeList(%v)[%d] = %q, want %q", tc.input, i, result[i], tc.expected[i])
+		for _, a := range n.Attr {
+			if a.Key == attr && strings.Contains(a.Val, contains) {
+				return id
 			}
 		}
 	}
+	h.T.Fatalf("no <%s %s~%q> in %s", tag, attr, contains, h.Model.HTML())
+	return 0
 }
 
-func TestCanonicalizeLocation(t *testing.T) {
-	loc := Location{
-		Path:  "",
-		Query: url.Values{"b": {"2"}, "a": {"1"}},
-		Hash:  "#test",
+func (h *harness) navigations() []protocol.RouterNavPayload {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return append([]protocol.RouterNavPayload(nil), h.navs...)
+}
+
+type probe struct {
+	mounts int
+	router *router.Router
+}
+
+func mounted(ctx *runtime.Ctx, n *int) {
+	runtime.UseEffect(ctx, func() func() {
+		*n++
+		return nil
+	})
+}
+
+func page(name string, p *probe) func() work.Node {
+	return runtime.Component(func(ctx *runtime.Ctx) work.Node {
+		mounted(ctx, &p.mounts)
+		p.router = router.UseRouter(ctx)
+		return work.BuildElement("section", work.Attribute("id", name),
+			work.BuildElement("p", work.TextOf(runtime.UseComputed(ctx, func() string {
+				return name + ":" + p.router.Params.Get()["id"]
+			}))),
+		)
+	})
+}
+
+func TestParamsChangeWithoutRemount(t *testing.T) {
+	var user probe
+	h := start(t, "/users/1", true, func() work.Node {
+		return router.Routes(
+			router.Route("/users/:id", page("user", &user)),
+		)
+	})
+	if !strings.Contains(h.SSR, "user:1") {
+		t.Fatalf("ssr = %s", h.SSR)
 	}
-
-	canon := canonicalizeLocation(loc)
-
-	if canon.Path != "/" {
-		t.Errorf("expected path '/', got %q", canon.Path)
+	h.Do(func() { user.router.Navigate("/users/2") })
+	if !strings.Contains(h.Normalized(), "user:2") {
+		t.Fatalf("dom = %s", h.Normalized())
 	}
-	if canon.Hash != "test" {
-		t.Errorf("expected hash 'test', got %q", canon.Hash)
+	if user.mounts != 1 {
+		t.Fatalf("component remounted: %d mounts", user.mounts)
 	}
-}
-
-func TestBuildHrefNavigation(t *testing.T) {
-	tests := []struct {
-		path     string
-		query    url.Values
-		hash     string
-		expected string
-	}{
-		{"/test", nil, "", "/test"},
-		{"/test", url.Values{"a": {"1"}}, "", "/test?a=1"},
-		{"/test", nil, "section", "/test#section"},
-		{"/test", url.Values{"a": {"1"}}, "section", "/test?a=1#section"},
-		{"/", url.Values{}, "", "/"},
-	}
-
-	for _, tc := range tests {
-		result := buildHref(tc.path, tc.query, tc.hash)
-		if result != tc.expected {
-			t.Errorf("buildHref(%q, %v, %q) = %q, want %q", tc.path, tc.query, tc.hash, result, tc.expected)
-		}
+	navs := h.navigations()
+	if len(navs) != 1 || navs[0].Path != "/users/2" || navs[0].Replace {
+		t.Fatalf("navigations = %+v", navs)
 	}
 }
 
-func TestProvide(t *testing.T) {
-	t.Run("provides router context", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx, &work.Text{Value: "content"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
+func TestPatternSwitchRemounts(t *testing.T) {
+	var home, about probe
+	h := start(t, "/", true, func() work.Node {
+		return router.Routes(
+			router.Route("/", page("home", &home)),
+			router.Route("/about", page("about", &about)),
+		)
 	})
+	h.Do(func() { home.router.Navigate("/about") })
+	n := h.Normalized()
+	if strings.Contains(n, "home:") || !strings.Contains(n, "about:") {
+		t.Fatalf("dom = %s", n)
+	}
+	h.Do(func() { about.router.Navigate("/") })
+	if home.mounts != 2 || about.mounts != 1 {
+		t.Fatalf("mounts home=%d about=%d", home.mounts, about.mounts)
+	}
 }
 
-func TestUseLocation(t *testing.T) {
-	t.Run("returns location from context", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				loc := UseLocation(ctx)
-				t.Logf("UseLocation returned: %+v", loc)
-				return Provide(ctx, &work.Text{Value: "test"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
+func TestSetQueryReplaces(t *testing.T) {
+	var p probe
+	h := start(t, "/?a=1", true, func() work.Node {
+		return router.Routes(
+			router.Route("/", runtime.Component(func(ctx *runtime.Ctx) work.Node {
+				p.router = router.UseRouter(ctx)
+				return work.BuildElement("p", work.TextOf(runtime.UseComputed(ctx, func() string {
+					return p.router.Query.Get().Get("q")
+				})))
+			})),
+		)
 	})
+	h.Do(func() { p.router.SetQuery("q", "hello") })
+	navs := h.navigations()
+	if len(navs) != 1 || !navs[0].Replace || !strings.Contains(navs[0].Query, "q=hello") || !strings.Contains(navs[0].Query, "a=1") {
+		t.Fatalf("navigations = %+v", navs)
+	}
+	if !strings.Contains(h.Normalized(), ">hello<") {
+		t.Fatalf("dom = %s", h.Normalized())
+	}
+	h.Do(func() { p.router.SetQuery("q", "") })
+	if got := h.navigations()[1].Query; strings.Contains(got, "q=") {
+		t.Fatalf("query after clear = %q", got)
+	}
 }
 
-func TestUseParams(t *testing.T) {
-	t.Run("returns nil when no match context", func(t *testing.T) {
-		var capturedParams map[string]string
-
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						capturedParams = UseParams(ctx)
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-
-		if capturedParams != nil {
-			t.Error("expected nil params without match context")
-		}
+func TestSetQueryDoesNotMutateTheValuesAnEarlierPeekReturned(t *testing.T) {
+	var p probe
+	h := start(t, "/?a=1&q=old", true, func() work.Node {
+		return router.Routes(
+			router.Route("/", runtime.Component(func(ctx *runtime.Ctx) work.Node {
+				p.router = router.UseRouter(ctx)
+				return work.BuildElement("p", work.TextOf(runtime.UseComputed(ctx, func() string {
+					return p.router.Query.Get().Get("q")
+				})))
+			})),
+		)
 	})
+	var peeked, location url.Values
+	var peekedLocation route.Location
+	h.Do(func() {
+		peeked = p.router.Query.Peek()
+		peekedLocation = p.router.Location.Peek()
+		location = peekedLocation.Query
+		p.router.SetQuery("q", "new")
+		p.router.SetQuery("a", "")
+	})
+	if got := peeked.Encode(); got != "a=1&q=old" {
+		t.Fatalf("the Query map returned by Peek was mutated in place: %q", got)
+	}
+	if got := location.Encode(); got != "a=1&q=old" {
+		t.Fatalf("the Location.Query map returned by Peek was mutated in place: %q", got)
+	}
+	if got := h.navigations(); len(got) != 2 || got[1].Query != "q=new" {
+		t.Fatalf("navigations = %+v", got)
+	}
+	if !strings.Contains(h.Normalized(), ">new<") {
+		t.Fatalf("dom = %s", h.Normalized())
+	}
 }
 
-func TestUseParam(t *testing.T) {
-	t.Run("returns empty string when no match context", func(t *testing.T) {
-		var capturedParam string
-
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						capturedParam = UseParam(ctx, "id")
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-
-		if capturedParam != "" {
-			t.Errorf("expected empty string, got %q", capturedParam)
-		}
-	})
-}
-
-func TestUseMatch(t *testing.T) {
-	t.Run("returns nil when no match context", func(t *testing.T) {
-		var capturedMatch *MatchState
-
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						capturedMatch = UseMatch(ctx)
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-
-		if capturedMatch != nil {
-			t.Error("expected nil match without context")
-		}
-	})
-}
-
-func TestUseMatched(t *testing.T) {
-	t.Run("returns false when no match context", func(t *testing.T) {
-		var capturedMatched bool
-
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						capturedMatched = UseMatched(ctx)
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-
-		if capturedMatched {
-			t.Error("expected false without match context")
-		}
-	})
-}
-
-func TestUseSearchParams(t *testing.T) {
-	t.Run("returns query from location", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				query := UseSearchParams(ctx)
-				t.Logf("UseSearchParams returned: %v", query)
-				return Provide(ctx, &work.Text{Value: "test"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestUseSearchParam(t *testing.T) {
-	t.Run("returns value and setter", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				value, setter := UseSearchParam(ctx, "page")
-				t.Logf("UseSearchParam returned value=%q, setter=%v", value, setter != nil)
-				return Provide(ctx, &work.Text{Value: "test"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestUseRouter(t *testing.T) {
-	t.Run("returns router instance", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				router := UseRouter(ctx)
-				t.Logf("UseRouter returned: %v", router != nil)
-				return Provide(ctx, &work.Text{Value: "test"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("router methods work", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				router := UseRouter(ctx)
-				if router != nil {
-					loc := router.Location()
-					t.Logf("Router.Location: %+v", loc)
-
-					params := router.Params()
-					t.Logf("Router.Params: %v", params)
-
-					_, err := router.Param("id")
-					t.Logf("Router.Param error: %v", err)
-
-					match := router.Match()
-					t.Logf("Router.Match: %v", match)
-
-					matched := router.Matched()
-					t.Logf("Router.Matched: %v", matched)
-
-					searchParams := router.SearchParams()
-					t.Logf("Router.SearchParams: %v", searchParams)
-
-					val, setter := router.SearchParam("key")
-					t.Logf("Router.SearchParam: val=%q, setter=%v", val, setter != nil)
-				}
-				return Provide(ctx, &work.Text{Value: "test"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestRouterEventCallbacks(t *testing.T) {
-	t.Run("OnBeforeNavigate with nil emitter", func(t *testing.T) {
-		r := &Router{emitter: nil}
-		r.OnBeforeNavigate(func(evt NavigationEvent) {})
-	})
-
-	t.Run("OnNavigated with nil emitter", func(t *testing.T) {
-		r := &Router{emitter: nil}
-		r.OnNavigated(func(evt NavigationEvent) {})
-	})
-
-	t.Run("OnBeforeNavigate with emitter", func(t *testing.T) {
-		emitter := NewRouterEventEmitter()
-		subs := &runtime.Ref[[]*Subscription]{Current: []*Subscription{}}
-		r := &Router{emitter: emitter, subscriptions: subs}
-
-		called := false
-		r.OnBeforeNavigate(func(evt NavigationEvent) {
-			called = true
+func TestARouteBeingLeftNeverSeesTheNextRoutesParams(t *testing.T) {
+	var seen []string
+	var left probe
+	leaving := runtime.Component(func(ctx *runtime.Ctx) work.Node {
+		left.router = router.UseRouter(ctx)
+		runtime.UseEffect(ctx, func() func() {
+			seen = append(seen, fmt.Sprintf("effect:%v/%v", left.router.Params.Get(), left.router.Matched.Get()))
+			return nil
 		})
-
-		if len(subs.Current) != 1 {
-			t.Errorf("expected 1 subscription, got %d", len(subs.Current))
-		}
-
-		emitter.Emit("beforeNavigate", NavigationEvent{})
-		if !called {
-			t.Error("expected callback to be called")
-		}
-	})
-
-	t.Run("OnNavigated with emitter", func(t *testing.T) {
-		emitter := NewRouterEventEmitter()
-		subs := &runtime.Ref[[]*Subscription]{Current: []*Subscription{}}
-		r := &Router{emitter: emitter, subscriptions: subs}
-
-		called := false
-		r.OnNavigated(func(evt NavigationEvent) {
-			called = true
+		label := runtime.UseComputed(ctx, func() string {
+			seen = append(seen, fmt.Sprintf("computed:%v/%v", left.router.Params.Get(), left.router.Matched.Get()))
+			return "x"
 		})
-
-		if len(subs.Current) != 1 {
-			t.Errorf("expected 1 subscription, got %d", len(subs.Current))
+		return work.BuildElement("section", work.Attribute("id", "leaving"), work.Attribute("data-label", label))
+	})
+	h := start(t, "/a/1", true, func() work.Node {
+		return router.Routes(
+			router.Route("/a/:id", leaving),
+			router.Route("/b/:other", page("b", &probe{})),
+		)
+	})
+	h.Do(func() { left.router.Navigate("/b/2") })
+	for _, s := range seen {
+		if strings.Contains(s, "other") || strings.Contains(s, "false") {
+			t.Fatalf("the route being left observed %q, which belongs to the next route; saw %v", s, seen)
 		}
-
-		emitter.Emit("navigated", NavigationEvent{})
-		if !called {
-			t.Error("expected callback to be called")
-		}
-	})
-}
-
-func TestOutlet(t *testing.T) {
-	t.Run("renders empty without slots", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx, Outlet(ctx))
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("with custom slot name", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx, Outlet(ctx, "custom"))
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestNavigationFunctions(t *testing.T) {
-	t.Run("Navigate within provider", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						Navigate(ctx, "/new-path")
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("Replace within provider", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						Replace(ctx, "/replaced")
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("NavigateWith within provider", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						NavigateWith(ctx, func(loc Location) Location {
-							loc.Path = "/modified"
-							return loc
-						})
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("ReplaceWith within provider", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						ReplaceWith(ctx, func(loc Location) Location {
-							loc.Hash = "section"
-							return loc
-						})
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("NavigateToHash within provider", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						NavigateToHash(ctx, "section")
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("Back within provider", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						Back(ctx)
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("Forward within provider", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					work.Component(runtime.Component(func(ctx *runtime.Ctx, _ []work.Item) work.Node {
-						Forward(ctx)
-						return &work.Text{Value: "test"}
-					})),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestRouterMethods(t *testing.T) {
-	t.Run("Navigate method", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				router := UseRouter(ctx)
-				if router != nil {
-					router.Navigate("/path")
-					router.Replace("/replaced")
-					router.NavigateWith(func(loc Location) Location { return loc })
-					router.ReplaceWith(func(loc Location) Location { return loc })
-					router.Back()
-					router.Forward()
-					t.Log("Router methods called successfully")
-				}
-				return Provide(ctx, &work.Text{Value: "test"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestNavigateToHash(t *testing.T) {
-	t.Run("navigates to hash", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				NavigateToHash(ctx, "section1")
-				t.Log("NavigateToHash called")
-				return Provide(ctx, &work.Text{Value: "test"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestUseParamWithParams(t *testing.T) {
-	t.Run("returns param when set in match context", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				param := UseParam(ctx, "id")
-				t.Logf("UseParam returned: %q", param)
-				return Provide(ctx, &work.Text{Value: "test"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestMatchStateEqualDetails(t *testing.T) {
-	t.Run("both nil", func(t *testing.T) {
-		if !matchStateEqual(nil, nil) {
-			t.Error("expected true for both nil")
-		}
-	})
-
-	t.Run("one nil", func(t *testing.T) {
-		a := &MatchState{Matched: true}
-		if matchStateEqual(a, nil) {
-			t.Error("expected false for one nil")
-		}
-		if matchStateEqual(nil, a) {
-			t.Error("expected false for one nil (reversed)")
-		}
-	})
-
-	t.Run("different matched", func(t *testing.T) {
-		a := &MatchState{Matched: true}
-		b := &MatchState{Matched: false}
-		if matchStateEqual(a, b) {
-			t.Error("expected false for different matched")
-		}
-	})
-
-	t.Run("different pattern", func(t *testing.T) {
-		a := &MatchState{Matched: true, Pattern: "/a"}
-		b := &MatchState{Matched: true, Pattern: "/b"}
-		if matchStateEqual(a, b) {
-			t.Error("expected false for different pattern")
-		}
-	})
-
-	t.Run("different path", func(t *testing.T) {
-		a := &MatchState{Matched: true, Pattern: "/a", Path: "/x"}
-		b := &MatchState{Matched: true, Pattern: "/a", Path: "/y"}
-		if matchStateEqual(a, b) {
-			t.Error("expected false for different path")
-		}
-	})
-
-	t.Run("different rest", func(t *testing.T) {
-		a := &MatchState{Matched: true, Pattern: "/a", Path: "/x", Rest: "/r1"}
-		b := &MatchState{Matched: true, Pattern: "/a", Path: "/x", Rest: "/r2"}
-		if matchStateEqual(a, b) {
-			t.Error("expected false for different rest")
-		}
-	})
-
-	t.Run("different params length", func(t *testing.T) {
-		a := &MatchState{Matched: true, Params: map[string]string{"a": "1"}}
-		b := &MatchState{Matched: true, Params: map[string]string{}}
-		if matchStateEqual(a, b) {
-			t.Error("expected false for different params length")
-		}
-	})
-
-	t.Run("different params value", func(t *testing.T) {
-		a := &MatchState{Matched: true, Params: map[string]string{"a": "1"}}
-		b := &MatchState{Matched: true, Params: map[string]string{"a": "2"}}
-		if matchStateEqual(a, b) {
-			t.Error("expected false for different params value")
-		}
-	})
-
-	t.Run("equal states", func(t *testing.T) {
-		a := &MatchState{Matched: true, Pattern: "/a", Path: "/x", Rest: "/r", Params: map[string]string{"a": "1"}}
-		b := &MatchState{Matched: true, Pattern: "/a", Path: "/x", Rest: "/r", Params: map[string]string{"a": "1"}}
-		if !matchStateEqual(a, b) {
-			t.Error("expected true for equal states")
-		}
-	})
-}
-
-func TestRouteFunction(t *testing.T) {
-	t.Run("creates route with empty path", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					Route(ctx, RouteProps{Path: "", Component: nil}),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("creates route with path", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					Route(ctx, RouteProps{Path: "/users/:id"}, &work.Text{Value: "child"}),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestSlotFunction(t *testing.T) {
-	t.Run("creates slot node", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				return Provide(ctx,
-					Slot(ctx, SlotProps{Name: "sidebar"},
-						Route(ctx, RouteProps{Path: "/"}, &work.Text{Value: "content"}),
-					),
-				)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestMoreUtils(t *testing.T) {
-	t.Run("resolveHref with various inputs", func(t *testing.T) {
-		current := Location{Path: "/users/123", Query: url.Values{"a": {"1"}}, Hash: "top"}
-
-		tests := []struct {
-			href     string
-			expected string
-		}{
-			{"./edit", "/users/edit"},
-			{"../posts", "/posts"},
-			{"/absolute", "/absolute"},
-			{"#bottom", "/users/123#bottom"},
-			{"?b=2", "/users/123?b=2"},
-		}
-
-		for _, tc := range tests {
-			result := resolveHref(current, tc.href)
-			t.Logf("resolveHref(%+v, %q) = %+v", current, tc.href, result)
-		}
-	})
-
-	t.Run("matchesPrefix", func(t *testing.T) {
-		tests := []struct {
-			path   string
-			prefix string
-		}{
-			{"/users/123", "/users"},
-			{"/users", "/users"},
-			{"/", "/"},
-			{"/users/123/posts", "/users/123"},
-		}
-
-		for _, tc := range tests {
-			result := matchesPrefix(tc.path, tc.prefix)
-			t.Logf("matchesPrefix(%q, %q) = %v", tc.path, tc.prefix, result)
-		}
-	})
-
-	t.Run("resolveRoutePattern", func(t *testing.T) {
-		tests := []struct {
-			base    string
-			pattern string
-		}{
-			{"/", "/users"},
-			{"/api", "/v1"},
-			{"/users", "/:id"},
-		}
-
-		for _, tc := range tests {
-			result := resolveRoutePattern(tc.base, tc.pattern)
-			t.Logf("resolveRoutePattern(%q, %q) = %q", tc.base, tc.pattern, result)
-		}
-	})
-}
-
-func TestRouterParamBehavior(t *testing.T) {
-	t.Run("Param returns ErrParamNotFound", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				router := UseRouter(ctx)
-				if router != nil {
-					_, err := router.Param("id")
-					if err != ErrParamNotFound {
-						t.Errorf("expected ErrParamNotFound, got %v", err)
-					}
-				}
-				return Provide(ctx, &work.Text{Value: "test"})
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestTrieEdgeCases(t *testing.T) {
-	t.Run("match with no entry", func(t *testing.T) {
-		trie := newRouterTrie()
-		result := trie.Match("/nonexistent")
-		if result != nil {
-			t.Error("expected nil for nonexistent path")
-		}
-	})
-
-	t.Run("insert and match root with wildcard", func(t *testing.T) {
-		trie := newRouterTrie()
-		entry := routeEntry{pattern: "/*path", fullPath: "/*path"}
-		trie.Insert("/*path", entry)
-
-		result := trie.Match("/any/path/here")
-		if result == nil {
-			t.Fatal("expected match")
-		}
-		if result.Params["path"] != "any/path/here" {
-			t.Errorf("expected 'any/path/here', got %q", result.Params["path"])
-		}
-	})
-
-	t.Run("static vs param priority", func(t *testing.T) {
-		trie := newRouterTrie()
-		trie.Insert("/users/new", routeEntry{pattern: "/users/new"})
-		trie.Insert("/users/:id", routeEntry{pattern: "/users/:id"})
-
-		result := trie.Match("/users/new")
-		if result == nil {
-			t.Fatal("expected match")
-		}
-		if result.Entry.pattern != "/users/new" {
-			t.Errorf("expected static pattern, got %q", result.Entry.pattern)
-		}
-
-		result = trie.Match("/users/123")
-		if result == nil {
-			t.Fatal("expected match")
-		}
-		if result.Params["id"] != "123" {
-			t.Errorf("expected '123', got %q", result.Params["id"])
-		}
-	})
-}
-
-func TestRoutesComponent(t *testing.T) {
-	t.Run("routes function directly", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{Path: "/"})
-				routeBaseCtx.UseProvider(ctx, "/")
-
-				items := []work.Item{
-					Route(ctx, RouteProps{Path: "/"}, &work.Text{Value: "home"}),
-					Route(ctx, RouteProps{Path: "/about"}, &work.Text{Value: "about"}),
-				}
-				return routes(ctx, items)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-		t.Log("routes function called successfully")
-	})
-
-	t.Run("routes with no matching path", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{Path: "/nonexistent"})
-				routeBaseCtx.UseProvider(ctx, "/")
-
-				items := []work.Item{
-					Route(ctx, RouteProps{Path: "/about"}, &work.Text{Value: "about"}),
-				}
-				return routes(ctx, items)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("routes with empty items", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{Path: "/"})
-				routeBaseCtx.UseProvider(ctx, "/")
-				return routes(ctx, nil)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("routes with parent match context", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{Path: "/users/123"})
-				routeBaseCtx.UseProvider(ctx, "/users")
-				matchCtx.UseProvider(ctx, &MatchState{
-					Matched: true,
-					Pattern: "/users/*",
-					Path:    "/users/123",
-					Rest:    "/123",
-				})
-
-				items := []work.Item{
-					Route(ctx, RouteProps{Path: "/:id"}, &work.Text{Value: "user detail"}),
-				}
-				return routes(ctx, items)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("routes with slots", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{Path: "/"})
-				routeBaseCtx.UseProvider(ctx, "/")
-
-				items := []work.Item{
-					Slot(ctx, SlotProps{Name: "sidebar"},
-						Route(ctx, RouteProps{Path: "/"}, &work.Text{Value: "sidebar content"}),
-					),
-				}
-				return routes(ctx, items)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestFingerprintFunctions(t *testing.T) {
-	t.Run("fingerprintChildren with no routes", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Text{Value: "text"},
-			&work.Fragment{Children: []work.Node{&work.Text{Value: "nested"}}},
-		}
-		result := fingerprintChildren(nodes)
-		if result != "" {
-			t.Errorf("expected empty string, got %q", result)
-		}
-	})
-
-	t.Run("fingerprintChildren with routes", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Fragment{
-				Metadata: map[string]any{
-					routeMetadataKey: routeEntry{pattern: "/users"},
-				},
-			},
-			&work.Fragment{
-				Metadata: map[string]any{
-					routeMetadataKey: routeEntry{pattern: "/posts"},
-				},
-			},
-		}
-		result := fingerprintChildren(nodes)
-		if result != "/users|/posts" {
-			t.Errorf("expected '/users|/posts', got %q", result)
-		}
-	})
-
-	t.Run("fingerprintSlots with no slots", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Text{Value: "text"},
-		}
-		result := fingerprintSlots(nodes)
-		if result != "" {
-			t.Errorf("expected empty string, got %q", result)
-		}
-	})
-
-	t.Run("fingerprintSlots with slots", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Fragment{
-				Metadata: map[string]any{
-					slotMetadataKey: slotEntry{
-						name: "sidebar",
-						routes: []routeEntry{
-							{pattern: "/menu"},
-							{pattern: "/nav"},
-						},
-					},
-				},
-			},
-		}
-		result := fingerprintSlots(nodes)
-		t.Logf("fingerprintSlots result: %q", result)
-	})
-}
-
-func TestCollectRouteEntries(t *testing.T) {
-	t.Run("empty nodes", func(t *testing.T) {
-		result := collectRouteEntries(nil, "/")
-		if result != nil {
-			t.Error("expected nil for empty nodes")
-		}
-	})
-
-	t.Run("with nil node", func(t *testing.T) {
-		nodes := []work.Node{nil, &work.Text{Value: "text"}}
-		result := collectRouteEntries(nodes, "/")
-		if len(result) != 0 {
-			t.Errorf("expected empty, got %d entries", len(result))
-		}
-	})
-
-	t.Run("with route metadata", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Fragment{
-				Metadata: map[string]any{
-					routeMetadataKey: routeEntry{pattern: "/users"},
-				},
-			},
-		}
-		result := collectRouteEntries(nodes, "/")
-		if len(result) != 1 {
-			t.Fatalf("expected 1 entry, got %d", len(result))
-		}
-		if result[0].pattern != "/users" {
-			t.Errorf("expected pattern '/users', got %q", result[0].pattern)
-		}
-	})
-
-	t.Run("with slot metadata is skipped", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Fragment{
-				Metadata: map[string]any{
-					slotMetadataKey: slotEntry{name: "sidebar"},
-				},
-			},
-		}
-		result := collectRouteEntries(nodes, "/")
-		if len(result) != 0 {
-			t.Errorf("expected empty, got %d entries", len(result))
-		}
-	})
-
-	t.Run("with nested fragments", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Fragment{
-				Children: []work.Node{
-					&work.Fragment{
-						Metadata: map[string]any{
-							routeMetadataKey: routeEntry{pattern: "/nested"},
-						},
-					},
-				},
-			},
-		}
-		result := collectRouteEntries(nodes, "/")
-		if len(result) != 1 {
-			t.Fatalf("expected 1 entry, got %d", len(result))
-		}
-	})
-
-	t.Run("with children adds wildcard", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Fragment{
-				Metadata: map[string]any{
-					routeMetadataKey: routeEntry{
-						pattern:  "/users",
-						children: []work.Node{&work.Text{Value: "child"}},
-					},
-				},
-			},
-		}
-		result := collectRouteEntries(nodes, "/")
-		if len(result) != 1 {
-			t.Fatalf("expected 1 entry, got %d", len(result))
-		}
-		t.Logf("fullPath with children: %q", result[0].fullPath)
-	})
-}
-
-func TestCollectSlotEntries(t *testing.T) {
-	t.Run("empty nodes", func(t *testing.T) {
-		result := collectSlotEntries(nil, "/")
-		if result != nil {
-			t.Error("expected nil for empty nodes")
-		}
-	})
-
-	t.Run("with nil node", func(t *testing.T) {
-		nodes := []work.Node{nil}
-		result := collectSlotEntries(nodes, "/")
-		if len(result) != 0 {
-			t.Errorf("expected empty, got %d entries", len(result))
-		}
-	})
-
-	t.Run("with slot metadata", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Fragment{
-				Metadata: map[string]any{
-					slotMetadataKey: slotEntry{
-						name: "sidebar",
-						routes: []routeEntry{
-							{pattern: "/menu"},
-						},
-					},
-				},
-			},
-		}
-		result := collectSlotEntries(nodes, "/")
-		if len(result) != 1 {
-			t.Fatalf("expected 1 entry, got %d", len(result))
-		}
-		if result[0].name != "sidebar" {
-			t.Errorf("expected name 'sidebar', got %q", result[0].name)
-		}
-	})
-
-	t.Run("with nested fragments", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Fragment{
-				Children: []work.Node{
-					&work.Fragment{
-						Metadata: map[string]any{
-							slotMetadataKey: slotEntry{name: "nested-slot"},
-						},
-					},
-				},
-			},
-		}
-		result := collectSlotEntries(nodes, "/")
-		if len(result) != 1 {
-			t.Fatalf("expected 1 entry, got %d", len(result))
-		}
-	})
-
-	t.Run("with slot with children adds wildcard", func(t *testing.T) {
-		nodes := []work.Node{
-			&work.Fragment{
-				Metadata: map[string]any{
-					slotMetadataKey: slotEntry{
-						name: "main",
-						routes: []routeEntry{
-							{
-								pattern:  "/users",
-								children: []work.Node{&work.Text{Value: "nested"}},
-							},
-						},
-					},
-				},
-			},
-		}
-		result := collectSlotEntries(nodes, "/")
-		if len(result) != 1 {
-			t.Fatalf("expected 1 entry, got %d", len(result))
-		}
-		t.Logf("slot route fullPath: %q", result[0].routes[0].fullPath)
-	})
-}
-
-func TestAdditionalCoverage(t *testing.T) {
-	t.Run("UseParams with params", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				matchCtx.UseProvider(ctx, &MatchState{
-					Matched: true,
-					Params:  map[string]string{"id": "123", "name": "test"},
-				})
-				params := UseParams(ctx)
-				if params == nil {
-					t.Error("expected non-nil params")
-				}
-				if params["id"] != "123" {
-					t.Errorf("expected id=123, got %q", params["id"])
-				}
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("UseParam with existing param", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				matchCtx.UseProvider(ctx, &MatchState{
-					Matched: true,
-					Params:  map[string]string{"id": "456"},
-				})
-				val := UseParam(ctx, "id")
-				if val != "456" {
-					t.Errorf("expected '456', got %q", val)
-				}
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("UseSearchParam with query value", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{
-					Path:  "/",
-					Query: url.Values{"page": {"5"}},
-				})
-				val, setter := UseSearchParam(ctx, "page")
-				if val != "5" {
-					t.Errorf("expected '5', got %q", val)
-				}
-				if setter == nil {
-					t.Error("expected non-nil setter")
-				}
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("Router.Param with existing params", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				matchCtx.UseProvider(ctx, &MatchState{
-					Matched: true,
-					Params:  map[string]string{"userId": "789"},
-				})
-				router := UseRouter(ctx)
-				if router != nil {
-					val, err := router.Param("userId")
-					if err != nil {
-						t.Errorf("expected no error, got %v", err)
-					}
-					if val != "789" {
-						t.Errorf("expected '789', got %q", val)
-					}
-				}
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("buildHref edge cases", func(t *testing.T) {
-		result := buildHref("/", nil, "")
-		if result != "/" {
-			t.Errorf("expected '/', got %q", result)
-		}
-
-		result = buildHref("/test", url.Values{}, "hash")
-		if result != "/test#hash" {
-			t.Errorf("expected '/test#hash', got %q", result)
-		}
-	})
-
-	t.Run("resolveRoutePattern edge cases", func(t *testing.T) {
-		result := resolveRoutePattern("/", "")
-		t.Logf("resolveRoutePattern('/', '') = %q", result)
-
-		result = resolveRoutePattern("/api", "users")
-		t.Logf("resolveRoutePattern('/api', 'users') = %q", result)
-	})
-
-	t.Run("trimWildcardSuffix edge cases", func(t *testing.T) {
-		result := trimWildcardSuffix("/users/*")
-		t.Logf("trimWildcardSuffix('/users/*') = %q", result)
-
-		result = trimWildcardSuffix("/users/:id/*rest")
-		t.Logf("trimWildcardSuffix('/users/:id/*rest') = %q", result)
-
-		result = trimWildcardSuffix("/users")
-		if result != "/users" {
-			t.Errorf("expected '/users', got %q", result)
-		}
-	})
-
-	t.Run("matchesPrefix edge cases", func(t *testing.T) {
-		result := matchesPrefix("/", "/")
-		if !result {
-			t.Error("expected true for root match")
-		}
-
-		result = matchesPrefix("/users", "/api")
-		if result {
-			t.Error("expected false for non-matching prefix")
-		}
-	})
-
-	t.Run("canonicalizeLocation with empty path", func(t *testing.T) {
-		loc := Location{Path: "", Query: nil, Hash: ""}
-		result := canonicalizeLocation(loc)
-		if result.Path != "/" {
-			t.Errorf("expected '/', got %q", result.Path)
-		}
-	})
-}
-
-func TestUseSearchParamSetter(t *testing.T) {
-	t.Run("setter calls ReplaceWith", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{
-					Path:  "/test",
-					Query: url.Values{"page": {"1"}},
-				})
-
-				_, setter := UseSearchParam(ctx, "page")
-				setter("2")
-				t.Log("setter called with new value")
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("setter with empty value deletes", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{
-					Path:  "/test",
-					Query: url.Values{"filter": {"active"}},
-				})
-
-				_, setter := UseSearchParam(ctx, "filter")
-				setter("")
-				t.Log("setter called with empty value to delete")
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("setter with nil query creates new", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{
-					Path:  "/test",
-					Query: nil,
-				})
-
-				_, setter := UseSearchParam(ctx, "newparam")
-				setter("newvalue")
-				t.Log("setter called to create new query param")
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestNavigateLiveMode(t *testing.T) {
-	t.Run("navigate with full context", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{
-					Path:  "/current",
-					Query: url.Values{"x": {"1"}},
-				})
-				emitterCtx.UseProvider(ctx, NewRouterEventEmitter())
-
-				Navigate(ctx, "/new-page?y=2#section")
-				t.Log("Navigate called in live mode context")
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("replace with full context", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{
-					Path:  "/current",
-					Query: url.Values{},
-				})
-				emitterCtx.UseProvider(ctx, NewRouterEventEmitter())
-
-				Replace(ctx, "/replaced#hash")
-				t.Log("Replace called in live mode context")
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("navigate with empty path initializes", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{
-					Path:  "",
-					Query: nil,
-				})
-
-				Navigate(ctx, "/new")
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestBackForwardWithBus(t *testing.T) {
-	t.Run("Back with bus", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				Back(ctx)
-				t.Log("Back called with bus context")
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("Forward with bus", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				Forward(ctx)
-				t.Log("Forward called with bus context")
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("Back without bus", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				Back(ctx)
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               nil,
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("Forward without bus", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				Forward(ctx)
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               nil,
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestRouterParamNotFound(t *testing.T) {
-	t.Run("Param with nil params", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				matchCtx.UseProvider(ctx, nil)
-				router := UseRouter(ctx)
-				if router != nil {
-					_, err := router.Param("id")
-					if err != ErrParamNotFound {
-						t.Errorf("expected ErrParamNotFound, got %v", err)
-					}
-				}
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("Param with missing key", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				matchCtx.UseProvider(ctx, &MatchState{
-					Matched: true,
-					Params:  map[string]string{"other": "value"},
-				})
-				router := UseRouter(ctx)
-				if router != nil {
-					_, err := router.Param("id")
-					if err != ErrParamNotFound {
-						t.Errorf("expected ErrParamNotFound, got %v", err)
-					}
-				}
-				return &work.Text{Value: "test"}
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestResolveHrefMoreCases(t *testing.T) {
-	t.Run("resolveHref with query only", func(t *testing.T) {
-		current := Location{Path: "/test", Query: url.Values{"a": {"1"}}}
-		result := resolveHref(current, "?b=2")
-
-		if result.Path != "/test" {
-			t.Errorf("expected path '/test', got %q", result.Path)
-		}
-		if result.Query.Get("b") != "2" {
-			t.Errorf("expected query b=2, got %v", result.Query)
-		}
-	})
-
-	t.Run("resolveHref with complex relative path", func(t *testing.T) {
-		current := Location{Path: "/a/b/c/d"}
-		result := resolveHref(current, "../../x")
-
-		t.Logf("resolveHref(%q, '../../x') = %q", current.Path, result.Path)
-	})
-
-	t.Run("resolveHref preserves hash-only", func(t *testing.T) {
-		current := Location{Path: "/page", Query: url.Values{"x": {"1"}}, Hash: "old"}
-		result := resolveHref(current, "#new")
-
-		if result.Path != "/page" {
-			t.Errorf("expected path '/page', got %q", result.Path)
-		}
-		if result.Hash != "new" {
-			t.Errorf("expected hash 'new', got %q", result.Hash)
-		}
-	})
-}
-
-func TestTrieMoreCases(t *testing.T) {
-	t.Run("insert duplicate path", func(t *testing.T) {
-		trie := newRouterTrie()
-		trie.Insert("/users", routeEntry{pattern: "/users"})
-		trie.Insert("/users", routeEntry{pattern: "/users-override"})
-
-		result := trie.Match("/users")
-		if result == nil {
-			t.Fatal("expected match")
-		}
-		t.Logf("pattern after duplicate insert: %q", result.Entry.pattern)
-	})
-
-	t.Run("match root path", func(t *testing.T) {
-		trie := newRouterTrie()
-		trie.Insert("/", routeEntry{pattern: "/"})
-
-		result := trie.Match("/")
-		if result == nil {
-			t.Fatal("expected match for root")
-		}
-		if result.Entry.pattern != "/" {
-			t.Errorf("expected '/', got %q", result.Entry.pattern)
-		}
-	})
-
-	t.Run("match with multiple params", func(t *testing.T) {
-		trie := newRouterTrie()
-		trie.Insert("/users/:userId/posts/:postId", routeEntry{pattern: "/users/:userId/posts/:postId"})
-
-		result := trie.Match("/users/123/posts/456")
-		if result == nil {
-			t.Fatal("expected match")
-		}
-		if result.Params["userId"] != "123" {
-			t.Errorf("expected userId=123, got %q", result.Params["userId"])
-		}
-		if result.Params["postId"] != "456" {
-			t.Errorf("expected postId=456, got %q", result.Params["postId"])
-		}
-	})
-
-	t.Run("wildcard captures rest", func(t *testing.T) {
-		trie := newRouterTrie()
-		trie.Insert("/files/*filepath", routeEntry{pattern: "/files/*filepath"})
-
-		result := trie.Match("/files/a/b/c/d.txt")
-		if result == nil {
-			t.Fatal("expected match")
-		}
-		if result.Params["filepath"] != "a/b/c/d.txt" {
-			t.Errorf("expected 'a/b/c/d.txt', got %q", result.Params["filepath"])
-		}
-	})
-
-	t.Run("no match for partial path", func(t *testing.T) {
-		trie := newRouterTrie()
-		trie.Insert("/users/:id/profile", routeEntry{pattern: "/users/:id/profile"})
-
-		result := trie.Match("/users/123")
-		if result != nil {
-			t.Error("expected no match for partial path")
-		}
-	})
-}
-
-func TestLocationEqualWithQuery(t *testing.T) {
-	t.Run("equal with same query", func(t *testing.T) {
-		a := Location{Path: "/test", Query: url.Values{"a": {"1"}}}
-		b := Location{Path: "/test", Query: url.Values{"a": {"1"}}}
-
-		if !locationEqual(a, b) {
-			t.Error("expected equal")
-		}
-	})
-
-	t.Run("different query", func(t *testing.T) {
-		a := Location{Path: "/test", Query: url.Values{"a": {"1"}}}
-		b := Location{Path: "/test", Query: url.Values{"a": {"2"}}}
-
-		if locationEqual(a, b) {
-			t.Error("expected not equal")
-		}
-	})
-
-	t.Run("nil vs empty query", func(t *testing.T) {
-		a := Location{Path: "/test", Query: nil}
-		b := Location{Path: "/test", Query: url.Values{}}
-
-		result := locationEqual(a, b)
-		t.Logf("nil vs empty query equal: %v", result)
-	})
-}
-
-func TestRoutesWithComponent(t *testing.T) {
-	t.Run("routes with Component prop", func(t *testing.T) {
-		testComp := func(ctx *runtime.Ctx, m Match) work.Node {
-			return &work.Text{Value: "from component"}
-		}
-
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{Path: "/comp"})
-				routeBaseCtx.UseProvider(ctx, "/")
-
-				items := []work.Item{
-					Route(ctx, RouteProps{Path: "/comp", Component: testComp}),
-				}
-				return routes(ctx, items)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestOutletWithSlots(t *testing.T) {
-	t.Run("outlet accesses slot from context", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				slotsCtx.UseProvider(ctx, map[string]outletRenderer{
-					"": func(ctx *runtime.Ctx) work.Node {
-						return &work.Text{Value: "default slot content"}
-					},
-				})
-				return Outlet(ctx)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("outlet with named slot", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				slotsCtx.UseProvider(ctx, map[string]outletRenderer{
-					"sidebar": func(ctx *runtime.Ctx) work.Node {
-						return &work.Text{Value: "sidebar content"}
-					},
-				})
-				return Outlet(ctx, "sidebar")
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-}
-
-func TestBuildHrefEdgeCases(t *testing.T) {
-	t.Run("empty path", func(t *testing.T) {
-		result := buildHref("", nil, "")
-		if result != "/" {
-			t.Errorf("expected '/', got %q", result)
-		}
-	})
-
-	t.Run("hash with # prefix", func(t *testing.T) {
-		result := buildHref("/test", nil, "#section")
-		if result != "/test#section" {
-			t.Errorf("expected '/test#section', got %q", result)
-		}
-	})
-
-	t.Run("hash without # prefix", func(t *testing.T) {
-		result := buildHref("/test", nil, "section")
-		if result != "/test#section" {
-			t.Errorf("expected '/test#section', got %q", result)
-		}
-	})
-
-	t.Run("query with empty encoded", func(t *testing.T) {
-		result := buildHref("/test", url.Values{}, "")
-		if result != "/test" {
-			t.Errorf("expected '/test', got %q", result)
-		}
-	})
-}
-
-func TestResolveHrefEdgeCases(t *testing.T) {
-	t.Run("path ending with slash", func(t *testing.T) {
-		current := Location{Path: "/users/"}
-		result := resolveHref(current, "./edit")
-		t.Logf("resolveHref path ending with slash: %q", result.Path)
-	})
-
-	t.Run("path without trailing slash", func(t *testing.T) {
-		current := Location{Path: "/users/123"}
-		result := resolveHref(current, "./edit")
-		t.Logf("resolveHref path no trailing: %q", result.Path)
-	})
-}
-
-func TestResolveRoutePatternEdgeCases(t *testing.T) {
-	t.Run("with ./ prefix", func(t *testing.T) {
-		result := resolveRoutePattern("./nested", "/parent")
-		t.Logf("resolveRoutePattern('./nested', '/parent') = %q", result)
-	})
-
-	t.Run("empty pattern", func(t *testing.T) {
-		result := resolveRoutePattern("", "/base")
-		if result != "/" {
-			t.Errorf("expected '/', got %q", result)
-		}
-	})
-
-	t.Run("whitespace pattern", func(t *testing.T) {
-		result := resolveRoutePattern("  ", "/base")
-		if result != "/" {
-			t.Errorf("expected '/', got %q", result)
-		}
-	})
-}
-
-func TestNormalizePathEdgeCases(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"", "/"},
-		{"/", "/"},
-		{"users", "/users"},
-		{"/users/", "/users"},
-		{"/users//posts", "/users/posts"},
-		{"//users//posts//", "/users/posts"},
 	}
-
-	for _, tc := range tests {
-		result := normalizePath(tc.input)
-		if result != tc.expected {
-			t.Errorf("normalizePath(%q) = %q, want %q", tc.input, result, tc.expected)
-		}
+	if len(seen) == 0 || !strings.Contains(h.Normalized(), "b:") {
+		t.Fatalf("seen = %v, dom = %s", seen, h.Normalized())
 	}
 }
 
-func TestTrieInsertEdgeCases(t *testing.T) {
-	t.Run("insert with param segment", func(t *testing.T) {
-		trie := newRouterTrie()
-		trie.Insert("/:id", routeEntry{pattern: "/:id"})
+func TestPopstateUpdatesLocationCanonically(t *testing.T) {
+	var user probe
+	h := start(t, "/users/1", true, func() work.Node {
+		return router.Routes(
+			router.Route("/users/:id", page("user", &user)),
+		)
+	})
+	h.Do(func() {
+		h.S.Bus.Publish(protocol.RouteHandler, string(protocol.RouterPopstateAction), protocol.RouterNavPayload{Path: "/users//5/ ", Query: "", Hash: "##x"})
+	})
+	if !strings.Contains(h.Normalized(), "user:5") {
+		t.Fatalf("dom = %s", h.Normalized())
+	}
+	var hash string
+	h.On(func() { hash = user.router.Hash.Peek() })
+	if hash != "x" {
+		t.Fatalf("hash = %q", hash)
+	}
+	if user.mounts != 1 {
+		t.Fatalf("mounts = %d", user.mounts)
+	}
+}
 
-		result := trie.Match("/123")
-		if result == nil {
-			t.Fatal("expected match")
+func TestLinkClickNavigatesAndNavLinkMarksActive(t *testing.T) {
+	var a, b probe
+	h := start(t, "/a", true, func() work.Node {
+		return work.BuildElement("div",
+			router.Link(router.LinkProps{To: "/b", Children: work.NewText("go b")}),
+			router.NavLink(router.NavLinkProps{To: "/a", ClassName: "nav", ActiveClass: "on", End: true, Children: work.NewText("a")}),
+			router.NavLink(router.NavLinkProps{To: "/b", ClassName: "nav", ActiveClass: "on", End: true, Children: work.NewText("b")}),
+			router.Routes(
+				router.Route("/a", page("a", &a)),
+				router.Route("/b", page("b", &b)),
+			),
+		)
+	})
+	navA, navB := h.idOf("a", "href", "/a"), h.idOf("a", "href", "/b")
+	_ = navB
+	node := h.Model.Node(navA)
+	classOf := func(n *html.Node) string {
+		for _, at := range n.Attr {
+			if at.Key == "class" {
+				return at.Val
+			}
 		}
-		if result.Params["id"] != "123" {
-			t.Errorf("expected id=123, got %q", result.Params["id"])
+		return ""
+	}
+	if classOf(node) != "nav on" {
+		t.Fatalf("active class = %q", classOf(node))
+	}
+	links := 0
+	var link uint32
+	for _, id := range h.Model.IDs() {
+		n := h.Model.Node(id)
+		if n.Type == html.ElementNode && n.Data == "a" {
+			for _, at := range n.Attr {
+				if at.Key == "href" && at.Val == "/b" && classOf(n) == "" {
+					link = id
+					links++
+				}
+			}
+		}
+	}
+	if links != 1 {
+		t.Fatalf("plain link count = %d", links)
+	}
+	if err := h.Dispatch(link, "click", nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(h.Normalized(), "b:") || strings.Contains(h.Normalized(), "a:") {
+		t.Fatalf("dom = %s", h.Normalized())
+	}
+	if got := classOf(h.Model.Node(navA)); got != "nav" {
+		t.Fatalf("inactive class = %q", got)
+	}
+	navs := h.navigations()
+	if len(navs) != 1 || navs[0].Path != "/b" {
+		t.Fatalf("navigations = %+v", navs)
+	}
+}
+
+func TestRedirectDuringSSRSetsHTTPRedirect(t *testing.T) {
+	req := newRequest("/old", false)
+	root := func(*runtime.Ctx) work.Node {
+		return headers.Provider(headers.ProviderProps{State: req, Children: router.Provider(router.ProviderProps{
+			Children: work.BuildElement("main", router.Redirect(router.RedirectProps{To: "/new"})),
+		})})
+	}
+	s := runtime.NewSession(runtime.Config{SessionID: "ssr", Root: root, DevMode: true})
+	s.DeferEffects()
+	runtimetest.Start(t, s)
+	err := s.Ask(5*time.Second, func() error {
+		_, err := s.RenderSnapshot()
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	url, code, ok := req.Redirect()
+	if !ok || url != "/new" || code != http.StatusSeeOther {
+		t.Fatalf("redirect = %q %d %v", url, code, ok)
+	}
+}
+
+func TestRedirectWhileLiveNavigates(t *testing.T) {
+	var home probe
+	var show *runtime.Signal[bool]
+	h := start(t, "/", true, func() work.Node {
+		return work.BuildElement("div",
+			runtime.Component(func(ctx *runtime.Ctx) work.Node {
+				show = runtime.UseSignal(ctx, false)
+				return work.BuildElement("i", runtime.Show(show, func() work.Node {
+					return work.BuildElement("b", router.Redirect(router.RedirectProps{To: "/dest"}))
+				}))
+			})(),
+			router.Routes(
+				router.Route("/", page("home", &home)),
+				router.Route("/dest", page("dest", &probe{})),
+			),
+		)
+	})
+	h.Do(func() { show.Set(true) })
+	navs := h.navigations()
+	if len(navs) != 1 || navs[0].Path != "/dest" || !navs[0].Replace {
+		t.Fatalf("navigations = %+v", navs)
+	}
+	if !strings.Contains(h.Normalized(), "dest:") {
+		t.Fatalf("dom = %s", h.Normalized())
+	}
+}
+
+func TestNavigateWhileNotLiveRedirects(t *testing.T) {
+	var p probe
+	h := start(t, "/start", false, func() work.Node {
+		return router.Routes(
+			router.Route("/start", page("s", &p)),
+		)
+	})
+	h.Do(func() { p.router.Navigate("/elsewhere?x=1") })
+	url, code, ok := h.req.Redirect()
+	if !ok || url != "/elsewhere?x=1" || code != http.StatusFound {
+		t.Fatalf("redirect = %q %d %v", url, code, ok)
+	}
+	if len(h.navigations()) != 0 {
+		t.Fatalf("unexpected navigation frames: %+v", h.navigations())
+	}
+}
+
+func TestBackAndForwardPublishCommands(t *testing.T) {
+	var p probe
+	h := start(t, "/start", true, func() work.Node {
+		return router.Routes(
+			router.Route("/start", page("s", &p)),
+		)
+	})
+	h.Do(func() { p.router.Back(); p.router.Forward() })
+	h.mu.Lock()
+	acts := append([]string(nil), h.acts...)
+	h.mu.Unlock()
+	if len(acts) != 2 || acts[0] != "back" || acts[1] != "forward" {
+		t.Fatalf("acts = %v", acts)
+	}
+}
+
+func TestMatchedAndParamsOutsideRoute(t *testing.T) {
+	var out *router.Router
+	h := start(t, "/x", true, func() work.Node {
+		return runtime.Component(func(ctx *runtime.Ctx) work.Node {
+			out = router.UseRouter(ctx)
+			return work.BuildElement("span")
+		})()
+	})
+	var matched bool
+	var params map[string]string
+	h.On(func() { matched, params = out.Matched.Peek(), out.Params.Peek() })
+	if matched || len(params) != 0 {
+		t.Fatalf("matched = %v params = %v", matched, params)
+	}
+}
+
+func TestRouterAndRequestURLFollowNavigateReplaceAndPopstate(t *testing.T) {
+	var p probe
+	var req *headers.Request
+	h := start(t, "/start?x=1", true, func() work.Node {
+		return work.BuildElement("div",
+			runtime.Component(func(ctx *runtime.Ctx) work.Node {
+				req = headers.UseRequest(ctx)
+				r := router.UseRouter(ctx)
+				p.router = r
+				line := runtime.UseComputed(ctx, func() string {
+					return r.Path.Get() + "|" + r.Query.Get().Get("x") + "|" + req.URL().Get().Path
+				})
+				return work.BuildElement("em", work.TextOf(line))
+			})(),
+			router.Routes(
+				router.Route("/start", page("s", &probe{})),
+				router.Route("/b/:id", page("b", &probe{})),
+				router.Route("/c", page("c", &probe{})),
+			),
+		)
+	})
+	if !strings.Contains(h.SSR, ">/start|1|/start<") {
+		t.Fatalf("ssr = %s", h.SSR)
+	}
+	if edits := h.Do(func() { p.router.Navigate("/b/9?x=2") }); len(edits) == 0 {
+		t.Fatal("navigate produced no edit frame")
+	}
+	if n := h.Normalized(); !strings.Contains(n, ">/b/9|2|/b/9<") || !strings.Contains(n, "b:9") {
+		t.Fatalf("after navigate: %s", n)
+	}
+	h.Do(func() { p.router.Replace("/c") })
+	if n := h.Normalized(); !strings.Contains(n, ">/c||/c<") || !strings.Contains(n, "c:") || strings.Contains(n, "b:9") {
+		t.Fatalf("after replace: %s", n)
+	}
+	h.Do(func() {
+		h.S.Bus.Publish(protocol.RouteHandler, string(protocol.RouterPopstateAction), protocol.RouterNavPayload{Path: "/b/3", Query: "x=7"})
+	})
+	if n := h.Normalized(); !strings.Contains(n, ">/b/3|7|/b/3<") || !strings.Contains(n, "b:3") {
+		t.Fatalf("after popstate: %s", n)
+	}
+	var cur string
+	h.On(func() { cur = req.URL().Peek().Path })
+	if cur != "/b/3" || h.req.URL().Path != "/b/3" {
+		t.Fatalf("request url = %q / %q", cur, h.req.URL().Path)
+	}
+}
+
+func TestResetAfterNavigationRendersTheNewRoute(t *testing.T) {
+	var p probe
+	h := start(t, "/start", true, func() work.Node {
+		return router.Routes(
+			router.Route("/start", page("s", &probe{})),
+			router.Route("/next", page("n", &p)),
+		)
+	})
+	h.Do(func() {
+		h.S.Bus.Publish(protocol.RouteHandler, string(protocol.RouterPopstateAction), protocol.RouterNavPayload{Path: "/next"})
+	})
+	if html := h.ResetHTML(); !strings.Contains(html, "n:") || strings.Contains(html, "s:") {
+		t.Fatalf("reset html = %s", html)
+	}
+}
+
+func TestNavigationFromAnotherGoroutineUpdatesTheURL(t *testing.T) {
+	var p probe
+	h := start(t, "/start", true, func() work.Node {
+		return router.Routes(
+			router.Route("/start", page("s", &p)),
+			router.Route("/other", page("o", &probe{})),
+		)
+	})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() { defer wg.Done(); p.router.Navigate("/other") }()
+	wg.Wait()
+	h.Sync()
+	if !strings.Contains(h.Normalized(), "o:") {
+		t.Fatalf("dom = %s", h.Normalized())
+	}
+	if h.req.URL().Path != "/other" {
+		t.Fatalf("state url = %+v", h.req.URL())
+	}
+}
+
+func runScript(t *testing.T, script func(r *router.Router, req *headers.Request)) (frames []string, acts []string, navs []protocol.RouterNavPayload, dom string) {
+	t.Helper()
+	var r *router.Router
+	var req *headers.Request
+	h := start(t, "/start", true, func() work.Node {
+		return work.BuildElement("div",
+			runtime.Component(func(ctx *runtime.Ctx) work.Node {
+				req = headers.UseRequest(ctx)
+				r = router.UseRouter(ctx)
+				line := runtime.UseComputed(ctx, func() string { return req.URL().Get().Path + "?" + req.URL().Get().Query.Encode() })
+				return work.BuildElement("em", work.TextOf(line))
+			})(),
+			router.Routes(
+				router.Route("/start", page("s", &probe{})),
+				router.Route("/:id", page("p", &probe{})),
+			),
+		)
+	})
+	frames = append(frames, fmt.Sprint(h.Do(func() { script(r, req) })))
+	h.mu.Lock()
+	acts = append([]string(nil), h.acts...)
+	h.mu.Unlock()
+	return frames, acts, h.navigations(), h.Normalized()
+}
+
+func TestRouterMethodsAndRequestMethodsProduceIdenticalFrames(t *testing.T) {
+	withQuery := func(k, v string) func(router.Location) router.Location {
+		return func(l router.Location) router.Location {
+			l.Query.Set(k, v)
+			return l
+		}
+	}
+	viaRouter := func(r *router.Router, _ *headers.Request) {
+		r.Navigate("/a?x=1")
+		r.Replace("/b")
+		r.NavigateWith(withQuery("m", "1"))
+		r.ReplaceWith(func(l router.Location) router.Location { l.Path = "/d"; return l })
+		r.SetQuery("k", "v")
+		r.SetQuery("k", "")
+		r.Back()
+		r.Forward()
+		r.Replace("https://other.example/z")
+		r.Replace("/c", headers.Status(http.StatusMovedPermanently))
+	}
+	viaRequest := func(_ *router.Router, req *headers.Request) {
+		req.Push("/a?x=1")
+		req.Replace("/b")
+		req.Push("/b?m=1")
+		req.Replace("/d?m=1")
+		req.Replace("/d?k=v&m=1")
+		req.Replace("/d?m=1")
+		req.Back()
+		req.Forward()
+		req.Replace("https://other.example/z")
+		req.Replace("/c", headers.Status(http.StatusMovedPermanently))
+	}
+	f1, a1, n1, d1 := runScript(t, viaRouter)
+	f2, a2, n2, d2 := runScript(t, viaRequest)
+	if fmt.Sprint(f1) != fmt.Sprint(f2) || fmt.Sprint(a1) != fmt.Sprint(a2) || fmt.Sprint(n1) != fmt.Sprint(n2) || d1 != d2 {
+		t.Fatalf("router and request diverge\nframes %v\n   vs %v\nacts %v vs %v\nnavs %v vs %v\ndom %s\n vs %s", f1, f2, a1, a2, n1, n2, d1, d2)
+	}
+	if len(a1) != 10 || a1[8] != "redirect" || a1[9] != "replace" {
+		t.Fatalf("acts = %v", a1)
+	}
+}
+
+func TestRedirectComponentPassesItsStatusToReplace(t *testing.T) {
+	req := newRequest("/old", false)
+	root := func(*runtime.Ctx) work.Node {
+		return headers.Provider(headers.ProviderProps{State: req, Children: router.Provider(router.ProviderProps{
+			Children: work.BuildElement("main", router.Redirect(router.RedirectProps{To: "/new", Status: http.StatusMovedPermanently})),
+		})})
+	}
+	s := runtime.NewSession(runtime.Config{SessionID: "ssr", Root: root, DevMode: true})
+	s.DeferEffects()
+	runtimetest.Start(t, s)
+	if err := s.Ask(5*time.Second, func() error { _, err := s.RenderSnapshot(); return err }); err != nil {
+		t.Fatal(err)
+	}
+	if url, code, ok := req.Redirect(); !ok || url != "/new" || code != http.StatusMovedPermanently {
+		t.Fatalf("redirect = %q %d %v", url, code, ok)
+	}
+}
+
+func TestRedirectPushIsOptIn(t *testing.T) {
+	t.Run("live", func(t *testing.T) {
+		var show *runtime.Signal[bool]
+		h := start(t, "/", true, func() work.Node {
+			return work.BuildElement("div",
+				runtime.Component(func(ctx *runtime.Ctx) work.Node {
+					show = runtime.UseSignal(ctx, false)
+					return work.BuildElement("i", runtime.Show(show, func() work.Node {
+						return router.Redirect(router.RedirectProps{To: "/dest", Push: true})
+					}))
+				})(),
+				router.Routes(
+					router.Route("/", page("home", &probe{})),
+					router.Route("/dest", page("dest", &probe{})),
+				),
+			)
+		})
+		h.Do(func() { show.Set(true) })
+		navs := h.navigations()
+		if len(navs) != 1 || navs[0].Path != "/dest" || navs[0].Replace {
+			t.Fatalf("navigations = %+v", navs)
 		}
 	})
-
-	t.Run("insert empty path", func(t *testing.T) {
-		trie := newRouterTrie()
-		trie.Insert("", routeEntry{pattern: ""})
-
-		result := trie.Match("/")
-		t.Logf("match for empty insert: %v", result)
-	})
-
-	t.Run("multiple wildcards priority", func(t *testing.T) {
-		trie := newRouterTrie()
-		trie.Insert("/api/*", routeEntry{pattern: "/api/*"})
-		trie.Insert("/api/v1/*", routeEntry{pattern: "/api/v1/*"})
-
-		result := trie.Match("/api/v1/users")
-		if result == nil {
-			t.Fatal("expected match")
+	t.Run("first render", func(t *testing.T) {
+		req := newRequest("/old", false)
+		root := func(*runtime.Ctx) work.Node {
+			return headers.Provider(headers.ProviderProps{State: req, Children: router.Provider(router.ProviderProps{
+				Children: work.BuildElement("main", router.Redirect(router.RedirectProps{To: "/new", Push: true})),
+			})})
 		}
-		t.Logf("matched pattern: %q", result.Entry.pattern)
+		s := runtime.NewSession(runtime.Config{SessionID: "ssr-push", Root: root, DevMode: true})
+		s.DeferEffects()
+		runtimetest.Start(t, s)
+		if err := s.Ask(5*time.Second, func() error { _, err := s.RenderSnapshot(); return err }); err != nil {
+			t.Fatal(err)
+		}
+		if url, code, ok := req.Redirect(); !ok || url != "/new" || code != http.StatusFound {
+			t.Fatalf("redirect = %q %d %v", url, code, ok)
+		}
 	})
 }
 
-func TestCanonicalizeLocationEdgeCases(t *testing.T) {
-	t.Run("with hash in path parts", func(t *testing.T) {
-		loc := Location{
-			Path:  "/test#existing",
-			Query: nil,
-			Hash:  "",
-		}
-		result := canonicalizeLocation(loc)
-		t.Logf("canonicalizeLocation with hash in path: %+v", result)
+func TestRedirectDefaultsToReplaceSoBackIsNotTrapped(t *testing.T) {
+	var show *runtime.Signal[bool]
+	h := start(t, "/", true, func() work.Node {
+		return work.BuildElement("div",
+			runtime.Component(func(ctx *runtime.Ctx) work.Node {
+				show = runtime.UseSignal(ctx, false)
+				return work.BuildElement("i", runtime.Show(show, func() work.Node {
+					return router.Redirect(router.RedirectProps{To: "/dest"})
+				}))
+			})(),
+			router.Routes(
+				router.Route("/", page("home", &probe{})),
+				router.Route("/dest", page("dest", &probe{})),
+			),
+		)
 	})
-
-	t.Run("with non-empty query", func(t *testing.T) {
-		loc := Location{
-			Path:  "/test",
-			Query: url.Values{"b": {"2"}, "a": {"1"}},
-			Hash:  "",
-		}
-		result := canonicalizeLocation(loc)
-		if result.Query.Get("a") != "1" {
-			t.Error("expected query to be preserved")
-		}
-	})
-}
-
-func TestRoutesEdgeCases(t *testing.T) {
-	t.Run("routes with non-matching but present routes", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{Path: "/admin/dashboard"})
-				routeBaseCtx.UseProvider(ctx, "/")
-
-				items := []work.Item{
-					Route(ctx, RouteProps{Path: "/users"}, &work.Text{Value: "users"}),
-					Route(ctx, RouteProps{Path: "/admin/*"}, &work.Text{Value: "admin area"}),
-				}
-				return routes(ctx, items)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
-
-	t.Run("routes with nested route children", func(t *testing.T) {
-		root := &runtime.Instance{
-			ID: "root",
-			Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-				locationCtx.UseProvider(ctx, Location{Path: "/users/123"})
-				routeBaseCtx.UseProvider(ctx, "/")
-
-				nestedRoute := Route(ctx, RouteProps{Path: "/:id"}, &work.Text{Value: "user detail"})
-
-				items := []work.Item{
-					Route(ctx, RouteProps{Path: "/users/*"}, nestedRoute),
-				}
-				return routes(ctx, items)
-			},
-			HookFrame: []runtime.HookSlot{},
-			Children:  []*runtime.Instance{},
-		}
-
-		sess := &runtime.Session{
-			Root:              root,
-			Components:        map[string]*runtime.Instance{"root": root},
-			Handlers:          make(map[string]work.Handler),
-			MountedComponents: make(map[*runtime.Instance]struct{}),
-			Bus:               protocol.NewBus(),
-		}
-
-		if err := sess.Flush(); err != nil {
-			t.Fatalf("Flush failed: %v", err)
-		}
-	})
+	h.Do(func() { show.Set(true) })
+	navs := h.navigations()
+	if len(navs) != 1 || !navs[0].Replace {
+		t.Fatalf("navigations = %+v", navs)
+	}
 }

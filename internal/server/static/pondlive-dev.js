@@ -1,15 +1,10 @@
 // LiveUI Client v1.0.0 - Built with esbuild
 "use strict";
 var LiveUIModule = (() => {
-  var __create = Object.create;
   var __defProp = Object.defineProperty;
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
   var __getOwnPropNames = Object.getOwnPropertyNames;
-  var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
-  var __commonJS = (cb, mod) => function __require() {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-  };
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
@@ -22,1557 +17,141 @@ var LiveUIModule = (() => {
     }
     return to;
   };
-  var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-    // If the importer is in node compatibility mode or this is not an ESM
-    // file that has been converted to a CommonJS file using a Babel-
-    // compatible transform (i.e. "__esModule" has not been set), then set
-    // "default" to the CommonJS "module.exports" for node compatibility.
-    isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-    mod
-  ));
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
-  // node_modules/@eleven-am/pondsocket-common/subjects/subject.js
-  var require_subject = __commonJS({
-    "node_modules/@eleven-am/pondsocket-common/subjects/subject.js"(exports) {
-      "use strict";
-      var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-        if (kind === "m") throw new TypeError("Private method is not writable");
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-        return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-      };
-      var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-        return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-      };
-      var _Subject_isClosed;
-      var _Subject_observers;
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.Subject = void 0;
-      var Subject = class {
-        constructor() {
-          _Subject_isClosed.set(this, void 0);
-          _Subject_observers.set(this, void 0);
-          __classPrivateFieldSet(this, _Subject_isClosed, false, "f");
-          __classPrivateFieldSet(this, _Subject_observers, /* @__PURE__ */ new Set(), "f");
-        }
-        /**
-         * @desc Returns the number of subscribers
-         */
-        get size() {
-          return __classPrivateFieldGet(this, _Subject_observers, "f").size;
-        }
-        /**
-         * @desc Subscribes to a subject
-         * @param observer - The observer to subscribe
-         */
-        subscribe(observer) {
-          if (__classPrivateFieldGet(this, _Subject_isClosed, "f")) {
-            throw new Error("Cannot subscribe to a closed subject");
-          }
-          __classPrivateFieldGet(this, _Subject_observers, "f").add(observer);
-          return () => __classPrivateFieldGet(this, _Subject_observers, "f").delete(observer);
-        }
-        /**
-         * @desc Publishes a message to all subscribers
-         * @param message - The message to publish
-         */
-        publish(message) {
-          __classPrivateFieldGet(this, _Subject_observers, "f").forEach((observer) => observer(message));
-        }
-        /**
-         * @desc Closes the subject
-         */
-        close() {
-          __classPrivateFieldGet(this, _Subject_observers, "f").clear();
-          __classPrivateFieldSet(this, _Subject_isClosed, true, "f");
-        }
-      };
-      exports.Subject = Subject;
-      _Subject_isClosed = /* @__PURE__ */ new WeakMap(), _Subject_observers = /* @__PURE__ */ new WeakMap();
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-common/subjects/behaviorSubject.js
-  var require_behaviorSubject = __commonJS({
-    "node_modules/@eleven-am/pondsocket-common/subjects/behaviorSubject.js"(exports) {
-      "use strict";
-      var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-        if (kind === "m") throw new TypeError("Private method is not writable");
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-        return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-      };
-      var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-        return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-      };
-      var _BehaviorSubject_lastMessage;
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.BehaviorSubject = void 0;
-      var subject_1 = require_subject();
-      var BehaviorSubject = class extends subject_1.Subject {
-        constructor(initialValue) {
-          super();
-          _BehaviorSubject_lastMessage.set(this, void 0);
-          __classPrivateFieldSet(this, _BehaviorSubject_lastMessage, initialValue, "f");
-        }
-        /**
-         * @desc Returns the last message published
-         */
-        get value() {
-          return __classPrivateFieldGet(this, _BehaviorSubject_lastMessage, "f");
-        }
-        /**
-         * @desc Publishes a message to all subscribers
-         * @param message - The message to publish
-         */
-        publish(message) {
-          __classPrivateFieldSet(this, _BehaviorSubject_lastMessage, message, "f");
-          super.publish(message);
-        }
-        /**
-         * @desc Subscribes to a subject
-         * @param observer - The observer to subscribe
-         */
-        subscribe(observer) {
-          if (__classPrivateFieldGet(this, _BehaviorSubject_lastMessage, "f")) {
-            observer(__classPrivateFieldGet(this, _BehaviorSubject_lastMessage, "f"));
-          }
-          return super.subscribe(observer);
-        }
-      };
-      exports.BehaviorSubject = BehaviorSubject;
-      _BehaviorSubject_lastMessage = /* @__PURE__ */ new WeakMap();
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-common/subjects/index.js
-  var require_subjects = __commonJS({
-    "node_modules/@eleven-am/pondsocket-common/subjects/index.js"(exports) {
-      "use strict";
-      var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
-        if (k2 === void 0) k2 = k;
-        var desc = Object.getOwnPropertyDescriptor(m, k);
-        if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-          desc = { enumerable: true, get: function() {
-            return m[k];
-          } };
-        }
-        Object.defineProperty(o, k2, desc);
-      }) : (function(o, m, k, k2) {
-        if (k2 === void 0) k2 = k;
-        o[k2] = m[k];
-      }));
-      var __exportStar = exports && exports.__exportStar || function(m, exports2) {
-        for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p)) __createBinding(exports2, m, p);
-      };
-      Object.defineProperty(exports, "__esModule", { value: true });
-      __exportStar(require_behaviorSubject(), exports);
-      __exportStar(require_subject(), exports);
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-common/enums.js
-  var require_enums = __commonJS({
-    "node_modules/@eleven-am/pondsocket-common/enums.js"(exports) {
-      "use strict";
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.PubSubEvents = exports.Events = exports.ChannelReceiver = exports.SystemSender = exports.ErrorTypes = exports.ChannelState = exports.ClientActions = exports.ServerActions = exports.PresenceEventTypes = void 0;
-      var PresenceEventTypes;
-      (function(PresenceEventTypes2) {
-        PresenceEventTypes2["JOIN"] = "JOIN";
-        PresenceEventTypes2["LEAVE"] = "LEAVE";
-        PresenceEventTypes2["UPDATE"] = "UPDATE";
-      })(PresenceEventTypes || (exports.PresenceEventTypes = PresenceEventTypes = {}));
-      var ServerActions;
-      (function(ServerActions2) {
-        ServerActions2["PRESENCE"] = "PRESENCE";
-        ServerActions2["SYSTEM"] = "SYSTEM";
-        ServerActions2["BROADCAST"] = "BROADCAST";
-        ServerActions2["ERROR"] = "ERROR";
-        ServerActions2["CONNECT"] = "CONNECT";
-      })(ServerActions || (exports.ServerActions = ServerActions = {}));
-      var ClientActions;
-      (function(ClientActions2) {
-        ClientActions2["JOIN_CHANNEL"] = "JOIN_CHANNEL";
-        ClientActions2["LEAVE_CHANNEL"] = "LEAVE_CHANNEL";
-        ClientActions2["BROADCAST"] = "BROADCAST";
-      })(ClientActions || (exports.ClientActions = ClientActions = {}));
-      var ChannelState2;
-      (function(ChannelState3) {
-        ChannelState3["IDLE"] = "IDLE";
-        ChannelState3["JOINING"] = "JOINING";
-        ChannelState3["JOINED"] = "JOINED";
-        ChannelState3["STALLED"] = "STALLED";
-        ChannelState3["CLOSED"] = "CLOSED";
-        ChannelState3["DECLINED"] = "DECLINED";
-      })(ChannelState2 || (exports.ChannelState = ChannelState2 = {}));
-      var ErrorTypes;
-      (function(ErrorTypes2) {
-        ErrorTypes2["UNAUTHORIZED_CONNECTION"] = "UNAUTHORIZED_CONNECTION";
-        ErrorTypes2["UNAUTHORIZED_JOIN_REQUEST"] = "UNAUTHORIZED_JOIN_REQUEST";
-        ErrorTypes2["UNAUTHORIZED_BROADCAST"] = "UNAUTHORIZED_BROADCAST";
-        ErrorTypes2["INVALID_MESSAGE"] = "INVALID_MESSAGE";
-        ErrorTypes2["HANDLER_NOT_FOUND"] = "HANDLER_NOT_FOUND";
-        ErrorTypes2["PRESENCE_ERROR"] = "PRESENCE_ERROR";
-        ErrorTypes2["CHANNEL_ERROR"] = "CHANNEL_ERROR";
-        ErrorTypes2["ENDPOINT_ERROR"] = "ENDPOINT_ERROR";
-        ErrorTypes2["INTERNAL_SERVER_ERROR"] = "INTERNAL_SERVER_ERROR";
-      })(ErrorTypes || (exports.ErrorTypes = ErrorTypes = {}));
-      var SystemSender;
-      (function(SystemSender2) {
-        SystemSender2["ENDPOINT"] = "ENDPOINT";
-        SystemSender2["CHANNEL"] = "CHANNEL";
-      })(SystemSender || (exports.SystemSender = SystemSender = {}));
-      var ChannelReceiver;
-      (function(ChannelReceiver2) {
-        ChannelReceiver2["ALL_USERS"] = "ALL_USERS";
-        ChannelReceiver2["ALL_EXCEPT_SENDER"] = "ALL_EXCEPT_SENDER";
-      })(ChannelReceiver || (exports.ChannelReceiver = ChannelReceiver = {}));
-      var Events;
-      (function(Events2) {
-        Events2["ACKNOWLEDGE"] = "ACKNOWLEDGE";
-        Events2["CONNECTION"] = "CONNECTION";
-        Events2["UNAUTHORIZED"] = "UNAUTHORIZED";
-      })(Events || (exports.Events = Events = {}));
-      var PubSubEvents;
-      (function(PubSubEvents2) {
-        PubSubEvents2["MESSAGE"] = "MESSAGE";
-        PubSubEvents2["PRESENCE"] = "PRESENCE";
-        PubSubEvents2["GET_PRESENCE"] = "GET_PRESENCE";
-      })(PubSubEvents || (exports.PubSubEvents = PubSubEvents = {}));
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-common/misc/uuid.js
-  var require_uuid = __commonJS({
-    "node_modules/@eleven-am/pondsocket-common/misc/uuid.js"(exports) {
-      "use strict";
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.uuid = uuid;
-      function uuid() {
-        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-          const r = Math.random() * 16 | 0;
-          const v = c === "x" ? r : r & 3 | 8;
-          return v.toString(16);
-        });
-      }
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-common/misc/types.js
-  var require_types = __commonJS({
-    "node_modules/@eleven-am/pondsocket-common/misc/types.js"(exports) {
-      "use strict";
-      Object.defineProperty(exports, "__esModule", { value: true });
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-common/misc/index.js
-  var require_misc = __commonJS({
-    "node_modules/@eleven-am/pondsocket-common/misc/index.js"(exports) {
-      "use strict";
-      var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
-        if (k2 === void 0) k2 = k;
-        var desc = Object.getOwnPropertyDescriptor(m, k);
-        if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-          desc = { enumerable: true, get: function() {
-            return m[k];
-          } };
-        }
-        Object.defineProperty(o, k2, desc);
-      }) : (function(o, m, k, k2) {
-        if (k2 === void 0) k2 = k;
-        o[k2] = m[k];
-      }));
-      var __exportStar = exports && exports.__exportStar || function(m, exports2) {
-        for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p)) __createBinding(exports2, m, p);
-      };
-      Object.defineProperty(exports, "__esModule", { value: true });
-      __exportStar(require_uuid(), exports);
-      __exportStar(require_types(), exports);
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-common/schema.js
-  var require_schema = __commonJS({
-    "node_modules/@eleven-am/pondsocket-common/schema.js"(exports) {
-      "use strict";
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.channelEventSchema = exports.serverMessageSchema = exports.presenceMessageSchema = exports.clientMessageSchema = exports.ValidationError = void 0;
-      var enums_1 = require_enums();
-      var ValidationError = class extends Error {
-        constructor(message, path) {
-          super(path ? `${path}: ${message}` : message);
-          this.path = path;
-          this.name = "ValidationError";
-        }
-      };
-      exports.ValidationError = ValidationError;
-      function isObject(value) {
-        return typeof value === "object" && value !== null && !Array.isArray(value);
-      }
-      function isString(value) {
-        return typeof value === "string";
-      }
-      function isArray(value) {
-        return Array.isArray(value);
-      }
-      function isRecord(value) {
-        if (!isObject(value)) {
-          return false;
-        }
-        return Object.keys(value).every((key) => typeof key === "string");
-      }
-      function validateString(value, fieldName) {
-        if (!isString(value)) {
-          throw new ValidationError(`Expected string, got ${typeof value}`, fieldName);
-        }
-      }
-      function validateObject(value, fieldName) {
-        if (!isObject(value)) {
-          throw new ValidationError(`Expected object, got ${typeof value}`, fieldName);
-        }
-      }
-      function validateRecord(value, fieldName) {
-        if (!isRecord(value)) {
-          throw new ValidationError(`Expected record with string keys, got ${typeof value}`, fieldName);
-        }
-      }
-      function validateArray(value, fieldName) {
-        if (!isArray(value)) {
-          throw new ValidationError(`Expected array, got ${typeof value}`, fieldName);
-        }
-      }
-      function validateEnum(value, enumObj, fieldName) {
-        const validValues = Object.values(enumObj);
-        if (!validValues.includes(value)) {
-          throw new ValidationError(`Expected one of [${validValues.join(", ")}], got ${JSON.stringify(value)}`, fieldName);
-        }
-      }
-      exports.clientMessageSchema = {
-        parse(data) {
-          validateObject(data, "clientMessage");
-          const obj = data;
-          if (!("event" in obj)) {
-            throw new ValidationError("Missing required field", "event");
-          }
-          if (!("requestId" in obj)) {
-            throw new ValidationError("Missing required field", "requestId");
-          }
-          if (!("channelName" in obj)) {
-            throw new ValidationError("Missing required field", "channelName");
-          }
-          if (!("payload" in obj)) {
-            throw new ValidationError("Missing required field", "payload");
-          }
-          if (!("action" in obj)) {
-            throw new ValidationError("Missing required field", "action");
-          }
-          validateString(obj.event, "event");
-          validateString(obj.requestId, "requestId");
-          validateString(obj.channelName, "channelName");
-          validateRecord(obj.payload, "payload");
-          validateEnum(obj.action, enums_1.ClientActions, "action");
-          return {
-            event: obj.event,
-            requestId: obj.requestId,
-            channelName: obj.channelName,
-            payload: obj.payload,
-            action: obj.action
-          };
-        }
-      };
-      exports.presenceMessageSchema = {
-        parse(data) {
-          validateObject(data, "presenceMessage");
-          const obj = data;
-          if (!("requestId" in obj)) {
-            throw new ValidationError("Missing required field", "requestId");
-          }
-          if (!("channelName" in obj)) {
-            throw new ValidationError("Missing required field", "channelName");
-          }
-          if (!("event" in obj)) {
-            throw new ValidationError("Missing required field", "event");
-          }
-          if (!("action" in obj)) {
-            throw new ValidationError("Missing required field", "action");
-          }
-          if (!("payload" in obj)) {
-            throw new ValidationError("Missing required field", "payload");
-          }
-          validateString(obj.requestId, "requestId");
-          validateString(obj.channelName, "channelName");
-          validateEnum(obj.event, enums_1.PresenceEventTypes, "event");
-          if (obj.action !== enums_1.ServerActions.PRESENCE) {
-            throw new ValidationError(`Expected ${enums_1.ServerActions.PRESENCE}, got ${JSON.stringify(obj.action)}`, "action");
-          }
-          validateObject(obj.payload, "payload");
-          const payload = obj.payload;
-          if (!("presence" in payload)) {
-            throw new ValidationError("Missing required field", "payload.presence");
-          }
-          if (!("changed" in payload)) {
-            throw new ValidationError("Missing required field", "payload.changed");
-          }
-          validateArray(payload.presence, "payload.presence");
-          payload.presence.forEach((item, index) => {
-            validateRecord(item, `payload.presence[${index}]`);
-          });
-          validateRecord(payload.changed, "payload.changed");
-          return {
-            requestId: obj.requestId,
-            channelName: obj.channelName,
-            event: obj.event,
-            action: enums_1.ServerActions.PRESENCE,
-            payload: {
-              presence: payload.presence,
-              changed: payload.changed
-            }
-          };
-        }
-      };
-      exports.serverMessageSchema = {
-        parse(data) {
-          validateObject(data, "serverMessage");
-          const obj = data;
-          if (!("event" in obj)) {
-            throw new ValidationError("Missing required field", "event");
-          }
-          if (!("requestId" in obj)) {
-            throw new ValidationError("Missing required field", "requestId");
-          }
-          if (!("channelName" in obj)) {
-            throw new ValidationError("Missing required field", "channelName");
-          }
-          if (!("payload" in obj)) {
-            throw new ValidationError("Missing required field", "payload");
-          }
-          if (!("action" in obj)) {
-            throw new ValidationError("Missing required field", "action");
-          }
-          validateString(obj.event, "event");
-          validateString(obj.requestId, "requestId");
-          validateString(obj.channelName, "channelName");
-          validateRecord(obj.payload, "payload");
-          const validActions = [
-            enums_1.ServerActions.BROADCAST,
-            enums_1.ServerActions.CONNECT,
-            enums_1.ServerActions.ERROR,
-            enums_1.ServerActions.SYSTEM
-          ];
-          if (!validActions.includes(obj.action)) {
-            throw new ValidationError(`Expected one of [${validActions.join(", ")}], got ${JSON.stringify(obj.action)}`, "action");
-          }
-          return {
-            event: obj.event,
-            requestId: obj.requestId,
-            channelName: obj.channelName,
-            payload: obj.payload,
-            action: obj.action
-          };
-        }
-      };
-      exports.channelEventSchema = {
-        parse(data) {
-          validateObject(data, "channelEvent");
-          const obj = data;
-          if (!("action" in obj)) {
-            throw new ValidationError("Missing required field", "action");
-          }
-          if (obj.action === enums_1.ServerActions.PRESENCE) {
-            return exports.presenceMessageSchema.parse(data);
-          }
-          return exports.serverMessageSchema.parse(data);
-        }
-      };
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-common/index.js
-  var require_pondsocket_common = __commonJS({
-    "node_modules/@eleven-am/pondsocket-common/index.js"(exports) {
-      "use strict";
-      var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
-        if (k2 === void 0) k2 = k;
-        var desc = Object.getOwnPropertyDescriptor(m, k);
-        if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-          desc = { enumerable: true, get: function() {
-            return m[k];
-          } };
-        }
-        Object.defineProperty(o, k2, desc);
-      }) : (function(o, m, k, k2) {
-        if (k2 === void 0) k2 = k;
-        o[k2] = m[k];
-      }));
-      var __exportStar = exports && exports.__exportStar || function(m, exports2) {
-        for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p)) __createBinding(exports2, m, p);
-      };
-      Object.defineProperty(exports, "__esModule", { value: true });
-      __exportStar(require_subjects(), exports);
-      __exportStar(require_enums(), exports);
-      __exportStar(require_misc(), exports);
-      __exportStar(require_schema(), exports);
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-client/types.js
-  var require_types2 = __commonJS({
-    "node_modules/@eleven-am/pondsocket-client/types.js"(exports) {
-      "use strict";
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.ConnectionState = void 0;
-      var ConnectionState3;
-      (function(ConnectionState4) {
-        ConnectionState4["DISCONNECTED"] = "disconnected";
-        ConnectionState4["CONNECTING"] = "connecting";
-        ConnectionState4["CONNECTED"] = "connected";
-      })(ConnectionState3 || (exports.ConnectionState = ConnectionState3 = {}));
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-client/core/channel.js
-  var require_channel = __commonJS({
-    "node_modules/@eleven-am/pondsocket-client/core/channel.js"(exports) {
-      "use strict";
-      var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-        if (kind === "m") throw new TypeError("Private method is not writable");
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-        return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-      };
-      var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-        return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-      };
-      var _Channel_instances;
-      var _Channel_name;
-      var _Channel_queue;
-      var _Channel_presence;
-      var _Channel_presenceSub;
-      var _Channel_publisher;
-      var _Channel_joinParams;
-      var _Channel_receiver;
-      var _Channel_clientState;
-      var _Channel_joinState;
-      var _Channel_emptyQueue;
-      var _Channel_init;
-      var _Channel_onMessage;
-      var _Channel_publish;
-      var _Channel_subscribeToPresence;
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.Channel = void 0;
-      var pondsocket_common_1 = require_pondsocket_common();
-      var types_1 = require_types2();
-      var Channel = class {
-        constructor(publisher, clientState, name, params) {
-          _Channel_instances.add(this);
-          _Channel_name.set(this, void 0);
-          _Channel_queue.set(this, void 0);
-          _Channel_presence.set(this, void 0);
-          _Channel_presenceSub.set(this, void 0);
-          _Channel_publisher.set(this, void 0);
-          _Channel_joinParams.set(this, void 0);
-          _Channel_receiver.set(this, void 0);
-          _Channel_clientState.set(this, void 0);
-          _Channel_joinState.set(this, void 0);
-          __classPrivateFieldSet(this, _Channel_name, name, "f");
-          __classPrivateFieldSet(this, _Channel_queue, [], "f");
-          __classPrivateFieldSet(this, _Channel_presence, [], "f");
-          __classPrivateFieldSet(this, _Channel_joinParams, params, "f");
-          __classPrivateFieldSet(this, _Channel_publisher, publisher, "f");
-          __classPrivateFieldSet(this, _Channel_clientState, clientState, "f");
-          __classPrivateFieldSet(this, _Channel_receiver, new pondsocket_common_1.Subject(), "f");
-          __classPrivateFieldSet(this, _Channel_joinState, new pondsocket_common_1.BehaviorSubject(pondsocket_common_1.ChannelState.IDLE), "f");
-          __classPrivateFieldSet(this, _Channel_presenceSub, () => {
-          }, "f");
-        }
-        /**
-         * @desc Gets the current connection state of the channel.
-         */
-        get channelState() {
-          return __classPrivateFieldGet(this, _Channel_joinState, "f").value;
-        }
-        /**
-         * @desc Gets the current presence of the channel.
-         */
-        get presence() {
-          return __classPrivateFieldGet(this, _Channel_presence, "f");
-        }
-        /**
-         * @desc Acknowledges the channel has been joined on the server.
-         * @param receiver - The receiver to subscribe to.
-         */
-        acknowledge(receiver) {
-          __classPrivateFieldGet(this, _Channel_joinState, "f").publish(pondsocket_common_1.ChannelState.JOINED);
-          __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_init).call(this, receiver);
-          __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_emptyQueue).call(this);
-        }
-        /**
-         * @desc Marks the channel join as declined by the server.
-         * @param payload - The decline payload containing status code and message.
-         */
-        decline(payload) {
-          __classPrivateFieldGet(this, _Channel_joinState, "f").publish(pondsocket_common_1.ChannelState.DECLINED);
-          __classPrivateFieldSet(this, _Channel_queue, [], "f");
-        }
-        /**
-         * @desc Connects to the channel.
-         */
-        join() {
-          const message = {
-            action: pondsocket_common_1.ClientActions.JOIN_CHANNEL,
-            event: pondsocket_common_1.ClientActions.JOIN_CHANNEL,
-            payload: __classPrivateFieldGet(this, _Channel_joinParams, "f"),
-            channelName: __classPrivateFieldGet(this, _Channel_name, "f"),
-            requestId: (0, pondsocket_common_1.uuid)()
-          };
-          if (__classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.JOINED) {
-            return;
-          }
-          __classPrivateFieldGet(this, _Channel_joinState, "f").publish(pondsocket_common_1.ChannelState.JOINING);
-          if (__classPrivateFieldGet(this, _Channel_clientState, "f").value === types_1.ConnectionState.CONNECTED) {
-            __classPrivateFieldGet(this, _Channel_publisher, "f").call(this, message);
-          } else {
-            const unsubscribe = __classPrivateFieldGet(this, _Channel_clientState, "f").subscribe((state) => {
-              if (state === types_1.ConnectionState.CONNECTED) {
-                unsubscribe();
-                if (__classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.JOINING) {
-                  __classPrivateFieldGet(this, _Channel_publisher, "f").call(this, message);
-                }
-              }
-            });
-          }
-        }
-        /**
-         * @desc Disconnects from the channel.
-         */
-        leave() {
-          const message = {
-            action: pondsocket_common_1.ClientActions.LEAVE_CHANNEL,
-            event: pondsocket_common_1.ClientActions.LEAVE_CHANNEL,
-            channelName: __classPrivateFieldGet(this, _Channel_name, "f"),
-            requestId: (0, pondsocket_common_1.uuid)(),
-            payload: {}
-          };
-          __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_publish).call(this, message);
-          __classPrivateFieldGet(this, _Channel_joinState, "f").publish(pondsocket_common_1.ChannelState.CLOSED);
-          __classPrivateFieldGet(this, _Channel_presenceSub, "f").call(this);
-        }
-        /**
-         * @desc Monitors the channel state of the channel.
-         * @param callback - The callback to call when the connection state changes.
-         */
-        onChannelStateChange(callback) {
-          return __classPrivateFieldGet(this, _Channel_joinState, "f").subscribe((data) => {
-            callback(data);
-          });
-        }
-        /**
-         * @desc Detects when clients join the channel.
-         * @param callback - The callback to call when a client joins the channel.
-         */
-        onJoin(callback) {
-          return __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_subscribeToPresence).call(this, (event, payload) => {
-            if (event === pondsocket_common_1.PresenceEventTypes.JOIN) {
-              return callback(payload.changed);
-            }
-          });
-        }
-        /**
-         * @desc Detects when clients leave the channel.
-         * @param callback - The callback to call when a client leaves the channel.
-         */
-        onLeave(callback) {
-          return __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_subscribeToPresence).call(this, (event, payload) => {
-            if (event === pondsocket_common_1.PresenceEventTypes.LEAVE) {
-              return callback(payload.changed);
-            }
-          });
-        }
-        /**
-         * @desc Monitors the channel for messages.
-         * @param callback - The callback to call when a message is received.
-         */
-        onMessage(callback) {
-          return __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_onMessage).call(this, (event, message) => {
-            callback(event, message);
-          });
-        }
-        /**
-         * @desc Monitors the channel for messages.
-         * @param event - The event to monitor.
-         * @param callback - The callback to call when a message is received.
-         */
-        onMessageEvent(event, callback) {
-          return this.onMessage((eventReceived, message) => {
-            if (eventReceived === event) {
-              return callback(message);
-            }
-          });
-        }
-        /**
-         * @desc Detects when clients change their presence in the channel.
-         * @param callback - The callback to call when a client changes their presence in the channel.
-         */
-        onPresenceChange(callback) {
-          return __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_subscribeToPresence).call(this, (event, payload) => {
-            if (event === pondsocket_common_1.PresenceEventTypes.UPDATE) {
-              return callback(payload);
-            }
-          });
-        }
-        /**
-         * @desc Monitors the presence of the channel.
-         * @param callback - The callback to call when the presence changes.
-         */
-        onUsersChange(callback) {
-          return __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_subscribeToPresence).call(this, (_event, payload) => callback(payload.presence));
-        }
-        /**
-         * @desc Sends a message to specific clients in the channel.
-         * @param event - The event to send.
-         * @param payload - The message to send.
-         */
-        sendMessage(event, payload) {
-          const requestId = (0, pondsocket_common_1.uuid)();
-          const message = {
-            action: pondsocket_common_1.ClientActions.BROADCAST,
-            channelName: __classPrivateFieldGet(this, _Channel_name, "f"),
-            requestId,
-            event,
-            payload
-          };
-          __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_publish).call(this, message);
-        }
-        /**
-         * @desc Sends a message to the server and waits for a response.
-         * @param sentEvent - The event to send.
-         * @param payload - The message to send.
-         */
-        sendForResponse(sentEvent, payload) {
-          const requestId = (0, pondsocket_common_1.uuid)();
-          return new Promise((resolve) => {
-            const unsub = __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_onMessage).call(this, (_, message2, responseId) => {
-              if (requestId === responseId) {
-                resolve(message2);
-                unsub();
-              }
-            });
-            const message = {
-              action: pondsocket_common_1.ClientActions.BROADCAST,
-              channelName: __classPrivateFieldGet(this, _Channel_name, "f"),
-              requestId,
-              event: sentEvent,
-              payload
-            };
-            __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_publish).call(this, message);
-          });
-        }
-      };
-      exports.Channel = Channel;
-      _Channel_name = /* @__PURE__ */ new WeakMap(), _Channel_queue = /* @__PURE__ */ new WeakMap(), _Channel_presence = /* @__PURE__ */ new WeakMap(), _Channel_presenceSub = /* @__PURE__ */ new WeakMap(), _Channel_publisher = /* @__PURE__ */ new WeakMap(), _Channel_joinParams = /* @__PURE__ */ new WeakMap(), _Channel_receiver = /* @__PURE__ */ new WeakMap(), _Channel_clientState = /* @__PURE__ */ new WeakMap(), _Channel_joinState = /* @__PURE__ */ new WeakMap(), _Channel_instances = /* @__PURE__ */ new WeakSet(), _Channel_emptyQueue = function _Channel_emptyQueue2() {
-        __classPrivateFieldGet(this, _Channel_queue, "f").forEach((message) => __classPrivateFieldGet(this, _Channel_publisher, "f").call(this, message));
-        __classPrivateFieldSet(this, _Channel_queue, [], "f");
-      }, _Channel_init = function _Channel_init2(receiver) {
-        __classPrivateFieldGet(this, _Channel_presenceSub, "f").call(this);
-        const unsubMessages = receiver.subscribe((data) => {
-          if (data.channelName === __classPrivateFieldGet(this, _Channel_name, "f") && this.channelState === pondsocket_common_1.ChannelState.JOINED) {
-            __classPrivateFieldGet(this, _Channel_receiver, "f").publish(data);
-          }
-        });
-        const unsubStateChange = __classPrivateFieldGet(this, _Channel_clientState, "f").subscribe((state) => {
-          if (state === types_1.ConnectionState.CONNECTED && __classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.STALLED) {
-            const message = {
-              action: pondsocket_common_1.ClientActions.JOIN_CHANNEL,
-              event: pondsocket_common_1.ClientActions.JOIN_CHANNEL,
-              payload: __classPrivateFieldGet(this, _Channel_joinParams, "f"),
-              channelName: __classPrivateFieldGet(this, _Channel_name, "f"),
-              requestId: (0, pondsocket_common_1.uuid)()
-            };
-            __classPrivateFieldGet(this, _Channel_publisher, "f").call(this, message);
-          } else if (state !== types_1.ConnectionState.CONNECTED && __classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.JOINED) {
-            __classPrivateFieldGet(this, _Channel_joinState, "f").publish(pondsocket_common_1.ChannelState.STALLED);
-          }
-        });
-        const unsubPresence = __classPrivateFieldGet(this, _Channel_instances, "m", _Channel_subscribeToPresence).call(this, (_, payload) => {
-          __classPrivateFieldSet(this, _Channel_presence, payload.presence, "f");
-        });
-        __classPrivateFieldSet(this, _Channel_presenceSub, () => {
-          unsubMessages();
-          unsubStateChange();
-          unsubPresence();
-        }, "f");
-      }, _Channel_onMessage = function _Channel_onMessage2(callback) {
-        return __classPrivateFieldGet(this, _Channel_receiver, "f").subscribe((data) => {
-          if (data.action !== pondsocket_common_1.ServerActions.PRESENCE) {
-            return callback(data.event, data.payload, data.requestId);
-          }
-        });
-      }, _Channel_publish = function _Channel_publish2(data) {
-        if (__classPrivateFieldGet(this, _Channel_joinState, "f").value === pondsocket_common_1.ChannelState.JOINED) {
-          return __classPrivateFieldGet(this, _Channel_publisher, "f").call(this, data);
-        }
-        __classPrivateFieldGet(this, _Channel_queue, "f").push(data);
-      }, _Channel_subscribeToPresence = function _Channel_subscribeToPresence2(callback) {
-        return __classPrivateFieldGet(this, _Channel_receiver, "f").subscribe((data) => {
-          if (data.action === pondsocket_common_1.ServerActions.PRESENCE) {
-            return callback(data.event, data.payload);
-          }
-        });
-      };
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-client/browser/client.js
-  var require_client = __commonJS({
-    "node_modules/@eleven-am/pondsocket-client/browser/client.js"(exports) {
-      "use strict";
-      var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-        if (kind === "m") throw new TypeError("Private method is not writable");
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-        return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-      };
-      var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-        return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-      };
-      var _PondClient_instances;
-      var _PondClient_channels;
-      var _PondClient_clearTimeouts;
-      var _PondClient_createPublisher;
-      var _PondClient_handleAcknowledge;
-      var _PondClient_handleUnauthorized;
-      var _PondClient_init;
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.PondClient = void 0;
-      var pondsocket_common_1 = require_pondsocket_common();
-      var channel_1 = require_channel();
-      var types_1 = require_types2();
-      var DEFAULT_CONNECTION_TIMEOUT = 1e4;
-      var DEFAULT_MAX_RECONNECT_DELAY = 3e4;
-      var PondClient2 = class {
-        constructor(endpoint, params = {}, options = {}) {
-          var _a, _b;
-          _PondClient_instances.add(this);
-          _PondClient_channels.set(this, void 0);
-          let address;
-          try {
-            address = new URL(endpoint);
-          } catch (e) {
-            address = new URL(window.location.toString());
-            address.pathname = endpoint;
-          }
-          this._disconnecting = false;
-          this._reconnectAttempts = 0;
-          const query = new URLSearchParams(params);
-          address.search = query.toString();
-          const protocol = address.protocol === "https:" ? "wss:" : "ws:";
-          if (address.protocol !== "wss:" && address.protocol !== "ws:") {
-            address.protocol = protocol;
-          }
-          this._address = address;
-          this._options = {
-            connectionTimeout: (_a = options.connectionTimeout) !== null && _a !== void 0 ? _a : DEFAULT_CONNECTION_TIMEOUT,
-            maxReconnectDelay: (_b = options.maxReconnectDelay) !== null && _b !== void 0 ? _b : DEFAULT_MAX_RECONNECT_DELAY,
-            pingInterval: options.pingInterval
-          };
-          __classPrivateFieldSet(this, _PondClient_channels, /* @__PURE__ */ new Map(), "f");
-          this._broadcaster = new pondsocket_common_1.Subject();
-          this._connectionState = new pondsocket_common_1.BehaviorSubject(types_1.ConnectionState.DISCONNECTED);
-          this._errorSubject = new pondsocket_common_1.Subject();
-          __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_init).call(this);
-        }
-        /**
-         * @desc Connects to the server and returns the socket.
-         */
-        connect() {
-          this._disconnecting = false;
-          this._connectionState.publish(types_1.ConnectionState.CONNECTING);
-          const socket = new WebSocket(this._address.toString());
-          this._connectionTimeoutId = setTimeout(() => {
-            if (socket.readyState === WebSocket.CONNECTING) {
-              const error = new Error("Connection timeout");
-              this._errorSubject.publish(error);
-              socket.close();
-            }
-          }, this._options.connectionTimeout);
-          socket.onopen = () => {
-            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
-            this._reconnectAttempts = 0;
-            if (this._options.pingInterval) {
-              this._pingIntervalId = setInterval(() => {
-                if (socket.readyState === WebSocket.OPEN) {
-                  socket.send(JSON.stringify({ action: "ping" }));
-                }
-              }, this._options.pingInterval);
-            }
-          };
-          socket.onmessage = (message) => {
-            const lines = message.data.trim().split("\n");
-            for (const line of lines) {
-              if (line.trim()) {
-                const data = JSON.parse(line);
-                const event = pondsocket_common_1.channelEventSchema.parse(data);
-                this._broadcaster.publish(event);
-              }
-            }
-          };
-          socket.onerror = (event) => {
-            const error = new Error("WebSocket error");
-            this._errorSubject.publish(error);
-            socket.close();
-          };
-          socket.onclose = () => {
-            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
-            this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
-            if (this._disconnecting) {
-              return;
-            }
-            const delay = Math.min(1e3 * Math.pow(2, this._reconnectAttempts), this._options.maxReconnectDelay);
-            this._reconnectAttempts++;
-            setTimeout(() => {
-              this.connect();
-            }, delay);
-          };
-          this._socket = socket;
-        }
-        /**
-         * @desc Returns the current state of the socket.
-         */
-        getState() {
-          return this._connectionState.value;
-        }
-        /**
-         * @desc Disconnects the socket.
-         */
-        disconnect() {
-          var _a;
-          __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
-          this._disconnecting = true;
-          this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
-          (_a = this._socket) === null || _a === void 0 ? void 0 : _a.close();
-          __classPrivateFieldGet(this, _PondClient_channels, "f").clear();
-        }
-        /**
-         * @desc Creates a channel with the given name and params.
-         * @param name - The name of the channel.
-         * @param params - The params to send to the server.
-         */
-        createChannel(name, params) {
-          const channel = __classPrivateFieldGet(this, _PondClient_channels, "f").get(name);
-          if (channel && channel.channelState !== pondsocket_common_1.ChannelState.CLOSED) {
-            return channel;
-          }
-          const publisher = __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_createPublisher).call(this);
-          const newChannel = new channel_1.Channel(publisher, this._connectionState, name, params || {});
-          __classPrivateFieldGet(this, _PondClient_channels, "f").set(name, newChannel);
-          return newChannel;
-        }
-        /**
-         * @desc Subscribes to the connection state.
-         * @param callback - The callback to call when the state changes.
-         */
-        onConnectionChange(callback) {
-          return this._connectionState.subscribe(callback);
-        }
-        /**
-         * @desc Subscribes to connection errors.
-         * @param callback - The callback to call when an error occurs.
-         */
-        onError(callback) {
-          return this._errorSubject.subscribe(callback);
-        }
-      };
-      exports.PondClient = PondClient2;
-      _PondClient_channels = /* @__PURE__ */ new WeakMap(), _PondClient_instances = /* @__PURE__ */ new WeakSet(), _PondClient_clearTimeouts = function _PondClient_clearTimeouts2() {
-        if (this._connectionTimeoutId) {
-          clearTimeout(this._connectionTimeoutId);
-          this._connectionTimeoutId = void 0;
-        }
-        if (this._pingIntervalId) {
-          clearInterval(this._pingIntervalId);
-          this._pingIntervalId = void 0;
-        }
-      }, _PondClient_createPublisher = function _PondClient_createPublisher2() {
-        return (message) => {
-          if (this._connectionState.value === types_1.ConnectionState.CONNECTED) {
-            this._socket.send(JSON.stringify(message));
-          }
-        };
-      }, _PondClient_handleAcknowledge = function _PondClient_handleAcknowledge2(message) {
-        var _a;
-        const channel = (_a = __classPrivateFieldGet(this, _PondClient_channels, "f").get(message.channelName)) !== null && _a !== void 0 ? _a : new channel_1.Channel(__classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_createPublisher).call(this), this._connectionState, message.channelName, {});
-        __classPrivateFieldGet(this, _PondClient_channels, "f").set(message.channelName, channel);
-        channel.acknowledge(this._broadcaster);
-      }, _PondClient_handleUnauthorized = function _PondClient_handleUnauthorized2(message) {
-        const channel = __classPrivateFieldGet(this, _PondClient_channels, "f").get(message.channelName);
-        if (channel) {
-          const payload = message.payload;
-          channel.decline(payload);
-        }
-      }, _PondClient_init = function _PondClient_init2() {
-        this._broadcaster.subscribe((message) => {
-          if (message.event === pondsocket_common_1.Events.ACKNOWLEDGE) {
-            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_handleAcknowledge).call(this, message);
-          } else if (message.event === pondsocket_common_1.Events.UNAUTHORIZED) {
-            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_handleUnauthorized).call(this, message);
-          } else if (message.event === pondsocket_common_1.Events.CONNECTION && message.action === pondsocket_common_1.ServerActions.CONNECT) {
-            this._connectionState.publish(types_1.ConnectionState.CONNECTED);
-          }
-        });
-      };
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-client/browser/sseClient.js
-  var require_sseClient = __commonJS({
-    "node_modules/@eleven-am/pondsocket-client/browser/sseClient.js"(exports) {
-      "use strict";
-      var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-        if (kind === "m") throw new TypeError("Private method is not writable");
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-        return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-      };
-      var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-        return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-      };
-      var _SSEClient_instances;
-      var _SSEClient_channels;
-      var _SSEClient_handleMessage;
-      var _SSEClient_clearTimeout;
-      var _SSEClient_createPublisher;
-      var _SSEClient_handleAcknowledge;
-      var _SSEClient_handleUnauthorized;
-      var _SSEClient_init;
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.SSEClient = void 0;
-      var pondsocket_common_1 = require_pondsocket_common();
-      var channel_1 = require_channel();
-      var types_1 = require_types2();
-      var DEFAULT_CONNECTION_TIMEOUT = 1e4;
-      var DEFAULT_MAX_RECONNECT_DELAY = 3e4;
-      var SSEClient = class {
-        constructor(endpoint, params = {}, options = {}) {
-          var _a, _b;
-          _SSEClient_instances.add(this);
-          _SSEClient_channels.set(this, void 0);
-          let address;
-          try {
-            address = new URL(endpoint);
-          } catch (e) {
-            address = new URL(window.location.toString());
-            address.pathname = endpoint;
-          }
-          this._disconnecting = false;
-          this._reconnectAttempts = 0;
-          const query = new URLSearchParams(params);
-          address.search = query.toString();
-          if (address.protocol !== "https:" && address.protocol !== "http:") {
-            address.protocol = window.location.protocol;
-          }
-          this._address = address;
-          this._postAddress = new URL(address.toString());
-          this._options = {
-            connectionTimeout: (_a = options.connectionTimeout) !== null && _a !== void 0 ? _a : DEFAULT_CONNECTION_TIMEOUT,
-            maxReconnectDelay: (_b = options.maxReconnectDelay) !== null && _b !== void 0 ? _b : DEFAULT_MAX_RECONNECT_DELAY,
-            pingInterval: options.pingInterval,
-            withCredentials: options.withCredentials
-          };
-          __classPrivateFieldSet(this, _SSEClient_channels, /* @__PURE__ */ new Map(), "f");
-          this._broadcaster = new pondsocket_common_1.Subject();
-          this._connectionState = new pondsocket_common_1.BehaviorSubject(types_1.ConnectionState.DISCONNECTED);
-          this._errorSubject = new pondsocket_common_1.Subject();
-          __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_init).call(this);
-        }
-        connect() {
-          var _a;
-          this._disconnecting = false;
-          this._connectionState.publish(types_1.ConnectionState.CONNECTING);
-          const eventSource = new EventSource(this._address.toString(), {
-            withCredentials: (_a = this._options.withCredentials) !== null && _a !== void 0 ? _a : false
-          });
-          this._connectionTimeoutId = setTimeout(() => {
-            if (eventSource.readyState === EventSource.CONNECTING) {
-              const error = new Error("Connection timeout");
-              this._errorSubject.publish(error);
-              eventSource.close();
-            }
-          }, this._options.connectionTimeout);
-          eventSource.onopen = () => {
-            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_clearTimeout).call(this);
-            this._reconnectAttempts = 0;
-          };
-          eventSource.onmessage = (event) => {
-            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_handleMessage).call(this, event.data);
-          };
-          eventSource.onerror = () => {
-            const error = new Error("SSE connection error");
-            this._errorSubject.publish(error);
-            eventSource.close();
-            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_clearTimeout).call(this);
-            this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
-            if (this._disconnecting) {
-              return;
-            }
-            const delay = Math.min(1e3 * Math.pow(2, this._reconnectAttempts), this._options.maxReconnectDelay);
-            this._reconnectAttempts++;
-            setTimeout(() => {
-              this.connect();
-            }, delay);
-          };
-          this._eventSource = eventSource;
-        }
-        getState() {
-          return this._connectionState.value;
-        }
-        getConnectionId() {
-          return this._connectionId;
-        }
-        disconnect() {
-          var _a;
-          __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_clearTimeout).call(this);
-          this._disconnecting = true;
-          this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
-          if (this._connectionId) {
-            fetch(this._postAddress.toString(), {
-              method: "DELETE",
-              headers: {
-                "X-Connection-ID": this._connectionId
-              },
-              credentials: this._options.withCredentials ? "include" : "same-origin"
-            }).catch(() => {
-            });
-          }
-          (_a = this._eventSource) === null || _a === void 0 ? void 0 : _a.close();
-          this._connectionId = void 0;
-          __classPrivateFieldGet(this, _SSEClient_channels, "f").clear();
-        }
-        createChannel(name, params) {
-          const channel = __classPrivateFieldGet(this, _SSEClient_channels, "f").get(name);
-          if (channel && channel.channelState !== pondsocket_common_1.ChannelState.CLOSED) {
-            return channel;
-          }
-          const publisher = __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_createPublisher).call(this);
-          const newChannel = new channel_1.Channel(publisher, this._connectionState, name, params || {});
-          __classPrivateFieldGet(this, _SSEClient_channels, "f").set(name, newChannel);
-          return newChannel;
-        }
-        onConnectionChange(callback) {
-          return this._connectionState.subscribe(callback);
-        }
-        onError(callback) {
-          return this._errorSubject.subscribe(callback);
-        }
-      };
-      exports.SSEClient = SSEClient;
-      _SSEClient_channels = /* @__PURE__ */ new WeakMap(), _SSEClient_instances = /* @__PURE__ */ new WeakSet(), _SSEClient_handleMessage = function _SSEClient_handleMessage2(data) {
-        try {
-          const lines = data.trim().split("\n");
-          for (const line of lines) {
-            if (line.trim()) {
-              const parsed = JSON.parse(line);
-              const event = pondsocket_common_1.channelEventSchema.parse(parsed);
-              if (event.event === pondsocket_common_1.Events.CONNECTION && event.action === pondsocket_common_1.ServerActions.CONNECT) {
-                if (event.payload && typeof event.payload === "object" && "connectionId" in event.payload) {
-                  this._connectionId = event.payload.connectionId;
-                }
-              }
-              this._broadcaster.publish(event);
-            }
-          }
-        } catch (e) {
-          this._errorSubject.publish(e instanceof Error ? e : new Error("Failed to parse SSE message"));
-        }
-      }, _SSEClient_clearTimeout = function _SSEClient_clearTimeout2() {
-        if (this._connectionTimeoutId) {
-          clearTimeout(this._connectionTimeoutId);
-          this._connectionTimeoutId = void 0;
-        }
-      }, _SSEClient_createPublisher = function _SSEClient_createPublisher2() {
-        return (message) => {
-          if (this._connectionState.value === types_1.ConnectionState.CONNECTED && this._connectionId) {
-            fetch(this._postAddress.toString(), {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-Connection-ID": this._connectionId
-              },
-              body: JSON.stringify(message),
-              credentials: this._options.withCredentials ? "include" : "same-origin"
-            }).catch((err) => {
-              this._errorSubject.publish(err instanceof Error ? err : new Error("Failed to send message"));
-            });
-          }
-        };
-      }, _SSEClient_handleAcknowledge = function _SSEClient_handleAcknowledge2(message) {
-        var _a;
-        const channel = (_a = __classPrivateFieldGet(this, _SSEClient_channels, "f").get(message.channelName)) !== null && _a !== void 0 ? _a : new channel_1.Channel(__classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_createPublisher).call(this), this._connectionState, message.channelName, {});
-        __classPrivateFieldGet(this, _SSEClient_channels, "f").set(message.channelName, channel);
-        channel.acknowledge(this._broadcaster);
-      }, _SSEClient_handleUnauthorized = function _SSEClient_handleUnauthorized2(message) {
-        const channel = __classPrivateFieldGet(this, _SSEClient_channels, "f").get(message.channelName);
-        if (channel) {
-          const payload = message.payload;
-          channel.decline(payload);
-        }
-      }, _SSEClient_init = function _SSEClient_init2() {
-        this._broadcaster.subscribe((message) => {
-          if (message.event === pondsocket_common_1.Events.ACKNOWLEDGE) {
-            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_handleAcknowledge).call(this, message);
-          } else if (message.event === pondsocket_common_1.Events.UNAUTHORIZED) {
-            __classPrivateFieldGet(this, _SSEClient_instances, "m", _SSEClient_handleUnauthorized).call(this, message);
-          } else if (message.event === pondsocket_common_1.Events.CONNECTION && message.action === pondsocket_common_1.ServerActions.CONNECT) {
-            this._connectionState.publish(types_1.ConnectionState.CONNECTED);
-          }
-        });
-      };
-    }
-  });
-
-  // node_modules/es5-ext/global.js
-  var require_global = __commonJS({
-    "node_modules/es5-ext/global.js"(exports, module) {
-      var naiveFallback = function() {
-        if (typeof self === "object" && self) return self;
-        if (typeof window === "object" && window) return window;
-        throw new Error("Unable to resolve global `this`");
-      };
-      module.exports = (function() {
-        if (this) return this;
-        if (typeof globalThis === "object" && globalThis) return globalThis;
-        try {
-          Object.defineProperty(Object.prototype, "__global__", {
-            get: function() {
-              return this;
-            },
-            configurable: true
-          });
-        } catch (error) {
-          return naiveFallback();
-        }
-        try {
-          if (!__global__) return naiveFallback();
-          return __global__;
-        } finally {
-          delete Object.prototype.__global__;
-        }
-      })();
-    }
-  });
-
-  // node_modules/websocket/package.json
-  var require_package = __commonJS({
-    "node_modules/websocket/package.json"(exports, module) {
-      module.exports = {
-        name: "websocket",
-        description: "Websocket Client & Server Library implementing the WebSocket protocol as specified in RFC 6455.",
-        keywords: [
-          "websocket",
-          "websockets",
-          "socket",
-          "networking",
-          "comet",
-          "push",
-          "RFC-6455",
-          "realtime",
-          "server",
-          "client"
-        ],
-        author: "Brian McKelvey <theturtle32@gmail.com> (https://github.com/theturtle32)",
-        contributors: [
-          "I\xF1aki Baz Castillo <ibc@aliax.net> (http://dev.sipdoc.net)"
-        ],
-        version: "1.0.35",
-        repository: {
-          type: "git",
-          url: "https://github.com/theturtle32/WebSocket-Node.git"
-        },
-        homepage: "https://github.com/theturtle32/WebSocket-Node",
-        engines: {
-          node: ">=4.0.0"
-        },
-        dependencies: {
-          bufferutil: "^4.0.1",
-          debug: "^2.2.0",
-          "es5-ext": "^0.10.63",
-          "typedarray-to-buffer": "^3.1.5",
-          "utf-8-validate": "^5.0.2",
-          yaeti: "^0.0.6"
-        },
-        devDependencies: {
-          "buffer-equal": "^1.0.0",
-          gulp: "^4.0.2",
-          "gulp-jshint": "^2.0.4",
-          "jshint-stylish": "^2.2.1",
-          jshint: "^2.0.0",
-          tape: "^4.9.1"
-        },
-        config: {
-          verbose: false
-        },
-        scripts: {
-          test: "tape test/unit/*.js",
-          gulp: "gulp"
-        },
-        main: "index",
-        directories: {
-          lib: "./lib"
-        },
-        browser: "lib/browser.js",
-        license: "Apache-2.0"
-      };
-    }
-  });
-
-  // node_modules/websocket/lib/version.js
-  var require_version = __commonJS({
-    "node_modules/websocket/lib/version.js"(exports, module) {
-      module.exports = require_package().version;
-    }
-  });
-
-  // node_modules/websocket/lib/browser.js
-  var require_browser = __commonJS({
-    "node_modules/websocket/lib/browser.js"(exports, module) {
-      var _globalThis;
-      if (typeof globalThis === "object") {
-        _globalThis = globalThis;
-      } else {
-        try {
-          _globalThis = require_global();
-        } catch (error) {
-        } finally {
-          if (!_globalThis && typeof window !== "undefined") {
-            _globalThis = window;
-          }
-          if (!_globalThis) {
-            throw new Error("Could not determine global this");
-          }
-        }
-      }
-      var NativeWebSocket = _globalThis.WebSocket || _globalThis.MozWebSocket;
-      var websocket_version = require_version();
-      function W3CWebSocket(uri, protocols) {
-        var native_instance;
-        if (protocols) {
-          native_instance = new NativeWebSocket(uri, protocols);
-        } else {
-          native_instance = new NativeWebSocket(uri);
-        }
-        return native_instance;
-      }
-      if (NativeWebSocket) {
-        ["CONNECTING", "OPEN", "CLOSING", "CLOSED"].forEach(function(prop) {
-          Object.defineProperty(W3CWebSocket, prop, {
-            get: function() {
-              return NativeWebSocket[prop];
-            }
-          });
-        });
-      }
-      module.exports = {
-        "w3cwebsocket": NativeWebSocket ? W3CWebSocket : null,
-        "version": websocket_version
-      };
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-client/node/node.js
-  var require_node = __commonJS({
-    "node_modules/@eleven-am/pondsocket-client/node/node.js"(exports) {
-      "use strict";
-      var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
-        if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-        if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-        return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-      };
-      var _PondClient_instances;
-      var _PondClient_clearTimeouts;
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.PondClient = void 0;
-      var pondsocket_common_1 = require_pondsocket_common();
-      var client_1 = require_client();
-      var types_1 = require_types2();
-      var WebSocket2 = require_browser().w3cwebsocket;
-      var PondClient2 = class extends client_1.PondClient {
-        constructor() {
-          super(...arguments);
-          _PondClient_instances.add(this);
-        }
-        /**
-         * @desc Connects to the server and returns the socket.
-         */
-        connect() {
-          this._disconnecting = false;
-          this._connectionState.publish(types_1.ConnectionState.CONNECTING);
-          const socket = new WebSocket2(this._address.toString());
-          this._connectionTimeoutId = setTimeout(() => {
-            if (socket.readyState === WebSocket2.CONNECTING) {
-              const error = new Error("Connection timeout");
-              this._errorSubject.publish(error);
-              socket.close();
-            }
-          }, this._options.connectionTimeout);
-          socket.onopen = () => {
-            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
-            this._reconnectAttempts = 0;
-            if (this._options.pingInterval) {
-              this._pingIntervalId = setInterval(() => {
-                if (socket.readyState === WebSocket2.OPEN) {
-                  socket.send(JSON.stringify({ action: "ping" }));
-                }
-              }, this._options.pingInterval);
-            }
-          };
-          socket.onmessage = (message) => {
-            const lines = message.data.trim().split("\n");
-            for (const line of lines) {
-              if (line.trim()) {
-                const data = JSON.parse(line);
-                const event = pondsocket_common_1.channelEventSchema.parse(data);
-                this._broadcaster.publish(event);
-              }
-            }
-          };
-          socket.onerror = () => {
-            const error = new Error("WebSocket error");
-            this._errorSubject.publish(error);
-            socket.close();
-          };
-          socket.onclose = () => {
-            __classPrivateFieldGet(this, _PondClient_instances, "m", _PondClient_clearTimeouts).call(this);
-            this._connectionState.publish(types_1.ConnectionState.DISCONNECTED);
-            if (this._disconnecting) {
-              return;
-            }
-            const delay = Math.min(1e3 * Math.pow(2, this._reconnectAttempts), this._options.maxReconnectDelay);
-            this._reconnectAttempts++;
-            setTimeout(() => {
-              this.connect();
-            }, delay);
-          };
-          this._socket = socket;
-        }
-      };
-      exports.PondClient = PondClient2;
-      _PondClient_instances = /* @__PURE__ */ new WeakSet(), _PondClient_clearTimeouts = function _PondClient_clearTimeouts2() {
-        if (this._connectionTimeoutId) {
-          clearTimeout(this._connectionTimeoutId);
-          this._connectionTimeoutId = void 0;
-        }
-        if (this._pingIntervalId) {
-          clearInterval(this._pingIntervalId);
-          this._pingIntervalId = void 0;
-        }
-      };
-    }
-  });
-
-  // node_modules/@eleven-am/pondsocket-client/index.js
-  var require_pondsocket_client = __commonJS({
-    "node_modules/@eleven-am/pondsocket-client/index.js"(exports) {
-      "use strict";
-      Object.defineProperty(exports, "__esModule", { value: true });
-      exports.SSEClient = exports.PondClient = exports.ConnectionState = exports.ChannelState = void 0;
-      var pondsocket_common_1 = require_pondsocket_common();
-      Object.defineProperty(exports, "ChannelState", { enumerable: true, get: function() {
-        return pondsocket_common_1.ChannelState;
-      } });
-      var client_1 = require_client();
-      var sseClient_1 = require_sseClient();
-      Object.defineProperty(exports, "SSEClient", { enumerable: true, get: function() {
-        return sseClient_1.SSEClient;
-      } });
-      var node_1 = require_node();
-      var types_1 = require_types2();
-      Object.defineProperty(exports, "ConnectionState", { enumerable: true, get: function() {
-        return types_1.ConnectionState;
-      } });
-      var PondClient2 = typeof window === "undefined" ? node_1.PondClient : client_1.PondClient;
-      exports.PondClient = PondClient2;
-    }
-  });
 
   // src/index.ts
   var index_exports = {};
   __export(index_exports, {
+    Applier: () => Applier,
     Bus: () => Bus,
+    EditError: () => EditError,
     Executor: () => Executor,
     Logger: () => Logger,
-    OpKinds: () => OpKinds,
-    Patcher: () => Patcher,
     Runtime: () => Runtime,
     ScriptExecutor: () => ScriptExecutor,
-    Topics: () => Topics,
+    Sequencer: () => Sequencer,
     Transport: () => Transport,
     boot: () => boot,
     isBoot: () => isBoot,
     isMessage: () => isMessage,
-    isServerAck: () => isServerAck,
-    isServerError: () => isServerError,
-    isServerEvt: () => isServerEvt
+    isServerFrame: () => isServerFrame
   });
 
+  // src/wire.ts
+  var REF_KINDS = {
+    CanvasRef: { method: " toDataURL ", set: " height width ", query: " height width " },
+    DetailsRef: { set: " open ", query: " open " },
+    DialogRef: { method: " close show showModal ", query: " open returnValue " },
+    ElementRef: { method: " blur checkVisibility click focus getComputedStyle matches scrollIntoView ", set: " scrollLeft scrollTop ", observe: " focused rect scroll " },
+    FormRef: { method: " checkValidity reportValidity requestSubmit reset submit " },
+    InputRef: { method: " select setRangeText setSelectionRange ", query: " selectionDirection selectionEnd selectionStart " },
+    MediaRef: { method: " load pause play ", set: " currentTime muted playbackRate volume ", query: " networkState playbackRate readyState ", observe: " currentTime duration ended muted paused volume " }
+  };
+  function refAllows(kind, op, name) {
+    const key = ` ${name} `;
+    const own = REF_KINDS[kind ?? ""];
+    return !!own && [own, REF_KINDS.ElementRef].some((k) => !!k[op]?.includes(key));
+  }
+  var STATIC_TOPICS = ["frame", "router", "dom"];
+  var SCRIPT_TOPIC_PREFIX = "script:";
+  var SIGNATURES = {
+    t: "is",
+    a: "iss",
+    ra: "is",
+    st: "iss",
+    h: "is",
+    ins: "irs",
+    mv: "iir",
+    rm: "i",
+    clr: "i"
+  };
+  var ATTR_ID = "data-pi";
+  var ATTR_HANDLERS = "data-pon";
+  var ATTR_SCRIPT = "data-pscript";
+  var ATTR_RAW = "data-praw";
+  var ATTR_SELECTION = "data-psel";
+  var ATTR_RESYNCING = "data-pond-resyncing";
+  var MARKER = /^(t|r|\/r):(\d+)$/;
+  var OBSERVED_EVENTS = {
+    currentTime: ["timeupdate", "seeked"],
+    duration: ["durationchange", "loadedmetadata"],
+    paused: ["play", "pause", "ended"],
+    ended: ["play", "pause", "ended", "seeked"],
+    volume: ["volumechange"],
+    muted: ["volumechange"],
+    focused: ["focus", "blur"],
+    scroll: ["scroll"],
+    rect: []
+  };
+  var UNSAFE_URL = /[\u0000-\u0020\\\u007f-\u00a0\u1680\u2000-\u200a\u2028-\u2029\u202f\u205f\u3000\ufeff]/;
+  var SAFE_PROTOCOL = /^(http|https):$/;
+
   // src/protocol.ts
-  var Topics = {
-    Router: "router",
-    DOM: "dom",
-    Frame: "frame",
-    Ack: "ack"
-  };
+  function urlOf(path, query, hash) {
+    return path + (query ? `?${query}` : "") + (hash ? hash.startsWith("#") ? hash : `#${hash}` : "");
+  }
+  function isScriptTopic(topic) {
+    return topic.startsWith(SCRIPT_TOPIC_PREFIX);
+  }
   function scriptTopic(scriptId) {
-    return `script:${scriptId}`;
+    return `${SCRIPT_TOPIC_PREFIX}${scriptId}`;
   }
-  function handlerTopic(handlerId) {
-    return handlerId;
+  function isServerFrame(msg) {
+    if (typeof msg !== "object" || msg === null) return false;
+    const frame = msg;
+    if (frame.t === "joined") return true;
+    if (frame.t === "evack") return typeof frame.cs === "number";
+    if (frame.t === "tok") return typeof frame.tok === "string";
+    return frame.t === "declined" && typeof frame.code === "number";
   }
-  var OpKinds = {
-    SetText: "setText",
-    SetComment: "setComment",
-    SetAttr: "setAttr",
-    DelAttr: "delAttr",
-    SetStyle: "setStyle",
-    DelStyle: "delStyle",
-    SetStyleDecl: "setStyleDecl",
-    DelStyleDecl: "delStyleDecl",
-    SetHandlers: "setHandlers",
-    SetScript: "setScript",
-    DelScript: "delScript",
-    SetRef: "setRef",
-    DelRef: "delRef",
-    ReplaceNode: "replaceNode",
-    AddChild: "addChild",
-    DelChild: "delChild",
-    MoveChild: "moveChild"
-  };
   function isBoot(msg) {
     return typeof msg === "object" && msg !== null && msg.t === "boot";
-  }
-  function isServerError(msg) {
-    return typeof msg === "object" && msg !== null && msg.t === "error";
-  }
-  function isServerEvt(msg) {
-    return typeof msg === "object" && msg !== null && typeof msg.t === "string" && typeof msg.a === "string";
-  }
-  function isServerAck(msg) {
-    return typeof msg === "object" && msg !== null && msg.t === "ack" && typeof msg.seq === "number";
   }
   function isMessage(msg) {
     return typeof msg === "object" && msg !== null && typeof msg.seq === "number" && typeof msg.topic === "string" && typeof msg.event === "string";
   }
+
+  // src/logger.ts
+  var levels = {
+    debug: 0,
+    info: 1,
+    warn: 2,
+    error: 3
+  };
+  var LoggerImpl = class {
+    constructor() {
+      this.enabled = false;
+      this.level = "info";
+    }
+    configure(config) {
+      if (config.enabled !== void 0) this.enabled = config.enabled;
+      if (config.level !== void 0) this.level = config.level;
+    }
+    debug(tag, message, ...args) {
+      this.log("debug", tag, message, args);
+    }
+    info(tag, message, ...args) {
+      this.log("info", tag, message, args);
+    }
+    warn(tag, message, ...args) {
+      this.log("warn", tag, message, args);
+    }
+    error(tag, message, ...args) {
+      this.log("error", tag, message, args);
+    }
+    log(level, tag, message, args) {
+      if (!this.enabled && level !== "warn" && level !== "error") return;
+      if (levels[level] < levels[this.level]) return;
+      const prefix = `[Pond:${tag}]`;
+      const fn = console[level] || console.log;
+      if (args.length > 0) {
+        fn(prefix, message, ...args);
+      } else {
+        fn(prefix, message);
+      }
+    }
+  };
+  var Logger = new LoggerImpl();
 
   // src/bus.ts
   var Bus = class {
@@ -1628,20 +207,7 @@ var LiveUIModule = (() => {
       };
     }
     publish(topic, action, payload) {
-      const key = `${topic}:${String(action)}`;
-      const subs = this.subscribers.get(key) ?? [];
-      for (const sub of subs) {
-        try {
-          sub.callback(payload);
-        } catch {
-        }
-      }
-      for (const sub of this.wildcardSubscribers) {
-        try {
-          sub.callback(topic, String(action), payload);
-        } catch {
-        }
-      }
+      this.deliver(topic, String(action), payload);
     }
     subscriberCount(topic, action) {
       const key = `${topic}:${String(action)}`;
@@ -1651,42 +217,29 @@ var LiveUIModule = (() => {
       return this.subscribe(scriptTopic(scriptId), action, callback);
     }
     publishScript(scriptId, action, payload) {
-      const topic = scriptTopic(scriptId);
-      const key = `${topic}:${String(action)}`;
-      const subs = this.subscribers.get(key) ?? [];
-      for (const sub of subs) {
-        try {
-          sub.callback(payload);
-        } catch {
-        }
-      }
-      for (const sub of this.wildcardSubscribers) {
-        try {
-          sub.callback(topic, String(action), payload);
-        } catch {
-        }
-      }
-    }
-    publishHandler(handlerId, payload) {
-      const topic = handlerTopic(handlerId);
-      const key = `${topic}:invoke`;
-      const subs = this.subscribers.get(key) ?? [];
-      for (const sub of subs) {
-        try {
-          sub.callback(payload);
-        } catch {
-        }
-      }
-      for (const sub of this.wildcardSubscribers) {
-        try {
-          sub.callback(topic, "invoke", payload);
-        } catch {
-        }
-      }
+      this.deliver(scriptTopic(scriptId), String(action), payload);
     }
     clear() {
       this.subscribers.clear();
       this.wildcardSubscribers = [];
+    }
+    deliver(topic, action, payload) {
+      const key = `${topic}:${action}`;
+      const subs = this.subscribers.get(key) ?? [];
+      for (const sub of subs) {
+        try {
+          sub.callback(payload);
+        } catch (error) {
+          Logger.error("Bus", "Subscriber failed", { topic, action, error });
+        }
+      }
+      for (const sub of this.wildcardSubscribers) {
+        try {
+          sub.callback(topic, action, payload);
+        } catch (error) {
+          Logger.error("Bus", "Subscriber failed", { topic, action, error });
+        }
+      }
     }
     unsubscribe(key, subId) {
       const subs = this.subscribers.get(key);
@@ -1708,71 +261,34 @@ var LiveUIModule = (() => {
   };
 
   // src/transport.ts
-  var import_pondsocket_client = __toESM(require_pondsocket_client(), 1);
-
-  // src/logger.ts
-  var levels = {
-    debug: 0,
-    info: 1,
-    warn: 2,
-    error: 3
-  };
-  var LoggerImpl = class {
-    constructor() {
-      this.enabled = false;
-      this.level = "info";
-    }
-    configure(config) {
-      if (config.enabled !== void 0) this.enabled = config.enabled;
-      if (config.level !== void 0) this.level = config.level;
-    }
-    debug(tag, message, ...args) {
-      this.log("debug", tag, message, args);
-    }
-    info(tag, message, ...args) {
-      this.log("info", tag, message, args);
-    }
-    warn(tag, message, ...args) {
-      this.log("warn", tag, message, args);
-    }
-    error(tag, message, ...args) {
-      this.log("error", tag, message, args);
-    }
-    log(level, tag, message, args) {
-      if (!this.enabled) return;
-      if (levels[level] < levels[this.level]) return;
-      const prefix = `[Pond:${tag}]`;
-      const fn = console[level] || console.log;
-      if (args.length > 0) {
-        fn(prefix, message, ...args);
-      } else {
-        fn(prefix, message);
-      }
-    }
-  };
-  var Logger = new LoggerImpl();
-
-  // src/transport.ts
+  var BACKOFF_BASE_MS = 1e3;
+  var BACKOFF_CAP_MS = 3e4;
+  var HANDSHAKE_TIMEOUT_MS = 1e4;
+  var QUEUE_MAX_MESSAGES = 100;
+  var QUEUE_MAX_BYTES = 1024 * 1024;
+  var DECLINED_CLOSE_MIN = 4400;
+  var DECLINED_CLOSE_MAX = 4499;
+  var utf8 = new TextEncoder();
   var Transport = class {
     constructor(config) {
       this.state = "disconnected";
       this.stateListeners = [];
+      this.socket = null;
+      this.joined = false;
+      this.attempts = 0;
+      this.reconnectTimer = null;
+      this.handshakeTimer = null;
+      this.unconfirmed = [];
+      this.unconfirmedBytes = 0;
+      this.overflowLogged = false;
+      this.nextCS = 0;
+      this.endpoint = config.endpoint;
+      this.token = config.token;
       this.sessionId = config.sessionId;
-      this.bus = config.bus;
-      this.client = new import_pondsocket_client.PondClient(config.endpoint);
-      const joinPayload = {
-        sid: config.sessionId,
-        ver: config.version,
-        ack: config.lastAck,
-        loc: config.location
-      };
-      this.channel = this.client.createChannel(`live/${config.sessionId}`, joinPayload);
-      this.channel.onMessage((_event, payload) => {
-        this.handleMessage(payload);
-      });
-      this.channel.onChannelStateChange((channelState) => {
-        this.handleStateChange(channelState);
-      });
+      this.version = config.version;
+      this.applied = config.applied;
+      this.wantsReset = config.wantsReset;
+      this.onMessage = config.onMessage;
     }
     get sid() {
       return this.sessionId;
@@ -1781,16 +297,21 @@ var LiveUIModule = (() => {
       return this.state;
     }
     connect() {
-      this.state = "connecting";
-      this.notifyStateChange();
-      this.channel.join();
-      this.client.connect();
+      if (this.socket !== null || this.reconnectTimer !== null) {
+        return;
+      }
+      this.open();
     }
     disconnect() {
-      this.channel.leave();
-      this.client.disconnect();
-      this.state = "disconnected";
-      this.notifyStateChange();
+      this.clearTimers();
+      const socket = this.socket;
+      this.socket = null;
+      this.joined = false;
+      this.attempts = 0;
+      if (socket) {
+        socket.close();
+      }
+      this.setState("disconnected");
     }
     onStateChange(listener) {
       this.stateListeners.push(listener);
@@ -1802,625 +323,1542 @@ var LiveUIModule = (() => {
       };
     }
     send(topic, action, payload) {
-      const evt = {
-        t: topic,
-        sid: this.sessionId,
-        a: String(action),
-        p: payload
-      };
-      this.sendMessage("evt", evt);
+      this.sendEvent(topic, String(action), payload);
     }
     sendAck(seq) {
       const ack = {
-        t: Topics.Ack,
+        t: "ack",
         sid: this.sessionId,
         seq
       };
-      this.sendMessage("ack", ack);
+      this.sendControl(ack);
     }
-    sendHandler(handlerId, payload) {
-      const evt = {
-        t: handlerTopic(handlerId),
+    sendResync(seq, reason) {
+      const resync = {
+        t: "resync",
         sid: this.sessionId,
-        a: "invoke",
-        p: payload
+        seq,
+        reason
       };
-      this.sendMessage("evt", evt);
+      this.sendControl(resync);
+    }
+    sendHandler(id, event, payload) {
+      this.sendEvent("h", event, payload, id);
     }
     sendScript(scriptId, payload) {
-      const evt = {
-        t: `script:${scriptId}`,
-        sid: this.sessionId,
-        a: "message",
-        p: payload
-      };
-      this.sendMessage("evt", evt);
+      this.sendEvent(scriptTopic(scriptId), "message", payload);
     }
     handleMessage(payload) {
-      Logger.info("TRANSPORT", "Transport received message:", payload);
       if (!isMessage(payload)) {
         return;
       }
-      const { seq, topic, event, data } = payload;
-      if (!this.isValidTopic(topic)) {
+      if (!this.isValidTopic(payload.topic)) {
         return;
       }
-      this.publishToBus(topic, event, data, seq);
+      this.onMessage(payload);
     }
     isValidTopic(topic) {
-      return topic === "router" || topic === "dom" || topic === "frame" || topic === "ack" || topic.startsWith("script:");
+      return STATIC_TOPICS.includes(topic) || isScriptTopic(topic);
     }
-    publishToBus(topic, action, data, seq) {
-      switch (topic) {
-        case "frame":
-          if (action === "patch") {
-            const payload = {
-              seq,
-              patches: data
-            };
-            this.bus.publish("frame", "patch", payload);
-          }
-          break;
-        case "router":
-          if (action === "push") {
-            this.bus.publish("router", "push", data);
-          } else if (action === "replace") {
-            this.bus.publish("router", "replace", data);
-          } else if (action === "back") {
-            this.bus.publish("router", "back", void 0);
-          } else if (action === "forward") {
-            this.bus.publish("router", "forward", void 0);
-          }
-          break;
-        case "dom":
-          if (action === "call") {
-            this.bus.publish("dom", "call", data);
-          } else if (action === "set") {
-            this.bus.publish("dom", "set", data);
-          } else if (action === "query") {
-            this.bus.publish("dom", "query", data);
-          } else if (action === "async") {
-            this.bus.publish("dom", "async", data);
-          }
-          break;
-        case "ack":
-          if (action === "ack") {
-            this.bus.publish("ack", "ack", data);
-          }
-          break;
-        default:
-          if (topic.startsWith("script:") && action === "send") {
-            const payload = data;
-            this.bus.publishScript(payload.scriptId, "send", payload);
-          }
-          break;
+    open() {
+      this.setState("connecting");
+      let socket;
+      try {
+        socket = new WebSocket(this.url());
+      } catch (err) {
+        Logger.error("TRANSPORT", "Failed to open socket", err);
+        this.scheduleReconnect();
+        return;
+      }
+      this.socket = socket;
+      this.joined = false;
+      this.handshakeTimer = setTimeout(() => {
+        this.handshakeTimer = null;
+        if (this.socket === socket && !this.joined) {
+          socket.close();
+        }
+      }, HANDSHAKE_TIMEOUT_MS);
+      socket.onopen = () => {
+        if (this.socket !== socket) return;
+        const join = {
+          t: "join",
+          sid: this.sessionId,
+          tok: this.token,
+          ver: this.version,
+          bs: this.applied(),
+          resync: this.wantsReset()
+        };
+        socket.send(JSON.stringify(join));
+      };
+      socket.onmessage = (event) => {
+        if (this.socket !== socket) return;
+        this.handleFrame(event.data);
+      };
+      socket.onclose = (event) => {
+        if (this.socket !== socket) return;
+        this.handleClose(event.code);
+      };
+    }
+    url() {
+      const url = new URL(this.endpoint, window.location.href);
+      url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      return url.toString();
+    }
+    handleFrame(raw) {
+      if (typeof raw !== "string") {
+        Logger.warn("TRANSPORT", "Ignoring non-text frame");
+        return;
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (err) {
+        Logger.warn("TRANSPORT", "Ignoring malformed frame", err);
+        return;
+      }
+      Logger.info("TRANSPORT", "Transport received message:", parsed);
+      if (isServerFrame(parsed)) {
+        if (parsed.t === "joined") {
+          this.handleJoined(parsed.tok, parsed.cs);
+        } else if (parsed.t === "evack") {
+          this.confirmThrough(parsed.cs);
+        } else if (parsed.t === "tok") {
+          this.token = parsed.tok;
+        } else {
+          this.handleDeclined(parsed.code, parsed.reason);
+        }
+        return;
+      }
+      if (!this.joined) {
+        Logger.warn("TRANSPORT", "Ignoring frame received before joined");
+        return;
+      }
+      this.handleMessage(parsed);
+    }
+    handleJoined(token, cs) {
+      if (this.joined) return;
+      if (typeof token === "string" && token !== "") {
+        this.token = token;
+      }
+      this.joined = true;
+      this.attempts = 0;
+      this.clearHandshakeTimer();
+      this.setState("connected");
+      if (typeof cs === "number") {
+        this.confirmThrough(cs);
+      }
+      this.resendUnconfirmed();
+    }
+    handleDeclined(code, reason) {
+      Logger.warn("TRANSPORT", "Join declined", code, reason);
+      const socket = this.socket;
+      this.socket = null;
+      this.terminateDeclined();
+      if (socket) {
+        socket.close();
       }
     }
-    handleStateChange(channelState) {
-      switch (channelState) {
-        case import_pondsocket_client.ChannelState.JOINED:
-          this.state = "connected";
-          break;
-        case import_pondsocket_client.ChannelState.STALLED:
-          this.state = "stalled";
-          break;
-        case import_pondsocket_client.ChannelState.CLOSED:
-          this.state = "disconnected";
-          break;
-        case import_pondsocket_client.ChannelState.DECLINED:
-          this.state = "declined";
-          break;
-        case import_pondsocket_client.ChannelState.JOINING:
-        case import_pondsocket_client.ChannelState.IDLE:
-          this.state = "connecting";
-          break;
+    handleClose(code) {
+      this.socket = null;
+      this.joined = false;
+      this.clearHandshakeTimer();
+      if (code >= DECLINED_CLOSE_MIN && code <= DECLINED_CLOSE_MAX) {
+        this.terminateDeclined();
+        return;
       }
-      this.notifyStateChange();
+      this.scheduleReconnect();
     }
-    notifyStateChange() {
-      for (const listener of this.stateListeners) {
-        try {
-          listener(this.state);
-        } catch {
+    terminateDeclined() {
+      this.clearTimers();
+      this.joined = false;
+      this.clearUnconfirmed();
+      this.setState("declined");
+    }
+    scheduleReconnect() {
+      this.setState("stalled");
+      const ceiling = Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS * 2 ** this.attempts);
+      const delay = Math.random() * ceiling;
+      this.attempts++;
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
+        this.open();
+      }, delay);
+    }
+    clearHandshakeTimer() {
+      if (this.handshakeTimer !== null) {
+        clearTimeout(this.handshakeTimer);
+        this.handshakeTimer = null;
+      }
+    }
+    clearTimers() {
+      this.clearHandshakeTimer();
+      if (this.reconnectTimer !== null) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+    }
+    confirmThrough(cs) {
+      let drop = 0;
+      while (drop < this.unconfirmed.length && this.unconfirmed[drop].cs <= cs) {
+        this.unconfirmedBytes -= this.unconfirmed[drop].bytes;
+        drop++;
+      }
+      if (drop > 0) {
+        this.unconfirmed.splice(0, drop);
+      }
+    }
+    remember(event) {
+      this.unconfirmed.push(event);
+      this.unconfirmedBytes += event.bytes;
+      while (this.unconfirmed.length > QUEUE_MAX_MESSAGES || this.unconfirmedBytes > QUEUE_MAX_BYTES) {
+        const dropped = this.unconfirmed.shift();
+        if (!dropped) break;
+        this.unconfirmedBytes -= dropped.bytes;
+        if (!this.overflowLogged) {
+          this.overflowLogged = true;
+          Logger.warn("TRANSPORT", "Resend buffer full, dropping oldest events");
         }
       }
     }
-    sendMessage(type, message) {
-      Logger.info("TRANSPORT", "Transport sending message:", type, message);
-      this.channel.sendMessage(type, message);
+    resendUnconfirmed() {
+      const socket = this.socket;
+      if (!socket) return;
+      for (const event of this.unconfirmed) {
+        socket.send(event.data);
+      }
+    }
+    clearUnconfirmed() {
+      this.unconfirmed = [];
+      this.unconfirmedBytes = 0;
+      this.overflowLogged = false;
+    }
+    setState(state) {
+      if (this.state === state) return;
+      this.state = state;
+      for (const listener of [...this.stateListeners]) {
+        try {
+          listener(state);
+        } catch (err) {
+          Logger.error("TRANSPORT", "State listener failed", err);
+        }
+      }
+    }
+    sendEvent(topic, action, payload, id) {
+      const evt = {
+        t: topic,
+        sid: this.sessionId,
+        a: action,
+        p: payload,
+        cs: ++this.nextCS
+      };
+      if (id !== void 0) evt.i = id;
+      Logger.info("TRANSPORT", "Transport sending event:", evt);
+      const data = JSON.stringify(evt);
+      this.remember({ cs: evt.cs, data, bytes: utf8.encode(data).length });
+      if (this.isOpen()) {
+        this.socket.send(data);
+      }
+    }
+    isOpen() {
+      return this.joined && !!this.socket && this.socket.readyState === 1;
+    }
+    sendControl(frame) {
+      if (!this.isOpen()) return;
+      Logger.info("TRANSPORT", "Transport sending control:", frame);
+      this.socket.send(JSON.stringify(frame));
     }
   };
 
-  // src/patcher.ts
-  var _Patcher = class _Patcher {
-    constructor(root, callbacks) {
-      this.handlerStore = /* @__PURE__ */ new WeakMap();
-      this.scriptStore = /* @__PURE__ */ new WeakMap();
-      this.keyedElements = /* @__PURE__ */ new Map();
-      this.root = root;
-      this.callbacks = callbacks;
+  // src/fields.ts
+  var COMPUTED = {
+    value: (_, t) => t.isContentEditable ? t.innerText : t.value,
+    selected: (_, t) => t.selectedOptions && Array.from(t.selectedOptions, (o) => o.value),
+    files: (_, t) => t.files && Array.from(t.files, (f) => ({ n: f.name, s: f.size, t: f.type, m: f.lastModified })),
+    touches: (e) => e.changedTouches && Array.from(e.changedTouches, (x) => [x.identifier, x.clientX, x.clientY]),
+    text: (e) => (e.clipboardData || e.dataTransfer)?.getData("text/plain"),
+    fullscreen: (e) => document.fullscreenElement === e.target,
+    returnValue: (_, t) => t.returnValue
+  };
+  function readFields(e, names) {
+    const out = {};
+    const t = e.target;
+    for (const n of names.split(" ")) {
+      const c = COMPUTED[n];
+      const v = c ? t && c(e, t) : n in e ? e[n] : t?.[n];
+      if (v != null) out[n] = v;
     }
-    apply(patches) {
-      const sorted = [...patches].sort((a, b) => a.seq - b.seq);
-      for (const patch of sorted) {
-        this.applyPatch(patch);
+    return out;
+  }
+  function domEvent(el, name) {
+    const t = el;
+    const live = t.isContentEditable || t.value !== void 0 && !/^(checkbox|radio|file|select)/.test(t.type);
+    return name === "~change" ? live ? "input" : "change" : name;
+  }
+
+  // src/rate.ts
+  var queued = /* @__PURE__ */ new Set();
+  function flush(upTo) {
+    for (const s of [...queued]) {
+      queued.delete(s);
+      s.run();
+      if (s === upTo) break;
+    }
+  }
+  function limit(db, th, send) {
+    if (db === void 0 && th === void 0) {
+      return (d) => {
+        flush();
+        send(d);
+      };
+    }
+    let data;
+    let timer;
+    let busy = false;
+    const frame = th === 0;
+    const slot = {
+      run: () => {
+        send(data);
+        if (db === void 0) arm();
       }
-    }
-    applyPatch(patch) {
-      const node = this.resolvePath(patch.path);
-      if (!node) return;
-      switch (patch.op) {
-        case "setText":
-          this.setText(node, patch.value);
-          break;
-        case "setComment":
-          this.setComment(node, patch.value);
-          break;
-        case "setAttr":
-          this.setAttr(node, patch.value);
-          break;
-        case "delAttr":
-          this.delAttr(node, patch.name);
-          break;
-        case "setStyle":
-          this.setStyle(node, patch.value);
-          break;
-        case "delStyle":
-          this.delStyle(node, patch.name);
-          break;
-        case "setStyleDecl":
-          this.setStyleDecl(node, patch.selector, patch.name, patch.value);
-          break;
-        case "delStyleDecl":
-          this.delStyleDecl(node, patch.selector, patch.name);
-          break;
-        case "setHandlers":
-          this.setHandlers(node, patch.value);
-          break;
-        case "setScript":
-          this.setScript(node, patch.value);
-          break;
-        case "delScript":
-          this.delScript(node);
-          break;
-        case "setRef":
-          this.callbacks.onRef(patch.value, node);
-          break;
-        case "delRef":
-          this.callbacks.onRefDelete(patch.value);
-          break;
-        case "replaceNode":
-          this.replaceNode(node, patch.value);
-          break;
-        case "addChild":
-          this.addChild(node, patch.index, patch.value, patch.path ?? []);
-          break;
-        case "delChild":
-          this.delChild(node, patch.index);
-          break;
-        case "moveChild":
-          this.moveChild(node, patch.value, patch.path ?? []);
-          break;
+    };
+    const end = () => {
+      busy = false;
+      if (queued.has(slot)) flush(slot);
+    };
+    const arm = () => {
+      frame ? cancelAnimationFrame(timer) : clearTimeout(timer);
+      busy = true;
+      timer = frame ? requestAnimationFrame(end) : setTimeout(end, th);
+    };
+    const later = () => {
+      queued.delete(slot);
+      queued.add(slot);
+    };
+    return (d) => {
+      data = d;
+      if (db !== void 0) {
+        later();
+        clearTimeout(timer);
+        timer = setTimeout(() => flush(slot), db);
+      } else if (busy) {
+        later();
+      } else {
+        flush();
+        send(d);
+        arm();
       }
+    };
+  }
+
+  // node_modules/morphdom/dist/morphdom-esm.js
+  var DOCUMENT_FRAGMENT_NODE = 11;
+  function morphAttrs(fromNode, toNode) {
+    var toNodeAttrs = toNode.attributes;
+    var attr;
+    var attrName;
+    var attrNamespaceURI;
+    var attrValue;
+    var fromValue;
+    if (toNode.nodeType === DOCUMENT_FRAGMENT_NODE || fromNode.nodeType === DOCUMENT_FRAGMENT_NODE) {
+      return;
     }
-    resolvePath(path) {
-      let node = this.root;
-      if (path) {
-        for (const index of path) {
-          if (!node) return null;
-          node = node.childNodes[index] ?? null;
+    for (var i = toNodeAttrs.length - 1; i >= 0; i--) {
+      attr = toNodeAttrs[i];
+      attrName = attr.name;
+      attrNamespaceURI = attr.namespaceURI;
+      attrValue = attr.value;
+      if (attrNamespaceURI) {
+        attrName = attr.localName || attrName;
+        fromValue = fromNode.getAttributeNS(attrNamespaceURI, attrName);
+        if (fromValue !== attrValue) {
+          if (attr.prefix === "xmlns") {
+            attrName = attr.name;
+          }
+          fromNode.setAttributeNS(attrNamespaceURI, attrName, attrValue);
+        }
+      } else {
+        fromValue = fromNode.getAttribute(attrName);
+        if (fromValue !== attrValue) {
+          fromNode.setAttribute(attrName, attrValue);
         }
       }
-      return node;
     }
-    setText(node, text) {
-      node.textContent = text;
+    var fromNodeAttrs = fromNode.attributes;
+    for (var d = fromNodeAttrs.length - 1; d >= 0; d--) {
+      attr = fromNodeAttrs[d];
+      attrName = attr.name;
+      attrNamespaceURI = attr.namespaceURI;
+      if (attrNamespaceURI) {
+        attrName = attr.localName || attrName;
+        if (!toNode.hasAttributeNS(attrNamespaceURI, attrName)) {
+          fromNode.removeAttributeNS(attrNamespaceURI, attrName);
+        }
+      } else {
+        if (!toNode.hasAttribute(attrName)) {
+          fromNode.removeAttribute(attrName);
+        }
+      }
     }
-    setComment(node, text) {
-      node.textContent = text;
+  }
+  var range;
+  var NS_XHTML = "http://www.w3.org/1999/xhtml";
+  var doc = typeof document === "undefined" ? void 0 : document;
+  var HAS_TEMPLATE_SUPPORT = !!doc && "content" in doc.createElement("template");
+  var HAS_RANGE_SUPPORT = !!doc && doc.createRange && "createContextualFragment" in doc.createRange();
+  function createFragmentFromTemplate(str) {
+    var template = doc.createElement("template");
+    template.innerHTML = str;
+    return template.content.childNodes[0];
+  }
+  function createFragmentFromRange(str) {
+    if (!range) {
+      range = doc.createRange();
+      range.selectNode(doc.body);
     }
-    setAttr(el, attrs) {
-      for (const [name, values] of Object.entries(attrs)) {
-        if (name === "class") {
-          if (el instanceof SVGElement) {
-            el.setAttribute("class", values.join(" "));
+    var fragment = range.createContextualFragment(str);
+    return fragment.childNodes[0];
+  }
+  function createFragmentFromWrap(str) {
+    var fragment = doc.createElement("body");
+    fragment.innerHTML = str;
+    return fragment.childNodes[0];
+  }
+  function toElement(str) {
+    str = str.trim();
+    if (HAS_TEMPLATE_SUPPORT) {
+      return createFragmentFromTemplate(str);
+    } else if (HAS_RANGE_SUPPORT) {
+      return createFragmentFromRange(str);
+    }
+    return createFragmentFromWrap(str);
+  }
+  function compareNodeNames(fromEl, toEl) {
+    var fromNodeName = fromEl.nodeName;
+    var toNodeName = toEl.nodeName;
+    var fromCodeStart, toCodeStart;
+    if (fromNodeName === toNodeName) {
+      return true;
+    }
+    fromCodeStart = fromNodeName.charCodeAt(0);
+    toCodeStart = toNodeName.charCodeAt(0);
+    if (fromCodeStart <= 90 && toCodeStart >= 97) {
+      return fromNodeName === toNodeName.toUpperCase();
+    } else if (toCodeStart <= 90 && fromCodeStart >= 97) {
+      return toNodeName === fromNodeName.toUpperCase();
+    } else {
+      return false;
+    }
+  }
+  function createElementNS(name, namespaceURI) {
+    return !namespaceURI || namespaceURI === NS_XHTML ? doc.createElement(name) : doc.createElementNS(namespaceURI, name);
+  }
+  function moveChildren(fromEl, toEl) {
+    var curChild = fromEl.firstChild;
+    while (curChild) {
+      var nextChild = curChild.nextSibling;
+      toEl.appendChild(curChild);
+      curChild = nextChild;
+    }
+    return toEl;
+  }
+  function syncBooleanAttrProp(fromEl, toEl, name) {
+    if (fromEl[name] !== toEl[name]) {
+      fromEl[name] = toEl[name];
+      if (fromEl[name]) {
+        fromEl.setAttribute(name, "");
+      } else {
+        fromEl.removeAttribute(name);
+      }
+    }
+  }
+  var specialElHandlers = {
+    OPTION: function(fromEl, toEl) {
+      var parentNode = fromEl.parentNode;
+      if (parentNode) {
+        var parentName = parentNode.nodeName.toUpperCase();
+        if (parentName === "OPTGROUP") {
+          parentNode = parentNode.parentNode;
+          parentName = parentNode && parentNode.nodeName.toUpperCase();
+        }
+        if (parentName === "SELECT" && !parentNode.hasAttribute("multiple")) {
+          if (fromEl.hasAttribute("selected") && !toEl.selected) {
+            fromEl.setAttribute("selected", "selected");
+            fromEl.removeAttribute("selected");
+          }
+          parentNode.selectedIndex = -1;
+        }
+      }
+      syncBooleanAttrProp(fromEl, toEl, "selected");
+    },
+    /**
+     * The "value" attribute is special for the <input> element since it sets
+     * the initial value. Changing the "value" attribute without changing the
+     * "value" property will have no effect since it is only used to the set the
+     * initial value.  Similar for the "checked" attribute, and "disabled".
+     */
+    INPUT: function(fromEl, toEl) {
+      syncBooleanAttrProp(fromEl, toEl, "checked");
+      syncBooleanAttrProp(fromEl, toEl, "disabled");
+      if (fromEl.value !== toEl.value) {
+        fromEl.value = toEl.value;
+      }
+      if (!toEl.hasAttribute("value")) {
+        fromEl.removeAttribute("value");
+      }
+    },
+    TEXTAREA: function(fromEl, toEl) {
+      var newValue = toEl.value;
+      if (fromEl.value !== newValue) {
+        fromEl.value = newValue;
+      }
+      var firstChild = fromEl.firstChild;
+      if (firstChild) {
+        var oldValue = firstChild.nodeValue;
+        if (oldValue == newValue || !newValue && oldValue == fromEl.placeholder) {
+          return;
+        }
+        firstChild.nodeValue = newValue;
+      }
+    },
+    SELECT: function(fromEl, toEl) {
+      if (!toEl.hasAttribute("multiple")) {
+        var selectedIndex = -1;
+        var i = 0;
+        var curChild = fromEl.firstChild;
+        var optgroup;
+        var nodeName;
+        while (curChild) {
+          nodeName = curChild.nodeName && curChild.nodeName.toUpperCase();
+          if (nodeName === "OPTGROUP") {
+            optgroup = curChild;
+            curChild = optgroup.firstChild;
+            if (!curChild) {
+              curChild = optgroup.nextSibling;
+              optgroup = null;
+            }
           } else {
-            el.className = values.join(" ");
-          }
-        } else if (name === "value" && el instanceof HTMLInputElement) {
-          el.value = values[0] ?? "";
-        } else if (name === "checked" && el instanceof HTMLInputElement) {
-          el.checked = values.length > 0 && values[0] !== "false";
-        } else if (name === "selected" && el instanceof HTMLOptionElement) {
-          el.selected = values.length > 0 && values[0] !== "false";
-        } else if (values.length === 0) {
-          el.setAttribute(name, "");
-        } else {
-          el.setAttribute(name, values.join(" "));
-        }
-      }
-    }
-    delAttr(el, name) {
-      if (name === "value" && el instanceof HTMLInputElement) {
-        el.value = "";
-      } else if (name === "checked" && el instanceof HTMLInputElement) {
-        el.checked = false;
-      } else if (name === "selected" && el instanceof HTMLOptionElement) {
-        el.selected = false;
-      } else {
-        el.removeAttribute(name);
-      }
-    }
-    setStyle(el, styles) {
-      for (const [prop, value] of Object.entries(styles)) {
-        el.style.setProperty(prop, value);
-      }
-    }
-    delStyle(el, prop) {
-      el.style.removeProperty(prop);
-    }
-    setStyleDecl(styleEl, selector, prop, value) {
-      const sheet = styleEl.sheet;
-      if (!sheet) return;
-      const rule = this.findOrCreateRule(sheet, selector);
-      if (rule) {
-        rule.style.setProperty(prop, value);
-      }
-    }
-    delStyleDecl(styleEl, selector, prop) {
-      const sheet = styleEl.sheet;
-      if (!sheet) return;
-      const rule = this.findRule(sheet, selector);
-      if (rule) {
-        rule.style.removeProperty(prop);
-      }
-    }
-    findRule(sheet, selector) {
-      for (let i = 0; i < sheet.cssRules.length; i++) {
-        const rule = sheet.cssRules[i];
-        if (rule instanceof CSSStyleRule && rule.selectorText === selector) {
-          return rule;
-        }
-      }
-      return null;
-    }
-    findOrCreateRule(sheet, selector) {
-      let rule = this.findRule(sheet, selector);
-      if (!rule) {
-        const index = sheet.insertRule(`${selector} {}`, sheet.cssRules.length);
-        rule = sheet.cssRules[index];
-      }
-      return rule;
-    }
-    setHandlers(el, handlers) {
-      const oldHandlers = this.handlerStore.get(el);
-      if (oldHandlers) {
-        oldHandlers.forEach((state) => {
-          if (state.cleanup) state.cleanup();
-        });
-      }
-      const newHandlers = /* @__PURE__ */ new Map();
-      for (const meta of handlers) {
-        const state = this.createHandler(el, meta);
-        newHandlers.set(meta.event, state);
-      }
-      this.handlerStore.set(el, newHandlers);
-    }
-    createHandler(el, meta) {
-      let timeoutId = null;
-      let lastCall = 0;
-      const invoke = (e) => {
-        if (meta.prevent && e.cancelable) {
-          e.preventDefault();
-        }
-        if (meta.stop) {
-          e.stopPropagation();
-        }
-        const data = this.extractEventData(e, meta.props ?? []);
-        this.callbacks.onEvent(meta.handler, data);
-      };
-      let handler;
-      if (meta.debounce && meta.debounce > 0) {
-        handler = (e) => {
-          if (meta.prevent && e.cancelable) e.preventDefault();
-          if (meta.stop) e.stopPropagation();
-          if (timeoutId) clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => {
-            const data = this.extractEventData(e, meta.props ?? []);
-            this.callbacks.onEvent(meta.handler, data);
-          }, meta.debounce);
-        };
-      } else if (meta.throttle && meta.throttle > 0) {
-        handler = (e) => {
-          if (meta.prevent && e.cancelable) e.preventDefault();
-          if (meta.stop) e.stopPropagation();
-          const now = Date.now();
-          if (now - lastCall >= meta.throttle) {
-            lastCall = now;
-            const data = this.extractEventData(e, meta.props ?? []);
-            this.callbacks.onEvent(meta.handler, data);
-          }
-        };
-      } else {
-        handler = invoke;
-      }
-      const options = {};
-      if (meta.passive) options.passive = true;
-      if (meta.once) options.once = true;
-      if (meta.capture) options.capture = true;
-      el.addEventListener(meta.event, handler, options);
-      return {
-        listener: handler,
-        cleanup: () => {
-          el.removeEventListener(meta.event, handler, options);
-          if (timeoutId) clearTimeout(timeoutId);
-        }
-      };
-    }
-    extractEventData(e, props) {
-      const result = {};
-      for (const prop of props) {
-        const value = this.resolveProp(e, prop);
-        if (value !== void 0) {
-          result[prop] = value;
-        }
-      }
-      return result;
-    }
-    resolveProp(e, path) {
-      const segments = path.split(".").map((s) => s.trim()).filter(Boolean);
-      if (segments.length === 0) return void 0;
-      const root = segments.shift();
-      let current;
-      switch (root) {
-        case "event":
-          current = e;
-          break;
-        case "target":
-          current = e.target;
-          break;
-        case "currentTarget":
-          current = e.currentTarget;
-          break;
-        default:
-          current = e[root];
-      }
-      for (const segment of segments) {
-        if (current == null) return void 0;
-        try {
-          current = current[segment];
-        } catch {
-          return void 0;
-        }
-      }
-      return this.serializeValue(current);
-    }
-    serializeValue(value) {
-      if (value === null || value === void 0) return null;
-      const type = typeof value;
-      if (type === "string" || type === "number" || type === "boolean") return value;
-      if (Array.isArray(value)) {
-        const mapped = value.map((v) => this.serializeValue(v)).filter((v) => v !== void 0);
-        return mapped.length > 0 ? mapped : null;
-      }
-      if (value instanceof Date) return value.toISOString();
-      if (value instanceof DOMTokenList) return Array.from(value);
-      if (value instanceof Node) return void 0;
-      try {
-        return JSON.parse(JSON.stringify(value));
-      } catch {
-        return void 0;
-      }
-    }
-    setScript(el, meta) {
-      this.delScript(el);
-      this.scriptStore.set(el, meta.scriptId);
-      this.callbacks.onScript(meta, el);
-    }
-    delScript(el) {
-      const scriptId = this.scriptStore.get(el);
-      if (scriptId) {
-        this.scriptStore.delete(el);
-        this.callbacks.onScriptCleanup(scriptId);
-      }
-    }
-    replaceNode(oldNode, newNodeData) {
-      const newNode = this.createNode(newNodeData);
-      if (newNode && oldNode.parentNode) {
-        this.cleanupTree(oldNode);
-        oldNode.parentNode.replaceChild(newNode, oldNode);
-      }
-    }
-    addChild(parent, index, nodeData, parentPath) {
-      const newNode = this.createNode(nodeData);
-      if (!newNode) return;
-      if (nodeData.key && newNode instanceof Element) {
-        const keyId = `${parentPath.join(",")}-${nodeData.key}`;
-        this.keyedElements.set(keyId, newNode);
-      }
-      const refChild = parent.childNodes[index] ?? null;
-      parent.insertBefore(newNode, refChild);
-    }
-    delChild(parent, index) {
-      const child = parent.childNodes[index];
-      if (child) {
-        this.cleanupTree(child);
-        parent.removeChild(child);
-      }
-    }
-    moveChild(parent, move, parentPath) {
-      let child = null;
-      if (move.key) {
-        const keyId = `${parentPath.join(",")}-${move.key}`;
-        child = this.keyedElements.get(keyId) ?? null;
-        if (!child) {
-          child = this.findElementBySignature(parent, move.key);
-        }
-      }
-      if (!child) {
-        child = parent.childNodes[move.fromIndex] ?? null;
-      }
-      if (!child) return;
-      parent.removeChild(child);
-      const refChild = parent.childNodes[move.newIdx] ?? null;
-      parent.insertBefore(child, refChild);
-    }
-    findElementBySignature(parent, signature) {
-      if (signature.startsWith("K:")) {
-        const key = signature.slice(2);
-        for (let i = 0; i < parent.childNodes.length; i++) {
-          const node = parent.childNodes[i];
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            if (node.getAttribute("data-key") === key) {
-              return node;
+            if (nodeName === "OPTION") {
+              if (curChild.hasAttribute("selected")) {
+                selectedIndex = i;
+                break;
+              }
+              i++;
+            }
+            curChild = curChild.nextSibling;
+            if (!curChild && optgroup) {
+              curChild = optgroup.nextSibling;
+              optgroup = null;
             }
           }
         }
-        return null;
+        fromEl.selectedIndex = selectedIndex;
       }
-      const match = signature.match(/^E:(\w+)\|(\w+)=(.+)$/);
-      if (!match) return null;
-      const [, tag, attr, value] = match;
-      for (let i = 0; i < parent.childNodes.length; i++) {
-        const node = parent.childNodes[i];
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const el = node;
-          if (el.tagName.toLowerCase() === tag && el.getAttribute(attr) === value) {
-            return el;
-          }
-        }
-      }
-      return null;
-    }
-    cleanupTree(node) {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const el = node;
-        const handlers = this.handlerStore.get(el);
-        if (handlers) {
-          handlers.forEach((state) => {
-            if (state.cleanup) state.cleanup();
-          });
-          this.handlerStore.delete(el);
-        }
-        const scriptId = this.scriptStore.get(el);
-        if (scriptId) {
-          this.scriptStore.delete(el);
-          this.callbacks.onScriptCleanup(scriptId);
-        }
-        for (let i = 0; i < node.childNodes.length; i++) {
-          this.cleanupTree(node.childNodes[i]);
-        }
-      }
-    }
-    createNode(data, isSvg = false) {
-      if (data.text !== void 0) {
-        return document.createTextNode(data.text);
-      }
-      if (data.comment !== void 0) {
-        return document.createComment(data.comment);
-      }
-      if (!data.tag) return null;
-      const isSvgElement = _Patcher.SVG_TAGS.has(data.tag);
-      const useSvg = isSvg || isSvgElement;
-      const el = useSvg ? document.createElementNS(_Patcher.SVG_NS, data.tag) : document.createElement(data.tag);
-      if (data.attrs) {
-        this.setAttr(el, data.attrs);
-      }
-      if (data.style) {
-        this.setStyle(el, data.style);
-      }
-      if (data.handlers && data.handlers.length > 0) {
-        this.setHandlers(el, data.handlers);
-      }
-      if (data.script) {
-        this.setScript(el, data.script);
-      }
-      if (data.refId) {
-        this.callbacks.onRef(data.refId, el);
-      }
-      if (data.unsafeHTML) {
-        el.innerHTML = data.unsafeHTML;
-      } else if (data.children) {
-        const childSvg = useSvg && data.tag !== "foreignObject";
-        for (const child of data.children) {
-          const childNode = this.createNode(child, childSvg);
-          if (childNode) {
-            el.appendChild(childNode);
-          }
-        }
-      }
-      return el;
     }
   };
-  _Patcher.SVG_NS = "http://www.w3.org/2000/svg";
-  _Patcher.SVG_TAGS = /* @__PURE__ */ new Set([
-    "svg",
-    "animate",
-    "animateMotion",
-    "animateTransform",
-    "circle",
-    "clipPath",
-    "defs",
-    "desc",
-    "ellipse",
-    "feBlend",
-    "feColorMatrix",
-    "feComponentTransfer",
-    "feComposite",
-    "feConvolveMatrix",
-    "feDiffuseLighting",
-    "feDisplacementMap",
-    "feDistantLight",
-    "feDropShadow",
-    "feFlood",
-    "feFuncA",
-    "feFuncB",
-    "feFuncG",
-    "feFuncR",
-    "feGaussianBlur",
-    "feImage",
-    "feMerge",
-    "feMergeNode",
-    "feMorphology",
-    "feOffset",
-    "fePointLight",
-    "feSpecularLighting",
-    "feSpotLight",
-    "feTile",
-    "feTurbulence",
-    "filter",
-    "foreignObject",
-    "g",
-    "image",
-    "line",
-    "linearGradient",
-    "marker",
-    "mask",
-    "metadata",
-    "mpath",
-    "path",
-    "pattern",
-    "polygon",
-    "polyline",
-    "radialGradient",
-    "rect",
-    "set",
-    "stop",
-    "switch",
-    "symbol",
-    "text",
-    "textPath",
-    "title",
-    "tspan",
-    "use",
-    "view"
-  ]);
-  var Patcher = _Patcher;
+  var ELEMENT_NODE = 1;
+  var DOCUMENT_FRAGMENT_NODE$1 = 11;
+  var TEXT_NODE = 3;
+  var COMMENT_NODE = 8;
+  function noop() {
+  }
+  function defaultGetNodeKey(node) {
+    if (node) {
+      return node.getAttribute && node.getAttribute("id") || node.id;
+    }
+  }
+  function morphdomFactory(morphAttrs2) {
+    return function morphdom2(fromNode, toNode, options) {
+      if (!options) {
+        options = {};
+      }
+      if (typeof toNode === "string") {
+        if (fromNode.nodeName === "#document" || fromNode.nodeName === "HTML") {
+          var toNodeHtml = toNode;
+          toNode = doc.createElement("html");
+          toNode.innerHTML = toNodeHtml;
+        } else if (fromNode.nodeName === "BODY") {
+          var toNodeBody = toNode;
+          toNode = doc.createElement("html");
+          toNode.innerHTML = toNodeBody;
+          var bodyElement = toNode.querySelector("body");
+          if (bodyElement) {
+            toNode = bodyElement;
+          }
+        } else {
+          toNode = toElement(toNode);
+        }
+      } else if (toNode.nodeType === DOCUMENT_FRAGMENT_NODE$1) {
+        toNode = toNode.firstElementChild;
+      }
+      var getNodeKey = options.getNodeKey || defaultGetNodeKey;
+      var onBeforeNodeAdded = options.onBeforeNodeAdded || noop;
+      var onNodeAdded = options.onNodeAdded || noop;
+      var onBeforeElUpdated = options.onBeforeElUpdated || noop;
+      var onElUpdated = options.onElUpdated || noop;
+      var onBeforeNodeDiscarded = options.onBeforeNodeDiscarded || noop;
+      var onNodeDiscarded = options.onNodeDiscarded || noop;
+      var onBeforeElChildrenUpdated = options.onBeforeElChildrenUpdated || noop;
+      var skipFromChildren = options.skipFromChildren || noop;
+      var addChild = options.addChild || function(parent, child) {
+        return parent.appendChild(child);
+      };
+      var childrenOnly = options.childrenOnly === true;
+      var fromNodesLookup = /* @__PURE__ */ Object.create(null);
+      var keyedRemovalList = [];
+      function addKeyedRemoval(key) {
+        keyedRemovalList.push(key);
+      }
+      function walkDiscardedChildNodes(node, skipKeyedNodes) {
+        if (node.nodeType === ELEMENT_NODE) {
+          var curChild = node.firstChild;
+          while (curChild) {
+            var key = void 0;
+            if (skipKeyedNodes && (key = getNodeKey(curChild))) {
+              addKeyedRemoval(key);
+            } else {
+              onNodeDiscarded(curChild);
+              if (curChild.firstChild) {
+                walkDiscardedChildNodes(curChild, skipKeyedNodes);
+              }
+            }
+            curChild = curChild.nextSibling;
+          }
+        }
+      }
+      function removeNode(node, parentNode, skipKeyedNodes) {
+        if (onBeforeNodeDiscarded(node) === false) {
+          return;
+        }
+        if (parentNode) {
+          parentNode.removeChild(node);
+        }
+        onNodeDiscarded(node);
+        walkDiscardedChildNodes(node, skipKeyedNodes);
+      }
+      function indexTree(node) {
+        if (node.nodeType === ELEMENT_NODE || node.nodeType === DOCUMENT_FRAGMENT_NODE$1) {
+          var curChild = node.firstChild;
+          while (curChild) {
+            var key = getNodeKey(curChild);
+            if (key) {
+              fromNodesLookup[key] = curChild;
+            }
+            indexTree(curChild);
+            curChild = curChild.nextSibling;
+          }
+        }
+      }
+      indexTree(fromNode);
+      function handleNodeAdded(el) {
+        onNodeAdded(el);
+        var curChild = el.firstChild;
+        while (curChild) {
+          var nextSibling = curChild.nextSibling;
+          var key = getNodeKey(curChild);
+          if (key) {
+            var unmatchedFromEl = fromNodesLookup[key];
+            if (unmatchedFromEl && compareNodeNames(curChild, unmatchedFromEl)) {
+              curChild.parentNode.replaceChild(unmatchedFromEl, curChild);
+              morphEl(unmatchedFromEl, curChild);
+            } else {
+              handleNodeAdded(curChild);
+            }
+          } else {
+            handleNodeAdded(curChild);
+          }
+          curChild = nextSibling;
+        }
+      }
+      function cleanupFromEl(fromEl, curFromNodeChild, curFromNodeKey) {
+        while (curFromNodeChild) {
+          var fromNextSibling = curFromNodeChild.nextSibling;
+          if (curFromNodeKey = getNodeKey(curFromNodeChild)) {
+            addKeyedRemoval(curFromNodeKey);
+          } else {
+            removeNode(
+              curFromNodeChild,
+              fromEl,
+              true
+              /* skip keyed nodes */
+            );
+          }
+          curFromNodeChild = fromNextSibling;
+        }
+      }
+      function morphEl(fromEl, toEl, childrenOnly2) {
+        var toElKey = getNodeKey(toEl);
+        if (toElKey) {
+          delete fromNodesLookup[toElKey];
+        }
+        if (!childrenOnly2) {
+          var beforeUpdateResult = onBeforeElUpdated(fromEl, toEl);
+          if (beforeUpdateResult === false) {
+            return;
+          } else if (beforeUpdateResult instanceof HTMLElement) {
+            fromEl = beforeUpdateResult;
+            indexTree(fromEl);
+          }
+          morphAttrs2(fromEl, toEl);
+          onElUpdated(fromEl);
+          if (onBeforeElChildrenUpdated(fromEl, toEl) === false) {
+            return;
+          }
+        }
+        if (fromEl.nodeName !== "TEXTAREA") {
+          morphChildren(fromEl, toEl);
+        } else {
+          specialElHandlers.TEXTAREA(fromEl, toEl);
+        }
+      }
+      function morphChildren(fromEl, toEl) {
+        var skipFrom = skipFromChildren(fromEl, toEl);
+        var curToNodeChild = toEl.firstChild;
+        var curFromNodeChild = fromEl.firstChild;
+        var curToNodeKey;
+        var curFromNodeKey;
+        var fromNextSibling;
+        var toNextSibling;
+        var matchingFromEl;
+        outer: while (curToNodeChild) {
+          toNextSibling = curToNodeChild.nextSibling;
+          curToNodeKey = getNodeKey(curToNodeChild);
+          while (!skipFrom && curFromNodeChild) {
+            fromNextSibling = curFromNodeChild.nextSibling;
+            if (curToNodeChild.isSameNode && curToNodeChild.isSameNode(curFromNodeChild)) {
+              curToNodeChild = toNextSibling;
+              curFromNodeChild = fromNextSibling;
+              continue outer;
+            }
+            curFromNodeKey = getNodeKey(curFromNodeChild);
+            var curFromNodeType = curFromNodeChild.nodeType;
+            var isCompatible = void 0;
+            if (curFromNodeType === curToNodeChild.nodeType) {
+              if (curFromNodeType === ELEMENT_NODE) {
+                if (curToNodeKey) {
+                  if (curToNodeKey !== curFromNodeKey) {
+                    if (matchingFromEl = fromNodesLookup[curToNodeKey]) {
+                      if (fromNextSibling === matchingFromEl) {
+                        isCompatible = false;
+                      } else {
+                        fromEl.insertBefore(matchingFromEl, curFromNodeChild);
+                        if (curFromNodeKey) {
+                          addKeyedRemoval(curFromNodeKey);
+                        } else {
+                          removeNode(
+                            curFromNodeChild,
+                            fromEl,
+                            true
+                            /* skip keyed nodes */
+                          );
+                        }
+                        curFromNodeChild = matchingFromEl;
+                        curFromNodeKey = getNodeKey(curFromNodeChild);
+                      }
+                    } else {
+                      isCompatible = false;
+                    }
+                  }
+                } else if (curFromNodeKey) {
+                  isCompatible = false;
+                }
+                isCompatible = isCompatible !== false && compareNodeNames(curFromNodeChild, curToNodeChild);
+                if (isCompatible) {
+                  morphEl(curFromNodeChild, curToNodeChild);
+                }
+              } else if (curFromNodeType === TEXT_NODE || curFromNodeType == COMMENT_NODE) {
+                isCompatible = true;
+                if (curFromNodeChild.nodeValue !== curToNodeChild.nodeValue) {
+                  curFromNodeChild.nodeValue = curToNodeChild.nodeValue;
+                }
+              }
+            }
+            if (isCompatible) {
+              curToNodeChild = toNextSibling;
+              curFromNodeChild = fromNextSibling;
+              continue outer;
+            }
+            if (curFromNodeKey) {
+              addKeyedRemoval(curFromNodeKey);
+            } else {
+              removeNode(
+                curFromNodeChild,
+                fromEl,
+                true
+                /* skip keyed nodes */
+              );
+            }
+            curFromNodeChild = fromNextSibling;
+          }
+          if (curToNodeKey && (matchingFromEl = fromNodesLookup[curToNodeKey]) && compareNodeNames(matchingFromEl, curToNodeChild)) {
+            if (!skipFrom) {
+              addChild(fromEl, matchingFromEl);
+            }
+            morphEl(matchingFromEl, curToNodeChild);
+          } else {
+            var onBeforeNodeAddedResult = onBeforeNodeAdded(curToNodeChild);
+            if (onBeforeNodeAddedResult !== false) {
+              if (onBeforeNodeAddedResult) {
+                curToNodeChild = onBeforeNodeAddedResult;
+              }
+              if (curToNodeChild.actualize) {
+                curToNodeChild = curToNodeChild.actualize(fromEl.ownerDocument || doc);
+              }
+              addChild(fromEl, curToNodeChild);
+              handleNodeAdded(curToNodeChild);
+            }
+          }
+          curToNodeChild = toNextSibling;
+          curFromNodeChild = fromNextSibling;
+        }
+        cleanupFromEl(fromEl, curFromNodeChild, curFromNodeKey);
+        var specialElHandler = specialElHandlers[fromEl.nodeName];
+        if (specialElHandler) {
+          specialElHandler(fromEl, toEl);
+        }
+      }
+      var morphedNode = fromNode;
+      var morphedNodeType = morphedNode.nodeType;
+      var toNodeType = toNode.nodeType;
+      if (!childrenOnly) {
+        if (morphedNodeType === ELEMENT_NODE) {
+          if (toNodeType === ELEMENT_NODE) {
+            if (!compareNodeNames(fromNode, toNode)) {
+              onNodeDiscarded(fromNode);
+              morphedNode = moveChildren(fromNode, createElementNS(toNode.nodeName, toNode.namespaceURI));
+            }
+          } else {
+            morphedNode = toNode;
+          }
+        } else if (morphedNodeType === TEXT_NODE || morphedNodeType === COMMENT_NODE) {
+          if (toNodeType === morphedNodeType) {
+            if (morphedNode.nodeValue !== toNode.nodeValue) {
+              morphedNode.nodeValue = toNode.nodeValue;
+            }
+            return morphedNode;
+          } else {
+            morphedNode = toNode;
+          }
+        }
+      }
+      if (morphedNode === toNode) {
+        onNodeDiscarded(fromNode);
+      } else {
+        if (toNode.isSameNode && toNode.isSameNode(morphedNode)) {
+          return;
+        }
+        morphEl(morphedNode, toNode, childrenOnly);
+        if (keyedRemovalList) {
+          for (var i = 0, len = keyedRemovalList.length; i < len; i++) {
+            var elToRemove = fromNodesLookup[keyedRemovalList[i]];
+            if (elToRemove) {
+              removeNode(elToRemove, elToRemove.parentNode, false);
+            }
+          }
+        }
+      }
+      if (!childrenOnly && morphedNode !== fromNode && fromNode.parentNode) {
+        if (morphedNode.actualize) {
+          morphedNode = morphedNode.actualize(fromNode.ownerDocument || doc);
+        }
+        fromNode.parentNode.replaceChild(morphedNode, fromNode);
+      }
+      return morphedNode;
+    };
+  }
+  var morphdom = morphdomFactory(morphAttrs);
+  var morphdom_esm_default = morphdom;
+
+  // src/applier.ts
+  var EditError = class extends Error {
+    constructor(reason, edit, detail, options) {
+      super(`${reason}:${Array.isArray(edit) ? String(edit[0]) : typeof edit} ${detail}`, options);
+      this.reason = reason;
+      this.edit = edit;
+      this.name = "EditError";
+    }
+  };
+  var MAX_ID = 4294967295;
+  var SHOW_ELEMENT_AND_COMMENT = 129;
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var MATH_NS = "http://www.w3.org/1998/Math/MathML";
+  var FOLLOWING = 4;
+  function isUint(value, min) {
+    return typeof value === "number" && Number.isInteger(value) && value >= min && value <= MAX_ID;
+  }
+  var Applier = class {
+    constructor(root, callbacks) {
+      this.root = root;
+      this.callbacks = callbacks;
+      this.nodes = /* @__PURE__ */ new Map();
+      this.ends = /* @__PURE__ */ new Map();
+      this.bound = /* @__PURE__ */ new WeakSet();
+      this.synth = /* @__PURE__ */ new WeakMap();
+      this.scripts = /* @__PURE__ */ new Map();
+      this.pending = [];
+    }
+    index() {
+      this.nodes.clear();
+      this.ends.clear();
+      this.scan(this.root, false);
+      this.flush();
+    }
+    node(id) {
+      return this.nodes.get(id);
+    }
+    element(id) {
+      const node = this.nodes.get(id);
+      return node?.nodeType === Node.ELEMENT_NODE ? node : void 0;
+    }
+    destroy() {
+      for (const scriptId of this.scripts.values()) {
+        this.callbacks.onScriptCleanup(scriptId);
+      }
+      this.scripts.clear();
+    }
+    apply(edits) {
+      for (const edit of edits) {
+        try {
+          this.validate(edit);
+          this.run(edit);
+        } catch (e) {
+          this.pending = [];
+          if (e instanceof EditError) throw e;
+          throw new EditError("apply-error", edit, e instanceof Error ? e.name : typeof e, { cause: e });
+        }
+      }
+    }
+    morph(html) {
+      const root = this.root;
+      const next = new DOMParser().parseFromString(html, "text/html").documentElement;
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      const preservedValues = /* @__PURE__ */ new Map();
+      const priorSelects = /* @__PURE__ */ new Map();
+      morphdom_esm_default(root, next, {
+        getNodeKey: (node) => node.nodeType === Node.ELEMENT_NODE ? node.getAttribute(ATTR_ID) ?? void 0 : void 0,
+        onBeforeElUpdated: (from, to) => {
+          if (from instanceof HTMLInputElement && to instanceof HTMLInputElement) {
+            if (!to.hasAttribute("value") && from.value !== from.defaultValue && !["checkbox", "radio", "file"].includes(from.type)) {
+              let start = null;
+              let end = null;
+              try {
+                start = from.selectionStart;
+                end = from.selectionEnd;
+              } catch {
+              }
+              preservedValues.set(from, { value: from.value, start, end });
+            }
+          } else if (from instanceof HTMLTextAreaElement && to instanceof HTMLTextAreaElement) {
+            if (to.value === "" && from.value !== from.defaultValue) {
+              preservedValues.set(from, { value: from.value, start: from.selectionStart, end: from.selectionEnd });
+            }
+          } else if (from instanceof HTMLSelectElement && !from.multiple) {
+            priorSelects.set(from, { value: from.value, explicit: to.querySelector("option[selected]") !== null });
+          }
+          return true;
+        }
+      });
+      for (const [el, saved] of preservedValues) {
+        const field = el;
+        if (field.value !== saved.value) field.value = saved.value;
+        if (saved.start !== null && saved.end !== null && document.activeElement === field) {
+          try {
+            field.setSelectionRange(saved.start, saved.end);
+          } catch {
+          }
+        }
+      }
+      for (const [select, prior] of priorSelects) {
+        this.settleSelect(select, prior.value, prior.explicit);
+      }
+      for (const select of Array.from(root.querySelectorAll("select"))) {
+        if (!priorSelects.has(select)) {
+          this.settleSelect(select, null, Array.from(select.options).some((o) => o.hasAttribute("selected")));
+        }
+      }
+      for (const [el, scriptId] of this.scripts) {
+        if (!el.isConnected) {
+          this.scripts.delete(el);
+          this.callbacks.onScriptCleanup(scriptId);
+        }
+      }
+      this.index();
+      if (window.scrollX !== scrollX || window.scrollY !== scrollY) {
+        window.scrollTo(scrollX, scrollY);
+      }
+    }
+    settleSelect(select, prior, explicit) {
+      if (select.multiple || explicit) return;
+      const options = Array.from(select.options);
+      for (const option of options) {
+        option.removeAttribute("selected");
+      }
+      const chosen = prior === null ? void 0 : options.find((o) => o.value === prior);
+      if (chosen) {
+        select.selectedIndex = chosen.index;
+      } else if (options.length > 0) {
+        select.selectedIndex = 0;
+      }
+    }
+    validate(edit) {
+      if (!Array.isArray(edit) || typeof edit[0] !== "string") {
+        throw new EditError("apply-error", edit, "edit is not a tuple");
+      }
+      const sig = Object.prototype.hasOwnProperty.call(SIGNATURES, edit[0]) ? SIGNATURES[edit[0]] : void 0;
+      if (sig === void 0) {
+        throw new EditError("apply-error", edit, "unknown op");
+      }
+      if (edit.length !== sig.length + 1) {
+        throw new EditError("apply-error", edit, `expected ${sig.length} arguments`);
+      }
+      for (let i = 0; i < sig.length; i++) {
+        const arg = edit[i + 1];
+        const ok = sig[i] === "s" ? typeof arg === "string" : isUint(arg, sig[i] === "i" ? 1 : 0);
+        if (!ok) {
+          throw new EditError("apply-error", edit, `argument ${i + 1} is invalid`);
+        }
+      }
+    }
+    run(edit) {
+      switch (edit[0]) {
+        case "t": {
+          const node = this.require(edit[1], edit);
+          if (node.nodeType === Node.TEXT_NODE) {
+            node.nodeValue = edit[2];
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            node.textContent = edit[2];
+          } else {
+            throw new EditError("unresolved", edit, "target is not a text slot or element");
+          }
+          break;
+        }
+        case "a": {
+          const el = this.requireElement(edit[1], edit);
+          const [, , name, value] = edit;
+          el.setAttribute(name, value);
+          if (name === "src" || name === "srcset") this.synth.delete(el);
+          if (el instanceof HTMLSelectElement && (name === ATTR_SELECTION || name === "value")) {
+            const wanted = new Set(name === "value" ? [value] : JSON.parse(value));
+            for (const option of Array.from(el.options)) {
+              option.selected = wanted.has(option.value);
+              option.toggleAttribute("selected", option.selected);
+            }
+          } else if (name === "value" && /^(input|textarea|select)$/.test(el.localName)) {
+            if (el instanceof HTMLTextAreaElement) el.defaultValue = value;
+            const field = el;
+            if (field.value !== value) field.value = value;
+          } else if (name === "checked" && el instanceof HTMLInputElement) {
+            if (!el.checked) el.checked = true;
+          } else if (name === "selected" && el instanceof HTMLOptionElement) {
+            if (!el.selected) el.selected = true;
+          }
+          break;
+        }
+        case "ra": {
+          const el = this.requireElement(edit[1], edit);
+          const name = edit[2];
+          el.removeAttribute(name);
+          if (name === "src" || name === "srcset") this.synth.delete(el);
+          if (name === "checked" && el instanceof HTMLInputElement) {
+            if (el.checked) el.checked = false;
+          } else if (name === "selected" && el instanceof HTMLOptionElement) {
+            if (el.selected) el.selected = false;
+          }
+          break;
+        }
+        case "st": {
+          const style = this.requireElement(edit[1], edit).style;
+          if (!style) {
+            throw new EditError("unresolved", edit, "target has no style");
+          }
+          if (edit[3] === "") {
+            style.removeProperty(edit[2]);
+          } else {
+            style.setProperty(edit[2], edit[3]);
+          }
+          break;
+        }
+        case "h": {
+          const el = this.requireElement(edit[1], edit);
+          if (!el.hasAttribute(ATTR_RAW)) {
+            throw new EditError("unresolved", edit, "target is not a raw host");
+          }
+          el.innerHTML = edit[2];
+          break;
+        }
+        case "ins":
+          this.insert(edit[1], edit[2], edit[3], edit);
+          break;
+        case "mv":
+          this.move(edit[1], edit[2], edit[3], edit);
+          break;
+        case "rm":
+          this.remove(this.unit(edit[1], edit));
+          break;
+        case "clr": {
+          const [start, end] = this.region(edit[1], edit);
+          const doomed = [];
+          for (let n = start.nextSibling; n && n !== end; n = n.nextSibling) {
+            doomed.push(n);
+          }
+          this.remove(doomed);
+          break;
+        }
+      }
+    }
+    require(id, edit) {
+      const node = this.nodes.get(id);
+      if (!node) {
+        throw new EditError("unresolved", edit, `id ${id} does not resolve`);
+      }
+      return node;
+    }
+    requireElement(id, edit) {
+      const node = this.require(id, edit);
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        throw new EditError("unresolved", edit, `id ${id} is not an element`);
+      }
+      return node;
+    }
+    region(id, edit) {
+      const start = this.nodes.get(id);
+      const end = this.ends.get(id);
+      if (!start || start.nodeType !== Node.COMMENT_NODE || !end || start.parentNode !== end.parentNode) {
+        throw new EditError("unresolved", edit, `id ${id} is not a region`);
+      }
+      return [start, end];
+    }
+    unit(id, edit) {
+      const start = this.require(id, edit);
+      if (start.nodeType === Node.ELEMENT_NODE) return [start];
+      const [, end] = this.region(id, edit);
+      const nodes = [];
+      for (let n = start; n; n = n.nextSibling) {
+        nodes.push(n);
+        if (n === end) return nodes;
+      }
+      throw new EditError("unresolved", edit, `region ${id} is not closed`);
+    }
+    anchor(region, ref, edit) {
+      const [start, end] = this.region(region, edit);
+      if (ref === 0) return end;
+      const before = this.unit(ref, edit)[0];
+      this.requireInside(start, end, before, ref, edit);
+      return before;
+    }
+    requireInside(start, end, node, id, edit) {
+      if (node.parentNode !== start.parentNode || !(start.compareDocumentPosition(node) & FOLLOWING) || !(node.compareDocumentPosition(end) & FOLLOWING)) {
+        throw new EditError("unresolved", edit, `unit ${id} is not inside its region`);
+      }
+    }
+    insert(region, ref, html, edit) {
+      const before = this.anchor(region, ref, edit);
+      const parent = before.parentNode;
+      const fragment = this.parse(html, parent);
+      this.scan(fragment, true);
+      parent.insertBefore(fragment, before);
+      this.flush();
+    }
+    move(unit, region, ref, edit) {
+      const nodes = this.unit(unit, edit);
+      const [start, end] = this.region(region, edit);
+      this.requireInside(start, end, nodes[0], unit, edit);
+      const before = this.anchor(region, ref, edit);
+      if (nodes.includes(before)) {
+        throw new EditError("unresolved", edit, "unit cannot move before itself");
+      }
+      if (nodes.length === 1) {
+        before.parentNode.insertBefore(nodes[0], before);
+        return;
+      }
+      const fragment = document.createDocumentFragment();
+      fragment.append(...nodes);
+      before.parentNode.insertBefore(fragment, before);
+    }
+    remove(nodes) {
+      for (const node of nodes) {
+        this.walk(node, (n) => this.forget(n));
+        node.parentNode?.removeChild(node);
+      }
+    }
+    parse(html, parent) {
+      const ns = parent.namespaceURI;
+      const wrap = ns === SVG_NS && parent.localName !== "foreignObject" ? "svg" : ns === MATH_NS ? "math" : "";
+      const template = document.createElement("template");
+      template.innerHTML = wrap ? `<${wrap}>${html}</${wrap}>` : html;
+      const fragment = template.content;
+      if (wrap) {
+        fragment.replaceChildren(...Array.from(fragment.firstChild.childNodes));
+      }
+      for (const old of Array.from(fragment.querySelectorAll("script"))) {
+        if (old.closest(`[${ATTR_RAW}]`)) continue;
+        const live = document.createElementNS(old.namespaceURI, "script");
+        for (const attr of Array.from(old.attributes)) {
+          live.setAttribute(attr.name, attr.value);
+        }
+        live.textContent = old.textContent;
+        old.replaceWith(live);
+      }
+      return fragment;
+    }
+    walk(scope, fn) {
+      const walker = document.createTreeWalker(scope, SHOW_ELEMENT_AND_COMMENT);
+      const visible = scope.nodeType === Node.ELEMENT_NODE || scope.nodeType === Node.COMMENT_NODE;
+      let n = visible ? scope : walker.nextNode();
+      while (n) {
+        fn(n);
+        n = walker.nextNode();
+      }
+    }
+    scan(scope, strict) {
+      this.walk(scope, (n) => this.visit(n, strict));
+    }
+    fault(detail, strict) {
+      if (strict) {
+        throw new EditError("apply-error", "index", detail);
+      }
+      Logger.warn("Applier", detail);
+    }
+    register(id, node, strict) {
+      if (this.nodes.has(id)) {
+        this.fault(`duplicate id ${id}`, strict);
+        return;
+      }
+      this.nodes.set(id, node);
+    }
+    visit(n, strict) {
+      if (n.nodeType === Node.ELEMENT_NODE) {
+        const el = n;
+        const pi = el.getAttribute(ATTR_ID);
+        if (pi !== null) {
+          if (/^[1-9]\d*$/.test(pi) && isUint(+pi, 1)) {
+            this.register(+pi, el, strict);
+          } else {
+            this.fault(`invalid data-pi ${pi}`, strict);
+          }
+        }
+        if (el.hasAttribute(ATTR_HANDLERS)) this.bind(el, strict);
+        if (el.hasAttribute(ATTR_SCRIPT) && !this.scripts.has(el)) this.pending.push(el);
+        return;
+      }
+      const match = MARKER.exec(n.nodeValue ?? "");
+      if (!match) return;
+      const id = +match[2];
+      if (match[1] === "t") {
+        let slot = n.nextSibling;
+        if (!slot || slot.nodeType !== Node.TEXT_NODE) {
+          slot = document.createTextNode("");
+          n.parentNode.insertBefore(slot, n.nextSibling);
+        }
+        this.register(id, slot, strict);
+      } else if (match[1] === "r") {
+        this.register(id, n, strict);
+      } else if (this.ends.has(id)) {
+        this.fault(`duplicate region end ${id}`, strict);
+      } else {
+        this.ends.set(id, n);
+      }
+    }
+    forget(n) {
+      if (n.nodeType === Node.ELEMENT_NODE) {
+        const el = n;
+        const pi = el.getAttribute(ATTR_ID);
+        if (pi !== null && this.nodes.get(+pi) === el) this.nodes.delete(+pi);
+        const scriptId = this.scripts.get(el);
+        if (scriptId !== void 0) {
+          this.scripts.delete(el);
+          this.callbacks.onScriptCleanup(scriptId);
+        }
+        return;
+      }
+      const match = MARKER.exec(n.nodeValue ?? "");
+      if (!match) return;
+      const id = +match[2];
+      if (match[1] === "/r") {
+        this.ends.delete(id);
+      } else if (match[1] === "t" || this.nodes.get(id) === n) {
+        this.nodes.delete(id);
+      }
+    }
+    flush() {
+      const queue = this.pending;
+      this.pending = [];
+      for (const el of queue) {
+        if (this.scripts.has(el)) continue;
+        let spec;
+        try {
+          spec = JSON.parse(el.getAttribute(ATTR_SCRIPT));
+          if (typeof spec.i !== "string" || typeof spec.s !== "string") throw new TypeError("invalid script spec");
+        } catch (e) {
+          Logger.warn("Applier", "invalid data-pscript", String(e));
+          continue;
+        }
+        this.scripts.set(el, spec.i);
+        this.callbacks.onScript({ scriptId: spec.i, script: spec.s }, el);
+      }
+    }
+    bind(el, strict) {
+      if (this.bound.has(el)) return;
+      const id = Number(el.getAttribute(ATTR_ID));
+      let specs;
+      try {
+        specs = JSON.parse(el.getAttribute(ATTR_HANDLERS));
+        if (!isUint(id, 1) || !Array.isArray(specs) || specs.some((s) => typeof s?.e !== "string")) {
+          throw new TypeError("invalid handler spec");
+        }
+      } catch (e) {
+        this.fault(`invalid data-pon: ${String(e)}`, strict);
+        return;
+      }
+      this.bound.add(el);
+      for (const spec of specs) {
+        this.listen(el, id, spec);
+      }
+    }
+    listen(el, id, spec) {
+      const send = limit(spec.db, spec.th, (data) => this.callbacks.onEvent(id, spec.e, data));
+      const once = new AbortController();
+      el.addEventListener(
+        domEvent(el, spec.e),
+        (e) => {
+          const marked = this.synth.get(el);
+          if (marked !== void 0 && marked === el.currentSrc) {
+            this.synth.delete(el);
+            return;
+          }
+          if (spec.k && !spec.k.includes(e.key)) return;
+          if (spec.o) once.abort();
+          if (spec.pv && e.cancelable) e.preventDefault();
+          if (spec.sp) e.stopPropagation();
+          if (spec.cp) el.setPointerCapture(e.pointerId);
+          send(spec.p ? readFields(e, spec.p) : {});
+        },
+        { capture: !!spec.c, passive: !!spec.ps, signal: once.signal }
+      );
+      if (spec.e === "load" && el instanceof HTMLImageElement && el.complete && el.naturalWidth) {
+        queueMicrotask(() => {
+          el.dispatchEvent(new Event("load"));
+          this.synth.set(el, el.currentSrc);
+        });
+      }
+    }
+  };
+
+  // src/sequencer.ts
+  var ACK_BATCH = 32;
+  var ACK_DELAY_MS = 50;
+  var RESYNC_TIMEOUT_MS = 1e4;
+  var Sequencer = class {
+    constructor(deps) {
+      this.applied = 0;
+      this.lastAcked = 0;
+      this.current = "live";
+      this.ackTimer = null;
+      this.resyncTimer = null;
+      this.deps = deps;
+    }
+    get state() {
+      return this.current;
+    }
+    get appliedSeq() {
+      return this.applied;
+    }
+    isResyncing() {
+      return this.current === "resyncing";
+    }
+    boot(seq) {
+      this.applied = seq;
+      this.lastAcked = seq;
+    }
+    handle(msg) {
+      if (this.current === "failed") {
+        return;
+      }
+      const isReset = msg.topic === "frame" && msg.event === "reset";
+      if (this.current === "resyncing") {
+        if (isReset && msg.seq > this.applied) {
+          this.commitReset(msg);
+        }
+        return;
+      }
+      if (msg.seq <= this.applied) {
+        return;
+      }
+      if (isReset) {
+        this.commitReset(msg);
+        return;
+      }
+      if (msg.seq > this.applied + 1) {
+        Logger.warn("Sequencer", "Gap detected", { applied: this.applied, got: msg.seq });
+        this.enterResync("gap");
+        return;
+      }
+      this.commit(msg);
+    }
+    onConnected() {
+      if (this.current === "live" && this.applied > this.lastAcked) {
+        this.scheduleAck();
+      }
+    }
+    onDisconnected() {
+      this.clearAckTimer();
+    }
+    destroy() {
+      this.clearAckTimer();
+      this.clearResyncTimer();
+    }
+    commit(msg) {
+      if (msg.topic === "frame") {
+        if (msg.event === "patch") {
+          if (!Array.isArray(msg.data)) {
+            this.enterResync("apply-error");
+            return;
+          }
+          try {
+            this.deps.applier.apply(msg.data);
+          } catch (e) {
+            const reason = e instanceof EditError ? e.reason : "apply-error";
+            Logger.error("Sequencer", "Patch failed", { seq: msg.seq, error: String(e) });
+            this.enterResync(reason);
+            return;
+          }
+        } else {
+          Logger.warn("Sequencer", "Unknown frame event", msg.event);
+        }
+      } else {
+        try {
+          this.deps.dispatch(msg);
+        } catch (e) {
+          Logger.error("Sequencer", "Dispatch failed", { topic: msg.topic, event: msg.event, error: String(e) });
+        }
+      }
+      this.applied = msg.seq;
+      this.scheduleAck();
+    }
+    commitReset(msg) {
+      const reset = msg.data;
+      if (typeof reset?.html !== "string") {
+        Logger.error("Sequencer", "Malformed reset");
+        this.fail();
+        return;
+      }
+      Logger.warn("Sequencer", "Applying reset", { seq: msg.seq, cause: reset.cause });
+      try {
+        this.deps.applier.morph(reset.html);
+      } catch (e) {
+        Logger.error("Sequencer", "Reset failed", { error: String(e) });
+        this.fail();
+        return;
+      }
+      try {
+        if (reset.location) this.deps.applyLocation(reset.location);
+      } catch (e) {
+        Logger.warn("Sequencer", "Location restore failed", { error: String(e) });
+      }
+      this.applied = msg.seq;
+      this.leaveResync();
+      this.ackNow();
+    }
+    enterResync(reason) {
+      if (this.current === "resyncing") {
+        return;
+      }
+      this.current = "resyncing";
+      this.clearAckTimer();
+      this.deps.onResyncing(true);
+      if (this.deps.isConnected()) {
+        this.deps.sendResync(this.applied, reason);
+      }
+      this.clearResyncTimer();
+      this.resyncTimer = setTimeout(() => {
+        this.resyncTimer = null;
+        if (this.current === "resyncing") {
+          Logger.error("Sequencer", "Resync timed out");
+          this.fail();
+        }
+      }, RESYNC_TIMEOUT_MS);
+    }
+    leaveResync() {
+      const was = this.current === "resyncing";
+      this.current = "live";
+      this.clearResyncTimer();
+      if (was) {
+        this.deps.onResyncing(false);
+      }
+    }
+    fail() {
+      this.current = "failed";
+      this.clearAckTimer();
+      this.clearResyncTimer();
+      this.deps.onFailed();
+    }
+    scheduleAck() {
+      if (this.applied - this.lastAcked >= ACK_BATCH) {
+        this.ackNow();
+        return;
+      }
+      if (this.ackTimer === null) {
+        this.ackTimer = setTimeout(() => {
+          this.ackTimer = null;
+          this.ackNow();
+        }, ACK_DELAY_MS);
+      }
+    }
+    ackNow() {
+      this.clearAckTimer();
+      if (this.current !== "live" || this.applied <= this.lastAcked) {
+        return;
+      }
+      if (!this.deps.isConnected()) {
+        return;
+      }
+      this.lastAcked = this.applied;
+      this.deps.sendAck(this.applied);
+    }
+    clearAckTimer() {
+      if (this.ackTimer !== null) {
+        clearTimeout(this.ackTimer);
+        this.ackTimer = null;
+      }
+    }
+    clearResyncTimer() {
+      if (this.resyncTimer !== null) {
+        clearTimeout(this.resyncTimer);
+        this.resyncTimer = null;
+      }
+    }
+  };
+
+  // src/serialize.ts
+  function serializeValue(value) {
+    if (value instanceof Node) return void 0;
+    try {
+      return JSON.parse(JSON.stringify(value ?? null));
+    } catch {
+      return void 0;
+    }
+  }
 
   // src/executor.ts
+  var rectOf = (el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.x, y: r.y, width: r.width, height: r.height, top: r.top, right: r.right, bottom: r.bottom, left: r.left };
+  };
+  var READ = {
+    currentTime: (e) => e.currentTime,
+    duration: (e) => e.duration,
+    paused: (e) => e.paused,
+    ended: (e) => e.ended,
+    volume: (e) => e.volume,
+    muted: (e) => e.muted,
+    focused: (e) => document.activeElement === e,
+    scroll: (e) => ({ scrollTop: e.scrollTop, scrollLeft: e.scrollLeft, scrollHeight: e.scrollHeight, scrollWidth: e.scrollWidth, clientHeight: e.clientHeight, clientWidth: e.clientWidth }),
+    rect: rectOf
+  };
   var Executor = class {
     constructor(config) {
       this.subscriptions = [];
+      this.observers = /* @__PURE__ */ new Map();
       this.popstateHandler = null;
       this.bus = config.bus;
       this.transport = config.transport;
@@ -2434,6 +1872,8 @@ var LiveUIModule = (() => {
         sub.unsubscribe();
       }
       this.subscriptions.length = 0;
+      this.observers.forEach((o) => o.stop());
+      this.observers.clear();
       if (this.popstateHandler) {
         window.removeEventListener("popstate", this.popstateHandler);
         this.popstateHandler = null;
@@ -2452,6 +1892,12 @@ var LiveUIModule = (() => {
       this.subscriptions.push(
         this.bus.subscribe("dom", "async", (payload) => this.handleAsync(payload))
       );
+      this.subscriptions.push(
+        this.bus.subscribe("dom", "observe", (payload) => this.handleObserve(payload))
+      );
+      this.subscriptions.push(
+        this.bus.subscribe("dom", "unobserve", (payload) => this.handleUnobserve(payload))
+      );
     }
     setupRouterSubscriptions() {
       this.subscriptions.push(
@@ -2466,6 +1912,9 @@ var LiveUIModule = (() => {
       this.subscriptions.push(
         this.bus.subscribe("router", "forward", () => this.handleForward())
       );
+      this.subscriptions.push(
+        this.bus.subscribe("router", "redirect", (payload) => this.handleRedirect(payload))
+      );
     }
     setupPopstateListener() {
       this.popstateHandler = () => {
@@ -2479,61 +1928,84 @@ var LiveUIModule = (() => {
       window.addEventListener("popstate", this.popstateHandler);
     }
     handleCall(payload) {
-      const el = this.resolveRef(payload.ref);
-      if (!el) return;
-      const method = el[payload.method];
-      if (typeof method === "function") {
-        method.apply(el, payload.args ?? []);
+      const el = refAllows(payload.k, "method", payload.method) && this.resolveRef(payload.id);
+      if (el && typeof el[payload.method] === "function") {
+        el[payload.method](...payload.args ?? []);
+        this.pushObserved(payload.id);
       }
     }
     handleSet(payload) {
-      const el = this.resolveRef(payload.ref);
-      if (!el) return;
-      el[payload.prop] = payload.value;
+      const el = refAllows(payload.k, "set", payload.prop) && this.resolveRef(payload.id);
+      if (el) {
+        el[payload.prop] = payload.value;
+        this.pushObserved(payload.id);
+      }
     }
-    handleQuery(payload) {
-      const el = this.resolveRef(payload.ref);
-      const response = { requestId: payload.requestId };
-      if (!el) {
-        response.error = `ref not found: ${payload.ref}`;
-        this.transport.send("dom", "response", response);
-        return;
-      }
-      const values = {};
-      for (const selector of payload.selectors) {
-        values[selector] = this.readProperty(el, selector);
-      }
-      response.values = values;
-      this.transport.send("dom", "response", response);
-    }
-    handleAsync(payload) {
-      const el = this.resolveRef(payload.ref);
-      const response = { requestId: payload.requestId };
-      if (!el) {
-        response.error = `ref not found: ${payload.ref}`;
-        this.transport.send("dom", "response", response);
-        return;
-      }
-      const method = el[payload.method];
-      if (typeof method !== "function") {
-        response.error = `method not found: ${payload.method}`;
-        this.transport.send("dom", "response", response);
-        return;
-      }
-      Promise.resolve(method.apply(el, payload.args ?? [])).then((result) => {
-        response.result = this.serializeValue(result);
-        this.transport.send("dom", "response", response);
-      }).catch((err) => {
-        response.error = err instanceof Error ? err.message : String(err);
-        this.transport.send("dom", "response", response);
+    pushObserved(id) {
+      this.observers.forEach((o) => {
+        if (o.id === id) o.push();
       });
     }
+    handleObserve(payload) {
+      const key = this.handleUnobserve(payload);
+      const el = this.resolveRef(payload.id);
+      const prop = payload.prop;
+      const read = READ[prop];
+      if (!el || !read || !refAllows(payload.k, "observe", prop)) return;
+      const events = OBSERVED_EVENTS[prop];
+      let last;
+      const push = () => {
+        const value = read(el);
+        const text = JSON.stringify(value);
+        if (text === last) return;
+        last = text;
+        this.transport.send("dom", "value", { id: payload.id, prop: payload.prop, value });
+      };
+      const fire = limit(void 0, payload.ms < 0 ? void 0 : payload.ms, push);
+      let stop;
+      if (prop === "rect") {
+        const ro = new ResizeObserver(fire);
+        ro.observe(el);
+        stop = () => ro.disconnect();
+      } else {
+        events.forEach((name) => el.addEventListener(name, fire));
+        stop = () => events.forEach((name) => el.removeEventListener(name, fire));
+      }
+      this.observers.set(key, { id: payload.id, push, stop });
+      push();
+    }
+    handleUnobserve(payload) {
+      const key = payload.id + ":" + payload.prop;
+      this.observers.get(key)?.stop();
+      this.observers.delete(key);
+      return key;
+    }
+    reply(requestId, rest) {
+      this.transport.send("dom", "response", { requestId, ...rest });
+    }
+    handleQuery(payload) {
+      const { requestId, id, selectors } = payload;
+      const el = this.resolveRef(id);
+      if (!selectors.every((name) => refAllows(payload.k, "query", name))) return this.reply(requestId, { error: "property not allowed" });
+      if (!el) return this.reply(requestId, { error: `ref not found: ${id}` });
+      const values = {};
+      for (const name of selectors) values[name] = serializeValue(el[name]);
+      this.reply(requestId, { values });
+    }
+    handleAsync(payload) {
+      const { requestId, id, method: name } = payload;
+      const el = this.resolveRef(id);
+      if (!refAllows(payload.k, "method", name)) return this.reply(requestId, { error: `method not allowed: ${name}` });
+      if (!el) return this.reply(requestId, { error: `ref not found: ${id}` });
+      if (typeof el[name] !== "function") return this.reply(requestId, { error: `method not found: ${name}` });
+      Promise.resolve(el[name](...payload.args ?? [])).then((result) => this.reply(requestId, { result: serializeValue(result) })).catch((err) => this.reply(requestId, { error: err instanceof Error ? err.message : String(err) }));
+    }
     handlePush(payload) {
-      const url = this.buildUrl(payload);
+      const url = urlOf(payload.path, payload.query, payload.hash);
       window.history.pushState({}, "", url);
     }
     handleReplace(payload) {
-      const url = this.buildUrl(payload);
+      const url = urlOf(payload.path, payload.query, payload.hash);
       window.history.replaceState({}, "", url);
     }
     handleBack() {
@@ -2542,40 +2014,17 @@ var LiveUIModule = (() => {
     handleForward() {
       window.history.forward();
     }
-    buildUrl(payload) {
-      let url = payload.path;
-      if (payload.query) {
-        url += "?" + payload.query;
-      }
-      if (payload.hash) {
-        url += "#" + payload.hash;
-      }
-      return url;
-    }
-    readProperty(el, path) {
-      const segments = path.split(".");
-      let current = el;
-      for (const segment of segments) {
-        if (current == null) return void 0;
-        current = current[segment];
-      }
-      return this.serializeValue(current);
-    }
-    serializeValue(value) {
-      if (value === null || value === void 0) return null;
-      const type = typeof value;
-      if (type === "string" || type === "number" || type === "boolean") return value;
-      if (Array.isArray(value)) {
-        return value.map((v) => this.serializeValue(v)).filter((v) => v !== void 0);
-      }
-      if (value instanceof Date) return value.toISOString();
-      if (value instanceof DOMTokenList) return Array.from(value);
-      if (value instanceof Node) return void 0;
+    handleRedirect(payload) {
+      const url = payload.url;
+      if (!url || UNSAFE_URL.test(url)) return;
+      let parsed;
       try {
-        return JSON.parse(JSON.stringify(value));
+        parsed = new URL(url, window.location.href);
       } catch {
-        return void 0;
+        return;
       }
+      if (!SAFE_PROTOCOL.test(parsed.protocol)) return;
+      window.location.assign(url);
     }
   };
 
@@ -2681,48 +2130,44 @@ var LiveUIModule = (() => {
   var RELOAD_TRACKING_KEY = "pond_reload_count";
   var RELOAD_TIMESTAMP_KEY = "pond_reload_timestamp";
   var RELOAD_WINDOW_MS = 6e4;
-  function isResumeOK(msg) {
-    return typeof msg === "object" && msg !== null && msg.t === "resume_ok";
-  }
   var Runtime = class {
     constructor(config) {
-      this.refs = /* @__PURE__ */ new Map();
-      this.cseq = 0;
-      this.lastSeq = 0;
       this.connectedState = false;
-      this.lastSeq = config.seq;
+      this.root = config.root;
       Logger.configure({ enabled: config.debug ?? false, level: "debug" });
       Logger.info("Runtime", "Initializing", { sid: config.sessionId, ver: config.version });
       this.bus = new Bus();
       this.transport = new Transport({
         endpoint: config.endpoint,
+        token: config.token,
         sessionId: config.sessionId,
         version: config.version,
-        lastAck: config.seq,
-        location: config.location,
-        bus: this.bus
+        applied: () => this.sequencer.appliedSeq,
+        wantsReset: () => this.sequencer.isResyncing(),
+        onMessage: (msg) => this.sequencer.handle(msg)
       });
-      const resolveRef = (refId) => this.refs.get(refId);
-      this.patcher = new Patcher(config.root, {
-        onEvent: (handlerId, data) => this.handleEvent(handlerId, data),
-        onRef: (refId, el) => {
-          this.refs.set(refId, el);
-          Logger.debug("Runtime", "Ref set", refId);
-        },
-        onRefDelete: (refId) => {
-          this.refs.delete(refId);
-          Logger.debug("Runtime", "Ref deleted", refId);
-        },
+      this.applier = new Applier(config.root, {
+        onEvent: (id, event, data) => this.handleEvent(id, event, data),
         onScript: (meta, el) => this.handleScript(meta, el),
         onScriptCleanup: (scriptId) => this.handleScriptCleanup(scriptId)
       });
       this.executor = new Executor({
         bus: this.bus,
         transport: this.transport,
-        resolveRef
+        resolveRef: (id) => this.applier.element(id)
       });
       this.scripts = new ScriptExecutor({ bus: this.bus, transport: this.transport });
-      this.bus.subscribe("frame", "patch", (payload) => this.handlePatch(payload));
+      this.sequencer = new Sequencer({
+        applier: this.applier,
+        dispatch: (msg) => this.dispatchMessage(msg),
+        sendAck: (seq) => this.transport.sendAck(seq),
+        sendResync: (seq, reason) => this.transport.sendResync(seq, reason),
+        isConnected: () => this.connectedState,
+        applyLocation: (location) => this.applyLocation(location),
+        onResyncing: (resyncing) => this.markResyncing(resyncing),
+        onFailed: () => this.reloadWithJitter()
+      });
+      this.sequencer.boot(config.seq);
       this.transport.onStateChange((state) => this.handleStateChange(state));
       window.__POND_RUNTIME__ = this;
     }
@@ -2733,55 +2178,49 @@ var LiveUIModule = (() => {
     disconnect() {
       Logger.info("Runtime", "Disconnecting");
       this.transport.disconnect();
+      this.sequencer.destroy();
       this.executor.destroy();
       this.scripts.destroy();
       this.bus.clear();
-      this.refs.clear();
+      this.applier.destroy();
     }
     connected() {
       return this.connectedState;
     }
     get seq() {
-      return this.lastSeq;
+      return this.sequencer.appliedSeq;
     }
     handleBoot(boot2) {
-      Logger.info("Runtime", "Boot received", { ver: boot2.ver, seq: boot2.seq, patches: boot2.patch?.length ?? 0 });
-      if (boot2.patch && boot2.patch.length > 0) {
-        this.applyPatches(boot2.patch);
-      }
-      this.lastSeq = boot2.seq;
-      this.transport.sendAck(boot2.seq);
+      Logger.info("Runtime", "Boot received", { ver: boot2.ver, seq: boot2.seq });
+      this.applier.index();
+      this.sequencer.boot(boot2.seq);
     }
-    handleMessage(msg) {
-      if (isServerError(msg)) {
-        const err = msg;
-        Logger.error("Runtime", "Server error", { code: err.code, message: err.message });
+    handleEvent(id, event, data) {
+      if (this.sequencer.isResyncing()) {
+        Logger.warn("Runtime", "Dropping event while resyncing", { id, event });
         return;
       }
-      if (isResumeOK(msg)) {
-        this.handleResumeOK(msg);
+      Logger.debug("Runtime", "Event", { id, event });
+      this.transport.sendHandler(id, event, data);
+    }
+    dispatchMessage({ topic, event, data }) {
+      if (isScriptTopic(topic)) {
+        if (event === "send") this.bus.publishScript(data.scriptId, "send", data);
         return;
       }
+      this.bus.publish(topic, event, data);
     }
-    handlePatch(payload) {
-      Logger.debug("Runtime", "Patch received", { seq: payload.seq, count: payload.patches?.length ?? 0 });
-      if (payload.patches && payload.patches.length > 0) {
-        this.applyPatches(payload.patches);
+    applyLocation(location) {
+      const params = new URLSearchParams();
+      for (const [key, values] of Object.entries(location.query ?? {})) {
+        for (const value of values) params.append(key, value);
       }
-      this.lastSeq = payload.seq;
-      this.transport.sendAck(payload.seq);
+      history.replaceState(history.state, "", urlOf(location.path, params.toString(), location.hash));
     }
-    handleResumeOK(resume) {
-      Logger.info("Runtime", "Resume OK", { from: resume.from, to: resume.to });
-    }
-    handleEvent(handlerId, data) {
-      this.cseq++;
-      Logger.debug("Runtime", "Event", { handler: handlerId, cseq: this.cseq });
-      const payload = {
-        ...data,
-        cseq: this.cseq
-      };
-      this.transport.sendHandler(handlerId, payload);
+    markResyncing(resyncing) {
+      const el = this.root;
+      if (typeof el.toggleAttribute !== "function") return;
+      el.toggleAttribute(ATTR_RESYNCING, resyncing);
     }
     handleScript(meta, el) {
       Logger.debug("Runtime", "Script execute", meta.scriptId);
@@ -2800,8 +2239,10 @@ var LiveUIModule = (() => {
       if (!wasConnected && this.connectedState) {
         Logger.info("Runtime", "Connected");
         this.clearReloadTracking();
+        this.sequencer.onConnected();
       } else if (wasConnected && !this.connectedState) {
         Logger.warn("Runtime", "Disconnected");
+        this.sequencer.onDisconnected();
       }
       if (state === "declined") {
         Logger.warn("Runtime", "Session declined - session expired or not found");
@@ -2862,9 +2303,6 @@ var LiveUIModule = (() => {
       } catch {
       }
     }
-    applyPatches(patches) {
-      this.patcher.apply(patches);
-    }
   };
   function boot() {
     if (typeof window === "undefined") return null;
@@ -2889,8 +2327,8 @@ var LiveUIModule = (() => {
       sessionId: bootData.sid,
       version: bootData.ver,
       seq: bootData.seq,
-      endpoint: "/live",
-      location: bootData.location,
+      endpoint: bootData.ws,
+      token: bootData.tok,
       debug: bootData.client?.debug
     };
     const runtime = new Runtime(config);

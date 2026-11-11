@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"github.com/eleven-am/pondlive/internal/route"
-	"github.com/eleven-am/pondlive/internal/view/diff"
 )
 
 type Topic string
@@ -11,37 +10,21 @@ const (
 	RouteHandler    Topic = "router"
 	DOMHandler      Topic = "dom"
 	TopicFrame      Topic = "frame"
+	HandlerTopic    Topic = "h"
 	TopicDiagnostic Topic = "diagnostic"
-
-	AckTopic Topic = "ack"
 )
 
 type Event struct {
-	Type Topic  `json:"t"`
+	Type Topic  `json:"t" ts:"EventTopic"`
 	SID  string `json:"sid"`
 }
 
 type ClientEvt struct {
 	Event
 	Action  string      `json:"a"`
+	I       uint32      `json:"i,omitempty"`
 	Payload interface{} `json:"p,omitempty"`
-}
-
-type ServerEvt struct {
-	Event
-	Action  string      `json:"a"`
-	Payload interface{} `json:"p,omitempty"`
-	Seq     uint64      `json:"seq,omitempty"`
-}
-
-type ClientAck struct {
-	Event
-	Seq uint64 `json:"seq"`
-}
-
-type ServerAck struct {
-	Event
-	Seq uint64 `json:"seq"`
+	CS      uint64      `json:"cs"`
 }
 
 type ClientConfig struct {
@@ -49,13 +32,14 @@ type ClientConfig struct {
 }
 
 type Boot struct {
-	T        string         `json:"t"`
+	T        string         `json:"t" ts:"BootType"`
 	SID      string         `json:"sid"`
 	Ver      int            `json:"ver"`
-	Seq      int            `json:"seq"`
-	Patch    []diff.Patch   `json:"patch"`
+	Seq      uint64         `json:"seq"`
 	Location route.Location `json:"location"`
 	Client   *ClientConfig  `json:"client,omitempty"`
+	WS       string         `json:"ws"`
+	Tok      string         `json:"tok"`
 }
 
 type ServerError struct {
@@ -79,4 +63,10 @@ type Diagnostic struct {
 	Message    string
 	StackTrace string
 	Metadata   map[string]any
+}
+
+type ResetPayload struct {
+	HTML     string         `json:"html"`
+	Location route.Location `json:"location"`
+	Cause    string         `json:"cause" ts:"ResetCause"`
 }

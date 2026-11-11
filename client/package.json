@@ -10,7 +10,8 @@
     "build:prod": "NODE_ENV=production node esbuild.config.js",
     "clean": "rm -rf dist ../internal/server/static",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:contract-browser": "node test/browser/build.mjs"
   },
   "keywords": [
     "liveui",
@@ -20,15 +21,15 @@
   ],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@eleven-am/pondsocket-client": "^0.0.32"
-  },
   "devDependencies": {
     "@types/node": "^24.8.1",
     "esbuild": "^0.25.11",
-    "jsdom": "^25.0.1",
+    "jsdom": "25.0.1",
     "terser": "^5.44.0",
     "typescript": "^5.9.3",
     "vitest": "^2.1.5"
+  },
+  "dependencies": {
+    "morphdom": "2.7.8"
   }
 }

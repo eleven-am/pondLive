@@ -1,45 +1,33 @@
-# Tailwind Counter Example
+# Tailwind Counter
 
-This example boots a complete LiveUI application with TailwindCSS styling. It
-shows how to:
+A counter styled with TailwindCSS. It shows:
 
-- render a component that uses Tailwind utility classes
-- serve the SSR boot payload with `internal/server/http.Manager`
-- attach a PondSocket endpoint so websocket diffs reach the browser
-- compile Tailwind locally so no CDN requests are required at runtime
+- `UseSignal` for state and `Text(count)` bound to it
+- `UseComputed` feeding a signal-valued `UseHead` title
+- a click handler through the typed `pkg.OnClick` and one through the generic `pkg.On`
 
-## Running the example
+A component body runs once. A click updates the signal, and the server sends two small edits: the count text and the title. Nothing else is rebuilt.
+
+## Run
 
 ```bash
 cd examples/counter
 go run .
 ```
 
-The server listens on [http://localhost:8080](http://localhost:8080). The
-precompiled Tailwind subset from `public/tailwind.css` is embedded and served so
-styling works without reaching out to a CDN.
+Open http://localhost:8080. The compiled stylesheet in `public/assets/tailwind.css` is embedded and served from `/assets/`.
 
-The checked-in `public/tailwind.css` is generated, not handwritten. It is the
-exact output of the Tailwind CLI scanning the Go components referenced in this
-example. Regenerate it whenever you tweak the Go markup or Tailwind config:
+Regenerate it after changing classes in `main.go`:
 
 ```bash
 npm install
-npx tailwindcss -i styles/input.css -o public/tailwind.css --minify
+npx tailwindcss -i styles/input.css -o public/assets/tailwind.css --minify
 ```
 
-The bundled `tailwind.config.js` is configured to scan `*.go` files so Tailwind
-detects the class names embedded in component definitions.
-
-## Smoke-testing the HTTP boot endpoint
-
-You can verify the SSR response with a simple HTTP request:
+## Test
 
 ```bash
-curl -s http://localhost:8080/ | head
+go test ./...
 ```
 
-The output contains the stylesheet link and the LiveUI boot payload.
-
-Automated coverage lives in `main_test.go`, which uses the HTTP manager directly
-to assert on the rendered HTML.
+`main_test.go` renders the page through `app.Handler()` and checks the SSR output.

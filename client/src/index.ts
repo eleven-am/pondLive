@@ -1,8 +1,9 @@
 export { Runtime, RuntimeConfig, boot } from './runtime';
 export { Logger, LogLevel, LoggerConfig } from './logger';
-export { Transport, TransportConfig, ConnectionState, JoinPayload } from './transport';
+export { Transport, TransportConfig, ConnectionState } from './transport';
 export { Bus, Subscription } from './bus';
-export { Patcher, PatcherCallbacks } from './patcher';
+export { Applier, ApplierCallbacks, EditError, EditFailure } from './applier';
+export { Sequencer, SequencerDeps, SequencerState } from './sequencer';
 export { Executor, ExecutorConfig } from './executor';
 export { ScriptExecutor, ScriptExecutorConfig } from './scripts';
 
@@ -10,23 +11,27 @@ export {
     Topic,
     StaticTopic,
     ScriptTopic,
-    HandlerTopic,
-    Topics,
     Boot,
-    Patch,
-    OpKind,
-    OpKinds,
+    Edit,
+    EditOp,
+    EventTopic,
     Location,
     Message,
     ClientEvt,
-    ServerEvt,
     ClientAck,
-    ServerAck,
+    ClientResync,
+    ResyncReason,
+    ResetPayload,
+    ResetCause,
+    JoinFrame,
+    JoinedFrame,
+    EvackFrame,
+    DeclinedFrame,
+    TokFrame,
+    ServerFrame,
+    isServerFrame,
     ClientConfig,
-    EventOptions,
-    HandlerMeta,
     ScriptMeta,
-    FramePatchPayload,
     RouterNavPayload,
     DOMCallPayload,
     DOMSetPayload,
@@ -34,9 +39,6 @@ export {
     DOMAsyncPayload,
     DOMResponsePayload,
     isBoot,
-    isServerError,
-    isServerEvt,
-    isServerAck,
     isMessage,
 } from './protocol';
 

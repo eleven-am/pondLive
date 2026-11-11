@@ -1,93 +1,49 @@
 package session
 
 import (
-	"github.com/eleven-am/pondlive/internal/document"
 	"github.com/eleven-am/pondlive/internal/errors"
+	"github.com/eleven-am/pondlive/internal/head"
 	"github.com/eleven-am/pondlive/internal/headers"
-	"github.com/eleven-am/pondlive/internal/metatags"
 	"github.com/eleven-am/pondlive/internal/portal"
 	"github.com/eleven-am/pondlive/internal/router"
 	"github.com/eleven-am/pondlive/internal/runtime"
-	"github.com/eleven-am/pondlive/internal/styles"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-type bootProps struct {
-	requestState *headers.RequestState
-	component    Component
-	ClientAsset  string
-	DevMode      bool
+type DocumentConfig struct {
+	State       *headers.RequestState
+	Body        work.Node
+	ClientAsset string
+	DevMode     bool
+	OnBoundary  func(*runtime.Boundary)
 }
 
-func wrapComponent(component Component) func(*runtime.Ctx, any, []work.Item) work.Node {
-	return func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		return component(ctx)
-	}
+func Document(cfg DocumentConfig) work.Node {
+	return headers.Provider(headers.ProviderProps{
+		State: cfg.State,
+		Children: head.Provider(head.ProviderProps{
+			Children: router.Provider(router.ProviderProps{
+				Children: head.HTML(head.ElementProps{Children: []work.Item{
+					work.BuildElement("head", head.Render(), headers.Render()),
+					head.Body(head.ElementProps{Children: []work.Item{
+						errors.Provider(errors.Props{DevMode: cfg.DevMode, Children: cfg.Body, OnBoundary: cfg.OnBoundary}),
+						portal.Target(),
+						work.BuildElement("script", work.Attribute("src", cfg.ClientAsset), work.Attribute("defer", true)),
+					}}),
+				}}),
+			}),
+		}),
+	})
 }
 
-func bootComponent(ctx *runtime.Ctx, props bootProps, _ []work.Item) work.Node {
-	app := wrapComponent(props.component)
-
-	return headers.Provider(ctx, props.requestState,
-		metatags.Provider(ctx,
-			router.Provide(ctx,
-				styles.Provider(ctx,
-					document.Provider(ctx,
-						document.HtmlElement(ctx,
-							&work.Element{
-								Tag: "head",
-								Children: []work.Node{
-									metatags.Render(ctx),
-									styles.Render(ctx),
-									headers.Render(ctx),
-								},
-							},
-							document.BodyElement(ctx,
-								errors.Provider(ctx,
-									errors.Props{DevMode: props.DevMode},
-									work.Component(app),
-								),
-								portal.Target(),
-								&work.Element{
-									Tag: "script",
-									Attrs: map[string][]string{
-										"src":   {props.ClientAsset},
-										"defer": {""},
-									},
-								},
-							),
-						),
-					),
-				),
-			),
-		),
-	)
-}
-
-func loadBootComponent(liveSession *LiveSession, component Component, clientAsset string, devMode bool) func(*runtime.Ctx, any, []work.Item) work.Node {
-	return func(ctx *runtime.Ctx, _ any, children []work.Item) work.Node {
-		var requestState *headers.RequestState
-		if liveSession != nil {
-			liveSession.transportMu.RLock()
-			t := liveSession.transport
-			liveSession.transportMu.RUnlock()
-
-			if t != nil {
-				requestState = t.RequestState()
-			}
-		}
-
-		if requestState == nil {
-			requestState = headers.NewRequestState(nil)
-		}
-
-		boot := bootProps{
-			requestState: requestState,
-			component:    component,
-			ClientAsset:  clientAsset,
-			DevMode:      devMode,
-		}
-
-		return bootComponent(ctx, boot, children)
+func bootRoot(liveSession *LiveSession, component Component, clientAsset string, devMode bool) func(*runtime.Ctx) work.Node {
+	return func(*runtime.Ctx) work.Node {
+		return Document(DocumentConfig{
+			State:       liveSession.requestState,
+			Body:        runtime.Component(component)(),
+			ClientAsset: clientAsset,
+			DevMode:     devMode,
+			OnBoundary:  func(b *runtime.Boundary) { liveSession.rootBoundary = b },
+		})
 	}
 }

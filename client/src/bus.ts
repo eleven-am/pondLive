@@ -2,16 +2,14 @@ import {
     Topic,
     StaticTopic,
     ScriptTopic,
-    HandlerTopic,
     ActionFor,
     PayloadFor,
     ScriptTopicActions,
-    HandlerTopicActions,
     scriptTopic,
-    handlerTopic,
 } from './protocol';
+import { Logger } from './logger';
 
-type SubscriberKey = `${StaticTopic}:${string}` | `${ScriptTopic}:${string}` | `${HandlerTopic}:${string}`;
+type SubscriberKey = `${StaticTopic}:${string}` | `${ScriptTopic}:${string}`;
 type Callback<P> = (payload: P) => void;
 
 interface Subscriber {
@@ -103,24 +101,7 @@ export class Bus {
         action: A,
         payload: PayloadFor<T, A>
     ): void {
-        const key: SubscriberKey = `${topic}:${String(action)}`;
-        const subs = this.subscribers.get(key) ?? [];
-
-        for (const sub of subs) {
-            try {
-                (sub.callback as Callback<PayloadFor<T, A>>)(payload);
-            } catch {
-                // swallow to prevent cascade
-            }
-        }
-
-        for (const sub of this.wildcardSubscribers) {
-            try {
-                sub.callback(topic, String(action), payload);
-            } catch {
-                // swallow
-            }
-        }
+        this.deliver(topic, String(action), payload);
     }
 
     subscriberCount<T extends Topic, A extends ActionFor<T>>(topic: T, action: A): number {
@@ -141,51 +122,33 @@ export class Bus {
         action: A,
         payload: ScriptTopicActions[A]
     ): void {
-        const topic = scriptTopic(scriptId);
-        const key: SubscriberKey = `${topic}:${String(action)}`;
-        const subs = this.subscribers.get(key) ?? [];
-
-        for (const sub of subs) {
-            try {
-                (sub.callback as Callback<ScriptTopicActions[A]>)(payload);
-            } catch {
-            }
-        }
-
-        for (const sub of this.wildcardSubscribers) {
-            try {
-                sub.callback(topic, String(action), payload);
-            } catch {
-            }
-        }
-    }
-
-    publishHandler(
-        handlerId: string,
-        payload: HandlerTopicActions['invoke']
-    ): void {
-        const topic = handlerTopic(handlerId);
-        const key: SubscriberKey = `${topic}:invoke`;
-        const subs = this.subscribers.get(key) ?? [];
-
-        for (const sub of subs) {
-            try {
-                (sub.callback as Callback<HandlerTopicActions['invoke']>)(payload);
-            } catch {
-            }
-        }
-
-        for (const sub of this.wildcardSubscribers) {
-            try {
-                sub.callback(topic, 'invoke', payload);
-            } catch {
-            }
-        }
+        this.deliver(scriptTopic(scriptId), String(action), payload);
     }
 
     clear(): void {
         this.subscribers.clear();
         this.wildcardSubscribers = [];
+    }
+
+    private deliver(topic: Topic, action: string, payload: unknown): void {
+        const key = `${topic}:${action}` as SubscriberKey;
+        const subs = this.subscribers.get(key) ?? [];
+
+        for (const sub of subs) {
+            try {
+                (sub.callback as Callback<unknown>)(payload);
+            } catch (error) {
+                Logger.error('Bus', 'Subscriber failed', { topic, action, error });
+            }
+        }
+
+        for (const sub of this.wildcardSubscribers) {
+            try {
+                sub.callback(topic, action, payload);
+            } catch (error) {
+                Logger.error('Bus', 'Subscriber failed', { topic, action, error });
+            }
+        }
     }
 
     private unsubscribe(key: SubscriberKey, subId: number): void {

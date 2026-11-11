@@ -38,7 +38,7 @@ class LoggerImpl {
     }
 
     private log(level: LogLevel, tag: string, message: string, args: unknown[]): void {
-        if (!this.enabled) return;
+        if (!this.enabled && level !== 'warn' && level !== 'error') return;
         if (levels[level] < levels[this.level]) return;
 
         const prefix = `[Pond:${tag}]`;

@@ -6,4 +6,5 @@ dist
 */**/dist
 /examples/counter/package-lock.json
 .DS_Store
-/client/package-lock.json
+/client/.bundle-check
+bin/

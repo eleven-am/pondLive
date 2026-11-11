@@ -1,7 +1,6 @@
 package errors
 
 import (
-	"github.com/eleven-am/pondlive/internal/portal"
 	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/work"
 )
@@ -9,25 +8,32 @@ import (
 type Ctx = runtime.Ctx
 
 type Props struct {
-	DevMode bool
+	DevMode    bool
+	Children   work.Node
+	OnBoundary func(*runtime.Boundary)
 }
 
-var Provider = runtime.PropsComponent(func(ctx *Ctx, props Props, children []work.Item) work.Node {
-	batch := runtime.UseErrorBoundary(ctx)
-	childNodes := work.ItemsToNodes(children)
-
-	if !batch.HasErrors() {
-		return &work.Fragment{Children: childNodes}
+var Provider = runtime.PropsComponent(func(ctx *Ctx, props Props) work.Node {
+	boundary := runtime.UseErrorBoundary(ctx)
+	if props.OnBoundary != nil {
+		props.OnBoundary(boundary)
 	}
+	failed := runtime.UseComputed(ctx, func() bool { return boundary.Errors().Get().HasErrors() })
+	errs := runtime.UseComputed(ctx, func() []*runtime.Error { return boundary.Errors().Get().All() })
+
+	warns := boundary.Warnings()
+	warned := runtime.UseComputed(ctx, func() bool { return len(warns.Get()) > 0 })
 
 	if props.DevMode {
-		return &work.Fragment{
-			Children: []work.Node{
-				&work.Fragment{Children: childNodes},
-				portal.Portal(devOverlay(batch)),
-			},
-		}
+		return work.NewFragment(
+			props.Children,
+			runtime.Show(failed, func() work.Node { return devOverlay(errs) }),
+			runtime.Show(warned, func() work.Node { return warningPanel(boundary, warns) }),
+		)
 	}
 
-	return crashPage()
+	return runtime.Show(failed,
+		crashPage,
+		runtime.Else(func() work.Node { return props.Children }),
+	)
 })

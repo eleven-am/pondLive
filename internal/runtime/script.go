@@ -1,13 +1,13 @@
 package runtime
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
-	"sync"
 
+	"github.com/eleven-am/pondlive/internal/effectguard"
 	"github.com/eleven-am/pondlive/internal/metadata"
 	"github.com/eleven-am/pondlive/internal/protocol"
-	"github.com/eleven-am/pondlive/internal/work"
+	"github.com/eleven-am/pondlive/internal/reactive"
 )
 
 type ScriptHandle struct {
@@ -33,177 +33,75 @@ func (h ScriptHandle) Send(event string, data interface{}) {
 	}
 }
 
-func (h ScriptHandle) AttachTo(elem *work.Element) {
-	if h.slot == nil || elem == nil {
-		return
-	}
-
-	h.slot.attachTo(elem)
-}
-
-type scriptCell struct {
-	slot *scriptSlot
-}
-
 type scriptSlot struct {
-	id        string
-	sess      *Session
-	instance  *Instance
-	hookIndex int
-
-	script   string
-	scriptMu sync.RWMutex
-
-	subs              map[string]*protocol.Subscription
-	subsMu            sync.Mutex
-	cleanupRegistered bool
-}
-
-func (slot *scriptSlot) attachTo(elem *work.Element) {
-	if slot == nil || elem == nil || slot.id == "" {
-		return
-	}
-
-	slot.scriptMu.RLock()
-	script := slot.script
-	slot.scriptMu.RUnlock()
-
-	elem.Script = &metadata.ScriptMeta{
-		ScriptID: slot.id,
-		Script:   script,
-	}
-}
-
-func (slot *scriptSlot) updateScript(script string) {
-	if slot == nil {
-		return
-	}
-
-	minified := minifyJS(script)
-
-	slot.scriptMu.Lock()
-
-	if slot.script != minified {
-		slot.script = minified
-	}
-	slot.scriptMu.Unlock()
+	attachment
+	id     string
+	sess   *Session
+	o      *reactive.Owner
+	script string
+	subs   map[string]*protocol.Subscription
 }
 
 func (slot *scriptSlot) setEventHandler(event string, fn func(interface{})) {
-	if slot == nil || slot.sess == nil || slot.instance == nil || event == "" || fn == nil {
+	if slot == nil || slot.sess == nil || slot.o == nil || event == "" || fn == nil {
 		return
 	}
-
-	if slot.sess.Bus == nil {
-		slot.sess.Bus = protocol.NewBus()
+	if slot.sess.graph.Mode() == reactive.ModeSerialize {
+		return
 	}
-
-	slot.subsMu.Lock()
-	defer slot.subsMu.Unlock()
-
 	if slot.subs == nil {
 		slot.subs = make(map[string]*protocol.Subscription)
-	}
-
-	if oldSub := slot.subs[event]; oldSub != nil {
-		oldSub.Unsubscribe()
-	}
-
-	slot.subs[event] = slot.sess.Bus.SubscribeToScriptMessages(slot.id, event, func(data interface{}) {
-		fn(data)
-	})
-
-	if !slot.cleanupRegistered {
-		slot.cleanupRegistered = true
-		slot.instance.RegisterCleanup(func() {
-			slot.subsMu.Lock()
-			defer slot.subsMu.Unlock()
+		slot.o.OnCleanup(func() {
 			for _, sub := range slot.subs {
 				if sub != nil {
 					sub.Unsubscribe()
 				}
 			}
+			slot.subs = nil
 		})
 	}
+	if old := slot.subs[event]; old != nil {
+		old.Unsubscribe()
+	}
+	slot.subs[event] = slot.sess.Bus.SubscribeToScriptMessages(slot.id, event, func(data interface{}) {
+		slot.sess.invokeHandler(slot.o, func() { fn(data) })
+	})
 }
 
 func (slot *scriptSlot) send(event string, data interface{}) {
-	if slot == nil || slot.sess == nil {
+	if effectguard.Refuse("Script.Send") {
 		return
 	}
-
-	if slot.sess.Bus == nil {
+	if slot == nil || slot.sess == nil || slot.sess.Bus == nil {
 		return
 	}
-
 	slot.sess.Bus.PublishScriptSend(slot.id, event, data)
 }
 
 func UseScript(ctx *Ctx, script string) ScriptHandle {
-	idx := ctx.hookIndex
-	ctx.hookIndex++
-
-	if idx >= len(ctx.instance.HookFrame) {
-		cell := &scriptCell{}
-		ctx.instance.HookFrame = append(ctx.instance.HookFrame, HookSlot{
-			Type:  HookTypeScript,
-			Value: cell,
-		})
-	}
-
-	cell, ok := ctx.instance.HookFrame[idx].Value.(*scriptCell)
-	if !ok {
-		panic("runtime: UseScript hook mismatch")
-	}
-
-	if cell.slot == nil {
-		cell.slot = ctx.session.registerScriptSlot(ctx.instance, idx, script)
-
-		slotID := cell.slot.id
-		ctx.instance.RegisterCleanup(func() {
-			ctx.session.unregisterScriptSlot(slotID)
-		})
-	} else {
-		cell.slot.updateScript(script)
-	}
-
-	return ScriptHandle{slot: cell.slot}
+	slot := reactive.Cell(ctx.o, func() *scriptSlot {
+		return ctx.s.newScriptSlot(ctx.o, script)
+	})
+	return ScriptHandle{slot: slot}
 }
 
-func (s *Session) registerScriptSlot(inst *Instance, index int, script string) *scriptSlot {
-	if s == nil || inst == nil {
-		return nil
-	}
-
-	s.scriptsMu.Lock()
-	defer s.scriptsMu.Unlock()
-
-	id := fmt.Sprintf("%s:s%d", inst.ID, index)
-
+func (s *Session) newScriptSlot(o *reactive.Owner, script string) *scriptSlot {
+	s.scriptSeq++
 	slot := &scriptSlot{
-		id:        id,
-		sess:      s,
-		instance:  inst,
-		hookIndex: index,
-		script:    minifyJS(script),
+		id:     "s" + strconv.FormatUint(uint64(s.scriptSeq), 10),
+		sess:   s,
+		o:      o,
+		script: minifyJS(script),
 	}
-
-	if s.Scripts == nil {
-		s.Scripts = make(map[string]*scriptSlot)
+	slot.attachment = attachment{s: s, o: o, name: "script " + slot.id}
+	meta := &metadata.ScriptMeta{ScriptID: slot.id, Script: slot.script}
+	slot.writeAttr = func(w *writer) { w.attr(protocol.AttrScript, scriptSpecJSON(meta)) }
+	if s.scripts == nil {
+		s.scripts = make(map[string]*scriptSlot)
 	}
-	s.Scripts[id] = slot
-
+	s.scripts[slot.id] = slot
+	o.OnCleanup(func() { delete(s.scripts, slot.id) })
 	return slot
-}
-
-func (s *Session) unregisterScriptSlot(id string) {
-	if s == nil || id == "" {
-		return
-	}
-
-	s.scriptsMu.Lock()
-	delete(s.Scripts, id)
-	s.scriptsMu.Unlock()
 }
 
 func minifyJS(script string) string {

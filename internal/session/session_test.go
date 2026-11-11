@@ -1,9 +1,7 @@
 package session
 
 import (
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
 	"github.com/eleven-am/pondlive/internal/runtime"
@@ -44,66 +42,18 @@ func TestLiveSessionCloseIdempotent(t *testing.T) {
 	}
 }
 
-func TestLiveSessionCloseNilsSession(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-
-	if sess.Session() == nil {
-		t.Fatal("expected session before close")
-	}
-
-	_ = sess.Close()
-
-	if sess.Session() != nil {
-		t.Error("expected session to be nil after close")
-	}
-}
-
-func TestLiveSessionSSRSendErrorReported(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	transport := NewSSRTransport(nil)
-	transport.SetMaxMessages(1)
-
-	sess.SetTransport(transport)
-
-	var receivedError bool
-	var mu sync.Mutex
-
-	sess.Session().Bus.Subscribe(protocol.Topic("session:error"), func(event string, data interface{}) {
-		mu.Lock()
-		if event == "send_error" {
-			receivedError = true
-		}
-		mu.Unlock()
-	})
-
-	sess.Session().Bus.Publish(protocol.TopicFrame, "patch", map[string]string{"a": "1"})
-	sess.Session().Bus.Publish(protocol.TopicFrame, "patch", map[string]string{"b": "2"})
-
-	time.Sleep(10 * time.Millisecond)
-
-	mu.Lock()
-	gotError := receivedError
-	mu.Unlock()
-
-	if !gotError {
-		t.Error("expected SSR send error to be reported via bus")
-	}
-}
-
 func TestLiveSessionMethodsAfterClose(t *testing.T) {
 	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
 	_ = sess.Close()
 
-	sess.Receive("topic", "event", nil)
-	_ = sess.Flush()
-	sess.SetDevMode(true)
-	sess.SetAutoFlush(nil)
-	sess.SetDOMTimeout(time.Second)
-
-	if sess.Bus() != nil {
-		t.Error("expected Bus() to return nil after close")
+	if err := deliver(sess, protocol.ClientEvt{}); err == nil {
+		t.Error("Deliver after close must fail")
+	}
+	if err := sess.Flush(); err == nil {
+		t.Error("Flush after close must fail")
+	}
+	if sess.State() != StateClosed {
+		t.Errorf("state after close = %v", sess.State())
 	}
 }
 
@@ -113,28 +63,14 @@ func TestLiveSessionNilSafety(t *testing.T) {
 	_ = sess.ID()
 	_ = sess.Version()
 	_ = sess.Session()
-	sess.SetTransport(nil)
-	sess.Receive("topic", "event", nil)
+	_ = deliver(sess, protocol.ClientEvt{})
 	_ = sess.Flush()
 	_ = sess.Close()
-	sess.SetDevMode(true)
 	_ = sess.ClientAsset()
-	sess.SetClientAsset("test")
-	_ = sess.Bus()
-	sess.SetAutoFlush(nil)
-	sess.SetDOMTimeout(time.Second)
-	_ = sess.ChannelManager()
 	_ = sess.UploadRegistry()
-}
-
-func TestLiveSessionChannelManager(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	cm := sess.ChannelManager()
-	if cm == nil {
-		t.Error("expected ChannelManager to be non-nil")
-	}
+	_ = sess.State()
+	sess.RequestClose(ReasonRemoved)
+	sess.Detach(nil)
 }
 
 func TestLiveSessionUploadRegistry(t *testing.T) {
@@ -144,24 +80,6 @@ func TestLiveSessionUploadRegistry(t *testing.T) {
 	ur := sess.UploadRegistry()
 	if ur == nil {
 		t.Error("expected UploadRegistry to be non-nil")
-	}
-}
-
-func TestLiveSessionChannelManagerAfterClose(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-	_ = sess.Close()
-
-	if sess.ChannelManager() != nil {
-		t.Error("expected nil ChannelManager after close")
-	}
-}
-
-func TestLiveSessionUploadRegistryAfterClose(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-	_ = sess.Close()
-
-	if sess.UploadRegistry() != nil {
-		t.Error("expected nil UploadRegistry after close")
 	}
 }
 
@@ -193,59 +111,27 @@ func TestLiveSessionFlush(t *testing.T) {
 	}
 }
 
-func TestLiveSessionReceive(t *testing.T) {
+func TestLiveSessionDeliver(t *testing.T) {
 	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
 	defer sess.Close()
 
-	sess.Receive("frame", "test-event", map[string]string{"key": "value"})
-}
-
-func TestLiveSessionSetDevMode(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	sess.SetDevMode(true)
-	sess.SetDevMode(false)
+	err := deliver(sess, protocol.ClientEvt{
+		Event:   protocol.Event{Type: "frame", SID: "test-session"},
+		Action:  "test-event",
+		Payload: map[string]string{"key": "value"},
+	})
+	if err != nil {
+		t.Errorf("expected no error from deliver, got %v", err)
+	}
 }
 
 func TestLiveSessionClientAsset(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
+	sess := NewLiveSession("test-session", 1, dummyComponent, &Config{ClientAsset: "/js/app.js"})
 	defer sess.Close()
 
-	sess.SetClientAsset("/js/app.js")
 	if sess.ClientAsset() != "/js/app.js" {
 		t.Errorf("expected client asset '/js/app.js', got %q", sess.ClientAsset())
 	}
-}
-
-func TestLiveSessionBus(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	bus := sess.Bus()
-	if bus == nil {
-		t.Error("expected non-nil bus")
-	}
-}
-
-func TestLiveSessionSetAutoFlush(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	called := false
-	sess.SetAutoFlush(func() {
-		called = true
-	})
-	if called {
-		t.Error("auto flush should not be called immediately")
-	}
-}
-
-func TestLiveSessionSetDOMTimeout(t *testing.T) {
-	sess := NewLiveSession("test-session", 1, dummyComponent, nil)
-	defer sess.Close()
-
-	sess.SetDOMTimeout(5 * time.Second)
 }
 
 func TestIsClientTopic(t *testing.T) {
@@ -257,7 +143,7 @@ func TestIsClientTopic(t *testing.T) {
 		{protocol.TopicFrame, "any", true},
 		{protocol.RouteHandler, "any", true},
 		{protocol.DOMHandler, "any", true},
-		{protocol.AckTopic, "any", true},
+		{protocol.Topic("ack"), "any", false},
 		{protocol.Topic("script:test"), string(protocol.ScriptSendAction), true},
 		{protocol.Topic("script:test"), "other", false},
 		{protocol.Topic("other"), "any", false},

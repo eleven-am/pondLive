@@ -5,69 +5,6 @@ import (
 	"testing"
 )
 
-func TestParseHref(t *testing.T) {
-	tests := []struct {
-		name     string
-		href     string
-		wantPath string
-		wantHash string
-		wantKeys []string
-	}{
-		{
-			name:     "simple path",
-			href:     "/users",
-			wantPath: "/users",
-			wantHash: "",
-			wantKeys: nil,
-		},
-		{
-			name:     "path with query",
-			href:     "/search?q=test&page=1",
-			wantPath: "/search",
-			wantHash: "",
-			wantKeys: []string{"q", "page"},
-		},
-		{
-			name:     "path with hash",
-			href:     "/docs#section",
-			wantPath: "/docs",
-			wantHash: "section",
-			wantKeys: nil,
-		},
-		{
-			name:     "full URL",
-			href:     "/page?foo=bar#anchor",
-			wantPath: "/page",
-			wantHash: "anchor",
-			wantKeys: []string{"foo"},
-		},
-		{
-			name:     "invalid URL",
-			href:     "://invalid",
-			wantPath: "/",
-			wantHash: "",
-			wantKeys: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			loc := ParseHref(tt.href)
-			if loc.Path != tt.wantPath {
-				t.Errorf("ParseHref(%q).Path = %q, want %q", tt.href, loc.Path, tt.wantPath)
-			}
-			if loc.Hash != tt.wantHash {
-				t.Errorf("ParseHref(%q).Hash = %q, want %q", tt.href, loc.Hash, tt.wantHash)
-			}
-			for _, key := range tt.wantKeys {
-				if loc.Query.Get(key) == "" {
-					t.Errorf("ParseHref(%q).Query missing key %q", tt.href, key)
-				}
-			}
-		})
-	}
-}
-
 func TestBuildHref(t *testing.T) {
 	tests := []struct {
 		name string
@@ -343,4 +280,56 @@ func TestCloneValues(t *testing.T) {
 			t.Error("cloneValues should create independent copy")
 		}
 	})
+}
+
+func TestResolveHrefParsesAnAbsoluteHrefIntoPathQueryAndHash(t *testing.T) {
+	current := Location{Path: "/here", Query: url.Values{"x": {"1"}}}
+	for _, tt := range []struct {
+		href, path, hash string
+		keys             []string
+	}{
+		{"/users", "/users", "", nil},
+		{"/search?q=test&page=1", "/search", "", []string{"q", "page"}},
+		{"/docs#section", "/docs", "section", nil},
+		{"/page?foo=bar#anchor", "/page", "anchor", []string{"foo"}},
+	} {
+		got := ResolveHref(current, tt.href)
+		if got.Path != tt.path || got.Hash != tt.hash {
+			t.Errorf("ResolveHref(%q) = %+v", tt.href, got)
+		}
+		for _, k := range tt.keys {
+			if got.Query.Get(k) == "" {
+				t.Errorf("ResolveHref(%q).Query is missing %q", tt.href, k)
+			}
+		}
+	}
+	if got := ResolveHref(current, "://invalid"); got.Path != "/here" {
+		t.Errorf("an unparsable href must keep the current location, got %+v", got)
+	}
+}
+
+func TestSearchHelpersNeverMutateTheLocationTheyAreGiven(t *testing.T) {
+	fresh := func() Location { return Location{Path: "/", Query: url.Values{"a": {"1"}, "b": {"2"}}} }
+	for name, apply := range map[string]func(Location) Location{
+		"AddSearch":   func(l Location) Location { return AddSearch(l, "a", "9") },
+		"DelSearch":   func(l Location) Location { return DelSearch(l, "a") },
+		"MergeSearch": func(l Location) Location { return MergeSearch(l, url.Values{"a": {"9"}, "c": {"3"}}) },
+		"SetSearch":   func(l Location) Location { return SetSearch(l, url.Values{"z": {"1"}}) },
+		"ClearSearch": ClearSearch,
+	} {
+		in := fresh()
+		out := apply(in)
+		if got := in.Query.Encode(); got != "a=1&b=2" {
+			t.Errorf("%s mutated its input: %q", name, got)
+		}
+		if out.Query.Encode() == in.Query.Encode() {
+			t.Errorf("%s changed nothing", name)
+		}
+	}
+}
+
+func TestDelSearchOnALocationWithoutAQueryIsSafe(t *testing.T) {
+	if got := DelSearch(Location{Path: "/"}, "a"); got.Query.Encode() != "" {
+		t.Fatalf("query = %v", got.Query)
+	}
 }

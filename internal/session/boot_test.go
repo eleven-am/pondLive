@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,76 +10,65 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-func TestRequestInfoFetchedDynamicallyFromTransport(t *testing.T) {
-	component := func(_ *runtime.Ctx) work.Node {
+func TestRequestStateComesFromTheSSRRequest(t *testing.T) {
+	var gotPath, gotQuery, gotAgent string
+	component := func(ctx *runtime.Ctx) work.Node {
 		return &work.Element{Tag: "div"}
 	}
-
-	sess := NewLiveSession("test-session", 1, component, nil)
-	defer sess.Close()
-
-	sess.transportMu.RLock()
-	initialTransport := sess.transport
-	sess.transportMu.RUnlock()
-
-	if initialTransport != nil {
-		t.Error("expected no transport initially")
-	}
-
 	req := httptest.NewRequest(http.MethodGet, "/test?foo=bar", nil)
 	req.Header.Set("User-Agent", "test-agent")
-	transport := NewSSRTransport(req)
-	sess.SetTransport(transport)
+	req.Header.Set("Authorization", "secret")
 
-	sess.transportMu.RLock()
-	currentTransport := sess.transport
-	sess.transportMu.RUnlock()
+	sess := NewLiveSession("test-session", 1, component, nil, WithRequest(req))
+	defer sess.Close()
 
-	if currentTransport == nil {
-		t.Fatal("expected transport after SetTransport")
+	info := sess.requestState.Info()
+	gotPath, gotQuery = info.Path, info.Query.Get("foo")
+	gotAgent = info.Headers.Get("User-Agent")
+	if gotPath != "/test" || gotQuery != "bar" || gotAgent != "test-agent" {
+		t.Fatalf("request state = %q %q %q", gotPath, gotQuery, gotAgent)
 	}
-
-	info := currentTransport.RequestInfo()
-	if info == nil {
-		t.Fatal("expected RequestInfo to be set")
-	}
-	if info.Path != "/test" {
-		t.Errorf("expected path /test, got %s", info.Path)
-	}
-	if info.Query.Get("foo") != "bar" {
-		t.Errorf("expected query foo=bar, got %s", info.Query.Get("foo"))
+	if info.Headers.Get("Authorization") != "" {
+		t.Fatal("Authorization must not be retained")
 	}
 }
 
-func TestTransportUpdateReflectedInSession(t *testing.T) {
-	component := func(_ *runtime.Ctx) work.Node {
-		return &work.Element{Tag: "div"}
-	}
+func TestRetainedHeadersConfigReachesTheRequestState(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Tenant", "acme")
 
-	sess := NewLiveSession("test-session", 1, component, nil)
+	sess := NewLiveSession("test-session", 1, dummyComponent, &Config{RetainedHeaders: []string{"X-Tenant"}}, WithRequest(req))
 	defer sess.Close()
 
-	req1 := httptest.NewRequest(http.MethodGet, "/path1", nil)
-	transport1 := NewSSRTransport(req1)
-	sess.SetTransport(transport1)
-
-	sess.transportMu.RLock()
-	t1 := sess.transport
-	sess.transportMu.RUnlock()
-
-	if t1.RequestInfo().Path != "/path1" {
-		t.Errorf("expected path /path1, got %s", t1.RequestInfo().Path)
+	if got := sess.requestState.Info().Headers.Get("X-Tenant"); got != "acme" {
+		t.Fatalf("configured header = %q, want acme", got)
 	}
 
-	req2 := httptest.NewRequest(http.MethodGet, "/path2", nil)
-	transport2 := NewSSRTransport(req2)
-	sess.SetTransport(transport2)
+	plain := NewLiveSession("test-session-2", 1, dummyComponent, nil, WithRequest(req))
+	defer plain.Close()
+	if got := plain.requestState.Info().Headers.Get("X-Tenant"); got != "" {
+		t.Fatalf("unconfigured header retained: %q", got)
+	}
+}
 
-	sess.transportMu.RLock()
-	t2 := sess.transport
-	sess.transportMu.RUnlock()
+func TestAttachMergesUpgradeHeadersAndMarksTheStateLive(t *testing.T) {
+	sess := NewLiveSession("test-session", 1, dummyComponent, nil, WithRequest(httptest.NewRequest(http.MethodGet, "/page?x=1", nil)))
+	defer sess.Close()
 
-	if t2.RequestInfo().Path != "/path2" {
-		t.Errorf("expected path /path2, got %s", t2.RequestInfo().Path)
+	if sess.requestState.IsLive() {
+		t.Fatal("request state must not be live before attach")
+	}
+	upgrade := http.Header{"Cookie": {"sid=abc"}}
+	if _, err := sess.Attach(context.Background(), newRecordingTransport(), upgrade, 0, false); err != nil {
+		t.Fatal(err)
+	}
+	if !sess.requestState.IsLive() {
+		t.Fatal("request state must be live when Attach returns")
+	}
+	if v, ok := sess.requestState.GetCookie("sid"); !ok || v != "abc" {
+		t.Fatalf("upgrade cookie = %q %v", v, ok)
+	}
+	if sess.requestState.URL().Path != "/page" || sess.requestState.URL().Query.Get("x") != "1" {
+		t.Fatal("page location must survive the merge")
 	}
 }

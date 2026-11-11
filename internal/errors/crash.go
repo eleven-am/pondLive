@@ -7,11 +7,11 @@ func crashPage() work.Node {
 		crashContainerStyles(),
 		work.BuildElement("h1",
 			crashTitleStyles(),
-			work.NewText("Something went wrong"),
+			work.TextOf("Something went wrong"),
 		),
 		work.BuildElement("p",
 			crashMessageStyles(),
-			work.NewText("The application encountered an unexpected error. Please try refreshing the page."),
+			work.TextOf("The application encountered an unexpected error. Please try refreshing the page."),
 		),
 	)
 }

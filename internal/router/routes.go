@@ -1,255 +1,110 @@
 package router
 
 import (
-	"strings"
+	"maps"
 
+	"github.com/eleven-am/pondlive/internal/headers"
+	"github.com/eleven-am/pondlive/internal/route"
 	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-func Route(ctx *runtime.Ctx, props RouteProps, children ...work.Node) work.Node {
-	pattern := strings.TrimSpace(props.Path)
-	if pattern == "" {
-		pattern = "/"
-	}
-
-	return &work.Fragment{
-		Metadata: map[string]any{
-			routeMetadataKey: routeEntry{
-				pattern:   pattern,
-				component: props.Component,
-				children:  children,
-				slot:      defaultSlotName,
-			},
-		},
-	}
+type RouteDef struct {
+	pattern   string
+	component func() work.Node
 }
 
-func routes(ctx *runtime.Ctx, items []work.Item) work.Node {
-	children := work.ItemsToNodes(items)
-
-	loc := locationCtx.UseContextValue(ctx)
-	base := routeBaseCtx.UseContextValue(ctx)
-	parentMatch := matchCtx.UseContextValue(ctx)
-
-	pathToMatch := loc.Path
-	if parentMatch != nil && parentMatch.Matched && parentMatch.Rest != "" && parentMatch.Path == loc.Path {
-		pathToMatch = parentMatch.Rest
-	}
-
-	allSlots := runtime.UseMemo(ctx, func() []slotEntry {
-		routeEntries := collectRouteEntries(children, base)
-		slotEntries := collectSlotEntries(children, base)
-
-		if len(routeEntries) > 0 {
-			slotEntries = append(slotEntries, slotEntry{
-				name:   defaultSlotName,
-				routes: routeEntries,
-			})
-		}
-
-		return slotEntries
-	}, fingerprintChildren(children), fingerprintSlots(children), base)
-
-	var slots map[string]outletRenderer
-	if pathToMatch != "" {
-		slots = make(map[string]outletRenderer)
-
-		for _, slot := range allSlots {
-			trie := newRouterTrie()
-			for _, e := range slot.routes {
-				trie.Insert(e.fullPath, e)
-			}
-
-			matchResult := trie.Match(pathToMatch)
-			if matchResult == nil || matchResult.Entry == nil {
-				if slot.fallback != nil {
-					slots[slot.name] = slot.fallback
-				}
-				continue
-			}
-
-			entry := matchResult.Entry
-			childRoutes := entry.children
-			childSlots := map[string]outletRenderer{}
-			if len(childRoutes) > 0 {
-				capturedChildren := work.NodesToItems(childRoutes)
-				childSlots[defaultSlotName] = func(cctx *runtime.Ctx) work.Node {
-					return routes(cctx, capturedChildren)
-				}
-			}
-
-			capturedMatch := Match{
-				Pattern:  entry.fullPath,
-				Path:     loc.Path,
-				params:   matchResult.Params,
-				query:    loc.Query,
-				RawQuery: loc.Query.Encode(),
-				Hash:     loc.Hash,
-				Rest:     matchResult.Rest,
-			}
-			capturedMatchState := &MatchState{
-				Matched: true,
-				Pattern: entry.fullPath,
-				Path:    loc.Path,
-				Params:  matchResult.Params,
-				Rest:    matchResult.Rest,
-			}
-
-			basePath := trimWildcardSuffix(entry.fullPath)
-
-			renderer := func(ictx *runtime.Ctx) work.Node {
-				return routeMount(ictx, routeMountProps{
-					match:      capturedMatch,
-					matchState: capturedMatchState,
-					base:       basePath,
-					childSlots: childSlots,
-					component:  entry.component,
-				})
-			}
-
-			slots[slot.name] = renderer
-		}
-	}
-
-	hasDefaultSlot := false
-	for _, slot := range allSlots {
-		if slot.name == defaultSlotName {
-			hasDefaultSlot = true
-			break
-		}
-	}
-
-	if hasDefaultSlot {
-		if slots == nil || slots[defaultSlotName] == nil {
-			_, setMatch := matchCtx.UseProvider(ctx, &MatchState{Matched: false})
-			_, setSlots := slotsCtx.UseProvider(ctx, nil)
-			_, setBase := routeBaseCtx.UseProvider(ctx, base)
-			setMatch(&MatchState{Matched: false})
-			setSlots(nil)
-			setBase(base)
-			return &work.Fragment{}
-		}
-		return slots[defaultSlotName](ctx)
-	}
-
-	_, setSlots := slotsCtx.UseProvider(ctx, slots)
-	setSlots(slots)
-	return &work.Fragment{}
+func Route(path string, component func() work.Node) RouteDef {
+	return RouteDef{pattern: path, component: component}
 }
 
-func collectRouteEntries(nodes []work.Node, base string) []routeEntry {
-	if len(nodes) == 0 {
-		return nil
-	}
+type routesProps struct{ defs []RouteDef }
 
-	var entries []routeEntry
-	for _, node := range nodes {
-		if node == nil {
-			continue
-		}
+func Routes(defs ...RouteDef) work.Node { return routesNode(routesProps{defs: defs}) }
 
-		if frag, ok := node.(*work.Fragment); ok {
-			if frag.Metadata != nil {
-				if meta, ok := frag.Metadata[routeMetadataKey]; ok {
-					if entry, ok := meta.(routeEntry); ok {
-						entry.pattern = strings.TrimSpace(entry.pattern)
-						entry.fullPath = resolveRoutePattern(entry.pattern, base)
-						if len(entry.children) > 0 && !strings.HasSuffix(entry.fullPath, "*") {
-							if entry.fullPath == "/" {
-								entry.fullPath = "/*"
-							} else {
-								entry.fullPath = entry.fullPath + "/*"
-							}
-						}
-						entries = append(entries, entry)
-						continue
-					}
-				}
-				if _, ok := frag.Metadata[slotMetadataKey]; ok {
-					continue
-				}
-			}
-
-			if len(frag.Children) > 0 {
-				entries = append(entries, collectRouteEntries(frag.Children, base)...)
-			}
-		}
-	}
-
-	return entries
+type selection struct {
+	idx   int
+	state *MatchState
 }
 
-func collectSlotEntries(nodes []work.Node, base string) []slotEntry {
-	if len(nodes) == 0 {
-		return nil
-	}
-
-	var entries []slotEntry
-	for _, node := range nodes {
-		if node == nil {
-			continue
-		}
-
-		if frag, ok := node.(*work.Fragment); ok {
-			if frag.Metadata != nil {
-				if meta, ok := frag.Metadata[slotMetadataKey]; ok {
-					if entry, ok := meta.(slotEntry); ok {
-						for i := range entry.routes {
-							entry.routes[i].fullPath = resolveRoutePattern(entry.routes[i].pattern, base)
-							if len(entry.routes[i].children) > 0 && !strings.HasSuffix(entry.routes[i].fullPath, "*") {
-								if entry.routes[i].fullPath == "/" {
-									entry.routes[i].fullPath = "/*"
-								} else {
-									entry.routes[i].fullPath = entry.routes[i].fullPath + "/*"
-								}
-							}
-						}
-						entries = append(entries, entry)
-						continue
-					}
-				}
-			}
-
-			if len(frag.Children) > 0 {
-				entries = append(entries, collectSlotEntries(frag.Children, base)...)
-			}
-		}
-	}
-
-	return entries
+func selectionEqual(a, b *selection) bool {
+	return a.idx == b.idx && matchStateEqual(a.state, b.state)
 }
 
-func fingerprintChildren(children []work.Node) string {
-	var parts []string
-	for _, child := range children {
-		if frag, ok := child.(*work.Fragment); ok && frag.Metadata != nil {
-			if meta, ok := frag.Metadata[routeMetadataKey]; ok {
-				if entry, ok := meta.(routeEntry); ok {
-					parts = append(parts, entry.pattern)
-				}
-			}
-		}
+func mergeParams(parent, own map[string]string) map[string]string {
+	if len(parent) == 0 {
+		return own
 	}
-	return strings.Join(parts, "|")
+	out := make(map[string]string, len(parent)+len(own))
+	maps.Copy(out, parent)
+	maps.Copy(out, own)
+	return out
 }
 
-func fingerprintSlots(children []work.Node) string {
-	var parts []string
-	for _, child := range children {
-		if frag, ok := child.(*work.Fragment); ok && frag.Metadata != nil {
-			if meta, ok := frag.Metadata[slotMetadataKey]; ok {
-				if entry, ok := meta.(slotEntry); ok {
-					slotPart := entry.name + ":"
-					for _, route := range entry.routes {
-						slotPart += route.pattern + ","
-					}
-					parts = append(parts, slotPart)
-				}
-			}
-		}
+func rootOf(rest string) string {
+	if rest == "" {
+		return "/"
 	}
-	return strings.Join(parts, "|")
+	return rest
 }
 
-var Routes = runtime.Component(routes)
+var routesNode = runtime.PropsComponent(func(ctx *runtime.Ctx, props routesProps) work.Node {
+	location := headers.UseRequest(ctx).URL()
+	parent := runtime.UseContext(ctx, matchCtx).Peek()
+
+	patterns := make([]string, len(props.defs))
+	for i, d := range props.defs {
+		patterns[i] = d.pattern
+	}
+
+	sel := runtime.UseComputed(ctx, func() *selection {
+		full := location.Get().Path
+		m, idx, ok := route.BestMatch(parent.rest.Get(), "", patterns)
+		if !ok {
+			return &selection{idx: -1, state: &MatchState{Path: full}}
+		}
+		own := make(map[string]string, len(m.Params))
+		for k, v := range m.Params {
+			if k != "*" {
+				own[k] = v
+			}
+		}
+		return &selection{idx: idx, state: &MatchState{
+			Matched: true,
+			Pattern: m.Pattern,
+			Path:    full,
+			Params:  mergeParams(parent.params.Get(), own),
+			Rest:    m.Rest,
+		}}
+	}, runtime.WithEqual(selectionEqual))
+	idx := runtime.UseComputed(ctx, func() int { return sel.Get().idx })
+
+	cases := make([]runtime.SwitchArg, len(props.defs))
+	for i, d := range props.defs {
+		def := d
+		cases[i] = runtime.Case(i, func() work.Node {
+			return routeMount(mountProps{component: def.component, sel: sel})
+		})
+	}
+	return runtime.Switch(idx, cases...)
+})
+
+type mountProps struct {
+	component func() work.Node
+	sel       runtime.ReadSignal[*selection]
+}
+
+var routeMount = runtime.PropsComponent(func(ctx *runtime.Ctx, props mountProps) work.Node {
+	sel := props.sel
+	state := runtime.UseComputed(ctx, func() *MatchState { return sel.Get().state }, runtime.WithEqual(matchStateEqual))
+	params := runtime.UseComputed(ctx, func() map[string]string { return state.Get().Params }, runtime.WithEqual(paramsEqual))
+	matched := runtime.UseComputed(ctx, func() bool { return state.Get().Matched })
+	rest := runtime.UseComputed(ctx, func() string { return rootOf(state.Get().Rest) })
+
+	runtime.Provide(ctx, matchCtx, runtime.UseSignal(ctx, &matchInfo{state: state, params: params, matched: matched, rest: rest}))
+
+	if props.component == nil {
+		return work.NewFragment()
+	}
+	return props.component()
+})

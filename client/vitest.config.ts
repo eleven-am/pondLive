@@ -8,7 +8,7 @@ export default defineConfig({
         url: 'http://localhost:3000',
       },
     },
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
     restoreMocks: true,
     clearMocks: true,
   },

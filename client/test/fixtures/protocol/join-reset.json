@@ -1,0 +1,177 @@
+{
+  "name": "join-reset",
+  "description": "The ring no longer reaches back to bs, so the server answers the join with a reset.",
+  "sid": "transcript-sid",
+  "ver": 2,
+  "bootSeq": 0,
+  "html": "<!DOCTYPE html><html data-pi=\"1\"><head><title data-pi=\"2\">PondLive Application</title><!--r:3--><meta data-pi=\"10\" name=\"description\" content=\"A PondLive application\"><!--/r:3--><!--r:4--><!--/r:4--><!--r:5--><!--/r:5--><!--r:6--><!--/r:6--><!--r:7--><!--/r:7--><!--r:8--><!--/r:8--><!--r:9--><!--/r:9--><script data-pi=\"11\" data-pscript=\"{&quot;i&quot;:&quot;s1&quot;,&quot;s&quot;:&quot;function(element,transport){transport.on('setCookie',function(data){var body=JSON.stringify({token:data.token});var init={method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:body};fetch(data.url,init).then(function(res){if(res.ok){return fetch(data.ackUrl,init)}})})}&quot;}\"></script></head><body data-pi=\"12\"><!--r:14--><button data-pi=\"15\" data-pon='[{\"e\":\"click\"}]'>count=0</button><!--/r:14--><!--r:13--><!--/r:13--><script src=\"/static/pondlive.js\" defer=\"\"></script></body></html>",
+  "steps": [
+    {
+      "dir": "connect"
+    },
+    {
+      "dir": "client",
+      "frame": {
+        "bs": 0,
+        "resync": false,
+        "sid": "transcript-sid",
+        "t": "join",
+        "tok": "<tok>",
+        "ver": 2
+      }
+    },
+    {
+      "dir": "server",
+      "frame": {
+        "cs": 0,
+        "gen": 1,
+        "mode": "current",
+        "t": "joined",
+        "tok": "<tok>"
+      }
+    },
+    {
+      "dir": "client",
+      "frame": {
+        "a": "click",
+        "cs": 1,
+        "i": 15,
+        "p": {},
+        "sid": "transcript-sid",
+        "t": "h"
+      }
+    },
+    {
+      "dir": "server",
+      "frame": {
+        "data": [
+          [
+            "t",
+            15,
+            "count=1"
+          ]
+        ],
+        "event": "patch",
+        "seq": 1,
+        "topic": "frame"
+      }
+    },
+    {
+      "dir": "server",
+      "frame": {
+        "cs": 1,
+        "t": "evack"
+      }
+    },
+    {
+      "dir": "client",
+      "frame": {
+        "a": "click",
+        "cs": 2,
+        "i": 15,
+        "p": {},
+        "sid": "transcript-sid",
+        "t": "h"
+      }
+    },
+    {
+      "dir": "server",
+      "frame": {
+        "data": [
+          [
+            "t",
+            15,
+            "count=2"
+          ]
+        ],
+        "event": "patch",
+        "seq": 2,
+        "topic": "frame"
+      }
+    },
+    {
+      "dir": "server",
+      "frame": {
+        "cs": 2,
+        "t": "evack"
+      }
+    },
+    {
+      "dir": "client",
+      "frame": {
+        "a": "click",
+        "cs": 3,
+        "i": 15,
+        "p": {},
+        "sid": "transcript-sid",
+        "t": "h"
+      }
+    },
+    {
+      "dir": "server",
+      "frame": {
+        "data": [
+          [
+            "t",
+            15,
+            "count=3"
+          ]
+        ],
+        "event": "patch",
+        "seq": 3,
+        "topic": "frame"
+      }
+    },
+    {
+      "dir": "server",
+      "frame": {
+        "cs": 3,
+        "t": "evack"
+      }
+    },
+    {
+      "dir": "disconnect"
+    },
+    {
+      "dir": "connect"
+    },
+    {
+      "dir": "client",
+      "frame": {
+        "bs": 0,
+        "resync": false,
+        "sid": "transcript-sid",
+        "t": "join",
+        "tok": "<tok>",
+        "ver": 2
+      }
+    },
+    {
+      "dir": "server",
+      "frame": {
+        "cs": 3,
+        "gen": 2,
+        "mode": "reset",
+        "t": "joined",
+        "tok": "<tok>"
+      }
+    },
+    {
+      "dir": "server",
+      "frame": {
+        "data": {
+          "cause": "rejoin-gap",
+          "html": "<html data-pi=\"1\"><head><title data-pi=\"2\">PondLive Application</title><!--r:3--><meta data-pi=\"10\" name=\"description\" content=\"A PondLive application\"><!--/r:3--><!--r:4--><!--/r:4--><!--r:5--><!--/r:5--><!--r:6--><!--/r:6--><!--r:7--><!--/r:7--><!--r:8--><!--/r:8--><!--r:9--><!--/r:9--><script data-pi=\"11\" data-pscript=\"{&quot;i&quot;:&quot;s1&quot;,&quot;s&quot;:&quot;function(element,transport){transport.on('setCookie',function(data){var body=JSON.stringify({token:data.token});var init={method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:body};fetch(data.url,init).then(function(res){if(res.ok){return fetch(data.ackUrl,init)}})})}&quot;}\"></script></head><body data-pi=\"12\"><!--r:14--><button data-pi=\"15\" data-pon='[{\"e\":\"click\"}]'>count=3</button><!--/r:14--><!--r:13--><!--/r:13--><script src=\"/static/pondlive.js\" defer=\"\"></script></body></html>",
+          "location": {
+            "hash": "",
+            "path": "/",
+            "query": {}
+          }
+        },
+        "event": "reset",
+        "seq": 4,
+        "topic": "frame"
+      }
+    }
+  ]
+}

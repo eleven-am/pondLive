@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,597 +11,416 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-func TestUseUpload(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
+type uploadFixture struct {
+	t      *testing.T
+	sess   *Session
+	handle *UploadHandle
+	starts chan map[string]interface{}
+}
 
-	handle := UseUpload(ctx)
-	if handle.script == nil {
+func newUploadFixture(t *testing.T) *uploadFixture {
+	t.Helper()
+	f := &uploadFixture{t: t, starts: make(chan map[string]interface{}, 16)}
+	f.sess = NewSession(Config{
+		SessionID:      "sess-up",
+		UploadRegistry: upload.NewRegistry(),
+		Root: func(ctx *Ctx) work.Node {
+			h := UseUpload(ctx)
+			if f.handle == nil {
+				f.handle = h
+			}
+			return work.BuildElement("input", AttachItem(h))
+		},
+	})
+	f.sess.Start()
+	t.Cleanup(f.sess.Close)
+	onActor(t, f.sess, func() {
+		if _, err := f.sess.RenderSnapshot(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	f.sess.Bus.Subscribe(protocol.Topic("script:"+f.handle.script.slot.id), func(action string, data interface{}) {
+		payload, ok := protocol.DecodePayload[protocol.ScriptPayload](data)
+		if !ok || action != string(protocol.ScriptSendAction) || payload.Event != "start" {
+			return
+		}
+		if m, ok := payload.Data.(map[string]interface{}); ok {
+			f.starts <- m
+		}
+	})
+	return f
+}
+
+func (f *uploadFixture) nextStart() map[string]interface{} {
+	f.t.Helper()
+	select {
+	case m := <-f.starts:
+		return m
+	case <-time.After(time.Second):
+		f.t.Fatal("no start message sent to the client")
+		return nil
+	}
+}
+
+func (f *uploadFixture) fromClient(event string, data map[string]interface{}) {
+	f.t.Helper()
+	id := f.handle.script.slot.id
+	onActor(f.t, f.sess, func() {
+		f.sess.Bus.Publish(protocol.Topic("script:"+id+":"+event), string(protocol.ScriptMessageAction), protocol.ScriptPayload{
+			ScriptID: id,
+			Event:    event,
+			Data:     data,
+		})
+	})
+}
+
+func TestUseUpload(t *testing.T) {
+	f := newUploadFixture(t)
+	if f.handle.script.slot == nil {
 		t.Fatal("expected script to be non-nil")
 	}
-
-	if handle.token == "" {
-		t.Error("expected token to be generated")
+	if f.handle.cell.grant != "" {
+		t.Error("no grant may exist before the client selects files")
 	}
-
-	cb, ok := sess.UploadRegistry.Lookup(handle.token)
-	if !ok {
-		t.Fatal("expected callback to be registered in upload registry")
-	}
-	if cb.Token != handle.token {
-		t.Errorf("expected token %s, got %s", handle.token, cb.Token)
+	if f.sess.UploadRegistry.Len() != 0 {
+		t.Error("expected no grants before the client selects files")
 	}
 }
 
 func TestUseUploadAccept(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
+	f := newUploadFixture(t)
+	f.handle.Accept(UploadConfig{MaxSize: 1024 * 1024, Accept: []string{"image/png", "image/jpeg"}, Multiple: true})
 
-	handle := UseUpload(ctx)
-	handle.Accept(UploadConfig{
-		MaxSize:  1024 * 1024,
-		Accept:   []string{"image/png", "image/jpeg"},
-		Multiple: true,
-	})
+	f.fromClient("ready", map[string]interface{}{"name": "a.png", "size": float64(10), "type": "image/png", "count": float64(2)})
+	start := f.nextStart()
 
-	cb, ok := sess.UploadRegistry.Lookup(handle.token)
-	if !ok {
-		t.Fatal("expected callback in registry")
+	if start["maxSize"] != int64(1024*1024) {
+		t.Errorf("expected maxSize 1048576, got %v", start["maxSize"])
 	}
-	if cb.MaxSize != 1024*1024 {
-		t.Errorf("expected MaxSize 1048576, got %d", cb.MaxSize)
+	accept, _ := start["accept"].([]string)
+	if len(accept) != 2 {
+		t.Errorf("expected 2 accept entries, got %v", start["accept"])
 	}
-	if len(cb.AllowedTypes) != 2 {
-		t.Errorf("expected 2 allowed types, got %d", len(cb.AllowedTypes))
+	if start["multiple"] != true {
+		t.Errorf("expected multiple true, got %v", start["multiple"])
 	}
 }
 
 func TestUseUploadAttachTo(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
+	f := newUploadFixture(t)
 	elem := &work.Element{Tag: "input"}
-	handle.AttachTo(elem)
-
-	if elem.Script == nil {
+	work.Apply(AttachItem(f.handle), elem)
+	if len(elem.Attachments) == 0 {
 		t.Fatal("expected Script to be attached")
 	}
 }
 
 func TestUseUploadOnProgress(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-		cleanups:  []func(){},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
+	f := newUploadFixture(t)
 
 	var loaded, total int64
-	done := make(chan struct{})
-	handle.OnProgress(func(l, t int64) {
+	f.handle.OnProgress(func(l, tt int64) {
 		loaded = l
-		total = t
-		close(done)
+		total = tt
 	})
+	f.fromClient("progress", map[string]interface{}{"loaded": float64(500), "total": float64(1000)})
 
-	topic := protocol.Topic("script:" + handle.script.slot.id + ":progress")
-	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
-		ScriptID: handle.script.slot.id,
-		Event:    "progress",
-		Data: map[string]interface{}{
-			"loaded": float64(500),
-			"total":  float64(1000),
-		},
-	})
-
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timeout waiting for progress handler")
-	}
-
-	if loaded != 500 {
-		t.Errorf("expected loaded 500, got %d", loaded)
-	}
-	if total != 1000 {
-		t.Errorf("expected total 1000, got %d", total)
+	onActor(t, f.sess, func() {})
+	if loaded != 500 || total != 1000 {
+		t.Errorf("expected 500/1000, got %d/%d", loaded, total)
 	}
 }
 
-func TestUseUploadOnComplete(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-		cleanups:  []func(){},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
+func TestOnProgressAndProgressBothSeeTheMessage(t *testing.T) {
+	f := newUploadFixture(t)
 
-	handle := UseUpload(ctx)
+	var called int
+	f.handle.OnProgress(func(l, tt int64) { called++ })
+	f.fromClient("progress", map[string]interface{}{"loaded": float64(250), "total": float64(500)})
 
-	var completedInfo upload.FileInfo
-	done := make(chan struct{})
-	handle.OnComplete(func(info upload.FileInfo) error {
-		completedInfo = info
-		close(done)
-		return nil
+	p := f.handle.Progress().Peek()
+	if p.Loaded != 250 || p.Total != 500 {
+		t.Errorf("Progress() lost the update when OnProgress is registered: %+v", p)
+	}
+	if called != 1 {
+		t.Errorf("expected the user OnProgress callback once, got %d", called)
+	}
+}
+
+func TestOnReadyStillSendsStart(t *testing.T) {
+	f := newUploadFixture(t)
+
+	var gotName string
+	f.handle.OnReady(func(name string, size int64, fileType string) { gotName = name })
+	f.fromClient("ready", map[string]interface{}{"name": "doc.pdf", "size": float64(2048), "type": "application/pdf"})
+
+	start := f.nextStart()
+	if tok, _ := start["token"].(string); tok == "" {
+		t.Fatalf("start carried no token: %v", start)
+	}
+	if gotName != "doc.pdf" {
+		t.Errorf("user OnReady not called, got %q", gotName)
+	}
+}
+
+func TestStartCarriesEndpointAndScriptURLFromSession(t *testing.T) {
+	f := newUploadFixture(t)
+	f.sess.UploadEndpoint = "/mounted/uploads/"
+	f.sess.UploadScriptURL = "/assets/tus.min.js"
+
+	f.fromClient("ready", map[string]interface{}{"name": "a", "size": float64(1)})
+	start := f.nextStart()
+	if start["endpoint"] != "/mounted/uploads/" || start["tusScript"] != "/assets/tus.min.js" {
+		t.Fatalf("start does not use the configured mount: %v", start)
+	}
+}
+
+func reserveAll(t *testing.T, reg *upload.Registry, token string) int {
+	t.Helper()
+	n := 0
+	for {
+		_, _, err := reg.Reserve(token, 0, nil)
+		if err != nil {
+			if !errors.Is(err, upload.ErrGrantExhausted) {
+				t.Fatalf("unexpected reserve error: %v", err)
+			}
+			return n
+		}
+		n++
+		if n > upload.MaxGrantFiles+1 {
+			t.Fatal("grant never exhausted")
+		}
+	}
+}
+
+func TestGrantAllowsOneFileUnlessMultiple(t *testing.T) {
+	f := newUploadFixture(t)
+	f.handle.Accept(UploadConfig{Multiple: false})
+	f.fromClient("ready", map[string]interface{}{"name": "a", "size": float64(1), "count": float64(5)})
+	token := f.nextStart()["token"].(string)
+
+	if got := reserveAll(t, f.sess.UploadRegistry, token); got != 1 {
+		t.Fatalf("a single-file config granted %d files", got)
+	}
+}
+
+func TestGrantAllowsRequestedCountWhenMultiple(t *testing.T) {
+	f := newUploadFixture(t)
+	f.handle.Accept(UploadConfig{Multiple: true})
+	f.fromClient("ready", map[string]interface{}{"name": "a", "size": float64(1), "count": float64(3)})
+	token := f.nextStart()["token"].(string)
+
+	if got := reserveAll(t, f.sess.UploadRegistry, token); got != 3 {
+		t.Fatalf("expected 3 files granted, got %d", got)
+	}
+}
+
+func TestNewSelectionRevokesThePreviousGrant(t *testing.T) {
+	f := newUploadFixture(t)
+	f.fromClient("ready", map[string]interface{}{"name": "a", "size": float64(1)})
+	first := f.nextStart()["token"].(string)
+	f.fromClient("ready", map[string]interface{}{"name": "b", "size": float64(1)})
+	second := f.nextStart()["token"].(string)
+
+	if first == second {
+		t.Fatal("a new selection must issue a new token")
+	}
+	if _, _, err := f.sess.UploadRegistry.Reserve(first, 0, nil); !errors.Is(err, upload.ErrGrantUnknown) {
+		t.Fatalf("expected the old grant to be revoked, got %v", err)
+	}
+	if _, _, err := f.sess.UploadRegistry.Reserve(second, 0, nil); err != nil {
+		t.Fatalf("expected the new grant to work, got %v", err)
+	}
+}
+
+func TestUploadCompletionRunsOnActorAndSurfacesItsError(t *testing.T) {
+	f := newUploadFixture(t)
+
+	diags := make(chan protocol.Diagnostic, 4)
+	f.sess.Bus.SubscribeToDiagnostics(func(d protocol.Diagnostic) { diags <- d })
+
+	var ranOnActor bool
+	var mu sync.Mutex
+	f.handle.OnComplete(func(info upload.FileInfo) error {
+		mu.Lock()
+		ranOnActor = f.sess.onActor()
+		mu.Unlock()
+		return errors.New("store failed")
 	})
+	f.fromClient("ready", map[string]interface{}{"name": "a", "size": float64(1)})
+	token := f.nextStart()["token"].(string)
 
-	cb, _ := sess.UploadRegistry.Lookup(handle.token)
-	if cb.OnComplete == nil {
-		t.Fatal("expected OnComplete to be set")
-	}
-
-	err := cb.OnComplete(upload.FileInfo{
-		ID:   "test-id",
-		Size: 1024,
-		MetaData: map[string]string{
-			"filename": "test.png",
-			"filetype": "image/png",
-		},
-		Storage: map[string]string{
-			"Path": "/path/to/file",
-		},
-	})
+	_, spec, err := f.sess.UploadRegistry.Reserve(token, 0, nil)
 	if err != nil {
-		t.Fatalf("OnComplete returned error: %v", err)
+		t.Fatal(err)
+	}
+	if err := spec.OnComplete(upload.FileInfo{ID: "u1"}); err != nil {
+		t.Fatalf("posting the completion failed: %v", err)
 	}
 
 	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timeout waiting for complete handler")
+	case d := <-diags:
+		if d.Phase != "upload:complete" || d.Message != "store failed" {
+			t.Fatalf("unexpected diagnostic: %+v", d)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("OnComplete error was not surfaced as a diagnostic")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if !ranOnActor {
+		t.Error("OnComplete did not run on the session actor")
+	}
+}
+
+func TestUploadCompletionReportsAClosedSession(t *testing.T) {
+	f := newUploadFixture(t)
+	f.handle.OnComplete(func(info upload.FileInfo) error { return nil })
+	f.fromClient("ready", map[string]interface{}{"name": "a", "size": float64(1)})
+	token := f.nextStart()["token"].(string)
+	_, spec, err := f.sess.UploadRegistry.Reserve(token, 0, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	if completedInfo.MetaData["filename"] != "test.png" {
-		t.Errorf("expected filename test.png, got %s", completedInfo.MetaData["filename"])
+	f.sess.Close()
+
+	if err := spec.OnComplete(upload.FileInfo{ID: "u1"}); err == nil {
+		t.Fatal("completion on a closed session must return an error, not drop the file silently")
 	}
 }
 
 func TestUseUploadOnError(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-		cleanups:  []func(){},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
-
+	f := newUploadFixture(t)
 	var errMsg string
-	done := make(chan struct{})
-	handle.OnError(func(msg string) {
-		errMsg = msg
-		close(done)
-	})
-
-	topic := protocol.Topic("script:" + handle.script.slot.id + ":error")
-	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
-		ScriptID: handle.script.slot.id,
-		Event:    "error",
-		Data: map[string]interface{}{
-			"error": "upload failed",
-		},
-	})
-
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timeout waiting for error handler")
-	}
-
+	f.handle.OnError(func(msg string) { errMsg = msg })
+	f.fromClient("error", map[string]interface{}{"error": "upload failed"})
 	if errMsg != "upload failed" {
 		t.Errorf("expected error 'upload failed', got '%s'", errMsg)
 	}
 }
 
 func TestUseUploadCancel(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
+	f := newUploadFixture(t)
 
 	var receivedAction string
 	done := make(chan struct{})
-	scriptTopic := protocol.Topic("script:" + handle.script.slot.id)
-	sess.Bus.Subscribe(scriptTopic, func(action string, data interface{}) {
+	f.sess.Bus.Subscribe(protocol.Topic("script:"+f.handle.script.slot.id), func(action string, data interface{}) {
+		payload, _ := protocol.DecodePayload[protocol.ScriptPayload](data)
+		if payload.Event != "cancel" {
+			return
+		}
 		receivedAction = action
 		close(done)
 	})
 
-	handle.Cancel()
+	f.handle.Cancel()
 
 	select {
 	case <-done:
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for cancel message")
 	}
-
 	if receivedAction != "send" {
 		t.Errorf("expected action 'send', got '%s'", receivedAction)
 	}
 }
 
 func TestUseUploadOnCancelled(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-		cleanups:  []func(){},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
-
+	f := newUploadFixture(t)
 	called := false
-	done := make(chan struct{})
-	handle.OnCancelled(func() {
-		called = true
-		close(done)
-	})
-
-	topic := protocol.Topic("script:" + handle.script.slot.id + ":cancelled")
-	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
-		ScriptID: handle.script.slot.id,
-		Event:    "cancelled",
-		Data:     map[string]interface{}{},
-	})
-
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timeout waiting for cancelled handler")
-	}
-
+	f.handle.OnCancelled(func() { called = true })
+	f.fromClient("cancelled", map[string]interface{}{})
 	if !called {
 		t.Error("expected cancelled handler to be called")
 	}
 }
 
 func TestUseUploadProgress(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-		cleanups:  []func(){},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
-
-	progress := handle.Progress()
-	if progress.Loaded != 0 || progress.Total != 0 {
+	f := newUploadFixture(t)
+	if p := f.handle.Progress().Peek(); p.Loaded != 0 || p.Total != 0 {
 		t.Error("expected initial progress to be 0")
 	}
+	f.fromClient("progress", map[string]interface{}{"loaded": float64(250), "total": float64(500)})
+	if p := f.handle.Progress().Peek(); p.Loaded != 250 || p.Total != 500 {
+		t.Errorf("expected 250/500, got %+v", p)
+	}
+}
 
-	topic := protocol.Topic("script:" + handle.script.slot.id + ":progress")
-	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
-		ScriptID: handle.script.slot.id,
-		Event:    "progress",
-		Data: map[string]interface{}{
-			"loaded": float64(250),
-			"total":  float64(500),
-		},
+func TestUseUploadWithoutRegistryReportsInsteadOfStarting(t *testing.T) {
+	var handle *UploadHandle
+	sess := NewSession(Config{SessionID: "s", Root: func(ctx *Ctx) work.Node {
+		h := UseUpload(ctx)
+		if handle == nil {
+			handle = h
+		}
+		return work.BuildElement("input", AttachItem(h))
+	}})
+	sess.Start()
+	t.Cleanup(sess.Close)
+	onActor(t, sess, func() { _, _ = sess.RenderSnapshot() })
+	diags := make(chan protocol.Diagnostic, 2)
+	sess.Bus.SubscribeToDiagnostics(func(d protocol.Diagnostic) { diags <- d })
+
+	onActor(t, sess, func() {
+		id := handle.script.slot.id
+		sess.Bus.Publish(protocol.Topic("script:"+id+":ready"), string(protocol.ScriptMessageAction), protocol.ScriptPayload{
+			ScriptID: id, Event: "ready", Data: map[string]interface{}{"name": "a"},
+		})
 	})
 
-	time.Sleep(50 * time.Millisecond)
-
-	progress = handle.Progress()
-	if progress.Loaded != 250 {
-		t.Errorf("expected loaded 250, got %d", progress.Loaded)
-	}
-	if progress.Total != 500 {
-		t.Errorf("expected total 500, got %d", progress.Total)
-	}
-}
-
-func TestUseUploadStableAcrossRerenders(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle1 := UseUpload(ctx)
-	token1 := handle1.token
-
-	ctx.hookIndex = 0
-	handle2 := UseUpload(ctx)
-	token2 := handle2.token
-
-	if token1 != token2 {
-		t.Errorf("expected same token across renders, got %s and %s", token1, token2)
-	}
-
-	if handle1.script.slot != handle2.script.slot {
-		t.Error("expected same script slot across renders")
+	select {
+	case d := <-diags:
+		if d.Phase != "upload:grant" {
+			t.Fatalf("unexpected diagnostic %+v", d)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected an upload:grant diagnostic")
 	}
 }
 
-func TestUseUploadNilRegistry(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-	}
-	sess := &Session{
-		Scripts: make(map[string]*scriptSlot),
-		Bus:     protocol.NewBus(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
+func TestUseUploadCleanupRevokesGrant(t *testing.T) {
+	f := newUploadFixture(t)
+	f.fromClient("ready", map[string]interface{}{"name": "a", "size": float64(1)})
+	token := f.nextStart()["token"].(string)
 
-	handle := UseUpload(ctx)
+	f.sess.Close()
 
-	if handle.token == "" {
-		t.Error("expected token to be generated even without UploadRegistry")
-	}
-}
-
-func TestUseUploadCleanup(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-		cleanups:  []func(){},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
-	token := handle.token
-
-	_, ok := sess.UploadRegistry.Lookup(token)
-	if !ok {
-		t.Fatal("expected callback in registry")
-	}
-
-	for _, cleanup := range inst.cleanups {
-		cleanup()
-	}
-
-	_, ok = sess.UploadRegistry.Lookup(token)
-	if ok {
-		t.Error("expected callback to be removed after cleanup")
+	if _, _, err := f.sess.UploadRegistry.Reserve(token, 0, nil); !errors.Is(err, upload.ErrGrantUnknown) {
+		t.Fatalf("expected the grant to be revoked on cleanup, got %v", err)
 	}
 }
 
 func TestUseUploadOnReady(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-		cleanups:  []func(){},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
+	f := newUploadFixture(t)
 
 	var name string
 	var size int64
 	var fileType string
-	done := make(chan struct{})
-	handle.OnReady(func(n string, s int64, ft string) {
-		name = n
-		size = s
-		fileType = ft
-		close(done)
-	})
+	f.handle.OnReady(func(n string, s int64, ft string) { name, size, fileType = n, s, ft })
+	f.fromClient("ready", map[string]interface{}{"name": "test.pdf", "size": float64(2048), "type": "application/pdf"})
 
-	topic := protocol.Topic("script:" + handle.script.slot.id + ":ready")
-	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
-		ScriptID: handle.script.slot.id,
-		Event:    "ready",
-		Data: map[string]interface{}{
-			"name": "test.pdf",
-			"size": float64(2048),
-			"type": "application/pdf",
-		},
-	})
-
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timeout waiting for ready handler")
-	}
-
-	if name != "test.pdf" {
-		t.Errorf("expected name 'test.pdf', got '%s'", name)
-	}
-	if size != 2048 {
-		t.Errorf("expected size 2048, got %d", size)
-	}
-	if fileType != "application/pdf" {
-		t.Errorf("expected type 'application/pdf', got '%s'", fileType)
+	if name != "test.pdf" || size != 2048 || fileType != "application/pdf" {
+		t.Errorf("unexpected ready values: %q %d %q", name, size, fileType)
 	}
 }
 
 func TestUseUploadOnChange(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-		cleanups:  []func(){},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
-
+	f := newUploadFixture(t)
 	var event UploadEvent
-	done := make(chan struct{})
-	handle.OnChange(func(e UploadEvent) {
-		event = e
-		close(done)
-	})
+	f.handle.OnChange(func(e UploadEvent) { event = e })
+	f.fromClient("change", map[string]interface{}{"name": "document.pdf", "size": float64(4096), "type": "application/pdf", "path": "/uploads/document.pdf"})
 
-	topic := protocol.Topic("script:" + handle.script.slot.id + ":change")
-	sess.Bus.Publish(topic, string(protocol.ScriptMessageAction), protocol.ScriptPayload{
-		ScriptID: handle.script.slot.id,
-		Event:    "change",
-		Data: map[string]interface{}{
-			"name": "document.pdf",
-			"size": float64(4096),
-			"type": "application/pdf",
-			"path": "/uploads/document.pdf",
-		},
-	})
-
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timeout waiting for change handler")
-	}
-
-	if event.Name != "document.pdf" {
-		t.Errorf("expected name 'document.pdf', got '%s'", event.Name)
-	}
-	if event.Size != 4096 {
-		t.Errorf("expected size 4096, got %d", event.Size)
+	if event.Name != "document.pdf" || event.Size != 4096 {
+		t.Errorf("unexpected change event %+v", event)
 	}
 }
 
 func TestUploadHandleProgressNilHandle(t *testing.T) {
 	var handle *UploadHandle
-	progress := handle.Progress()
+	progress := handle.Progress().Peek()
 	if progress.Loaded != 0 || progress.Total != 0 {
 		t.Errorf("expected zero progress for nil handle, got %v", progress)
-	}
-}
-
-func TestUploadHandleProgressNilProgressGetter(t *testing.T) {
-	handle := &UploadHandle{
-		progressGetter: nil,
-	}
-	progress := handle.Progress()
-	if progress.Loaded != 0 || progress.Total != 0 {
-		t.Errorf("expected zero progress for nil progressGetter, got %v", progress)
 	}
 }
 
@@ -608,41 +429,13 @@ func TestUploadHandleAcceptNilHandle(t *testing.T) {
 	handle.Accept(UploadConfig{MaxSize: 1024})
 }
 
-func TestUploadHandleAcceptNilSession(t *testing.T) {
-	handle := &UploadHandle{
-		session: nil,
-	}
-	handle.Accept(UploadConfig{MaxSize: 1024})
-}
-
-func TestUploadHandleAcceptNilRegistry(t *testing.T) {
-	handle := &UploadHandle{
-		session: &Session{UploadRegistry: nil},
-	}
-	handle.Accept(UploadConfig{MaxSize: 1024})
-}
-
 func TestUploadHandleAttachToNilHandle(t *testing.T) {
 	var handle *UploadHandle
-	handle.AttachTo(&work.Element{Tag: "input"})
-}
-
-func TestUploadHandleAttachToNilScript(t *testing.T) {
-	handle := &UploadHandle{
-		script: nil,
-	}
-	handle.AttachTo(&work.Element{Tag: "input"})
+	work.Apply(AttachItem(handle), &work.Element{Tag: "input"})
 }
 
 func TestUploadHandleOnReadyNilHandle(t *testing.T) {
 	var handle *UploadHandle
-	handle.OnReady(func(name string, size int64, fileType string) {})
-}
-
-func TestUploadHandleOnReadyNilScript(t *testing.T) {
-	handle := &UploadHandle{
-		script: nil,
-	}
 	handle.OnReady(func(name string, size int64, fileType string) {})
 }
 
@@ -651,22 +444,8 @@ func TestUploadHandleOnChangeNilHandle(t *testing.T) {
 	handle.OnChange(func(e UploadEvent) {})
 }
 
-func TestUploadHandleOnChangeNilScript(t *testing.T) {
-	handle := &UploadHandle{
-		script: nil,
-	}
-	handle.OnChange(func(e UploadEvent) {})
-}
-
 func TestUploadHandleOnProgressNilHandle(t *testing.T) {
 	var handle *UploadHandle
-	handle.OnProgress(func(loaded, total int64) {})
-}
-
-func TestUploadHandleOnProgressNilScript(t *testing.T) {
-	handle := &UploadHandle{
-		script: nil,
-	}
 	handle.OnProgress(func(loaded, total int64) {})
 }
 
@@ -675,22 +454,8 @@ func TestUploadHandleOnErrorNilHandle(t *testing.T) {
 	handle.OnError(func(err string) {})
 }
 
-func TestUploadHandleOnErrorNilScript(t *testing.T) {
-	handle := &UploadHandle{
-		script: nil,
-	}
-	handle.OnError(func(err string) {})
-}
-
 func TestUploadHandleOnCancelledNilHandle(t *testing.T) {
 	var handle *UploadHandle
-	handle.OnCancelled(func() {})
-}
-
-func TestUploadHandleOnCancelledNilScript(t *testing.T) {
-	handle := &UploadHandle{
-		script: nil,
-	}
 	handle.OnCancelled(func() {})
 }
 
@@ -700,9 +465,7 @@ func TestUploadHandleCancelNilHandle(t *testing.T) {
 }
 
 func TestUploadHandleCancelNilScript(t *testing.T) {
-	handle := &UploadHandle{
-		script: nil,
-	}
+	handle := &UploadHandle{}
 	handle.Cancel()
 }
 
@@ -711,74 +474,28 @@ func TestUploadHandleOnCompleteNilHandle(t *testing.T) {
 	handle.OnComplete(func(info upload.FileInfo) error { return nil })
 }
 
-func TestUploadHandleOnCompleteNilSession(t *testing.T) {
-	handle := &UploadHandle{
-		session: nil,
-	}
+func TestUploadHandleOnCompleteNilCell(t *testing.T) {
+	handle := &UploadHandle{}
 	handle.OnComplete(func(info upload.FileInfo) error { return nil })
 }
 
-func TestUploadHandleOnCompleteNilRegistry(t *testing.T) {
-	handle := &UploadHandle{
-		session: &Session{UploadRegistry: nil},
-	}
-	handle.OnComplete(func(info upload.FileInfo) error { return nil })
-}
+func TestRunningTheBodyAgainDoesNotReplaceUploadConfigOrCallbacks(t *testing.T) {
+	f := newUploadFixture(t)
+	var calls []string
+	f.handle.Accept(UploadConfig{MaxSize: 4096})
+	f.handle.OnReady(func(string, int64, string) { calls = append(calls, "live") })
 
-func TestUploadHandleSendStartNilHandle(t *testing.T) {
-	var handle *UploadHandle
-	handle.sendStart()
-}
-
-func TestUploadHandleSendStartNilScript(t *testing.T) {
-	handle := &UploadHandle{
-		script: nil,
-	}
-	handle.sendStart()
-}
-
-func TestUploadHandleSendStartWithConfig(t *testing.T) {
-	inst := &Instance{
-		ID:        "test-comp",
-		HookFrame: []HookSlot{},
-	}
-	sess := &Session{
-		Scripts:        make(map[string]*scriptSlot),
-		Bus:            protocol.NewBus(),
-		UploadRegistry: upload.NewRegistry(),
-	}
-	ctx := &Ctx{
-		instance:  inst,
-		session:   sess,
-		hookIndex: 0,
-	}
-
-	handle := UseUpload(ctx)
-	handle.Accept(UploadConfig{
-		MaxSize:  2048,
-		Accept:   []string{"image/*"},
-		Multiple: true,
+	onActor(t, f.sess, func() {
+		f.sess.graph.Serialize(func() {
+			h := &UploadHandle{script: f.handle.script, cell: f.handle.cell}
+			h.Accept(UploadConfig{MaxSize: 1})
+			h.OnReady(func(string, int64, string) { calls = append(calls, "serialize") })
+		})
 	})
 
-	var receivedData interface{}
-	done := make(chan struct{})
-	scriptTopic := protocol.Topic("script:" + handle.script.slot.id)
-	sess.Bus.Subscribe(scriptTopic, func(action string, data interface{}) {
-		if action == "send" {
-			receivedData = data
-			close(done)
-		}
-	})
-
-	handle.sendStart()
-
-	select {
-	case <-done:
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("timeout waiting for start message")
-	}
-
-	if receivedData == nil {
-		t.Fatal("expected to receive data")
+	f.fromClient("ready", map[string]interface{}{"name": "a", "size": float64(1), "type": "image/png"})
+	start := f.nextStart()
+	if start["maxSize"] != int64(4096) || len(calls) != 1 || calls[0] != "live" {
+		t.Fatalf("a serialize pass replaced live state: start=%v calls=%v", start, calls)
 	}
 }

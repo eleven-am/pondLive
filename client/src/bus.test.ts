@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Bus } from './bus';
+import { Logger } from './logger';
 
 describe('Bus', () => {
     let bus: Bus;
@@ -13,9 +14,9 @@ describe('Bus', () => {
             const callback = vi.fn();
             bus.subscribe('frame', 'patch', callback);
 
-            bus.publish('frame', 'patch', { seq: 1, patches: [] });
+            bus.publish('frame', 'patch', []);
 
-            expect(callback).toHaveBeenCalledWith({ seq: 1, patches: [] });
+            expect(callback).toHaveBeenCalledWith([]);
         });
 
         it('should return unsubscribe function', () => {
@@ -23,7 +24,7 @@ describe('Bus', () => {
             const sub = bus.subscribe('frame', 'patch', callback);
 
             sub.unsubscribe();
-            bus.publish('frame', 'patch', { seq: 1, patches: [] });
+            bus.publish('frame', 'patch', []);
 
             expect(callback).not.toHaveBeenCalled();
         });
@@ -35,7 +36,7 @@ describe('Bus', () => {
             bus.subscribe('frame', 'patch', callback1);
             bus.subscribe('frame', 'patch', callback2);
 
-            bus.publish('frame', 'patch', { seq: 1, patches: [] });
+            bus.publish('frame', 'patch', []);
 
             expect(callback1).toHaveBeenCalled();
             expect(callback2).toHaveBeenCalled();
@@ -47,7 +48,7 @@ describe('Bus', () => {
             const callback = vi.fn();
             bus.upsert('frame', 'patch', callback);
 
-            bus.publish('frame', 'patch', { seq: 1, patches: [] });
+            bus.publish('frame', 'patch', []);
 
             expect(callback).toHaveBeenCalled();
         });
@@ -59,7 +60,7 @@ describe('Bus', () => {
             bus.upsert('frame', 'patch', callback1);
             bus.upsert('frame', 'patch', callback2);
 
-            bus.publish('frame', 'patch', { seq: 1, patches: [] });
+            bus.publish('frame', 'patch', []);
 
             expect(callback1).not.toHaveBeenCalled();
             expect(callback2).toHaveBeenCalled();
@@ -71,11 +72,11 @@ describe('Bus', () => {
             const callback = vi.fn();
             bus.subscribeAll(callback);
 
-            bus.publish('frame', 'patch', { seq: 1, patches: [] });
+            bus.publish('frame', 'patch', []);
             bus.publish('router', 'push', { path: '/new', query: '', hash: '', replace: false });
 
             expect(callback).toHaveBeenCalledTimes(2);
-            expect(callback).toHaveBeenCalledWith('frame', 'patch', { seq: 1, patches: [] });
+            expect(callback).toHaveBeenCalledWith('frame', 'patch', []);
             expect(callback).toHaveBeenCalledWith('router', 'push', { path: '/new', query: '', hash: '', replace: false });
         });
 
@@ -84,7 +85,7 @@ describe('Bus', () => {
             const sub = bus.subscribeAll(callback);
 
             sub.unsubscribe();
-            bus.publish('frame', 'patch', { seq: 1, patches: [] });
+            bus.publish('frame', 'patch', []);
 
             expect(callback).not.toHaveBeenCalled();
         });
@@ -93,7 +94,7 @@ describe('Bus', () => {
     describe('publish', () => {
         it('should not throw when no subscribers', () => {
             expect(() => {
-                bus.publish('frame', 'patch', { seq: 1, patches: [] });
+                bus.publish('frame', 'patch', []);
             }).not.toThrow();
         });
 
@@ -107,7 +108,7 @@ describe('Bus', () => {
             bus.subscribe('frame', 'patch', goodCallback);
 
             expect(() => {
-                bus.publish('frame', 'patch', { seq: 1, patches: [] });
+                bus.publish('frame', 'patch', []);
             }).not.toThrow();
 
             expect(goodCallback).toHaveBeenCalled();
@@ -167,26 +168,6 @@ describe('Bus', () => {
         });
     });
 
-    describe('publishHandler', () => {
-        it('should publish to handler subscribers', () => {
-            const callback = vi.fn();
-            bus.subscribe('c0:h0' as any, 'invoke', callback);
-
-            bus.publishHandler('c0:h0', { cseq: 1 });
-
-            expect(callback).toHaveBeenCalledWith({ cseq: 1 });
-        });
-
-        it('should notify wildcard subscribers', () => {
-            const callback = vi.fn();
-            bus.subscribeAll(callback);
-
-            bus.publishHandler('c0:h0', { cseq: 1, value: 'test' });
-
-            expect(callback).toHaveBeenCalledWith('c0:h0', 'invoke', { cseq: 1, value: 'test' });
-        });
-    });
-
     describe('clear', () => {
         it('should remove all subscribers', () => {
             const callback = vi.fn();
@@ -194,9 +175,66 @@ describe('Bus', () => {
             bus.subscribeAll(callback);
 
             bus.clear();
-            bus.publish('frame', 'patch', { seq: 1, patches: [] });
+            bus.publish('frame', 'patch', []);
 
             expect(callback).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('subscriber failures', () => {
+        let errorSpy: ReturnType<typeof vi.spyOn>;
+
+        beforeEach(() => {
+            Logger.configure({ enabled: true, level: 'error' });
+            errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            errorSpy.mockRestore();
+            Logger.configure({ enabled: false, level: 'info' });
+        });
+
+        const boom = () => {
+            throw new Error('boom');
+        };
+
+        it('logs a throwing subscriber on publish and still runs the others', () => {
+            const after = vi.fn();
+            const wild = vi.fn();
+            bus.subscribe('frame', 'patch', boom);
+            bus.subscribe('frame', 'patch', after);
+            bus.subscribeAll(wild);
+
+            bus.publish('frame', 'patch', []);
+
+            expect(after).toHaveBeenCalled();
+            expect(wild).toHaveBeenCalled();
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+            expect(errorSpy.mock.calls[0][1]).toBe('Subscriber failed');
+            expect(errorSpy.mock.calls[0][2]).toMatchObject({ topic: 'frame', action: 'patch' });
+        });
+
+        it('logs a throwing wildcard subscriber on publish', () => {
+            const after = vi.fn();
+            bus.subscribeAll(boom);
+            bus.subscribeAll(after);
+
+            bus.publish('frame', 'patch', []);
+
+            expect(after).toHaveBeenCalled();
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('logs a throwing subscriber on publishScript', () => {
+            const after = vi.fn();
+            bus.subscribeScript('s1', 'send', boom);
+            bus.subscribeScript('s1', 'send', after);
+
+            bus.publishScript('s1', 'send', { event: 'e', data: null } as never);
+
+            expect(after).toHaveBeenCalled();
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+            expect(errorSpy.mock.calls[0][2]).toMatchObject({ action: 'send' });
         });
     });
 });

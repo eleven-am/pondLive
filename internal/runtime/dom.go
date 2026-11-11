@@ -8,78 +8,64 @@ import (
 	"time"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/reactive"
 )
 
 var (
-	ErrNilRef       = errors.New("runtime: ref is nil")
-	ErrNilSession   = errors.New("runtime: session is nil")
-	ErrQueryTimeout = errors.New("runtime: query timeout")
+	ErrNilRef         = errors.New("runtime: ref is nil")
+	ErrRefNotAttached = errors.New("runtime: ref is not attached to an element")
+	ErrNotConnected   = errors.New("runtime: the browser is not connected")
+	ErrForbiddenCall  = errors.New("runtime: the ref does not allow this call")
+	ErrNilSession     = errors.New("runtime: session is nil")
+	ErrQueryTimeout   = errors.New("runtime: query timeout")
+	ErrTooManyQueries = errors.New("runtime: too many pending DOM queries")
 )
 
-const defaultDOMTimeout = 5 * time.Second
+const (
+	defaultDOMTimeout     = 5 * time.Second
+	maxPendingDOMRequests = 256
+)
 
-type domRequestManager struct {
-	pending   map[string]chan protocol.DOMResponsePayload
-	mu        sync.Mutex
-	nextID    atomic.Uint64
-	timeout   atomic.Int64
-	closedSub *protocol.Subscription
+type domPending struct {
+	o     *reactive.Owner
+	fn    func(protocol.DOMResponsePayload, error)
+	timer *Timer
 }
 
-func newDOMRequestManager(bus *protocol.Bus, timeout time.Duration) *domRequestManager {
-	if timeout == 0 {
-		timeout = defaultDOMTimeout
-	}
+type domRequestManager struct {
+	mu      sync.Mutex
+	pending map[string]*domPending
+	closed  bool
+	nextID  atomic.Uint64
+	timeout atomic.Int64
+}
 
-	mgr := &domRequestManager{
-		pending: make(map[string]chan protocol.DOMResponsePayload),
-	}
+func newDOMRequestManager(timeout time.Duration) *domRequestManager {
+	mgr := &domRequestManager{pending: make(map[string]*domPending)}
 	mgr.setTimeout(timeout)
-
-	mgr.closedSub = bus.SubscribeToDOMResponses(func(resp protocol.DOMResponsePayload) {
-		mgr.handleResponse(resp)
-	})
-
 	return mgr
 }
 
-func (m *domRequestManager) allocateRequest() (string, chan protocol.DOMResponsePayload) {
+func (m *domRequestManager) add(p *domPending) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed {
+		return "", ErrSessionClosed
+	}
+	if len(m.pending) >= maxPendingDOMRequests {
+		return "", ErrTooManyQueries
+	}
 	id := fmt.Sprintf("dom-%d", m.nextID.Add(1))
-	ch := make(chan protocol.DOMResponsePayload, 1)
-
-	m.mu.Lock()
-	m.pending[id] = ch
-	m.mu.Unlock()
-
-	return id, ch
+	m.pending[id] = p
+	return id, nil
 }
 
-func (m *domRequestManager) releaseRequest(id string) {
+func (m *domRequestManager) take(id string) *domPending {
 	m.mu.Lock()
+	defer m.mu.Unlock()
+	p := m.pending[id]
 	delete(m.pending, id)
-	m.mu.Unlock()
-}
-
-func (m *domRequestManager) handleResponse(resp protocol.DOMResponsePayload) {
-	m.mu.Lock()
-	ch, ok := m.pending[resp.RequestID]
-	m.mu.Unlock()
-
-	if ok && ch != nil {
-		select {
-		case ch <- resp:
-		default:
-		}
-	}
-}
-
-func (m *domRequestManager) wait(ch chan protocol.DOMResponsePayload) (protocol.DOMResponsePayload, error) {
-	select {
-	case resp := <-ch:
-		return resp, nil
-	case <-time.After(time.Duration(m.timeout.Load())):
-		return protocol.DOMResponsePayload{}, ErrQueryTimeout
-	}
+	return p
 }
 
 func (m *domRequestManager) setTimeout(timeout time.Duration) {
@@ -90,112 +76,54 @@ func (m *domRequestManager) setTimeout(timeout time.Duration) {
 }
 
 func (m *domRequestManager) close() {
-	if m.closedSub != nil {
-		m.closedSub.Unsubscribe()
-	}
 	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed {
+		return
+	}
+	m.closed = true
 	m.pending = nil
-	m.mu.Unlock()
 }
 
-func (c *Ctx) Call(ref *ElementRef, method string, args ...any) {
-	if ref == nil || ref.RefID() == "" {
-		return
+func (s *Session) domAsk(o *reactive.Owner, publish func(requestID string), fn func(protocol.DOMResponsePayload, error)) {
+	fail := func(err error) {
+		s.RunOnActor(func() { s.invokeHandler(o, func() { fn(protocol.DOMResponsePayload{}, err) }) })
 	}
-	if c.session == nil || c.session.Bus == nil {
-		return
-	}
-
-	c.session.Bus.PublishDOMCall(protocol.DOMCallPayload{
-		Ref:    ref.RefID(),
-		Method: method,
-		Args:   args,
-	})
-}
-
-func (c *Ctx) Set(ref *ElementRef, prop string, value any) {
-	if ref == nil || ref.RefID() == "" {
-		return
-	}
-	if c.session == nil || c.session.Bus == nil {
-		return
-	}
-
-	c.session.Bus.PublishDOMSet(protocol.DOMSetPayload{
-		Ref:   ref.RefID(),
-		Prop:  prop,
-		Value: value,
-	})
-}
-
-func (c *Ctx) Query(ref *ElementRef, selectors ...string) (map[string]any, error) {
-	if ref == nil || ref.RefID() == "" {
-		return nil, ErrNilRef
-	}
-	if c.session == nil || c.session.Bus == nil {
-		return nil, ErrNilSession
-	}
-	if len(selectors) == 0 {
-		return map[string]any{}, nil
-	}
-
-	mgr := c.session.getDOMRequestManager()
+	mgr := s.getDOMRequestManager()
 	if mgr == nil {
-		return nil, ErrNilSession
+		if s.domIsClosed() {
+			fail(ErrSessionClosed)
+			return
+		}
+		fail(ErrNilSession)
+		return
 	}
-
-	requestID, ch := mgr.allocateRequest()
-	defer mgr.releaseRequest(requestID)
-
-	c.session.Bus.PublishDOMQuery(protocol.DOMQueryPayload{
-		RequestID: requestID,
-		Ref:       ref.RefID(),
-		Selectors: selectors,
-	})
-
-	resp, err := mgr.wait(ch)
+	p := &domPending{o: o, fn: fn}
+	id, err := mgr.add(p)
 	if err != nil {
-		return nil, err
+		fail(err)
+		return
 	}
-
-	if resp.Error != "" {
-		return nil, errors.New(resp.Error)
-	}
-
-	return resp.Values, nil
+	p.timer = s.After(time.Duration(mgr.timeout.Load()), func() {
+		s.finishDOM(id, protocol.DOMResponsePayload{}, ErrQueryTimeout)
+	})
+	publish(id)
 }
 
-func (c *Ctx) AsyncCall(ref *ElementRef, method string, args ...any) (any, error) {
-	if ref == nil || ref.RefID() == "" {
-		return nil, ErrNilRef
-	}
-	if c.session == nil || c.session.Bus == nil {
-		return nil, ErrNilSession
-	}
-
-	mgr := c.session.getDOMRequestManager()
+func (s *Session) finishDOM(id string, resp protocol.DOMResponsePayload, err error) {
+	mgr := s.domReqMgr.Load()
 	if mgr == nil {
-		return nil, ErrNilSession
+		return
 	}
-
-	requestID, ch := mgr.allocateRequest()
-	defer mgr.releaseRequest(requestID)
-
-	c.session.Bus.PublishDOMAsync(protocol.DOMAsyncPayload{
-		RequestID: requestID,
-		Ref:       ref.RefID(),
-		Method:    method,
-		Args:      args,
-	})
-
-	resp, err := mgr.wait(ch)
-	if err != nil {
-		return nil, err
+	p := mgr.take(id)
+	if p == nil {
+		return
 	}
-
-	if resp.Error != "" {
-		return nil, errors.New(resp.Error)
+	if p.timer != nil {
+		p.timer.Stop()
 	}
-
-	return resp.Result, nil
+	if err == nil && resp.Error != "" {
+		err = errors.New(resp.Error)
+	}
+	s.invokeHandler(p.o, func() { p.fn(resp, err) })
 }

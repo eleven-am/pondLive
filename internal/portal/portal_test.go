@@ -1,258 +1,108 @@
 package portal
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/eleven-am/pondlive/internal/runtime"
-	"github.com/eleven-am/pondlive/internal/view"
+	"github.com/eleven-am/pondlive/internal/runtime/runtimetest"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
+func el(tag string, items ...work.Item) work.Node { return work.BuildElement(tag, items...) }
+
 func TestPortalRendersAtTarget(t *testing.T) {
-	sess := &runtime.Session{
-		Components: make(map[string]*runtime.Instance),
-	}
+	app := runtimetest.New(t, func(ctx *runtime.Ctx) work.Node {
+		return el("div",
+			el("section", Portal(el("dialog", work.NewText("hello")))),
+			el("footer", Target()),
+		)
+	})
 
-	rootFn := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		return &work.Fragment{
-			Children: []work.Node{
-				&work.Element{Tag: "div", Children: []work.Node{
-					&work.Text{Value: "before"},
-					Portal(&work.Element{Tag: "span", Children: []work.Node{
-						&work.Text{Value: "portal content"},
-					}}),
-					&work.Text{Value: "after"},
-				}},
-				Target(),
-			},
-		}
-	}
-
-	sess.Root = &runtime.Instance{
-		ID: "root",
-		Fn: rootFn,
-	}
-
-	err := sess.Flush()
-	if err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	frag, ok := sess.View.(*view.Fragment)
-	if !ok {
-		t.Fatalf("expected Fragment, got %T", sess.View)
-	}
-
-	if len(frag.Children) != 2 {
-		t.Fatalf("expected 2 children (div + portal target content), got %d", len(frag.Children))
-	}
-
-	div, ok := frag.Children[0].(*view.Element)
-	if !ok {
-		t.Fatalf("expected first child to be Element, got %T", frag.Children[0])
-	}
-
-	if div.Tag != "div" {
-		t.Errorf("expected div tag, got %s", div.Tag)
-	}
-
-	if len(div.Children) != 2 {
-		t.Fatalf("expected div to have 2 children (before + after, portal removed), got %d", len(div.Children))
-	}
-
-	span, ok := frag.Children[1].(*view.Element)
-	if !ok {
-		t.Fatalf("expected portal target content to be Element, got %T", frag.Children[1])
-	}
-
-	if span.Tag != "span" {
-		t.Errorf("expected span tag at target, got %s", span.Tag)
+	if got := app.Normalized(); got != `<div><section></section><footer><dialog>hello</dialog></footer></div>` {
+		t.Fatalf("got %s", got)
 	}
 }
 
 func TestPortalPreservesContext(t *testing.T) {
-	sess := &runtime.Session{
-		Components: make(map[string]*runtime.Instance),
-	}
+	theme := runtime.NewContext[string]()
+	reader := runtime.Component(func(ctx *runtime.Ctx) work.Node {
+		return el("b", work.TextOf(runtime.UseContext(ctx, theme)))
+	})
+	app := runtimetest.New(t, func(ctx *runtime.Ctx) work.Node {
+		sig := runtime.UseSignal(ctx, "dark")
+		runtime.Provide(ctx, theme, sig)
+		return el("div", el("section", Portal(el("p", reader()))), el("footer", Target()))
+	})
 
-	testCtx := runtime.CreateContext("default")
-	var capturedValue string
-
-	childComponent := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		capturedValue = testCtx.UseContextValue(ctx)
-		return &work.Text{Value: capturedValue}
-	}
-
-	providerComponent := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		testCtx.UseProvider(ctx, "provided-value")
-		return &work.Fragment{
-			Children: []work.Node{
-				Portal(work.Component(childComponent)),
-			},
-		}
-	}
-
-	rootFn := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		return &work.Fragment{
-			Children: []work.Node{
-				work.Component(providerComponent),
-				Target(),
-			},
-		}
-	}
-
-	sess.Root = &runtime.Instance{
-		ID: "root",
-		Fn: rootFn,
-	}
-
-	err := sess.Flush()
-	if err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	if capturedValue != "provided-value" {
-		t.Errorf("expected context value 'provided-value', got '%s'", capturedValue)
+	if got := app.Normalized(); !strings.Contains(got, "<footer><p><b>dark</b></p></footer>") {
+		t.Fatalf("the portal did not see its creator's context: %s", got)
 	}
 }
 
 func TestMultiplePortalsRenderInOrder(t *testing.T) {
-	sess := &runtime.Session{
-		Components: make(map[string]*runtime.Instance),
-	}
+	app := runtimetest.New(t, func(ctx *runtime.Ctx) work.Node {
+		return el("div",
+			Portal(el("i", work.NewText("one"))),
+			Portal(el("i", work.NewText("two"))),
+			el("footer", Target()),
+		)
+	})
 
-	rootFn := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		return &work.Fragment{
-			Children: []work.Node{
-				Portal(&work.Text{Value: "first"}),
-				Portal(&work.Text{Value: "second"}),
-				Portal(&work.Text{Value: "third"}),
-				Target(),
-			},
-		}
-	}
-
-	sess.Root = &runtime.Instance{
-		ID: "root",
-		Fn: rootFn,
-	}
-
-	err := sess.Flush()
-	if err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	frag, ok := sess.View.(*view.Fragment)
-	if !ok {
-		t.Fatalf("expected Fragment at target, got %T", sess.View)
-	}
-
-	if len(frag.Children) != 3 {
-		t.Fatalf("expected 3 portal contents, got %d", len(frag.Children))
-	}
-
-	expected := []string{"first", "second", "third"}
-	for i, exp := range expected {
-		text, ok := frag.Children[i].(*view.Text)
-		if !ok {
-			t.Errorf("child %d: expected Text, got %T", i, frag.Children[i])
-			continue
-		}
-		if text.Text != exp {
-			t.Errorf("child %d: expected '%s', got '%s'", i, exp, text.Text)
-		}
+	if got := app.Normalized(); !strings.Contains(got, "<footer><i>one</i><i>two</i></footer>") {
+		t.Fatalf("got %s", got)
 	}
 }
 
 func TestEmptyPortalRendersNothing(t *testing.T) {
-	sess := &runtime.Session{
-		Components: make(map[string]*runtime.Instance),
-	}
+	app := runtimetest.New(t, func(ctx *runtime.Ctx) work.Node {
+		return el("div", Portal(), el("footer", Target()))
+	}, runtimetest.Dev(false))
 
-	rootFn := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		return &work.Fragment{
-			Children: []work.Node{
-				&work.Text{Value: "content"},
-				Target(),
-			},
-		}
-	}
-
-	sess.Root = &runtime.Instance{
-		ID: "root",
-		Fn: rootFn,
-	}
-
-	err := sess.Flush()
-	if err != nil {
-		t.Fatalf("flush failed: %v", err)
-	}
-
-	text, ok := sess.View.(*view.Text)
-	if !ok {
-		t.Fatalf("expected Text (single child unwrapped), got %T", sess.View)
-	}
-
-	if text.Text != "content" {
-		t.Errorf("expected 'content', got '%s'", text.Text)
+	if got := app.Normalized(); !strings.Contains(got, "<footer></footer>") {
+		t.Fatalf("got %s", got)
 	}
 }
 
-func TestPortalClearsAfterFlush(t *testing.T) {
-	sess := &runtime.Session{
-		Components: make(map[string]*runtime.Instance),
+func TestPortalLeavesWhenItsCreatorIsDisposed(t *testing.T) {
+	var on *runtime.Signal[bool]
+	app := runtimetest.New(t, func(ctx *runtime.Ctx) work.Node {
+		on = runtime.UseSignal(ctx, true)
+		return el("div",
+			runtime.Show(on, func() work.Node { return el("section", Portal(el("dialog"))) }),
+			el("footer", Target()),
+		)
+	})
+	if !strings.Contains(app.Normalized(), "<dialog></dialog>") {
+		t.Fatalf("got %s", app.Normalized())
 	}
 
-	callCount := 0
-	rootFn := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		callCount++
-		if callCount == 1 {
-			return &work.Fragment{
-				Children: []work.Node{
-					Portal(&work.Text{Value: "first render"}),
-					Target(),
-				},
-			}
-		}
-		return &work.Fragment{
-			Children: []work.Node{
-				Portal(&work.Text{Value: "second render"}),
-				Target(),
-			},
-		}
+	app.Do(func() { on.Set(false) })
+
+	if strings.Contains(app.Normalized(), "dialog") {
+		t.Fatalf("portal entry outlived its creator: %s", app.Normalized())
+	}
+}
+
+func TestPortalEntryMayBeSeveralNodes(t *testing.T) {
+	var show *runtime.Signal[bool]
+	app := runtimetest.New(t, func(ctx *runtime.Ctx) work.Node {
+		show = runtime.UseSignal(ctx, true)
+		return el("div",
+			runtime.Show(show, func() work.Node {
+				return el("section", Portal(el("i", work.NewText("one")), work.NewText("loose text"), el("b", work.NewText("two"))))
+			}),
+			el("footer", Target()),
+		)
+	})
+
+	if got := app.Normalized(); !strings.Contains(got, "<footer>") || !strings.Contains(got, "<i>one</i>loose text<b>two</b>") {
+		t.Fatalf("got %s", got)
 	}
 
-	sess.Root = &runtime.Instance{
-		ID: "root",
-		Fn: rootFn,
-	}
+	app.Do(func() { show.Set(false) })
 
-	err := sess.Flush()
-	if err != nil {
-		t.Fatalf("first flush failed: %v", err)
-	}
-
-	text, ok := sess.View.(*view.Text)
-	if !ok {
-		t.Fatalf("first render: expected Text, got %T", sess.View)
-	}
-	if text.Text != "first render" {
-		t.Errorf("first render: expected 'first render', got '%s'", text.Text)
-	}
-
-	sess.Root.WorkTree = nil
-	sess.MarkDirty(sess.Root)
-
-	err = sess.Flush()
-	if err != nil {
-		t.Fatalf("second flush failed: %v", err)
-	}
-
-	text, ok = sess.View.(*view.Text)
-	if !ok {
-		t.Fatalf("second render: expected Text, got %T", sess.View)
-	}
-	if text.Text != "second render" {
-		t.Errorf("second render: expected 'second render', got '%s'", text.Text)
+	if got := app.Normalized(); strings.Contains(got, "loose text") {
+		t.Fatalf("the multi-node entry outlived its creator: %s", got)
 	}
 }

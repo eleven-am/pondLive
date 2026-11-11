@@ -1,8 +1,44 @@
-.PHONY: test test-unit test-integration test-all coverage clean lint release-patch release-minor release-major build install
+.PHONY: test test-go test-unit test-integration test-all coverage clean lint release-patch release-minor release-major build install client-install client-test client-typecheck client-build client-check contract-fixtures protocol-fixtures client-wire
 
 # Run all unit tests
-test:
+test: test-go client-test client-typecheck
+
+test-go:
 	go test ./...
+
+client-install: client/node_modules
+
+client/node_modules: client/package-lock.json
+	cd client && npm ci
+	@touch client/node_modules
+
+client-test: client/node_modules
+	cd client && npx vitest run
+
+client-typecheck: client/node_modules
+	cd client && npx tsc --noEmit
+
+client-build: client/node_modules
+	cd client && node esbuild.config.js
+
+client-check: client/node_modules
+	@rm -rf client/.bundle-check && mkdir -p client/.bundle-check && cp -R internal/server/static/. client/.bundle-check; \
+	trap 'rm -rf internal/server/static; mkdir -p internal/server/static; cp -R client/.bundle-check/. internal/server/static; rm -rf client/.bundle-check' EXIT; \
+	(cd client && node esbuild.config.js >/dev/null) || { echo "client build failed"; exit 1; }; \
+	if diff -rq client/.bundle-check internal/server/static; then \
+		echo "client bundle is up to date"; \
+	else \
+		echo "committed client bundle is stale: run 'make client-build' and commit the result"; exit 1; \
+	fi
+
+contract-fixtures:
+	CONTRACT_FIXTURES_DIR=$(CURDIR)/client/test/fixtures/contract go test ./internal/contract/ -run TestGenerateFixtures -count=1
+
+client-wire:
+	WIRE_OUT=$(CURDIR)/client/src go test ./internal/protocol/ -run TestClientWireFileIsGeneratedFromTheGoTables -count=1
+
+protocol-fixtures:
+	PROTOCOL_FIXTURES_DIR=$(CURDIR)/client/test/fixtures/protocol go test ./internal/server/ -run TestGenerateProtocolTranscripts -count=1
 
 # Alias for test
 test-unit: test
@@ -48,7 +84,7 @@ lint:
 	golangci-lint run ./...
 
 # Build example applications
-build:
+build: client-build
 	go build -o bin/counter ./examples/counter
 
 # Install dependencies
@@ -95,7 +131,14 @@ release-major:
 # Help command
 help:
 	@echo "Available commands:"
-	@echo "  make test              - Run all unit tests"
+	@echo "  make test              - Run Go tests, client tests and client typecheck"
+	@echo "  make test-go           - Run Go unit tests only"
+	@echo "  make client-test       - Run client unit and contract tests"
+	@echo "  make client-typecheck  - Typecheck the client"
+	@echo "  make client-build      - Build the client bundle into internal/server/static"
+	@echo "  make client-check      - Fail if the committed bundle differs from a fresh build"
+	@echo "  make contract-fixtures - Regenerate Go to client contract fixtures"
+	@echo "  make protocol-fixtures - Regenerate Go to client protocol transcripts"
 	@echo "  make test-verbose      - Run tests with verbose output"
 	@echo "  make test-internal     - Run tests for internal packages only"
 	@echo "  make test-pkg          - Run tests for pkg packages only"

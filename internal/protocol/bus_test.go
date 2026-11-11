@@ -299,21 +299,21 @@ func TestBusConcurrentUnsubscribe(t *testing.T) {
 	}
 }
 
-func TestSubscribeToHandlerInvokeUsesUpsert(t *testing.T) {
+func TestUpsertKeepsOnlyTheLatestSubscriber(t *testing.T) {
 	bus := NewBus()
 
 	var count int32
 	done := make(chan struct{})
 
-	bus.SubscribeToHandlerInvoke("handler", func(event interface{}) {
+	bus.Upsert("handler", func(string, interface{}) {
 		atomic.AddInt32(&count, 1)
 	})
-	bus.SubscribeToHandlerInvoke("handler", func(event interface{}) {
+	bus.Upsert("handler", func(string, interface{}) {
 		atomic.AddInt32(&count, 10)
 		close(done)
 	})
 
-	bus.PublishHandlerInvoke("handler", nil)
+	bus.Publish("handler", "invoke", nil)
 	<-done
 
 	if atomic.LoadInt32(&count) != 10 {
@@ -432,13 +432,13 @@ func TestBusUpsertWithHandlerPattern(t *testing.T) {
 	var value1 int32
 	done1 := make(chan struct{})
 	bus.Upsert(handlerID, func(event string, data interface{}) {
-		if event == string(HandlerInvokeAction) {
+		if event == "invoke" {
 			atomic.StoreInt32(&value1, 1)
 		}
 		close(done1)
 	})
 
-	bus.PublishHandlerInvoke(string(handlerID), nil)
+	bus.Publish(handlerID, "invoke", nil)
 	<-done1
 
 	if atomic.LoadInt32(&value1) != 1 {
@@ -448,7 +448,7 @@ func TestBusUpsertWithHandlerPattern(t *testing.T) {
 	var value2 int32
 	done2 := make(chan struct{})
 	bus.Upsert(handlerID, func(event string, data interface{}) {
-		if event == string(HandlerInvokeAction) {
+		if event == "invoke" {
 			atomic.StoreInt32(&value2, 2)
 		}
 		close(done2)
@@ -458,7 +458,7 @@ func TestBusUpsertWithHandlerPattern(t *testing.T) {
 		t.Errorf("expected 1 subscriber, got %d", bus.SubscriberCount(handlerID))
 	}
 
-	bus.PublishHandlerInvoke(string(handlerID), nil)
+	bus.Publish(handlerID, "invoke", nil)
 	<-done2
 
 	if atomic.LoadInt32(&value1) != 1 {
@@ -498,156 +498,6 @@ func TestBusUpsertCollapsesToSingleSubscriber(t *testing.T) {
 	}
 	if atomic.LoadInt32(&newCount) != 1 {
 		t.Fatalf("expected new upsert callback called once, got %d", newCount)
-	}
-}
-
-func TestBusPublishRecoversFromPanic(t *testing.T) {
-	bus := NewBus()
-
-	var called int32
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	bus.Subscribe("id", func(event string, data interface{}) {
-		defer wg.Done()
-		panic("boom")
-	})
-	bus.Subscribe("id", func(event string, data interface{}) {
-		defer wg.Done()
-		atomic.StoreInt32(&called, 1)
-	})
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("Publish should recover panics, but panic propagated: %v", r)
-		}
-	}()
-
-	bus.Publish("id", "event", nil)
-
-	wg.Wait()
-
-	if atomic.LoadInt32(&called) != 1 {
-		t.Fatalf("expected non-panicking subscriber to be invoked despite panic in another")
-	}
-}
-
-func TestBusPublishPanicRecovery(t *testing.T) {
-	bus := NewBus()
-
-	var called1, called3 int32
-	var wg sync.WaitGroup
-	wg.Add(3)
-
-	bus.Subscribe("test-id", func(event string, data interface{}) {
-		defer wg.Done()
-		atomic.StoreInt32(&called1, 1)
-	})
-
-	bus.Subscribe("test-id", func(event string, data interface{}) {
-		defer wg.Done()
-		panic("intentional panic")
-	})
-
-	bus.Subscribe("test-id", func(event string, data interface{}) {
-		defer wg.Done()
-		atomic.StoreInt32(&called3, 1)
-	})
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Error("expected Publish to recover from panic, but it propagated")
-		}
-	}()
-
-	bus.Publish("test-id", "event", nil)
-
-	wg.Wait()
-
-	if atomic.LoadInt32(&called1) != 1 {
-		t.Error("expected first subscriber to be called")
-	}
-	if atomic.LoadInt32(&called3) != 1 {
-		t.Error("expected third subscriber to be called despite second panicking")
-	}
-}
-
-func TestBusPublishPanicInUpsert(t *testing.T) {
-	bus := NewBus()
-
-	done1 := make(chan struct{})
-	bus.Upsert("test-id", func(event string, data interface{}) {
-		close(done1)
-		panic("upsert panic")
-	})
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Error("expected Publish to recover from panic in Upsert callback")
-		}
-	}()
-
-	bus.Publish("test-id", "event", nil)
-	<-done1
-
-	time.Sleep(10 * time.Millisecond)
-
-	if bus.SubscriberCount("test-id") != 1 {
-		t.Error("expected subscriber to still exist after panic")
-	}
-
-	var called int32
-	done2 := make(chan struct{})
-	bus.Upsert("test-id", func(event string, data interface{}) {
-		atomic.StoreInt32(&called, 1)
-		close(done2)
-	})
-
-	bus.Publish("test-id", "event", nil)
-	<-done2
-
-	if atomic.LoadInt32(&called) != 1 {
-		t.Error("expected updated callback to be called")
-	}
-}
-
-func TestBusPublishMultiplePanics(t *testing.T) {
-	bus := NewBus()
-
-	var count int32
-	var wg sync.WaitGroup
-	wg.Add(3)
-
-	bus.Subscribe("test-id", func(event string, data interface{}) {
-		defer wg.Done()
-		atomic.AddInt32(&count, 1)
-		panic("panic 1")
-	})
-
-	bus.Subscribe("test-id", func(event string, data interface{}) {
-		defer wg.Done()
-		atomic.AddInt32(&count, 1)
-		panic("panic 2")
-	})
-
-	bus.Subscribe("test-id", func(event string, data interface{}) {
-		defer wg.Done()
-		atomic.AddInt32(&count, 1)
-		panic("panic 3")
-	})
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Error("expected Publish to handle multiple panics")
-		}
-	}()
-
-	bus.Publish("test-id", "event", nil)
-
-	wg.Wait()
-
-	if atomic.LoadInt32(&count) != 3 {
-		t.Errorf("expected all 3 subscribers to be called, got %d", count)
 	}
 }
 
@@ -693,7 +543,7 @@ func TestBusSubscribeAllUnsubscribe(t *testing.T) {
 	bus := NewBus()
 
 	var count int32
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	sub := bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
 		atomic.AddInt32(&count, 1)
 		select {
@@ -784,38 +634,6 @@ func TestBusSubscribeAllMultipleWildcards(t *testing.T) {
 	}
 	if atomic.LoadInt32(&count2) != 1 {
 		t.Errorf("expected wildcard 2 called once, got %d", count2)
-	}
-}
-
-func TestBusSubscribeAllPanicRecovery(t *testing.T) {
-	bus := NewBus()
-
-	var called int32
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
-		defer wg.Done()
-		panic("wildcard panic")
-	})
-
-	bus.SubscribeAll(func(topic Topic, event string, data interface{}) {
-		defer wg.Done()
-		atomic.StoreInt32(&called, 1)
-	})
-
-	defer func() {
-		if r := recover(); r != nil {
-			t.Error("expected Publish to recover from wildcard panic")
-		}
-	}()
-
-	bus.Publish("topic", "event", nil)
-
-	wg.Wait()
-
-	if atomic.LoadInt32(&called) != 1 {
-		t.Error("expected second wildcard to be called despite first panicking")
 	}
 }
 
@@ -959,15 +777,15 @@ func TestDecodePayload(t *testing.T) {
 
 	t.Run("json decode struct", func(t *testing.T) {
 		data := map[string]interface{}{
-			"channel": "test",
-			"event":   "msg",
+			"scriptId": "test",
+			"event":    "msg",
 		}
-		result, ok := DecodePayload[ChannelMessagePayload](data)
+		result, ok := DecodePayload[ScriptPayload](data)
 		if !ok {
 			t.Error("expected ok to be true")
 		}
-		if result.Channel != "test" {
-			t.Errorf("Channel = %q, want %q", result.Channel, "test")
+		if result.ScriptID != "test" {
+			t.Errorf("ScriptID = %q, want %q", result.ScriptID, "test")
 		}
 	})
 
@@ -997,4 +815,42 @@ func TestServerErrorError(t *testing.T) {
 			t.Errorf("Error() = %q, want empty string", err.Error())
 		}
 	})
+}
+
+func TestInboundEventsRunInArrivalOrder(t *testing.T) {
+	bus := NewBus()
+	var mu sync.Mutex
+	var got []int
+	bus.Subscribe("topic", func(_ string, data interface{}) {
+		mu.Lock()
+		got = append(got, data.(int))
+		mu.Unlock()
+	})
+
+	const n = 5000
+	for i := 0; i < n; i++ {
+		bus.Publish("topic", "event", i)
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		mu.Lock()
+		count := len(got)
+		mu.Unlock()
+		if count == n {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("only %d of %d events were delivered", count, n)
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	for i, v := range got {
+		if v != i {
+			t.Fatalf("event %d was delivered at position %d", v, i)
+		}
+	}
 }

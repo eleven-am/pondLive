@@ -2,7 +2,10 @@ package route
 
 import (
 	"errors"
+	"maps"
 	"net/url"
+	"slices"
+	"sort"
 	"strings"
 )
 
@@ -13,18 +16,6 @@ type Location struct {
 }
 
 var ErrMissingRouter = errors.New("router: missing router context")
-
-func ParseHref(href string) Location {
-	u, err := url.Parse(href)
-	if err != nil {
-		return Location{Path: "/"}
-	}
-	return Location{
-		Path:  u.Path,
-		Query: u.Query(),
-		Hash:  u.Fragment,
-	}
-}
 
 func BuildHref(loc Location) string {
 	path := loc.Path
@@ -54,9 +45,7 @@ func SetSearch(loc Location, values url.Values) Location {
 }
 
 func AddSearch(loc Location, key string, values ...string) Location {
-	if loc.Query == nil {
-		loc.Query = url.Values{}
-	}
+	loc = loc.Clone()
 	for _, v := range values {
 		loc.Query.Add(key, v)
 	}
@@ -64,16 +53,13 @@ func AddSearch(loc Location, key string, values ...string) Location {
 }
 
 func DelSearch(loc Location, key string) Location {
-	if loc.Query != nil {
-		loc.Query.Del(key)
-	}
+	loc = loc.Clone()
+	loc.Query.Del(key)
 	return loc
 }
 
 func MergeSearch(loc Location, values url.Values) Location {
-	if loc.Query == nil {
-		loc.Query = url.Values{}
-	}
+	loc = loc.Clone()
 	for key, vals := range values {
 		for _, v := range vals {
 			loc.Query.Add(key, v)
@@ -96,24 +82,7 @@ func (loc Location) Clone() Location {
 }
 
 func LocEqual(a, b Location) bool {
-	if a.Path != b.Path || a.Hash != b.Hash {
-		return false
-	}
-	if len(a.Query) != len(b.Query) {
-		return false
-	}
-	for key, valsA := range a.Query {
-		valsB, ok := b.Query[key]
-		if !ok || len(valsA) != len(valsB) {
-			return false
-		}
-		for i, val := range valsA {
-			if val != valsB[i] {
-				return false
-			}
-		}
-	}
-	return true
+	return a.Path == b.Path && a.Hash == b.Hash && maps.EqualFunc(a.Query, b.Query, slices.Equal[[]string])
 }
 
 func cloneValues(values url.Values) url.Values {
@@ -125,4 +94,46 @@ func cloneValues(values url.Values) url.Values {
 		clone[k] = append([]string(nil), v...)
 	}
 	return clone
+}
+
+func Canonicalize(loc Location) Location {
+	if loc.Path == "" {
+		loc.Path = "/"
+	}
+
+	parts := NormalizeParts(loc.Path)
+
+	canon := Location{
+		Path:  parts.Path,
+		Query: canonicalValues(loc.Query),
+		Hash:  NormalizeHash(loc.Hash),
+	}
+
+	if canon.Hash == "" && parts.Hash != "" {
+		canon.Hash = NormalizeHash(parts.Hash)
+	}
+
+	return canon
+}
+
+func canonicalValues(q url.Values) url.Values {
+	out := make(url.Values, len(q))
+	for key, values := range q {
+		out[key] = canonicalList(values)
+	}
+	return out
+}
+
+func canonicalList(values []string) []string {
+	cleaned := make([]string, 0, len(values))
+	for _, v := range values {
+		cleaned = append(cleaned, strings.TrimSpace(v))
+	}
+	sort.Strings(cleaned)
+	return cleaned
+}
+
+func FromNavigation(path, rawQuery, hash string) Location {
+	query, _ := url.ParseQuery(rawQuery)
+	return Canonicalize(Location{Path: path, Query: query, Hash: hash})
 }

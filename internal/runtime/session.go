@@ -1,94 +1,207 @@
 package runtime
 
 import (
+	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/reactive"
 	"github.com/eleven-am/pondlive/internal/upload"
-	"github.com/eleven-am/pondlive/internal/view"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
+type Stopper interface {
+	Stop() bool
+}
+
+type Clock interface {
+	Now() time.Time
+	AfterFunc(d time.Duration, f func()) Stopper
+}
+
+type realClock struct{}
+
+func (realClock) Now() time.Time { return time.Now() }
+
+func (realClock) AfterFunc(d time.Duration, f func()) Stopper { return time.AfterFunc(d, f) }
+
+type Config struct {
+	SessionID       string
+	Root            func(*Ctx) work.Node
+	DevMode         bool
+	Bus             *protocol.Bus
+	UploadRegistry  *upload.Registry
+	UploadEndpoint  string
+	UploadScriptURL string
+	HandlerQueueCap int
+	DOMTimeout      time.Duration
+	Clock           Clock
+}
+
 type Session struct {
-	Root       *Instance
-	View       view.Node
-	PrevView   view.Node
-	Components map[string]*Instance
+	Bus             *protocol.Bus
+	SessionID       string
+	UploadRegistry  *upload.Registry
+	UploadEndpoint  string
+	UploadScriptURL string
 
-	Handlers   map[string]work.Handler
-	handlersMu sync.RWMutex
-	DirtyQueue []*Instance
-	DirtySet   map[*Instance]struct{}
-	dirtyMu    sync.Mutex
+	graph  *reactive.Graph
+	root   *reactive.Owner
+	rootFn func(*Ctx) work.Node
+	clock  Clock
 
-	Scripts   map[string]*scriptSlot
-	scriptsMu sync.RWMutex
+	nextID        uint32
+	edits         []protocol.Edit
+	handlers      map[uint32]*handlerEntry
+	refs          map[uint32]*Ref
+	echo          map[echoKey]string
+	exiting       map[*reactive.Owner]struct{}
+	failed        map[*reactive.Owner]struct{}
+	arming        []func()
+	mounted       bool
+	holdFeeds     bool
+	docLen        int
+	rootMounting  bool
+	armRunning    bool
+	late          []func()
+	mountBodyRuns int
+	feeds         []feedHandle
+	portalSeq     uint32
+	crash         *Error
+	rootBoundary  *Boundary
+	heldDrains    []func()
+	heldWarnings  []*Warning
+	warnSeq       uint64
+	leakSeen      map[string]struct{}
+	connected     *reactive.Signal[bool]
 
-	Bus *protocol.Bus
+	externals map[externalSyncer]struct{}
 
-	channelManager *ChannelManager
+	scripts   map[string]*scriptSlot
+	scriptSeq uint32
+	portals   *portalHost
 
-	domReqMgr   *domRequestManager
-	domReqMgrMu sync.Mutex
-	domTimeout  time.Duration
+	domReqMgr  atomic.Pointer[domRequestManager]
+	domMu      sync.Mutex
+	domClosed  bool
+	domTimeout atomic.Int64
 
-	currentHandlerIDs map[string]bool
-	allHandlerSubs    map[string]*protocol.Subscription
-	handlerIDsMu      sync.Mutex
-
-	httpHandlers  map[string]*handlerEntry
-	httpHandlerMu sync.RWMutex
-
-	UploadRegistry *upload.Registry
-
-	PendingEffects  []effectTask
-	PendingCleanups []cleanupTask
-
-	MountedComponents map[*Instance]struct{}
-
-	PortalViews []view.Node
-
-	SessionID string
+	httpHandlers map[string]*handlerEntryHTTP
+	httpSeq      uint32
 
 	devMode bool
 
-	pendingFlush bool
-	flushing     bool
-	autoFlush    func()
-	flushMu      sync.Mutex
-
-	mu sync.Mutex
+	mb              mailbox
+	starting        atomic.Bool
+	running         atomic.Bool
+	exited          chan struct{}
+	actorGID        atomic.Int64
+	clientEvents    atomic.Int32
+	flushes         atomic.Uint64
+	overflows       atomic.Int64
+	deferred        atomic.Bool
+	deferredTimers  []*Timer
+	stepStart       atomic.Int64
+	stepSeq         atomic.Uint64
+	stepKind        atomic.Uint32
+	onClosed        func()
+	handlerSlots    atomic.Int32
+	handlerQueueCap atomic.Int32
+	completions     completionTracker
+	closed          bool
+	ctx             context.Context
+	cancelCtx       context.CancelFunc
 }
 
-type effectTask struct {
-	instance  *Instance
-	hookIndex int
-	fn        func() func()
+var goidOnce sync.Once
+
+func NewSession(cfg Config) *Session {
+	goidOnce.Do(func() {
+		if err := reactive.VerifyGoid(); err != nil {
+			panic(err)
+		}
+	})
+	s := &Session{
+		Bus:             cfg.Bus,
+		SessionID:       cfg.SessionID,
+		UploadRegistry:  cfg.UploadRegistry,
+		UploadEndpoint:  cfg.UploadEndpoint,
+		UploadScriptURL: cfg.UploadScriptURL,
+		rootFn:          cfg.Root,
+		clock:           cfg.Clock,
+		devMode:         cfg.DevMode,
+		graph:           reactive.NewGraph(),
+		nextID:          1,
+		handlers:        make(map[uint32]*handlerEntry),
+	}
+	if s.clock == nil {
+		s.clock = realClock{}
+	}
+	if s.Bus == nil {
+		s.Bus = protocol.NewBus()
+	}
+	s.Bus.SubscribeToDOMValues(s.applyDOMValue)
+	if cfg.HandlerQueueCap > 0 {
+		s.handlerQueueCap.Store(int32(cfg.HandlerQueueCap))
+	}
+	if cfg.DOMTimeout > 0 {
+		s.domTimeout.Store(int64(cfg.DOMTimeout))
+	}
+	s.graph.SetViolationHandler(s.onViolation)
+	s.graph.SetCleanupPanicHandler(s.onCleanupPanic)
+	s.graph.SetPoster(func(fn func()) { _ = s.post(message{kind: msgSetter, thunk: fn}) })
+	s.connected = reactive.NewSignal(s.graph, false)
+	return s
 }
 
-type cleanupTask struct {
-	instance *Instance
-	fn       func()
-}
+func (s *Session) Graph() *reactive.Graph { return s.graph }
 
 func (s *Session) getDOMRequestManager() *domRequestManager {
 	if s == nil || s.Bus == nil {
 		return nil
 	}
-
-	s.domReqMgrMu.Lock()
-	defer s.domReqMgrMu.Unlock()
-
-	if s.domReqMgr == nil {
-		timeout := s.domTimeout
-		if timeout == 0 {
-			timeout = defaultDOMTimeout
-		}
-		s.domReqMgr = newDOMRequestManager(s.Bus, timeout)
+	if mgr := s.domReqMgr.Load(); mgr != nil {
+		return mgr
 	}
+	s.domMu.Lock()
+	defer s.domMu.Unlock()
+	if s.domClosed {
+		return nil
+	}
+	if mgr := s.domReqMgr.Load(); mgr != nil {
+		return mgr
+	}
+	timeout := time.Duration(s.domTimeout.Load())
+	if timeout == 0 {
+		timeout = defaultDOMTimeout
+	}
+	fresh := newDOMRequestManager(timeout)
+	s.domReqMgr.Store(fresh)
+	return fresh
+}
 
-	return s.domReqMgr
+func (s *Session) CloseDOM() {
+	if s != nil {
+		s.closeDOM()
+	}
+}
+
+func (s *Session) closeDOM() {
+	s.domMu.Lock()
+	s.domClosed = true
+	mgr := s.domReqMgr.Swap(nil)
+	s.domMu.Unlock()
+	if mgr != nil {
+		mgr.close()
+	}
+}
+
+func (s *Session) domIsClosed() bool {
+	s.domMu.Lock()
+	defer s.domMu.Unlock()
+	return s.domClosed
 }
 
 func (s *Session) SetDOMTimeout(timeout time.Duration) {
@@ -98,106 +211,58 @@ func (s *Session) SetDOMTimeout(timeout time.Duration) {
 	if timeout == 0 {
 		timeout = defaultDOMTimeout
 	}
-
-	s.domReqMgrMu.Lock()
-	s.domTimeout = timeout
-	if s.domReqMgr != nil {
-		s.domReqMgr.setTimeout(timeout)
+	s.domTimeout.Store(int64(timeout))
+	if mgr := s.domReqMgr.Load(); mgr != nil {
+		mgr.setTimeout(timeout)
 	}
-	s.domReqMgrMu.Unlock()
 }
 
-func (s *Session) Close() {
+func (s *Session) ResolveDOMResponse(resp protocol.DOMResponsePayload) {
 	if s == nil {
 		return
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.cleanupInstanceTree(s.Root)
-
-	for _, task := range s.PendingCleanups {
-		if task.fn != nil {
-			func() {
-				defer func() { recover() }()
-				task.fn()
-			}()
-		}
+	if s.domReqMgr.Load() == nil {
+		return
 	}
-	s.PendingCleanups = nil
+	s.RunOnActor(func() { s.finishDOM(resp.RequestID, resp, nil) })
+}
 
-	s.handlerIDsMu.Lock()
-	for _, sub := range s.allHandlerSubs {
-		if sub != nil {
-			sub.Unsubscribe()
-		}
+func (s *Session) SetHandlerQueueCap(n int) {
+	if s != nil {
+		s.handlerQueueCap.Store(int32(n))
 	}
-	s.allHandlerSubs = nil
-	s.currentHandlerIDs = nil
-	s.handlerIDsMu.Unlock()
-
-	s.scriptsMu.Lock()
-	s.Scripts = nil
-	s.scriptsMu.Unlock()
-
-	s.domReqMgrMu.Lock()
-	if s.domReqMgr != nil {
-		s.domReqMgr.close()
-		s.domReqMgr = nil
-	}
-	s.domReqMgrMu.Unlock()
-
-	if s.channelManager != nil {
-		s.channelManager.Close()
-		s.channelManager = nil
-	}
-
-	s.Root = nil
-	s.View = nil
-	s.PrevView = nil
-	s.Components = nil
-	s.Handlers = nil
-	s.DirtyQueue = nil
-	s.DirtySet = nil
-	s.PendingEffects = nil
-	s.MountedComponents = nil
 }
 
 func (s *Session) SetDevMode(enabled bool) {
 	if s == nil {
 		return
 	}
-	s.mu.Lock()
 	s.devMode = enabled
-	s.mu.Unlock()
 }
 
-func (s *Session) ChannelManager() *ChannelManager {
+func (s *Session) DevMode() bool { return s != nil && s.devMode }
+
+var cancelledContext = func() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	return ctx
+}()
+
+func (s *Session) allocIDs(n uint32) uint32 {
+	base := s.nextID
+	s.nextID += n
+	return base
+}
+
+func (s *Session) edit(e protocol.Edit) {
+	s.edits = append(s.edits, e)
+}
+
+func (s *Session) Connected() reactive.Readable[bool] { return s.connected }
+
+func (s *Session) SetConnected(v bool) {
 	if s == nil {
-		return nil
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.channelManager == nil && s.Bus != nil && s.SessionID != "" {
-		s.channelManager = NewChannelManager(s.SessionID, s.Bus)
-	}
-	return s.channelManager
-}
-
-func (s *Session) cleanupInstanceTree(inst *Instance) {
-	if inst == nil {
 		return
 	}
-
-	inst.mu.Lock()
-	children := make([]*Instance, len(inst.Children))
-	copy(children, inst.Children)
-	inst.mu.Unlock()
-
-	for _, child := range children {
-		s.cleanupInstanceTree(child)
-	}
-
-	s.cleanupInstance(inst)
+	s.connected.Set(v)
 }

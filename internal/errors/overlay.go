@@ -7,29 +7,25 @@ import (
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-func devOverlay(batch *runtime.ErrorBatch) work.Node {
-	errs := batch.All()
-
-	errorItems := make([]work.Node, 0, len(errs))
-	for _, err := range errs {
-		errorItems = append(errorItems, errorItem(err))
-	}
-
+func devOverlay(errs runtime.ReadSignal[[]*runtime.Error]) work.Node {
 	return work.BuildElement("div",
 		overlayStyles(),
 		work.BuildElement("div",
 			containerStyles(),
 			work.BuildElement("div",
 				headerStyles(),
-				work.NewText("Runtime Error"),
+				work.TextOf("Runtime Error"),
 				work.BuildElement("span",
 					countBadgeStyles(),
-					work.NewTextf("%d", len(errs)),
+					work.TextOf(runtime.Derive(errs, func(l []*runtime.Error) int { return len(l) })),
 				),
 			),
 			work.BuildElement("div",
 				errorListStyles(),
-				&work.Fragment{Children: errorItems},
+				runtime.For(runtime.Items(errs, func(e *runtime.Error) *runtime.Error { return e }),
+					runtime.PropsComponent(func(_ *runtime.Ctx, item runtime.ReadSignal[*runtime.Error]) work.Node {
+						return errorItem(item.Peek())
+					})),
 			),
 		),
 	)
@@ -42,13 +38,13 @@ func errorItem(err *runtime.Error) work.Node {
 		frames = frames[:maxFrames]
 	}
 
-	stackItems := make([]work.Node, 0, len(frames))
+	stackItems := make([]work.Item, 0, len(frames))
 	for _, frame := range frames {
 		stackItems = append(stackItems, work.BuildElement("div",
 			frameStyles(),
 			work.BuildElement("span",
 				funcNameStyles(),
-				work.NewText(frame.Function),
+				work.TextOf(frame.Function),
 			),
 			work.BuildElement("span",
 				fileStyles(),
@@ -59,29 +55,29 @@ func errorItem(err *runtime.Error) work.Node {
 
 	componentPath := buildComponentPath(err)
 
-	var children []work.Node
+	var children []work.Item
 	children = append(children,
 		work.BuildElement("div",
 			errorHeaderStyles(),
-			work.BuildElement("span", codeStyles(), work.NewText(string(err.Code()))),
-			work.BuildElement("span", phaseStyles(), work.NewText(err.Phase)),
+			work.BuildElement("span", codeStyles(), work.TextOf(string(err.Code()))),
+			work.BuildElement("span", phaseStyles(), work.TextOf(err.Phase)),
 		),
-		work.BuildElement("div", messageStyles(), work.NewText(err.Message)),
+		work.BuildElement("div", messageStyles(), work.TextOf(err.Message)),
 	)
 
 	if componentPath != "" {
 		children = append(children,
-			work.BuildElement("div", componentPathStyles(), work.NewText(componentPath)),
+			work.BuildElement("div", componentPathStyles(), work.TextOf(componentPath)),
 		)
 	}
 
 	if len(stackItems) > 0 {
 		children = append(children,
-			work.BuildElement("div", stackStyles(), &work.Fragment{Children: stackItems}),
+			work.BuildElement("div", stackStyles(), work.NewFragment(stackItems...)),
 		)
 	}
 
-	return work.BuildElement("div", errorItemStyles(), &work.Fragment{Children: children})
+	return work.BuildElement("div", errorItemStyles(), work.NewFragment(children...))
 }
 
 func buildComponentPath(err *runtime.Error) string {

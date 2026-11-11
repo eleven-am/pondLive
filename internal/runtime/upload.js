@@ -1,5 +1,7 @@
 function upload(element, transport) {
     let tusPromise = null;
+    let tusSrc = null;
+    let generation = 0;
     let activeUpload = null;
     let uploadConfig = null;
     let pending = null;
@@ -13,15 +15,21 @@ function upload(element, transport) {
 
     let uploadState = resetState();
 
-    const ensureTus = () => {
+    const ensureTus = (src) => {
         if (window.tus) return Promise.resolve();
-        if (tusPromise) return tusPromise;
+        if (!src) return Promise.reject(new Error('Upload script not configured'));
+        if (tusPromise && tusSrc === src) return tusPromise;
 
+        tusSrc = src;
         tusPromise = new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/tus-js-client@4.3.1/dist/tus.min.js';
+            script.src = src;
             script.onload = resolve;
-            script.onerror = () => reject(new Error('Failed to load tus-js-client'));
+            script.onerror = () => {
+                tusPromise = null;
+                script.remove();
+                reject(new Error('Failed to load tus-js-client'));
+            };
             document.head.appendChild(script);
         });
 
@@ -35,21 +43,22 @@ function upload(element, transport) {
             return;
         }
         const fileArray = Array.from(files);
+        cancelUpload();
+        uploadState = resetState();
         pending = { files: fileArray, input };
+        uploadConfig = null;
 
         const first = fileArray[0];
         transport.send('ready', {
             name: first.name,
             size: first.size,
-            type: first.type
+            type: first.type,
+            count: fileArray.length
         });
-
-        if (uploadConfig) {
-            processPending(uploadConfig);
-        }
     };
 
     const cancelUpload = () => {
+        generation++;
         if (activeUpload) {
             activeUpload.abort(true);
             activeUpload = null;
@@ -67,17 +76,28 @@ function upload(element, transport) {
             transport.send('error', { error: 'Upload token not configured' });
             return;
         }
+        if (!uploadConfig.endpoint) {
+            transport.send('error', { error: 'Upload endpoint not configured' });
+            return;
+        }
 
-        ensureTus().then(() => {
+        const ticket = ++generation;
+        const current = () => ticket === generation;
+
+        ensureTus(uploadConfig.tusScript).then(() => {
+            if (!current()) return;
+
             const upload = new window.tus.Upload(file, {
-                endpoint: '/tus/',
+                endpoint: uploadConfig.endpoint,
                 retryDelays: [0, 1000, 3000, 5000],
+                storeFingerprintForResuming: false,
+                headers: { 'X-Upload-Token': token },
                 metadata: {
-                    token: token,
                     filename: file.name,
                     filetype: file.type,
                 },
                 onProgress: (loaded, total) => {
+                    if (!current()) return;
                     transport.send('progress', {
                         loaded,
                         total,
@@ -88,6 +108,7 @@ function upload(element, transport) {
                     });
                 },
                 onSuccess: () => {
+                    if (!current()) return;
                     activeUpload = null;
                     transport.send('progress', {
                         loaded: file.size,
@@ -110,6 +131,7 @@ function upload(element, transport) {
                     advanceQueue();
                 },
                 onError: (error) => {
+                    if (!current()) return;
                     activeUpload = null;
                     transport.send('error', { error: error.message || 'Upload failed' });
                     advanceQueue();
@@ -119,22 +141,24 @@ function upload(element, transport) {
             activeUpload = upload;
             upload.start();
         }).catch((error) => {
+            if (!current()) return;
             transport.send('error', { error: error.message || 'Failed to initialize upload' });
         });
     };
 
-    const acceptsFile = (file, acceptList) => {
+    const normalizeType = (value) => String(value || '').split(';')[0].trim().toLowerCase();
+
+    const acceptsFile = (file, acceptList, unverifiable) => {
         if (!acceptList || acceptList.length === 0) return true;
-        const fileType = file.type;
-        const fileName = file.name;
-        return acceptList.some(pattern => {
-            if (pattern.startsWith('.')) {
-                return fileName.endsWith(pattern);
-            }
-            if (pattern.includes('*')) {
-                const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
-                return regex.test(fileType);
-            }
+        const fileType = normalizeType(file.type);
+        const fileName = String(file.name || '').toLowerCase();
+        return acceptList.some((raw) => {
+            const pattern = String(raw).trim().toLowerCase();
+            if (pattern === '') return false;
+            if (unverifiable && unverifiable.some((u) => String(u).trim().toLowerCase() === pattern)) return false;
+            if (pattern === '*' || pattern === '*/*') return true;
+            if (pattern.startsWith('.')) return fileName.endsWith(pattern);
+            if (pattern.endsWith('/*')) return fileType !== '' && fileType.startsWith(pattern.slice(0, -1));
             return fileType === pattern;
         });
     };
@@ -142,6 +166,13 @@ function upload(element, transport) {
     const processPending = (config) => {
         if (!pending) return;
         const { files, input } = pending;
+
+        if (!config.multiple && files.length > 1) {
+            transport.send('error', { error: 'Only one file may be uploaded at a time' });
+            input.value = '';
+            pending = null;
+            return;
+        }
 
         for (const f of files) {
             if (config.maxSize && config.maxSize > 0 && f.size > config.maxSize) {
@@ -151,8 +182,8 @@ function upload(element, transport) {
                 return;
             }
 
-            if (!acceptsFile(f, config.accept)) {
-                transport.send('error', { error: `File type not accepted. Allowed: ${config.accept.join(', ')}` });
+            if (!acceptsFile(f, config.accept, config.unverifiable)) {
+                transport.send('error', { error: `File type not accepted. Allowed: ${(config.accept || []).join(', ')}` });
                 input.value = '';
                 pending = null;
                 return;
@@ -208,6 +239,7 @@ function upload(element, transport) {
 
     transport.on('cancel', () => {
         cancelUpload();
+        pending = null;
         if (element && element.value) {
             element.value = '';
         }

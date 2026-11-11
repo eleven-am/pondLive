@@ -1,15 +1,11 @@
 package session
 
-import "github.com/eleven-am/pondlive/internal/headers"
+import "github.com/coder/websocket"
 
 type Transport interface {
-	Send(topic string, event string, data any) error
+	SendFrame(frame []byte) error
 
-	IsLive() bool
+	Closed() bool
 
-	RequestInfo() *headers.RequestInfo
-
-	RequestState() *headers.RequestState
-
-	Close() error
+	Terminate(code websocket.StatusCode, reason string)
 }

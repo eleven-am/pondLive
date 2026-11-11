@@ -1,7 +1,3 @@
-// Package main hosts a full LiveUI application that renders a TailwindCSS-styled
-// counter and wires both the HTTP boot route and PondSocket transport. It can be
-// started with `go run .` and will serve SSR HTML plus a websocket endpoint for
-// interactive updates.
 package main
 
 import (
@@ -17,53 +13,47 @@ import (
 //go:embed public/*
 var publicFS embed.FS
 
-func main() {
-	app, err := pkg.NewApp(
-		counter,
-		pkg.WithDevMode(),
-	)
+func newApp() (*pkg.App, error) {
+	app, err := pkg.NewApp(counter, pkg.WithDevMode())
 	if err != nil {
-		log.Fatalf("build live app: %v", err)
+		return nil, err
 	}
 
 	assets, err := fs.Sub(publicFS, "public/assets")
 	if err != nil {
-		log.Fatalf("load assets: %v", err)
+		return nil, err
 	}
 
 	app.Mux().Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets))))
+	return app, nil
+}
+
+func main() {
+	app, err := newApp()
+	if err != nil {
+		log.Fatalf("build live app: %v", err)
+	}
 
 	log.Println("tailwind counter listening on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", app.Handler()); err != nil {
+	if err := app.Server(":8080").ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func counter(ctx *pkg.Ctx) pkg.Node {
-	count, setCount := pkg.UseState(ctx, 0)
-	pkg.UseMetaTags(ctx, &pkg.Meta{
-		Title:       fmt.Sprintf("LiveUI Tailwind Counter: %d", count),
-		Description: "A simple counter example using LiveUI and TailwindCSS.",
-		Meta:        nil,
-		Links: []pkg.LinkTag{
-			{
-				Rel:  "stylesheet",
-				Href: "/assets/tailwind.css",
-			},
-		},
-		Scripts: nil,
+var counter = pkg.Component(func(ctx *pkg.Ctx) pkg.Node {
+	count := pkg.UseSignal(ctx, 0)
+	title := pkg.UseComputed(ctx, func() string {
+		return fmt.Sprintf("LiveUI Tailwind Counter: %d", count.Get())
 	})
 
-	decRef := pkg.UseButton(ctx)
-	decRef.OnClick(func(evt pkg.ClickEvent) pkg.Updates {
-		setCount(count - 1)
-		return nil
+	pkg.UseHead(ctx, pkg.Head{
+		Title:       title,
+		Description: pkg.Const("A simple counter example using LiveUI and TailwindCSS."),
+		Links:       []pkg.LinkTag{{Rel: "stylesheet", Href: "/assets/tailwind.css"}},
 	})
 
-	increment := func(pkg.Event) pkg.Updates {
-		setCount(count + 1)
-		return nil
-	}
+	dec := func(pkg.ClickEvent) { count.Update(func(n int) int { return n - 1 }) }
+	inc := func(pkg.Event) { count.Update(func(n int) int { return n + 1 }) }
 
 	return pkg.Div(
 		pkg.Class("bg-slate-900", "text-slate-100", "min-h-screen", "flex", "items-center", "justify-center"),
@@ -77,25 +67,25 @@ func counter(ctx *pkg.Ctx) pkg.Node {
 				),
 				pkg.P(
 					pkg.Class("mt-2", "text-slate-300"),
-					pkg.Text("This example combines TailwindCSS styling with LiveUI state."),
+					pkg.Text("This example combines TailwindCSS styling with LiveUI signals."),
 				),
 			),
 			pkg.Div(
 				pkg.Class("flex", "items-center", "justify-center", "space-x-4"),
 				pkg.Button(
 					pkg.Class("bg-slate-700", "hover:bg-slate-600", "text-lg", "font-medium", "px-4", "py-2", "rounded-xl", "transition"),
-					pkg.Attr("type", "button"),
-					pkg.Attach(decRef),
+					pkg.Type("button"),
+					pkg.OnClick(dec),
 					pkg.Text("-"),
 				),
 				pkg.Div(
 					pkg.Class("text-4xl", "font-bold", "tabular-nums", "w-20", "text-center"),
-					pkg.Textf("%d", count),
+					pkg.Text(count),
 				),
 				pkg.Button(
 					pkg.Class("bg-indigo-500", "hover:bg-indigo-400", "text-lg", "font-medium", "px-4", "py-2", "rounded-xl", "transition"),
-					pkg.Attr("type", "button"),
-					pkg.On("click", increment),
+					pkg.Type("button"),
+					pkg.On("click", inc),
 					pkg.Text("+"),
 				),
 			),
@@ -105,4 +95,4 @@ func counter(ctx *pkg.Ctx) pkg.Node {
 			),
 		),
 	)
-}
+})

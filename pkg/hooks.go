@@ -1,213 +1,112 @@
 package pkg
 
 import (
-	"net/http"
-	"sync/atomic"
-	"time"
-
-	"github.com/eleven-am/pondlive/internal/document"
+	"github.com/eleven-am/pondlive/internal/css"
+	"github.com/eleven-am/pondlive/internal/head"
 	"github.com/eleven-am/pondlive/internal/headers"
-	"github.com/eleven-am/pondlive/internal/metadata"
-	"github.com/eleven-am/pondlive/internal/metatags"
-	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/router"
 	"github.com/eleven-am/pondlive/internal/runtime"
-	"github.com/eleven-am/pondlive/internal/styles"
-	"github.com/eleven-am/pondlive/internal/upload"
+	"github.com/eleven-am/pondlive/internal/shared"
 )
 
-type (
-	Ctx                       = runtime.Ctx
-	Ref[T any]                = runtime.Ref[T]
-	StateOpt[T any]           = runtime.StateOpt[T]
-	Error                     = runtime.Error
-	ErrorCode                 = runtime.ErrorCode
-	ErrorBatch                = runtime.ErrorBatch
-	PondError                 = runtime.PondError
-	ServerError               = protocol.ServerError
-	StackFrame                = runtime.StackFrame
-	FrameCategory             = runtime.FrameCategory
-	ElementRef                = runtime.ElementRef
-	Context[T any]            = runtime.Context[T]
-	ScriptHandle              = runtime.ScriptHandle
-	HandlerFunc               = runtime.HandlerFunc
-	HandlerHandle             = runtime.HandlerHandle
-	SlotRenderer              = runtime.SlotRenderer
-	ScopedSlotRenderer[T any] = runtime.ScopedSlotRenderer[T]
-	UploadHandle              = runtime.UploadHandle
-	UploadHookConfig          = runtime.UploadConfig
-	UploadEvent               = runtime.UploadEvent
-	UploadProgress            = runtime.UploadProgress
-	UploadFileInfo            = upload.FileInfo
-	Styles                    = runtime.Styles
-	StreamItem[T any]         = runtime.StreamItem[T]
-	StreamHandle[T any]       = runtime.StreamHandle[T]
-	PresenceInput[T any]      = runtime.PresenceInput[T]
-	PresenceResult[T any]     = runtime.PresenceResult[T]
-	PresenceItem[T any]       = runtime.PresenceItem[T]
-	Meta                      = metatags.Meta
-	CookieOptions             = headers.CookieOptions
-	Document                  = document.Document
-	EventOptions              = metadata.EventOptions
-)
-
-const (
-	FrameUser     = runtime.FrameUser
-	FramePondLive = runtime.FramePondLive
-	FrameRuntime  = runtime.FrameRuntime
-
-	ErrCodeRender        = runtime.ErrCodeRender
-	ErrCodeMemo          = runtime.ErrCodeMemo
-	ErrCodeEffect        = runtime.ErrCodeEffect
-	ErrCodeEffectCleanup = runtime.ErrCodeEffectCleanup
-	ErrCodeHandler       = runtime.ErrCodeHandler
-	ErrCodeValidation    = runtime.ErrCodeValidation
-	ErrCodeApp           = runtime.ErrCodeApp
-	ErrCodeSession       = runtime.ErrCodeSession
-	ErrCodeNetwork       = runtime.ErrCodeNetwork
-	ErrCodeTimeout       = runtime.ErrCodeTimeout
-)
-
-func CreateContext[T any](defaultValue T) *Context[T] {
-	return runtime.CreateContext(defaultValue)
-}
-
-func WithEqual[T any](eq func(a, b T) bool) StateOpt[T] {
+func WithEqual[T any](eq func(a, b T) bool) SignalOpt[T] {
 	return runtime.WithEqual(eq)
 }
 
-func UseState[T any](ctx *Ctx, initial T, opts ...StateOpt[T]) (T, func(T)) {
-	return runtime.UseState(ctx, initial, opts...)
+func UseSignal[T any](ctx *Ctx, initial T, opts ...SignalOpt[T]) *Signal[T] {
+	return runtime.UseSignal(ctx, initial, opts...)
 }
 
-func UseProvider[T any](c *Context[T], ctx *Ctx, initial T) (T, func(T)) {
-	return c.UseProvider(ctx, initial)
+func UseComputed[T any](ctx *Ctx, fn func() T, opts ...SignalOpt[T]) ReadSignal[T] {
+	return runtime.UseComputed(ctx, fn, opts...)
 }
 
-func UseContext[T any](c *Context[T], ctx *Ctx) (T, func(T)) {
-	return c.UseContext(ctx)
+func Derive[A, B any](src ReadSignal[A], fn func(A) B) ReadSignal[B] {
+	return runtime.Derive(src, fn)
 }
 
-func UseContextValue[T any](c *Context[T], ctx *Ctx) T {
-	return c.UseContextValue(ctx)
+func UseEffect(ctx *Ctx, fn func() func()) {
+	runtime.UseEffect(ctx, fn)
 }
 
-func UseRef[T any](ctx *Ctx, initial T) *Ref[T] {
-	return runtime.UseRef(ctx, initial)
+func UseRenderEffect(ctx *Ctx, fn func() func()) {
+	runtime.UseRenderEffect(ctx, fn)
 }
 
-func UseElement(ctx *Ctx) *ElementRef {
-	return runtime.UseElement(ctx)
+func Const[T any](v T) ReadSignal[T] {
+	return runtime.Const(v)
 }
 
-func UseMemo[T any](ctx *Ctx, compute func() T, deps ...any) T {
-	return runtime.UseMemo(ctx, compute, deps...)
+func NewContext[T any]() *Context[T] {
+	return runtime.NewContext[T]()
 }
 
-func UseEffect(ctx *Ctx, fn func() func(), deps ...any) {
-	runtime.UseEffect(ctx, fn, deps...)
+func Provide[T any](ctx *Ctx, c *Context[T], s *Signal[T]) {
+	runtime.Provide(ctx, c, s)
 }
 
-func UseErrorBoundary(ctx *Ctx) *ErrorBatch {
-	return runtime.UseErrorBoundary(ctx)
+func UseContext[T any](ctx *Ctx, c *Context[T]) *Signal[T] {
+	return runtime.UseContext(ctx, c)
 }
 
-func UseScript(ctx *Ctx, script string) ScriptHandle {
-	return runtime.UseScript(ctx, script)
+func NewShared[T any](v T, opts ...SharedOpt) *Shared[T] {
+	return shared.NewShared(v, opts...)
+}
+
+func NewSharedFamily[K comparable, T any](init func(K) T, opts ...SharedOpt) *SharedFamily[K, T] {
+	return shared.NewSharedFamily(init, opts...)
+}
+
+func UseShared[T any](ctx *Ctx, s *Shared[T]) ReadSignal[T] {
+	return runtime.UseShared(ctx, s)
+}
+
+func NewBroadcast[T any](opts ...BroadcastOpt) *Broadcast[T] {
+	return shared.NewBroadcast[T](opts...)
+}
+
+func UseBroadcast[T any](ctx *Ctx, b *Broadcast[T], handler func(T)) {
+	runtime.UseBroadcast(ctx, b, handler)
+}
+
+func UseScript(ctx *Ctx, src string) Script {
+	return runtime.UseScript(ctx, src)
+}
+
+func ScopeCSS(key, rawCSS string) *ScopedStyles {
+	return css.Scope(key, rawCSS)
+}
+
+func UseStyles(ctx *Ctx, rawCSS string) *ScopedStyles {
+	scoped := runtime.UseCell(ctx, func() *ScopedStyles { return ScopeCSS(ctx.ComponentName()+":"+rawCSS, rawCSS) })
+	UseHead(ctx, Head{Styles: []StyleTag{{ID: scoped.Hash, CSS: scoped.Text}}})
+	return scoped
+}
+
+func UseRouter(ctx *Ctx) *Router {
+	return router.UseRouter(ctx)
+}
+
+func UseRequest(ctx *Ctx) *Request {
+	return headers.UseRequest(ctx)
 }
 
 func UseHandler(ctx *Ctx, method string, chain ...HandlerFunc) HandlerHandle {
 	return runtime.UseHandler(ctx, method, chain...)
 }
 
-func UseSlots(ctx *Ctx, items []Item) *SlotRenderer {
-	return runtime.UseSlots(ctx, items)
-}
-
-func UseScopedSlots[T any](ctx *Ctx, items []Item) *ScopedSlotRenderer[T] {
-	return runtime.UseScopedSlots[T](ctx, items)
-}
-
 func UseUpload(ctx *Ctx) *UploadHandle {
 	return runtime.UseUpload(ctx)
 }
 
-func UseStream[T any](ctx *Ctx, renderRow func(StreamItem[T]) Node, initial ...StreamItem[T]) (Node, StreamHandle[T]) {
-	return runtime.UseStream(ctx, renderRow, initial...)
+func UseHead(ctx *Ctx, h Head) {
+	head.UseHead(ctx, h)
 }
 
-func UseStyles(ctx *Ctx, rawCSS string) *Styles {
-	return styles.UseStyles(ctx, rawCSS)
+func UseErrorBoundary(ctx *Ctx) *Boundary {
+	return runtime.UseErrorBoundary(ctx)
 }
 
-func UseHeaders(ctx *Ctx) http.Header {
-	return headers.UseHeaders(ctx)
-}
+func Status(code int) NavOption { return headers.Status(code) }
 
-func UseCookie(ctx *Ctx, name string) (string, func(value string, opts *CookieOptions)) {
-	return headers.UseCookie(ctx, name)
-}
-
-func UseMetaTags(ctx *Ctx, meta *Meta) {
-	metatags.UseMetaTags(ctx, meta)
-}
-
-func UseDocument(ctx *Ctx, doc *Document) {
-	document.UseDocument(ctx, doc)
-}
-
-func UseHydrated(ctx *Ctx, fn func() func(), deps ...any) {
-	isLive := headers.UseIsLive(ctx)
-	wasLiveOnMount := runtime.UseRef(ctx, isLive)
-
-	allDeps := append([]any{isLive}, deps...)
-
-	runtime.UseEffect(ctx, func() func() {
-		if !isLive {
-			return nil
-		}
-
-		if !wasLiveOnMount.Current {
-			return fn()
-		}
-
-		var cancelled atomic.Bool
-		var cleanupFn atomic.Pointer[func()]
-
-		timer := time.AfterFunc(50*time.Millisecond, func() {
-			if cancelled.Load() {
-				return
-			}
-			if cleanup := fn(); cleanup != nil {
-				cleanupFn.Store(&cleanup)
-			}
-		})
-
-		return func() {
-			cancelled.Store(true)
-			timer.Stop()
-			if c := cleanupFn.Load(); c != nil {
-				(*c)()
-			}
-		}
-	}, allDeps...)
-}
-
-func UsePresence[T any](ctx *Ctx, in PresenceInput[T]) PresenceResult[T] {
-	return runtime.UsePresence(ctx, in)
-}
-
-func Present[T any](value T, dur time.Duration) PresenceInput[T] {
-	return runtime.Present(value, dur)
-}
-
-func PresentIf[T any](condition bool, value T, dur time.Duration) PresenceInput[T] {
-	return runtime.PresentIf(condition, value, dur)
-}
-
-func PresentWhen(condition bool, dur time.Duration) PresenceInput[struct{}] {
-	return runtime.PresentWhen(condition, dur)
-}
-
-func PresentList[T any](items []T, keyFn func(T) string, dur time.Duration) PresenceInput[T] {
-	return runtime.PresentList(items, keyFn, dur)
-}
+func RenderHTML(n Node) string { return runtime.RenderHTML(n) }

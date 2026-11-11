@@ -1,187 +1,338 @@
 package server
 
 import (
+	"bufio"
+	"context"
+	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/coder/websocket"
+
+	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/session"
-	pond "github.com/eleven-am/pondsocket/go/pondsocket"
 )
-
-type Endpoint struct {
-	registry    *SessionRegistry
-	endpoint    *pond.Endpoint
-	pubsubLobby *PubSubLobby
-}
 
 const (
-	sessionAssignKey = "live.session"
-	headersAssignKey = "live.headers"
+	livePath = "/live"
+
+	DefaultReadLimit    = 64 << 10
+	DefaultJoinDeadline = 10 * time.Second
 )
 
-func Register(srv *pond.Manager, path string, registry *SessionRegistry) (*Endpoint, error) {
-	if srv == nil {
-		return nil, errors.New("server: pondsocket server is nil")
-	}
-	if registry == nil {
-		return nil, errors.New("server: session registry is nil")
-	}
+var ErrNilRegistry = errors.New("server: session registry is nil")
 
-	endpoint := srv.CreateEndpoint(path, func(ctx *pond.ConnectionContext) error {
-		ctx.SetAssigns(headersAssignKey, cloneHeader(ctx.Headers()))
-		return ctx.Accept()
-	})
-
-	e := &Endpoint{
-		registry: registry,
-		endpoint: endpoint,
-	}
-	e.configure()
-	e.pubsubLobby = NewPubSubLobby(endpoint, registry)
-
-	return e, nil
+type TransportConfig struct {
+	AllowedOrigins  []string
+	AttachSecret    []byte
+	TokenTTL        time.Duration
+	ReadLimit       int64
+	JoinDeadline    time.Duration
+	RetainedHeaders []string
+	session.WebSocketOptions
 }
 
-func (e *Endpoint) configure() {
-	lobby := e.endpoint.CreateChannel("live/:sid", e.onJoin)
-	lobby.OnMessage("evt", e.onEvt)
-	lobby.OnMessage("ack", e.onAck)
-	lobby.OnLeave(e.onLeave)
+func (c TransportConfig) withDefaults() TransportConfig {
+	if c.ReadLimit <= 0 {
+		c.ReadLimit = DefaultReadLimit
+	}
+	if c.JoinDeadline <= 0 {
+		c.JoinDeadline = DefaultJoinDeadline
+	}
+	c.WebSocketOptions = c.WebSocketOptions.WithDefaults()
+	return c
 }
 
-type joinPayload struct {
-	SID string `json:"sid"`
-	Ver int    `json:"ver"`
-	Ack int    `json:"ack"`
+type Endpoint struct {
+	ctx      context.Context
+	cancel   context.CancelFunc
+	registry *SessionRegistry
+	tokens   *attachTokens
+	cfg      TransportConfig
+	publish  func(sess *session.LiveSession, gen uint64, evt protocol.ClientEvt) (bool, error)
+	conns    connTracker
+
+	refreshEvery  time.Duration
+	disconnectTTL time.Duration
 }
 
-func (e *Endpoint) onJoin(ctx *pond.JoinContext) error {
-	var payload joinPayload
-	if err := ctx.ParsePayload(&payload); err != nil {
-		return ctx.Decline(pond.StatusBadRequest, "invalid join payload")
-	}
-
-	sessionID := ""
-	if ctx.Route != nil {
-		sessionID = ctx.Route.Param("sid")
-	}
-
-	if payload.SID != "" {
-		sessionID = payload.SID
-	}
-
-	if sessionID == "" {
-		return ctx.Decline(pond.StatusBadRequest, "missing session identifier")
-	}
-
-	if _, ok := e.registry.Lookup(session.SessionID(sessionID)); !ok {
-		return ctx.Decline(pond.StatusNotFound, "session not found or expired")
-	}
-
-	ctx.SetAssigns(sessionAssignKey, sessionID)
-
-	user := ctx.GetUser()
-	ctx.Accept()
-	if errStr := ctx.Error(); errStr != "" {
-		return errors.New(errStr)
-	}
-
-	var headers http.Header
-	if h := ctx.GetAssign(headersAssignKey); h != nil {
-		if hdr, ok := h.(http.Header); ok {
-			headers = hdr
-		}
-	}
-
-	transport := session.NewWebSocketTransport(ctx.Channel, user.UserID, headers)
-	sess, err := e.registry.Attach(session.SessionID(sessionID), user.UserID, transport)
-	if err != nil {
-		_ = transport.Close()
-		return err
-	}
-
-	go func() {
-		if err := sess.Flush(); err != nil {
-			e.registry.Detach(user.UserID)
-		}
-	}()
-
-	return nil
+type connTracker struct {
+	mu     sync.Mutex
+	active int
+	closed bool
+	idle   chan struct{}
 }
 
-func (e *Endpoint) onAck(ctx *pond.EventContext) error {
-	var ack protocol.ClientAck
-	if err := ctx.ParsePayload(&ack); err != nil {
-		return err
+func (c *connTracker) enter() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return false
 	}
+	c.active++
+	return true
+}
 
-	_, transport, ok := e.getSession(ctx, ack.SID)
+func (c *connTracker) leave() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.active--
+	if c.active == 0 && c.idle != nil {
+		close(c.idle)
+		c.idle = nil
+	}
+}
+
+func (c *connTracker) drain() <-chan struct{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.closed = true
+	done := make(chan struct{})
+	if c.active == 0 {
+		close(done)
+		return done
+	}
+	if c.idle == nil {
+		c.idle = make(chan struct{})
+	}
+	return c.idle
+}
+
+type hijackCapture struct {
+	http.ResponseWriter
+	conn net.Conn
+}
+
+func (h *hijackCapture) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := h.ResponseWriter.(http.Hijacker)
 	if !ok {
-		return nil
+		return nil, nil, errors.New("server: response writer cannot be hijacked")
 	}
-
-	if wsTransport, ok := transport.(*session.WebSocketTransport); ok {
-		wsTransport.AckThrough(uint64(ack.Seq))
+	conn, rw, err := hj.Hijack()
+	if err == nil {
+		h.conn = conn
 	}
-
-	return nil
+	return conn, rw, err
 }
 
-func (e *Endpoint) onLeave(ctx *pond.LeaveContext) {
-	if ctx == nil {
+type inboundFrame struct {
+	protocol.ClientEvt
+	Seq    uint64 `json:"seq"`
+	Reason string `json:"reason"`
+}
+
+func NewEndpoint(ctx context.Context, registry *SessionRegistry, cfg TransportConfig) (*Endpoint, error) {
+	if registry == nil {
+		return nil, ErrNilRegistry
+	}
+	cfg = cfg.withDefaults()
+	tokens, err := newAttachTokens(cfg.AttachSecret, cfg.TokenTTL)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	disconnectTTL := tokens.ttl
+	refreshEvery := disconnectTTL / 2
+	tokens.ttl = disconnectTTL + refreshEvery
+	return &Endpoint{ctx: ctx, cancel: cancel, registry: registry, tokens: tokens, cfg: cfg, publish: publishToBus, refreshEvery: refreshEvery, disconnectTTL: disconnectTTL}, nil
+}
+
+func (e *Endpoint) Shutdown(ctx context.Context) error {
+	idle := e.conns.drain()
+	var err error
+	select {
+	case <-idle:
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+	e.cancel()
+	return err
+}
+
+func (e *Endpoint) originAllowed(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return false
+	}
+	for _, allowed := range e.cfg.AllowedOrigins {
+		if allowed == "*" || allowed == origin {
+			return true
+		}
+	}
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return strings.EqualFold(u.Host, r.Host)
+}
+
+func (e *Endpoint) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !e.originAllowed(r) {
+		http.Error(w, "origin not allowed", http.StatusForbidden)
 		return
 	}
+	if !e.conns.enter() {
+		http.Error(w, "server shutting down", http.StatusServiceUnavailable)
+		return
+	}
+	defer e.conns.leave()
 
-	if sid := ctx.GetAssign(sessionAssignKey); sid != nil {
-		if sessionID, ok := sid.(string); ok {
-			e.registry.Remove(session.SessionID(sessionID))
+	capture := &hijackCapture{ResponseWriter: w}
+	ws, err := websocket.Accept(capture, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+	if err != nil {
+		return
+	}
+	ws.SetReadLimit(e.cfg.ReadLimit)
+
+	upgrade := headers.NewRequestInfoFromHeaders(r.Header, e.cfg.RetainedHeaders...).Headers
+	deadline := time.Now().Add(e.cfg.JoinDeadline)
+
+	tr := session.NewWebSocketTransport(e.ctx, ws, e.cfg.WebSocketOptions)
+	tr.BindConn(capture.conn)
+	joinTimer := time.AfterFunc(e.cfg.JoinDeadline, func() {
+		tr.Terminate(session.CloseJoinTimeout, "join timeout")
+	})
+
+	var sess *session.LiveSession
+	defer func() {
+		joinTimer.Stop()
+		tr.Abort()
+		if sess != nil {
+			sess.Detach(tr)
+		}
+		tr.Wait()
+	}()
+
+	data, err := tr.Receive()
+	if err != nil {
+		return
+	}
+	var (
+		sid session.SessionID
+		res session.AttachResult
+		ok  bool
+	)
+	sess, sid, res, ok = e.join(tr, data, upgrade, deadline)
+	if !ok {
+		return
+	}
+	joinTimer.Stop()
+
+	first, _ := json.Marshal(protocol.JoinedFrame{T: protocol.FrameJoined, Gen: res.Gen, Tok: e.tokens.issue(string(sid)), CS: res.CS, Mode: res.Mode})
+	tr.Start(first, session.TokenRefresh{Every: e.refreshEvery, Frame: func() []byte {
+		frame, _ := json.Marshal(protocol.TokFrame{T: protocol.FrameTok, Tok: e.tokens.issue(string(sid))})
+		return frame
+	}})
+
+	for {
+		data, err := tr.Receive()
+		if err != nil {
+			return
+		}
+		if !e.dispatch(sess, tr, sid, res.Gen, data) {
+			return
 		}
 	}
 }
 
-func (e *Endpoint) getSession(ctx *pond.EventContext, sid string) (*session.LiveSession, session.Transport, bool) {
-	user := ctx.GetUser()
-	if user == nil {
-		return nil, nil, false
+func (e *Endpoint) join(tr *session.WebSocketTransport, data []byte, upgrade http.Header, deadline time.Time) (*session.LiveSession, session.SessionID, session.AttachResult, bool) {
+	var frame protocol.JoinFrame
+	if err := json.Unmarshal(data, &frame); err != nil || frame.T != protocol.FrameJoin || frame.SID == "" {
+		e.decline(tr, session.CloseBadRequest, "malformed join")
+		return nil, "", session.AttachResult{}, false
 	}
 
-	sess, t, ok := e.registry.LookupWithConnection(session.SessionID(sid), user.UserID)
-	if !ok || sess == nil {
-		return nil, nil, false
+	if err := e.tokens.verify(frame.SID, frame.Tok); err != nil {
+		e.decline(tr, session.CloseUnauthorized, "invalid or expired token")
+		return nil, "", session.AttachResult{}, false
 	}
 
-	return sess, t, true
+	sid := session.SessionID(frame.SID)
+	live, found := e.registry.Lookup(sid)
+	if !found {
+		e.decline(tr, session.CloseNotFound, "session not found")
+		return nil, "", session.AttachResult{}, false
+	}
+
+	if frame.Ver != live.Version() {
+		e.decline(tr, session.CloseBadRequest, "unsupported version")
+		return nil, "", session.AttachResult{}, false
+	}
+
+	ctx, cancel := context.WithDeadline(e.ctx, deadline)
+	defer cancel()
+	res, err := live.Attach(ctx, tr, upgrade, frame.BS, frame.Resync)
+	switch {
+	case err == nil:
+		return live, sid, res, true
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, runtime.ErrSessionBusy):
+		e.decline(tr, session.CloseJoinTimeout, "join timeout")
+	case errors.Is(err, session.ErrResetTooLarge):
+		live.RequestClose(session.ReasonResetTooLarge)
+		e.decline(tr, session.CloseNotFound, "session reset too large")
+	default:
+		e.decline(tr, session.CloseNotFound, "session not found")
+	}
+	return live, "", session.AttachResult{}, false
 }
 
-func (e *Endpoint) onEvt(ctx *pond.EventContext) error {
-	var evt protocol.ClientEvt
-	if err := ctx.ParsePayload(&evt); err != nil {
-		return err
+func (e *Endpoint) decline(tr *session.WebSocketTransport, code websocket.StatusCode, reason string) {
+	frame, _ := json.Marshal(protocol.DeclinedFrame{T: protocol.FrameDeclined, Code: int(code), Reason: reason})
+	tr.Decline(code, reason, frame)
+}
+
+func (e *Endpoint) dispatch(sess *session.LiveSession, tr *session.WebSocketTransport, sid session.SessionID, gen uint64, data []byte) bool {
+	var in inboundFrame
+	if err := json.Unmarshal(data, &in); err != nil {
+		tr.Terminate(websocket.StatusInvalidFramePayloadData, "malformed message")
+		return false
+	}
+	if in.SID != string(sid) {
+		tr.Terminate(websocket.StatusPolicyViolation, "session mismatch")
+		return false
 	}
 
-	sess, transport, ok := e.getSession(ctx, evt.SID)
-	if !ok || sess == nil {
-		return nil
-	}
-
-	if bus := sess.Bus(); bus != nil {
-		if strings.HasPrefix(string(evt.Type), "script:") && evt.Action == "message" {
-			if payload, ok := protocol.DecodePayload[protocol.ScriptPayload](evt.Payload); ok {
-				topic := protocol.Topic(string(evt.Type) + ":" + payload.Event)
-				bus.Publish(topic, evt.Action, evt.Payload)
-			}
-		} else {
-			bus.Publish(evt.Type, evt.Action, evt.Payload)
+	switch string(in.Type) {
+	case protocol.FrameAck:
+		if err := sess.Ack(gen, in.Seq); err != nil {
+			tr.Terminate(websocket.StatusPolicyViolation, "ack beyond head")
+			return false
 		}
+		return true
+	case protocol.FrameResync:
+		sess.RequestResync(gen, in.Seq, in.Reason)
+		return true
 	}
 
-	if transport != nil {
-		if wsTransport, isWS := transport.(*session.WebSocketTransport); isWS {
-			wsTransport.SendAck(evt.SID)
-		}
+	if in.CS == 0 {
+		tr.Terminate(websocket.StatusPolicyViolation, "missing client seq")
+		return false
 	}
 
-	return nil
+	accepted, err := e.publish(sess, gen, in.ClientEvt)
+	switch {
+	case errors.Is(err, session.ErrStaleConnection):
+		return false
+	case errors.Is(err, runtime.ErrClientBacklog):
+		tr.Terminate(websocket.StatusTryAgainLater, "too many pending events")
+		return false
+	case err != nil:
+		tr.Terminate(websocket.StatusGoingAway, "session closed")
+		return false
+	}
+	if accepted {
+		tr.NoteClientSeq(in.CS)
+	}
+	return true
+}
+
+func publishToBus(sess *session.LiveSession, gen uint64, evt protocol.ClientEvt) (bool, error) {
+	return sess.Deliver(gen, evt)
 }

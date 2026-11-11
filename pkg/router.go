@@ -1,106 +1,25 @@
 package pkg
 
 import (
-	"net/url"
-
 	"github.com/eleven-am/pondlive/internal/router"
-	"github.com/eleven-am/pondlive/internal/work"
 )
 
-var (
-	ErrParamNotFound      = router.ErrParamNotFound
-	ErrQueryParamNotFound = router.ErrQueryParamNotFound
-)
-
-type (
-	Location        = router.Location
-	MatchState      = router.MatchState
-	Match           = router.Match
-	RouteProps      = router.RouteProps
-	LinkProps       = router.LinkProps
-	NavLinkProps    = router.NavLinkProps
-	RedirectProps   = router.RedirectProps
-	Router          = router.Router
-	NavigationEvent = router.NavigationEvent
-)
-
-func Navigate(ctx *Ctx, href string) {
-	router.Navigate(ctx, href)
+func Routes(defs ...RouteDef) Node {
+	return router.Routes(defs...)
 }
 
-func Replace(ctx *Ctx, href string) {
-	router.Replace(ctx, href)
+func Route(path string, component func() Node) RouteDef {
+	return router.Route(path, component)
 }
 
-func NavigateWith(ctx *Ctx, fn func(Location) Location) {
-	router.NavigateWith(ctx, fn)
+func Link(props LinkProps) Node {
+	return router.Link(props)
 }
 
-func ReplaceWith(ctx *Ctx, fn func(Location) Location) {
-	router.ReplaceWith(ctx, fn)
+func NavLink(props NavLinkProps) Node {
+	return router.NavLink(props)
 }
 
-func Back(ctx *Ctx) {
-	router.Back(ctx)
-}
-
-func Forward(ctx *Ctx) {
-	router.Forward(ctx)
-}
-
-func UseLocation(ctx *Ctx) Location {
-	return router.UseLocation(ctx)
-}
-
-func UseParams(ctx *Ctx) map[string]string {
-	return router.UseParams(ctx)
-}
-
-func UseRouteParam(ctx *Ctx, key string) string {
-	return router.UseParam(ctx, key)
-}
-
-func UseMatch(ctx *Ctx) *MatchState {
-	return router.UseMatch(ctx)
-}
-
-func UseSearchParam(ctx *Ctx, key string) (string, func(string)) {
-	return router.UseSearchParam(ctx, key)
-}
-
-func UseSearchParams(ctx *Ctx) url.Values {
-	return router.UseSearchParams(ctx)
-}
-
-func UseMatched(ctx *Ctx) bool {
-	return router.UseMatched(ctx)
-}
-
-func Link(ctx *Ctx, props LinkProps, children ...Item) Node {
-	return router.Link(ctx, props, children...)
-}
-
-func NavLink(ctx *Ctx, props NavLinkProps, children ...Item) Node {
-	return router.NavLink(ctx, props, children...)
-}
-
-func Route(ctx *Ctx, props RouteProps, children ...Item) Node {
-	nodes := work.ItemsToNodes(children)
-	return router.Route(ctx, props, nodes...)
-}
-
-func Routes(ctx *Ctx, children ...Item) Node {
-	return router.Routes(ctx, children...)
-}
-
-func Redirect(ctx *Ctx, props RedirectProps) Node {
-	return router.Redirect(ctx, props)
-}
-
-func Outlet(ctx *Ctx) Node {
-	return router.Outlet(ctx)
-}
-
-func UseRouter(ctx *Ctx) *Router {
-	return router.UseRouter(ctx)
+func Redirect(props RedirectProps) Node {
+	return router.Redirect(props)
 }

@@ -3,20 +3,15 @@ package work
 import "fmt"
 
 func BuildElement(tag string, items ...Item) *Element {
-	el := &Element{
-		Tag:      tag,
-		Attrs:    make(map[string][]string),
-		Style:    make(map[string]string),
-		Handlers: make(map[string]Handler),
-		Children: make([]Node, 0),
+	el := &Element{Tag: tag}
+	if len(items) > 0 {
+		el.Children = make([]Node, 0, len(items))
 	}
-
 	for _, item := range items {
 		if item != nil {
-			item.ApplyTo(el)
+			item.applyTo(el)
 		}
 	}
-
 	return el
 }
 
@@ -33,6 +28,25 @@ func NewComment(value string) *Comment {
 }
 
 func NewFragment(items ...Item) *Fragment {
-	children, attrs := splitItems(items)
+	children, attrs := SplitItems(items)
 	return &Fragment{Children: children, Attrs: attrs}
 }
+
+func SplitItems(items []Item) ([]Node, []Item) {
+	var children []Node
+	var attrs []Item
+	for _, item := range items {
+		if node, ok := item.(Node); ok {
+			children = append(children, node)
+		} else if item != nil {
+			attrs = append(attrs, item)
+		}
+	}
+	return children, attrs
+}
+
+func NewPortal(children ...Item) *PortalNode {
+	return &PortalNode{Children: ItemsToNodes(children)}
+}
+
+func NewPortalTarget() *PortalTarget { return &PortalTarget{} }

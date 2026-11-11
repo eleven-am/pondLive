@@ -12,110 +12,106 @@ import (
 //go:embed public/*
 var publicFS embed.FS
 
-func main() {
-	app, err := pkg.NewApp(
-		root,
-		pkg.WithDevMode(),
-	)
+func newApp() (*pkg.App, error) {
+	app, err := pkg.NewApp(root, pkg.WithDevMode())
 	if err != nil {
-		log.Fatalf("build live app: %v", err)
+		return nil, err
 	}
 
 	assets, err := fs.Sub(publicFS, "public/assets")
 	if err != nil {
-		log.Fatalf("load assets: %v", err)
+		return nil, err
 	}
 
 	app.Mux().Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets))))
+	return app, nil
+}
+
+func main() {
+	app, err := newApp()
+	if err != nil {
+		log.Fatalf("build live app: %v", err)
+	}
 
 	log.Println("auth example listening on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", app.Handler()); err != nil {
+	if err := app.Server(":8080").ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func root(ctx *pkg.Ctx) pkg.Node {
-	pkg.UseMetaTags(ctx, &pkg.Meta{
-		Title: "Auth Example",
-		Links: []pkg.LinkTag{
-			{Rel: "stylesheet", Href: "/assets/tailwind.css"},
-		},
+var root = pkg.Component(func(ctx *pkg.Ctx) pkg.Node {
+	pkg.UseHead(ctx, pkg.Head{
+		Title: pkg.Const("Auth Example"),
+		Links: []pkg.LinkTag{{Rel: "stylesheet", Href: "/assets/tailwind.css"}},
 	})
 
 	return pkg.Div(
 		pkg.Class("bg-slate-900", "text-slate-100", "min-h-screen"),
-		pkg.Routes(ctx,
-			pkg.Route(ctx, pkg.RouteProps{Path: "/login", Component: loginPage}),
-			pkg.Route(ctx, pkg.RouteProps{Path: "/", Component: mainLayout},
-				pkg.Route(ctx, pkg.RouteProps{Path: "/", Component: homePage}),
-				pkg.Route(ctx, pkg.RouteProps{Path: "/dashboard", Component: dashboardPage}),
-			),
+		pkg.Routes(
+			pkg.Route("/login", loginPage),
+			pkg.Route("/*", mainLayout),
 		),
 	)
-}
+})
 
-func mainLayout(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
-	session, setSession := pkg.UseCookie(ctx, "session")
-	isLoggedIn := session != ""
+var mainLayout = pkg.Component(func(ctx *pkg.Ctx) pkg.Node {
+	request := pkg.UseRequest(ctx)
+	router := pkg.UseRouter(ctx)
+	session := request.Cookie("session")
+	loggedIn := pkg.UseComputed(ctx, func() bool { return session.Get() != "" })
+	greeting := pkg.UseComputed(ctx, func() string { return "Hello, " + session.Get() })
 
-	logoutRef := pkg.UseButton(ctx)
-	logoutRef.OnClick(func(evt pkg.ClickEvent) pkg.Updates {
-		setSession("", &pkg.CookieOptions{
-			Path:   "/",
-			MaxAge: -1,
-		})
-		pkg.Navigate(ctx, "/")
-		return nil
-	})
+	logout := func(pkg.ClickEvent) {
+		request.SetCookie("session", "", &pkg.CookieOptions{Path: "/", MaxAge: -1})
+		router.Navigate("/")
+	}
 
 	return pkg.Div(
 		pkg.Class("min-h-screen", "flex", "flex-col"),
 		pkg.Header(
 			pkg.Class("bg-slate-800", "px-6", "py-4", "flex", "justify-between", "items-center"),
-			pkg.Link(ctx, pkg.LinkProps{To: "/"},
-				pkg.Span(
-					pkg.Class("text-xl", "font-bold", "text-indigo-400"),
-					pkg.Text("Auth Demo"),
-				),
-			),
+			pkg.Link(pkg.LinkProps{To: "/", Children: pkg.Span(
+				pkg.Class("text-xl", "font-bold", "text-indigo-400"),
+				pkg.Text("Auth Demo"),
+			)}),
 			pkg.Nav(
 				pkg.Class("flex", "items-center", "space-x-4"),
-				pkg.Ternary(isLoggedIn,
-					pkg.Fragment(
-						pkg.Span(
-							pkg.Class("text-slate-300"),
-							pkg.Textf("Hello, %s", session),
-						),
-						pkg.Link(ctx, pkg.LinkProps{To: "/dashboard"},
-							pkg.Span(
+				pkg.Show(loggedIn,
+					func() pkg.Node {
+						return pkg.Fragment(
+							pkg.Span(pkg.Class("text-slate-300"), pkg.Text(greeting)),
+							pkg.Link(pkg.LinkProps{To: "/dashboard", Children: pkg.Span(
 								pkg.Class("text-slate-400", "hover:text-slate-200"),
 								pkg.Text("Dashboard"),
+							)}),
+							pkg.Button(
+								pkg.Type("button"),
+								pkg.OnClick(logout),
+								pkg.Class("bg-red-500", "hover:bg-red-400", "px-3", "py-1", "rounded", "text-sm"),
+								pkg.Text("Logout"),
 							),
-						),
-						pkg.Button(
-							pkg.Attr("type", "button"),
-							pkg.Attach(logoutRef),
-							pkg.Class("bg-red-500", "hover:bg-red-400", "px-3", "py-1", "rounded", "text-sm"),
-							pkg.Text("Logout"),
-						),
-					),
-					pkg.Link(ctx, pkg.LinkProps{To: "/login"},
-						pkg.Span(
+						)
+					},
+					pkg.Else(func() pkg.Node {
+						return pkg.Link(pkg.LinkProps{To: "/login", Children: pkg.Span(
 							pkg.Class("bg-indigo-500", "hover:bg-indigo-400", "px-4", "py-2", "rounded"),
 							pkg.Text("Login"),
-						),
-					),
+						)})
+					}),
 				),
 			),
 		),
 		pkg.Main(
 			pkg.Class("flex-1"),
-			pkg.Outlet(ctx),
+			pkg.Routes(
+				pkg.Route("/", homePage),
+				pkg.Route("/dashboard", dashboardPage),
+			),
 		),
 	)
-}
+})
 
-func homePage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
+var homePage = pkg.Component(func(*pkg.Ctx) pkg.Node {
 	return pkg.Div(
 		pkg.Class("flex", "flex-col", "items-center", "justify-center", "min-h-[calc(100vh-80px)]", "space-y-6"),
 		pkg.H1(
@@ -127,40 +123,36 @@ func homePage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 			pkg.Text("A simple login/logout demo using cookies and routing"),
 		),
 	)
-}
+})
 
-func loginPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
-	session, setSession := pkg.UseCookie(ctx, "session")
-	username, setUsername := pkg.UseState(ctx, "")
-	errorMsg, setError := pkg.UseState(ctx, "")
+var loginPage = pkg.Component(func(ctx *pkg.Ctx) pkg.Node {
+	request := pkg.UseRequest(ctx)
+	router := pkg.UseRouter(ctx)
+	session := request.Cookie("session")
+	loggedIn := pkg.UseComputed(ctx, func() bool { return session.Get() != "" })
+	username := pkg.UseSignal(ctx, "")
+	errorMsg := pkg.UseSignal(ctx, "")
+	hasError := pkg.UseComputed(ctx, func() bool { return errorMsg.Get() != "" })
 
-	usernameRef := pkg.UseInput(ctx)
-	usernameRef.OnChange(func(evt pkg.ChangeEvent) pkg.Updates {
-		setUsername(evt.Value)
-		setError("")
-		return nil
-	})
+	onUsername := func(pkg.ChangeEvent) {
+		errorMsg.Set("")
+	}
 
-	formRef := pkg.UseForm(ctx)
-	formRef.OnSubmit(func(evt pkg.FormEvent) pkg.Updates {
-		if username == "" {
-			setError("Username is required")
-			return nil
+	onSubmit := func(pkg.FormEvent) {
+		name := username.Peek()
+		if name == "" {
+			errorMsg.Set("Username is required")
+			return
 		}
-		setSession(username, &pkg.CookieOptions{
-			Path:     "/",
-			HttpOnly: true,
-		})
-		pkg.Navigate(ctx, "/dashboard")
-		return nil
-	})
-
-	if session != "" {
-		return pkg.Redirect(ctx, pkg.RedirectProps{To: "/dashboard"})
+		request.SetCookie("session", name, &pkg.CookieOptions{Path: "/", HttpOnly: true})
+		router.Navigate("/dashboard")
 	}
 
 	return pkg.Div(
 		pkg.Class("flex", "items-center", "justify-center", "min-h-screen"),
+		pkg.Show(loggedIn, func() pkg.Node {
+			return pkg.Redirect(pkg.RedirectProps{To: "/dashboard"})
+		}),
 		pkg.Div(
 			pkg.Class("bg-slate-800", "rounded-2xl", "shadow-xl", "p-8", "w-full", "max-w-sm", "space-y-6"),
 			pkg.H2(
@@ -168,7 +160,7 @@ func loginPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 				pkg.Text("Login"),
 			),
 			pkg.Form(
-				pkg.Attach(formRef),
+				pkg.OnSubmit(onSubmit),
 				pkg.Class("space-y-4"),
 				pkg.Div(
 					pkg.Label(
@@ -177,45 +169,48 @@ func loginPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
 						pkg.Text("Username"),
 					),
 					pkg.Input(
-						pkg.Attr("id", "username"),
-						pkg.Attr("type", "text"),
-						pkg.Attr("placeholder", "Enter any username"),
-						pkg.Attr("value", username),
-						pkg.Attach(usernameRef),
+						pkg.ID("username"),
+						pkg.Type("text"),
+						pkg.Placeholder("Enter any username"),
+						pkg.Bind(username),
+						pkg.OnChange(onUsername),
 						pkg.Class("w-full", "px-4", "py-2", "bg-slate-700", "rounded-lg", "focus:outline-none", "focus:ring-2", "focus:ring-indigo-500"),
 					),
 				),
-				pkg.If(errorMsg != "",
-					pkg.P(
+				pkg.Show(hasError, func() pkg.Node {
+					return pkg.P(
 						pkg.Class("text-red-400", "text-sm"),
 						pkg.Text(errorMsg),
-					),
-				),
+					)
+				}),
 				pkg.Button(
-					pkg.Attr("type", "submit"),
+					pkg.Type("submit"),
 					pkg.Class("w-full", "bg-indigo-500", "hover:bg-indigo-400", "px-4", "py-2", "rounded-lg", "font-medium"),
 					pkg.Text("Sign In"),
 				),
 			),
 			pkg.Div(
 				pkg.Class("text-center"),
-				pkg.Link(ctx, pkg.LinkProps{To: "/"},
-					pkg.Span(
-						pkg.Class("text-slate-400", "hover:text-slate-300", "text-sm"),
-						pkg.Text("Back to Home"),
-					),
-				),
+				pkg.Link(pkg.LinkProps{To: "/", Children: pkg.Span(
+					pkg.Class("text-slate-400", "hover:text-slate-300", "text-sm"),
+					pkg.Text("Back to Home"),
+				)}),
 			),
 		),
 	)
-}
+})
 
-func dashboardPage(ctx *pkg.Ctx, match pkg.Match) pkg.Node {
-	session, _ := pkg.UseCookie(ctx, "session")
-	if session == "" {
-		return pkg.Redirect(ctx, pkg.RedirectProps{To: "/login"})
-	}
+var dashboardPage = pkg.Component(func(ctx *pkg.Ctx) pkg.Node {
+	session := pkg.UseRequest(ctx).Cookie("session")
+	loggedOut := pkg.UseComputed(ctx, func() bool { return session.Get() == "" })
 
+	return pkg.Show(loggedOut,
+		func() pkg.Node { return pkg.Redirect(pkg.RedirectProps{To: "/login"}) },
+		pkg.Else(func() pkg.Node { return dashboardBody(session) }),
+	)
+})
+
+func dashboardBody(session pkg.ReadSignal[string]) pkg.Node {
 	return pkg.Div(
 		pkg.Class("flex", "items-center", "justify-center", "min-h-[calc(100vh-80px)]"),
 		pkg.Div(

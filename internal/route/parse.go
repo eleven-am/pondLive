@@ -14,14 +14,11 @@ type Match struct {
 	RawQuery string
 	Rest     string
 	Score    int
-}
-
-func NormalizePattern(pattern string) string {
-	return normalizePattern(pattern)
+	Wild     bool
 }
 
 func Parse(pattern string, path string, rawQuery string) (Match, error) {
-	normalizedPattern := normalizePattern(pattern)
+	normalizedPattern := NormalizePath(pattern)
 	parts := NormalizeParts(path)
 	normalizedPath := parts.Path
 	if rawQuery == "" {
@@ -47,6 +44,7 @@ func Parse(pattern string, path string, rawQuery string) (Match, error) {
 		RawQuery: rawQuery,
 		Rest:     m.rest,
 		Score:    m.score,
+		Wild:     m.wild,
 	}, nil
 }
 
@@ -63,6 +61,7 @@ func matchPath(path, pattern string) matchResult {
 			continue
 		}
 		if isWildcard(seg) {
+			res.wild = true
 			name := strings.TrimPrefix(seg, "*")
 			remainder := strings.Join(pathSegs[ti:], "/")
 			if name == "" {
@@ -139,6 +138,9 @@ func Prefer(candidate, current Match) bool {
 	if candidate.Score != current.Score {
 		return candidate.Score > current.Score
 	}
+	if candidate.Wild != current.Wild {
+		return !candidate.Wild
+	}
 	clen := len(strings.TrimPrefix(current.Rest, "/"))
 	nlen := len(strings.TrimPrefix(candidate.Rest, "/"))
 	return nlen < clen
@@ -163,33 +165,12 @@ func BestMatch(path string, rawQuery string, patterns []string) (Match, int, boo
 	return best, bestIdx, true
 }
 
-func normalizePattern(pattern string) string {
-	trimmed := strings.TrimSpace(pattern)
-	if trimmed == "" {
-		return "/"
-	}
-	if !strings.HasPrefix(trimmed, "/") {
-		trimmed = "/" + trimmed
-	}
-	parts := strings.Split(trimmed, "/")
-	segs := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		segs = append(segs, part)
-	}
-	if len(segs) == 0 {
-		return "/"
-	}
-	return "/" + strings.Join(segs, "/")
-}
-
 type matchResult struct {
 	ok     bool
 	params map[string]string
 	rest   string
 	score  int
+	wild   bool
 }
 
 func splitSegments(path string) []string {

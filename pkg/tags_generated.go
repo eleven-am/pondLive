@@ -52,11 +52,11 @@ func H3(items ...Item) Node             { return El("h3", items...) }
 func H4(items ...Item) Node             { return El("h4", items...) }
 func H5(items ...Item) Node             { return El("h5", items...) }
 func H6(items ...Item) Node             { return El("h6", items...) }
-func Head(items ...Item) Node           { return El("head", items...) }
+func HeadEl(items ...Item) Node         { return El("head", items...) }
 func Header(items ...Item) Node         { return El("header", items...) }
 func Hgroup(items ...Item) Node         { return El("hgroup", items...) }
 func Hr(items ...Item) Node             { return El("hr", items...) }
-func Html(items ...Item) Node           { return El("pkg", items...) }
+func Html(items ...Item) Node           { return El("html", items...) }
 func I(items ...Item) Node              { return El("i", items...) }
 func Iframe(items ...Item) Node         { return El("iframe", items...) }
 func Image(items ...Item) Node          { return El("image", items...) }
@@ -111,7 +111,7 @@ func Section(items ...Item) Node        { return El("section", items...) }
 func Select(items ...Item) Node         { return El("select", items...) }
 func Slot(items ...Item) Node           { return El("slot", items...) }
 func Small(items ...Item) Node          { return El("small", items...) }
-func Source(items ...Item) Node         { return El("source", items...) }
+func SourceEl(items ...Item) Node       { return El("source", items...) }
 func Span(items ...Item) Node           { return El("span", items...) }
 func Stop(items ...Item) Node           { return El("stop", items...) }
 func Strong(items ...Item) Node         { return El("strong", items...) }

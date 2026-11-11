@@ -165,44 +165,44 @@ func TestBestMatchSkipsPatternsWithErrors(t *testing.T) {
 	}
 }
 
-func TestNormalizePatternEnsuresLeadingSlash(t *testing.T) {
-	if got := NormalizePattern("users/:id"); got != "/users/:id" {
+func TestNormalizePathEnsuresLeadingSlash(t *testing.T) {
+	if got := NormalizePath("users/:id"); got != "/users/:id" {
 		t.Fatalf("expected normalized pattern with slash, got %q", got)
 	}
-	if got := NormalizePattern(""); got != "/" {
+	if got := NormalizePath(""); got != "/" {
 		t.Fatalf("expected empty pattern to normalize to root, got %q", got)
 	}
 }
 
-func TestNormalizePatternCollapsesSeparatorsAndWhitespace(t *testing.T) {
-	if got := NormalizePattern("  //users//:id  "); got != "/users/:id" {
+func TestNormalizePathCollapsesSeparatorsAndWhitespace(t *testing.T) {
+	if got := NormalizePath("  //users//:id  "); got != "/users/:id" {
 		t.Fatalf("expected collapsed pattern, got %q", got)
 	}
 }
 
-func TestNormalizePatternTrimsWhitespace(t *testing.T) {
-	if got := NormalizePattern("  /users/:id  "); got != "/users/:id" {
+func TestNormalizePathTrimsWhitespace(t *testing.T) {
+	if got := NormalizePath("  /users/:id  "); got != "/users/:id" {
 		t.Fatalf("expected whitespace trimmed, got %q", got)
 	}
-	if got := NormalizePattern("   "); got != "/" {
+	if got := NormalizePath("   "); got != "/" {
 		t.Fatalf("expected whitespace-only to normalize to root, got %q", got)
 	}
 }
 
-func TestNormalizePatternCollapsesDuplicateSlashes(t *testing.T) {
-	if got := NormalizePattern("//users//:id"); got != "/users/:id" {
+func TestNormalizePathCollapsesDuplicateSlashes(t *testing.T) {
+	if got := NormalizePath("//users//:id"); got != "/users/:id" {
 		t.Fatalf("expected duplicate slashes collapsed, got %q", got)
 	}
-	if got := NormalizePattern("/users///profile"); got != "/users/profile" {
+	if got := NormalizePath("/users///profile"); got != "/users/profile" {
 		t.Fatalf("expected triple slashes collapsed, got %q", got)
 	}
-	if got := NormalizePattern("///"); got != "/" {
+	if got := NormalizePath("///"); got != "/" {
 		t.Fatalf("expected only slashes to normalize to root, got %q", got)
 	}
 }
 
-func TestNormalizePatternHandlesMixedIssues(t *testing.T) {
-	if got := NormalizePattern(" //users//:id "); got != "/users/:id" {
+func TestNormalizePathHandlesMixedIssues(t *testing.T) {
+	if got := NormalizePath(" //users//:id "); got != "/users/:id" {
 		t.Fatalf("expected mixed issues normalized, got %q", got)
 	}
 }
@@ -275,5 +275,45 @@ func TestBestMatchKeepsFirstOnExactTie(t *testing.T) {
 	}
 	if match.Pattern != "/a/:id" || idx != 0 {
 		t.Fatalf("expected first pattern to win tie, got pattern %q idx %d", match.Pattern, idx)
+	}
+}
+
+func TestBestMatchPrefersTheMostSpecificPatternRegardlessOfOrder(t *testing.T) {
+	cases := []struct {
+		path     string
+		patterns []string
+		want     string
+	}{
+		{"/x", []string{"/x/*", "/x"}, "/x"},
+		{"/x", []string{"/x", "/x/*"}, "/x"},
+		{"/", []string{"*", "/"}, "/"},
+		{"/", []string{"/", "*"}, "/"},
+		{"/a/new", []string{"/a/:id", "/a/new"}, "/a/new"},
+		{"/a/new", []string{"/a/new", "/a/:id"}, "/a/new"},
+		{"/a/b/c", []string{"*", "/a/*", "/a/b/*"}, "/a/b/*"},
+		{"/a/b/c", []string{"/a/b/*", "/a/*", "*"}, "/a/b/*"},
+		{"/zzz", []string{"/a/*", "*"}, "/*"},
+	}
+	for _, c := range cases {
+		m, _, ok := BestMatch(c.path, "", c.patterns)
+		if !ok || m.Pattern != c.want {
+			t.Errorf("%s in %v: got %q (ok=%v), want %q", c.path, c.patterns, m.Pattern, ok, c.want)
+		}
+	}
+}
+
+func TestAWildcardThatConsumesSomethingBeatsAnOptionalParamPatternOfTheSameBaseScore(t *testing.T) {
+	for _, patterns := range [][]string{{"/x/*", "/:a?/:b"}, {"/:a?/:b", "/x/*"}} {
+		match, idx, ok := BestMatch("/x/y", "", patterns)
+		if !ok || match.Pattern != "/x/*" || patterns[idx] != "/x/*" {
+			t.Fatalf("patterns %v: picked %q (index %d, ok %v), want /x/*", patterns, match.Pattern, idx, ok)
+		}
+	}
+}
+
+func TestAWildcardThatConsumesNothingLosesToTheExactPatternOfTheSameScore(t *testing.T) {
+	match, _, ok := BestMatch("/x", "", []string{"/x/*", "/x"})
+	if !ok || match.Pattern != "/x" {
+		t.Fatalf("picked %q, want /x", match.Pattern)
 	}
 }

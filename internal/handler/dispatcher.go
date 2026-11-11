@@ -60,35 +60,26 @@ func normalizePath(rawPath string) string {
 	return path.Clean(decoded)
 }
 
-func extractSessionID(rawPath string) string {
+func splitHandlerPath(rawPath string) (sessionID, handlerID string) {
 	cleanPath := normalizePath(rawPath)
 	trimmed := strings.TrimPrefix(cleanPath, PathPrefix)
 	if trimmed == cleanPath {
-		return ""
+		return "", ""
 	}
-	parts := strings.SplitN(trimmed, "/", 2)
-	if len(parts) < 1 || parts[0] == "" {
-		return ""
-	}
-	if strings.Contains(parts[0], "/") {
-		return ""
-	}
-	return parts[0]
+	session, rest, _ := strings.Cut(trimmed, "/")
+	handler, _, _ := strings.Cut(rest, "/")
+	return session, handler
+}
+
+func extractSessionID(rawPath string) string {
+	sessionID, _ := splitHandlerPath(rawPath)
+	return sessionID
 }
 
 func extractHandlerID(rawPath string) string {
-	cleanPath := normalizePath(rawPath)
-	trimmed := strings.TrimPrefix(cleanPath, PathPrefix)
-	if trimmed == cleanPath {
+	sessionID, handlerID := splitHandlerPath(rawPath)
+	if sessionID == "" {
 		return ""
 	}
-	parts := strings.SplitN(trimmed, "/", 2)
-	if len(parts) < 2 || parts[1] == "" {
-		return ""
-	}
-	handlerParts := strings.SplitN(parts[1], "/", 2)
-	if handlerParts[0] == "" {
-		return ""
-	}
-	return handlerParts[0]
+	return handlerID
 }

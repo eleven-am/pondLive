@@ -22,15 +22,15 @@ func TestPublishDOMCall(t *testing.T) {
 	})
 
 	bus.PublishDOMCall(DOMCallPayload{
-		Ref:    "elem-1",
+		ID:     1,
 		Method: "focus",
 		Args:   []any{"arg1"},
 	})
 
 	waitWithTimeout(t, &wg)
 
-	if received.Ref != "elem-1" {
-		t.Errorf("Ref = %q, want %q", received.Ref, "elem-1")
+	if received.ID != 1 {
+		t.Errorf("ID = %d, want %d", received.ID, 1)
 	}
 	if received.Method != "focus" {
 		t.Errorf("Method = %q, want %q", received.Method, "focus")
@@ -53,7 +53,7 @@ func TestPublishDOMSet(t *testing.T) {
 	})
 
 	bus.PublishDOMSet(DOMSetPayload{
-		Ref:   "elem-1",
+		ID:    1,
 		Prop:  "value",
 		Value: "test",
 	})
@@ -82,7 +82,7 @@ func TestPublishDOMQuery(t *testing.T) {
 
 	bus.PublishDOMQuery(DOMQueryPayload{
 		RequestID: "req-1",
-		Ref:       "elem-1",
+		ID:        1,
 		Selectors: []string{"value", "checked"},
 	})
 
@@ -110,7 +110,7 @@ func TestPublishDOMAsync(t *testing.T) {
 
 	bus.PublishDOMAsync(DOMAsyncPayload{
 		RequestID: "async-1",
-		Ref:       "elem-1",
+		ID:        1,
 		Method:    "getBoundingClientRect",
 	})
 
@@ -300,17 +300,17 @@ func TestSubscribeToRouterCommands(t *testing.T) {
 
 func TestSubscribeToRouterPopstate(t *testing.T) {
 	bus := NewBus()
-	var received RouterNavPayload
+	var received RouterPopstatePayload
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	sub := bus.SubscribeToRouterPopstate(func(payload RouterNavPayload) {
+	sub := bus.SubscribeToRouterPopstate(func(payload RouterPopstatePayload) {
 		received = payload
 		wg.Done()
 	})
 	defer sub.Unsubscribe()
 
-	bus.Publish(RouteHandler, string(RouterPopstateAction), RouterNavPayload{
+	bus.Publish(RouteHandler, string(RouterPopstateAction), RouterPopstatePayload{
 		Path: "/back-page",
 	})
 
@@ -321,47 +321,46 @@ func TestSubscribeToRouterPopstate(t *testing.T) {
 	}
 }
 
-func TestPublishFramePatch(t *testing.T) {
+func TestPublishFrameEdits(t *testing.T) {
 	bus := NewBus()
-	var received interface{}
+	var received []Edit
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	bus.Subscribe(TopicFrame, func(event string, data interface{}) {
 		if event == string(FramePatchAction) {
-			received = data
+			received, _ = data.([]Edit)
 		}
 		wg.Done()
 	})
 
-	patches := []map[string]string{{"op": "add", "path": "/test"}}
-	bus.PublishFramePatch(patches)
+	bus.PublishFrameEdits([]Edit{TextEdit(7, "1")})
 
 	waitWithTimeout(t, &wg)
 
-	if received == nil {
-		t.Error("expected patches to be received")
+	if len(received) != 1 || received[0].ID != 7 {
+		t.Errorf("received = %v", received)
 	}
 }
 
-func TestSubscribeToFramePatches(t *testing.T) {
+func TestSubscribeToFrameEdits(t *testing.T) {
 	bus := NewBus()
-	var received interface{}
+	var received []Edit
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	sub := bus.SubscribeToFramePatches(func(patches interface{}) {
-		received = patches
+	sub := bus.SubscribeToFrameEdits(func(edits []Edit) {
+		received = edits
 		wg.Done()
 	})
 	defer sub.Unsubscribe()
 
-	bus.PublishFramePatch("test-patches")
+	bus.PublishFrameEdits([]Edit{RemoveEdit(3)})
 
 	waitWithTimeout(t, &wg)
 
-	if received != "test-patches" {
-		t.Errorf("received = %v, want %v", received, "test-patches")
+	if len(received) != 1 || received[0].Op != OpRemove || received[0].ID != 3 {
+		t.Errorf("received = %v", received)
 	}
 }
 

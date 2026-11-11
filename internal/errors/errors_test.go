@@ -1,9 +1,13 @@
 package errors
 
 import (
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/eleven-am/pondlive/internal/runtime"
+	"github.com/eleven-am/pondlive/internal/runtime/runtimetest"
+	"github.com/eleven-am/pondlive/internal/shared"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
@@ -123,9 +127,9 @@ func TestErrorItem_WithStackFrames(t *testing.T) {
 func TestDevOverlay(t *testing.T) {
 	err1 := runtime.NewError(runtime.ErrCodeApp, "error one")
 	err2 := runtime.NewError(runtime.ErrCodeHandler, "error two")
-	batch := runtime.NewErrorBatch(err1, err2)
+	errs := runtime.Const([]*runtime.Error{err1, err2})
 
-	node := devOverlay(batch)
+	node := devOverlay(errs)
 	if node == nil {
 		t.Fatal("expected non-nil node")
 	}
@@ -140,9 +144,7 @@ func TestDevOverlay(t *testing.T) {
 }
 
 func TestDevOverlay_EmptyBatch(t *testing.T) {
-	batch := runtime.NewErrorBatch()
-
-	node := devOverlay(batch)
+	node := devOverlay(runtime.Const([]*runtime.Error(nil)))
 	if node == nil {
 		t.Fatal("expected non-nil node")
 	}
@@ -292,68 +294,145 @@ func TestProviderExists(t *testing.T) {
 	}
 }
 
+func broken(boom bool) func() work.Node {
+	return runtime.Component(func(ctx *runtime.Ctx) work.Node {
+		if boom {
+			panic("kaboom")
+		}
+		return work.BuildElement("p", work.NewText("child content"))
+	})
+}
+
 func TestProvider_NoErrors_ReturnsChildren(t *testing.T) {
-	childCalled := false
+	for _, dev := range []bool{false, true} {
+		app := runtimetest.New(t, func(ctx *runtime.Ctx) work.Node {
+			return Provider(Props{DevMode: dev, Children: broken(false)()})
+		}, runtimetest.Dev(dev))
 
-	childFn := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		childCalled = true
-		return &work.Text{Value: "child content"}
-	}
-
-	root := &runtime.Instance{
-		ID: "root",
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-			return Provider(ctx, Props{DevMode: false}, work.Component(childFn))
-		},
-		HookFrame: []runtime.HookSlot{},
-		Children:  []*runtime.Instance{},
-	}
-
-	sess := &runtime.Session{
-		Root:              root,
-		Components:        map[string]*runtime.Instance{"root": root},
-		Handlers:          make(map[string]work.Handler),
-		MountedComponents: make(map[*runtime.Instance]struct{}),
-	}
-
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("Flush failed: %v", err)
-	}
-
-	if !childCalled {
-		t.Error("expected child to be called")
+		if got := app.Normalized(); !strings.Contains(got, "<p>child content</p>") || strings.Contains(got, "Runtime Error") || strings.Contains(got, "Something went wrong") {
+			t.Fatalf("dev=%v: %s", dev, got)
+		}
 	}
 }
 
-func TestProvider_NoErrors_DevMode_ReturnsChildren(t *testing.T) {
-	childCalled := false
+func TestProvider_Prod_ReplacesChildrenWithCrashPage(t *testing.T) {
+	app := runtimetest.New(t, func(ctx *runtime.Ctx) work.Node {
+		return Provider(Props{DevMode: false, Children: broken(true)()})
+	}, runtimetest.Dev(false))
 
-	childFn := func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-		childCalled = true
-		return &work.Text{Value: "child content"}
+	got := app.Normalized()
+	if !strings.Contains(got, "Something went wrong") || strings.Contains(got, "kaboom") {
+		t.Fatalf("prod crash page expected without internals: %s", got)
 	}
+}
 
-	root := &runtime.Instance{
-		ID: "root",
-		Fn: func(ctx *runtime.Ctx, _ any, _ []work.Item) work.Node {
-			return Provider(ctx, Props{DevMode: true}, work.Component(childFn))
-		},
-		HookFrame: []runtime.HookSlot{},
-		Children:  []*runtime.Instance{},
+func TestProvider_Dev_ShowsTheOverlayWithTheError(t *testing.T) {
+	app := runtimetest.New(t, func(ctx *runtime.Ctx) work.Node {
+		return Provider(Props{DevMode: true, Children: broken(true)()})
+	}, runtimetest.Dev(false))
+
+	got := app.Normalized()
+	if !strings.Contains(got, "Runtime Error") || !strings.Contains(got, "kaboom") {
+		t.Fatalf("dev overlay expected: %s", got)
 	}
+}
 
-	sess := &runtime.Session{
-		Root:              root,
-		Components:        map[string]*runtime.Instance{"root": root},
-		Handlers:          make(map[string]work.Handler),
-		MountedComponents: make(map[*runtime.Instance]struct{}),
+func warnApp(t *testing.T, dev bool, body func(*Ctx) work.Node) *runtimetest.App {
+	t.Helper()
+	child := runtime.Component(body)
+	return runtimetest.New(t, func(*Ctx) work.Node {
+		return Provider(Props{DevMode: dev, Children: work.BuildElement("main", child())})
+	}, runtimetest.Dev(dev))
+}
+
+type leaker struct {
+	block chan struct{}
+	wg    sync.WaitGroup
+}
+
+func newLeaker(t *testing.T) *leaker {
+	l := &leaker{block: make(chan struct{})}
+	t.Cleanup(func() {
+		close(l.block)
+		l.wg.Wait()
+	})
+	return l
+}
+
+func (l *leaker) body(ctx *Ctx) work.Node {
+	runtime.UseRenderEffect(ctx, func() func() {
+		l.wg.Add(1)
+		go func() {
+			defer l.wg.Done()
+			<-l.block
+		}()
+		return nil
+	})
+	return work.BuildElement("p", work.NewText("page"))
+}
+
+func dismissButtons(app *runtimetest.App) []uint32 {
+	var out []uint32
+	for _, id := range app.Model.IDs() {
+		n := app.Model.Node(id)
+		if n == nil || n.Data != "button" || n.FirstChild == nil || n.FirstChild.Data != "Dismiss" {
+			continue
+		}
+		out = append(out, id)
 	}
+	return out
+}
 
-	if err := sess.Flush(); err != nil {
-		t.Fatalf("Flush failed: %v", err)
+func TestWarningsAreHeldOutOfTheServerRenderAndShownAfterConnect(t *testing.T) {
+	app := warnApp(t, true, newLeaker(t).body)
+
+	if strings.Contains(app.SSR, "data-pondlive-warnings") {
+		t.Fatalf("a warning reached the server-rendered HTML: %s", app.SSR)
 	}
+	html := app.Normalized()
+	for _, want := range []string{"data-pondlive-warnings", "RENDER_EFFECT_LEAKED_GOROUTINE", "leaker", "created by", "errors_test.go", "Dismiss"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("panel is missing %q after connect: %s", want, html)
+		}
+	}
+	if strings.Contains(html, "Runtime Error") {
+		t.Fatalf("a warning must not raise the blocking error overlay: %s", html)
+	}
+}
 
-	if !childCalled {
-		t.Error("expected child to be called in dev mode without errors")
+func TestWarningPanelIsDistinctFromTheErrorOverlayAndDismissible(t *testing.T) {
+	app := warnApp(t, true, newLeaker(t).body)
+
+	buttons := dismissButtons(app)
+	if len(buttons) != 1 {
+		t.Fatalf("want one per-warning dismiss button, got %d", len(buttons))
+	}
+	if err := app.Dispatch(buttons[0], "click", nil); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(app.Normalized(), "data-pondlive-warnings") {
+		t.Fatalf("panel still open after dismissing the only warning: %s", app.Normalized())
+	}
+}
+
+func TestProdShowsNoWarningPanel(t *testing.T) {
+	app := warnApp(t, false, newLeaker(t).body)
+	if strings.Contains(app.Normalized(), "data-pondlive-warnings") {
+		t.Fatalf("prod rendered a warning panel: %s", app.Normalized())
+	}
+}
+
+func TestRenderEffectForbiddenCallUsesTheExistingErrorOverlayInDev(t *testing.T) {
+	hub := shared.NewShared(0)
+	app := warnApp(t, true, func(ctx *Ctx) work.Node {
+		runtime.UseRenderEffect(ctx, func() func() { hub.Set(1); return nil })
+		return work.BuildElement("p", work.NewText("page"))
+	})
+	html := app.Normalized()
+	if !strings.Contains(html, "Runtime Error") || !strings.Contains(html, "Shared.Set") || !strings.Contains(html, "UseRenderEffect") {
+		t.Fatalf("overlay = %s", html)
+	}
+	if hub.Get() != 0 {
+		t.Fatal("the forbidden write happened")
 	}
 }

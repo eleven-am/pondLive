@@ -1,44 +1,48 @@
 package runtime
 
 import (
+	"reflect"
+	"runtime"
+
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
 type Node = work.Node
 
-type ComponentWrapper = func(ctx *Ctx, items ...work.Item) Node
+type componentFn = func(ctx *Ctx) work.Node
 
-type PropsComponentWrapper[P any] = func(ctx *Ctx, props P, items ...work.Item) Node
-
-func Component(fn func(ctx *Ctx, children []work.Item) work.Node) ComponentWrapper {
-	name := captureComponentName(3)
-
-	wrappedFn := func(ctx *Ctx, _ any, children []work.Item) work.Node {
-		return fn(ctx, children)
-	}
-
-	return func(ctx *Ctx, items ...work.Item) Node {
-		comp := work.Component(wrappedFn, items...)
-		comp.Name = name
-		return comp
+func Component(fn func(ctx *Ctx) work.Node) func() work.Node {
+	ident, name := funcIdentity(fn)
+	return func() work.Node {
+		return &work.ComponentNode{Fn: componentFn(fn), Ident: ident, Name: name}
 	}
 }
 
-func PropsComponent[P any](fn func(ctx *Ctx, props P, children []work.Item) work.Node) PropsComponentWrapper[P] {
-	name := captureComponentName(3)
-
-	wrappedFn := func(ctx *Ctx, propsAny any, children []work.Item) work.Node {
-		p, ok := propsAny.(P)
-		if !ok {
-			var zero P
-			p = zero
+func PropsComponent[P any](fn func(ctx *Ctx, props P) work.Node) func(P) work.Node {
+	ident, name := funcIdentity(fn)
+	return func(props P) work.Node {
+		return &work.ComponentNode{
+			Fn:    componentFn(func(ctx *Ctx) work.Node { return fn(ctx, props) }),
+			Ident: ident,
+			Name:  name,
+			Props: props,
 		}
-		return fn(ctx, p, children)
 	}
+}
 
-	return func(ctx *Ctx, props P, items ...work.Item) Node {
-		comp := work.PropsComponent(wrappedFn, props, items...)
-		comp.Name = name
-		return comp
+func funcIdentity(fn any) (uintptr, string) {
+	pc := reflect.ValueOf(fn).Pointer()
+	if f := runtime.FuncForPC(pc); f != nil {
+		return pc, f.Name()
 	}
+	return pc, ""
+}
+
+func inlineComponent(ctx *Ctx, n work.Node) work.Node {
+	if cn, ok := n.(*work.ComponentNode); ok {
+		if fn, ok := cn.Fn.(componentFn); ok {
+			return fn(ctx)
+		}
+	}
+	return n
 }

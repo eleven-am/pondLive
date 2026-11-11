@@ -129,8 +129,8 @@ describe('Logger', () => {
     });
 
     describe('disabled logging', () => {
-        it('should not log when disabled', () => {
-            Logger.configure({ enabled: false });
+        it('should only suppress debug and info when disabled', () => {
+            Logger.configure({ enabled: false, level: 'debug' });
 
             Logger.debug('Test', 'debug');
             Logger.info('Test', 'info');
@@ -139,8 +139,8 @@ describe('Logger', () => {
 
             expect(console.debug).not.toHaveBeenCalled();
             expect(console.info).not.toHaveBeenCalled();
-            expect(console.warn).not.toHaveBeenCalled();
-            expect(console.error).not.toHaveBeenCalled();
+            expect(console.warn).toHaveBeenCalled();
+            expect(console.error).toHaveBeenCalled();
         });
     });
 });

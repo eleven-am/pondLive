@@ -160,3 +160,112 @@ func crashMessageStyles() work.Item {
 		"max-width": "400px",
 	})
 }
+
+func warningPanelStyles() work.Item {
+	return work.Styles(map[string]string{
+		"position":      "fixed",
+		"right":         "1rem",
+		"bottom":        "1rem",
+		"width":         "min(480px, calc(100vw - 2rem))",
+		"max-height":    "50vh",
+		"overflow":      "auto",
+		"z-index":       "99998",
+		"background":    "#1f1a0e",
+		"border":        "1px solid #d97706",
+		"border-radius": "8px",
+		"font-family":   "ui-monospace, monospace",
+		"box-shadow":    "0 8px 24px rgba(0, 0, 0, 0.4)",
+	})
+}
+
+func warningHeaderStyles() work.Item {
+	return work.Styles(map[string]string{
+		"background":  "#d97706",
+		"color":       "#1f1a0e",
+		"padding":     "0.5rem 0.75rem",
+		"font-weight": "600",
+		"display":     "flex",
+		"align-items": "center",
+		"gap":         "0.5rem",
+	})
+}
+
+func warningBadgeStyles() work.Item {
+	return work.Styles(map[string]string{
+		"background":    "rgba(31,26,14,0.2)",
+		"padding":       "0 0.375rem",
+		"border-radius": "4px",
+		"font-size":     "0.75rem",
+		"flex":          "1",
+	})
+}
+
+func warningButtonStyles() work.Item {
+	return work.Styles(map[string]string{
+		"background":    "transparent",
+		"color":         "inherit",
+		"border":        "1px solid currentColor",
+		"border-radius": "4px",
+		"padding":       "0 0.5rem",
+		"font-size":     "0.75rem",
+		"cursor":        "pointer",
+	})
+}
+
+func warningListStyles() work.Item {
+	return work.Styles(map[string]string{"padding": "0.5rem"})
+}
+
+func warningItemStyles() work.Item {
+	return work.Styles(map[string]string{
+		"background":    "#2b2414",
+		"border-radius": "6px",
+		"padding":       "0.75rem",
+		"margin-bottom": "0.5rem",
+		"color":         "#fbbf24",
+	})
+}
+
+func warningItemHeaderStyles() work.Item {
+	return work.Styles(map[string]string{
+		"display":       "flex",
+		"gap":           "0.5rem",
+		"align-items":   "center",
+		"margin-bottom": "0.5rem",
+	})
+}
+
+func warningCodeStyles() work.Item {
+	return work.Styles(map[string]string{
+		"background":    "#d97706",
+		"color":         "#1f1a0e",
+		"padding":       "0.125rem 0.375rem",
+		"border-radius": "3px",
+		"font-size":     "0.75rem",
+	})
+}
+
+func warningComponentStyles() work.Item {
+	return work.Styles(map[string]string{
+		"color":     "#fcd34d",
+		"font-size": "0.75rem",
+		"flex":      "1",
+	})
+}
+
+func warningMessageStyles() work.Item {
+	return work.Styles(map[string]string{
+		"color":     "#fde68a",
+		"font-size": "0.875rem",
+	})
+}
+
+func warningStackStyles() work.Item {
+	return work.Styles(map[string]string{
+		"margin":      "0.5rem 0 0",
+		"color":       "#a8a29e",
+		"font-size":   "0.75rem",
+		"white-space": "pre-wrap",
+		"overflow":    "auto",
+	})
+}

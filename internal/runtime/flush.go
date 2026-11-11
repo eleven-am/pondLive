@@ -4,550 +4,242 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
-	"strings"
 
-	"github.com/eleven-am/pondlive/internal/protocol"
-	"github.com/eleven-am/pondlive/internal/view/diff"
+	"github.com/eleven-am/pondlive/internal/reactive"
 )
 
-const maxRenderIterations = 100
+type boundaryKey struct{}
 
-type effectErrorRecord struct {
-	instance  *Instance
-	hookIndex int
-	err       *Error
-	phase     string
-}
-
-func (s *Session) SetAutoFlush(fn func()) {
-	if s == nil {
-		return
+func (s *Session) hasWork() bool {
+	if len(s.edits) > 0 || len(s.late) > 0 || s.graph.Pending(reactive.QueueRender) {
+		return true
 	}
-	s.flushMu.Lock()
-	s.autoFlush = fn
-	s.flushMu.Unlock()
-}
-
-func (s *Session) RequestFlush() {
-	if s == nil {
-		return
-	}
-
-	s.flushMu.Lock()
-
-	if s.pendingFlush {
-		s.flushMu.Unlock()
-		return
-	}
-
-	s.pendingFlush = true
-
-	if s.flushing {
-		s.flushMu.Unlock()
-		return
-	}
-
-	autoFlush := s.autoFlush
-	s.flushMu.Unlock()
-
-	if autoFlush != nil {
-		autoFlush()
-	} else {
-		_ = s.Flush()
-	}
-}
-
-func (s *Session) IsFlushing() bool {
-	if s == nil {
-		return false
-	}
-	s.flushMu.Lock()
-	defer s.flushMu.Unlock()
-	return s.flushing
-}
-
-func (s *Session) IsFlushPending() bool {
-	if s == nil {
-		return false
-	}
-	s.flushMu.Lock()
-	defer s.flushMu.Unlock()
-	return s.pendingFlush
+	return !s.deferred.Load() && s.graph.Pending(reactive.QueueWatch)
 }
 
 func (s *Session) Flush() error {
-	if s == nil || s.Root == nil {
+	if s == nil {
 		return errors.New("runtime: session not initialized")
 	}
+	_, err := ask(s, flushAskBound, func(s *Session) (struct{}, error) {
+		s.flush()
+		if s.closed {
+			return struct{}{}, ErrSessionClosed
+		}
+		return struct{}{}, nil
+	})
+	return err
+}
 
-	s.flushMu.Lock()
-	if s.flushing {
-		s.pendingFlush = true
-		s.flushMu.Unlock()
+func (s *Session) FlushCount() uint64 {
+	if s == nil {
+		return 0
+	}
+	return s.flushes.Load()
+}
+
+func (s *Session) flush() {
+	if s.root == nil {
+		return
+	}
+	s.flushes.Add(1)
+	for round := 0; round <= reactive.CascadeBudget; round++ {
+		err := s.graph.Flush(reactive.FlushHooks{
+			Drain:    s.drainSetters,
+			Publish:  s.publish,
+			Deferred: s.deferred.Load,
+		})
+		if err != nil {
+			s.publish()
+			s.failBudget(err)
+			return
+		}
+		if len(s.late) == 0 {
+			return
+		}
+		late := s.late
+		s.late = nil
+		for _, fn := range late {
+			fn()
+		}
+	}
+	s.publish()
+}
+
+func (s *Session) publish() {
+	s.echo = nil
+	if len(s.edits) == 0 {
+		return
+	}
+	out := s.edits
+	s.edits = nil
+	s.Bus.PublishFrameEdits(out)
+}
+
+func (s *Session) failBudget(err error) {
+	var budget *reactive.BudgetError
+	if !errors.As(err, &budget) {
+		return
+	}
+	if budget.Kind == reactive.BudgetRounds {
+		owner := budget.Owner
+		if owner == nil {
+			owner = s.root
+		}
+		s.failOwner(owner, ErrCodeRender, "render loop limit exceeded", "flush:render-loop", nil)
+		return
+	}
+	owners := s.graph.Abandon()
+	s.Report(nil, Report{Severity: SeverityDiagnostic, Phase: "flush:update-depth",
+		Message: "maximum update depth exceeded",
+		Meta: map[string]any{
+			"owners": len(owners),
+		},
+	})
+	for _, o := range owners {
+		s.failOwner(o, ErrCodeEffect, "maximum update depth exceeded", "flush:update-depth", nil)
+	}
+}
+
+func (s *Session) failOwner(o *reactive.Owner, code ErrorCode, message, phase string, panicValue any) {
+	if o == nil {
+		return
+	}
+	err := s.buildError(code, message, o, phase, "", panicValue)
+	s.Report(nil, Report{Severity: SeverityDiagnostic, Phase: phase,
+		Message: message,
+		Meta:    map[string]any{"component": o.Info.Name},
+	})
+	s.deliver(o, err)
+}
+
+func (s *Session) onViolation(e *reactive.DevError) {
+	if s.devMode {
+		panic(e)
+	}
+	s.Report(nil, Report{Severity: SeverityDiagnostic, Phase: "reactive:violation",
+		Message: e.Error(),
+		Meta: map[string]any{
+			"violation": int(e.Violation),
+		},
+	})
+}
+
+func (s *Session) onCleanupPanic(o *reactive.Owner, v any) {
+	stack := string(debug.Stack())
+	err := s.buildError(ErrCodeEffectCleanup, fmt.Sprintf("%v", v), o, "effect:cleanup", stack, v)
+	s.Report(nil, Report{Severity: SeverityDiagnostic, Phase: "effect:cleanup",
+		Message: fmt.Sprintf("panic: %v", v),
+		Stack:   stack,
+		Meta:    map[string]any{"component": o.Info.Name, "panic_value": v},
+	})
+	s.deliver(o, err)
+}
+
+func (s *Session) allowCreate(what string) bool {
+	if s.graph.Mode() != reactive.ModeSerialize {
+		return true
+	}
+	if s.devMode {
+		panic(&reactive.DevError{Violation: reactive.CreateInSerialize})
+	}
+	s.Report(nil, Report{Severity: SeverityDiagnostic, Phase: "serialize:create",
+		Message: what + " called during a serialize pass and ignored",
+	})
+	return false
+}
+
+func (s *Session) boundaryOf(o *reactive.Owner) *Boundary {
+	if o == nil {
 		return nil
 	}
-	s.flushing = true
-	s.pendingFlush = false
-	s.flushMu.Unlock()
-
-	defer func() {
-		s.flushMu.Lock()
-		s.flushing = false
-		needsReflush := s.pendingFlush
-		s.flushMu.Unlock()
-
-		if needsReflush {
-			_ = s.Flush()
-		}
-	}()
-
-	s.mu.Lock()
-
-	isFirstRender := s.PrevView == nil
-	s.clearRenderedFlags(s.Root)
-
-	iteration := 0
-	for {
-		if iteration >= maxRenderIterations {
-			if s.Bus != nil {
-				s.Bus.ReportDiagnostic(protocol.Diagnostic{
-					Phase:   "flush:render-loop",
-					Message: "max render iterations exceeded, possible infinite loop",
-				})
-			}
-			break
-		}
-		iteration++
-
-		dirty := s.collectDirtyComponentsLocked()
-
-		if isFirstRender {
-			s.resetRefsForComponent(s.Root)
-			s.Root.Render(s)
-			isFirstRender = false
-			continue
-		}
-
-		if len(dirty) == 0 {
-			break
-		}
-
-		for _, inst := range dirty {
-			s.resetRefsForComponent(inst)
-			inst.Render(s)
-		}
+	if v, ok := o.Parent().Lookup(boundaryKey{}); ok {
+		return v.(*Boundary)
 	}
-
-	s.flushMu.Lock()
-	s.pendingFlush = false
-	s.flushMu.Unlock()
-
-	s.clearCurrentHandlers()
-
-	s.PrevView = s.View
-	s.PortalViews = nil
-	if s.Root.WorkTree != nil {
-		s.Root.NextHandlerIndex = 0
-		s.View = s.convertWorkToView(s.Root.WorkTree, s.Root)
-	}
-
-	if s.Bus != nil {
-		patches := diff.Diff(s.PrevView, s.View)
-		if len(patches) > 0 {
-			s.Bus.PublishFramePatch(patches)
-		}
-	}
-
-	s.cleanupStaleHandlers()
-
-	s.detectAndCleanupUnmounted()
-	s.pruneUnreferencedChildren(s.Root)
-
-	pendingEffects := append([]effectTask(nil), s.PendingEffects...)
-	pendingCleanups := append([]cleanupTask(nil), s.PendingCleanups...)
-	s.PendingEffects = s.PendingEffects[:0]
-	s.PendingCleanups = s.PendingCleanups[:0]
-
-	s.mu.Unlock()
-
-	s.runEffectsOutsideLock(pendingEffects, pendingCleanups)
-
 	return nil
 }
 
-func (s *Session) MarkDirty(inst *Instance) {
-	if s == nil || inst == nil {
+func (s *Session) deliver(o *reactive.Owner, err *Error) {
+	if b := s.boundaryOf(o); b != nil {
+		b.push(err)
 		return
 	}
-
-	s.dirtyMu.Lock()
-
-	if s.DirtySet == nil {
-		s.DirtySet = make(map[*Instance]struct{})
-	}
-
-	if _, exists := s.DirtySet[inst]; exists {
-		s.dirtyMu.Unlock()
-		return
-	}
-
-	inst.SetDirty(true)
-	s.DirtySet[inst] = struct{}{}
-	s.DirtyQueue = append(s.DirtyQueue, inst)
-	s.dirtyMu.Unlock()
-
-	s.RequestFlush()
-}
-
-func (s *Session) collectDirtyComponentsLocked() []*Instance {
-	if s == nil {
-		return nil
-	}
-
-	s.dirtyMu.Lock()
-	defer s.dirtyMu.Unlock()
-
-	var pruned []*Instance
-	for _, inst := range s.DirtyQueue {
-		hasAncestorDirty := false
-		for ancestor := inst.Parent; ancestor != nil; ancestor = ancestor.Parent {
-			if _, dirty := s.DirtySet[ancestor]; dirty {
-				hasAncestorDirty = true
-				break
-			}
-		}
-		if !hasAncestorDirty {
-			pruned = append(pruned, inst)
-		}
-	}
-
-	s.DirtyQueue = s.DirtyQueue[:0]
-	s.DirtySet = make(map[*Instance]struct{})
-
-	return pruned
-}
-
-func (s *Session) clearRenderedFlags(inst *Instance) {
-	if inst == nil {
-		return
-	}
-
-	inst.RenderedThisFlush = false
-	inst.ChildRenderIndex = 0
-	inst.ReferencedChildren = make(map[string]bool)
-
-	inst.mu.Lock()
-	children := make([]*Instance, len(inst.Children))
-	copy(children, inst.Children)
-	inst.mu.Unlock()
-
-	for _, child := range children {
-		s.clearRenderedFlags(child)
+	if s.crash == nil {
+		s.crash = err
 	}
 }
 
-func (s *Session) resetRefsForComponent(inst *Instance) {
-	if inst == nil {
-		return
-	}
-
-	for _, slot := range inst.HookFrame {
-		if slot.Type == HookTypeElement {
-			if ref, ok := slot.Value.(*ElementRef); ok {
-				ref.ResetAttachment()
-			}
-		}
-	}
-}
-
-func (s *Session) detectAndCleanupUnmounted() {
-	if s == nil {
-		return
-	}
-
-	rendered := make(map[*Instance]struct{})
-	s.collectRenderedComponents(s.Root, rendered)
-
-	if s.MountedComponents == nil {
-		s.MountedComponents = make(map[*Instance]struct{})
-	}
-
-	var unmounted []*Instance
-	for inst := range s.MountedComponents {
-		if _, stillMounted := rendered[inst]; !stillMounted {
-			unmounted = append(unmounted, inst)
-		}
-	}
-
-	for _, inst := range unmounted {
-		s.cleanupInstance(inst)
-		delete(s.MountedComponents, inst)
-	}
-
-	s.MountedComponents = rendered
-}
-
-func (s *Session) collectRenderedComponents(inst *Instance, result map[*Instance]struct{}) {
-	if inst == nil {
-		return
-	}
-
-	result[inst] = struct{}{}
-
-	inst.mu.Lock()
-	children := make([]*Instance, len(inst.Children))
-	copy(children, inst.Children)
-	inst.mu.Unlock()
-
-	for _, child := range children {
-		s.collectRenderedComponents(child, result)
-	}
-}
-
-func (s *Session) cleanupInstance(inst *Instance) {
-	if inst == nil {
-		return
-	}
-
-	for _, slot := range inst.HookFrame {
-		if slot.Type == HookTypeEffect {
-			if cell, ok := slot.Value.(*effectCell); ok {
-				if cell.cleanup != nil {
-					s.PendingCleanups = append(s.PendingCleanups, cleanupTask{
-						instance: inst,
-						fn:       cell.cleanup,
-					})
-				}
-			}
-		}
-	}
-
-	inst.mu.Lock()
-	inst.Providers = nil
-	inst.mu.Unlock()
-
-	inst.cleanupsMu.Lock()
-	cleanups := inst.cleanups
-	inst.cleanups = nil
-	inst.cleanupsMu.Unlock()
-
-	for _, cleanup := range cleanups {
-		if cleanup != nil {
-			func() {
-				defer func() { recover() }()
-				cleanup()
-			}()
-		}
-	}
-}
-
-func (s *Session) pruneUnreferencedChildren(inst *Instance) {
-	if inst == nil {
-		return
-	}
-
-	inst.mu.Lock()
-	referencedChildren := inst.ReferencedChildren
-	currentChildren := make([]*Instance, len(inst.Children))
-	copy(currentChildren, inst.Children)
-	inst.mu.Unlock()
-
-	var kept []*Instance
-	for _, child := range currentChildren {
-		if referencedChildren != nil && referencedChildren[child.ID] {
-			kept = append(kept, child)
-			s.pruneUnreferencedChildren(child)
-		} else {
-			s.cleanupInstance(child)
-			if s.Components != nil {
-				delete(s.Components, child.ID)
-			}
-		}
-	}
-
-	inst.mu.Lock()
-	inst.Children = kept
-	inst.mu.Unlock()
-}
-
-func (s *Session) clearCurrentHandlers() {
-	s.handlerIDsMu.Lock()
-	s.currentHandlerIDs = make(map[string]bool)
-	s.handlerIDsMu.Unlock()
-}
-
-func (s *Session) cleanupStaleHandlers() {
-	s.handlerIDsMu.Lock()
-	defer s.handlerIDsMu.Unlock()
-
-	for handlerID, sub := range s.allHandlerSubs {
-		if !s.currentHandlerIDs[handlerID] {
-
-			if sub != nil {
-				sub.Unsubscribe()
-			}
-			delete(s.allHandlerSubs, handlerID)
-		}
-	}
-}
-
-func (s *Session) runPendingEffects() {
-	if s == nil {
-		return
-	}
-
-	s.mu.Lock()
-	effects := append([]effectTask(nil), s.PendingEffects...)
-	cleanups := append([]cleanupTask(nil), s.PendingCleanups...)
-	s.PendingEffects = s.PendingEffects[:0]
-	s.PendingCleanups = s.PendingCleanups[:0]
-	s.mu.Unlock()
-
-	s.runEffectsOutsideLock(effects, cleanups)
-}
-
-func (s *Session) runEffectsOutsideLock(effects []effectTask, cleanups []cleanupTask) {
-	if s == nil {
-		return
-	}
-
-	var effectErrors []*effectErrorRecord
-
-	for _, task := range cleanups {
-		if task.fn != nil {
-			err := s.runWithEffectRecovery("cleanup", task.instance, -1, func() {
-				task.fn()
-			})
-			if err != nil {
-				effectErrors = append(effectErrors, &effectErrorRecord{
-					instance:  task.instance,
-					hookIndex: -1,
-					err:       err,
-					phase:     "cleanup",
-				})
-			}
-		}
-	}
-
-	for _, task := range effects {
-		if task.fn != nil {
-			var cleanup func()
-			err := s.runWithEffectRecovery("run", task.instance, task.hookIndex, func() {
-				cleanup = task.fn()
-			})
-
-			if err != nil {
-				effectErrors = append(effectErrors, &effectErrorRecord{
-					instance:  task.instance,
-					hookIndex: task.hookIndex,
-					err:       err,
-					phase:     "run",
-				})
-			} else if cleanup != nil && task.instance != nil && task.hookIndex < len(task.instance.HookFrame) {
-				task.instance.mu.Lock()
-				if slot := task.instance.HookFrame[task.hookIndex]; slot.Type == HookTypeEffect {
-					if cell, ok := slot.Value.(*effectCell); ok {
-						cell.cleanup = cleanup
-					}
-				}
-				task.instance.mu.Unlock()
-			}
-		}
-	}
-
-	if len(effectErrors) > 0 {
-		s.propagateEffectErrors(effectErrors)
-	}
-}
-
-func (s *Session) runWithEffectRecovery(phase string, inst *Instance, hookIndex int, fn func()) *Error {
-	var compErr *Error
-
+func (s *Session) recoverUser(code ErrorCode, phase string, o *reactive.Owner, fn func()) (compErr *Error) {
 	defer func() {
 		if r := recover(); r != nil {
 			stack := string(debug.Stack())
-			code := ErrCodeEffect
-			if strings.Contains(phase, "cleanup") {
-				code = ErrCodeEffectCleanup
+			name := ""
+			if o != nil {
+				name = o.Info.Name
 			}
-
-			fullPhase := fmt.Sprintf("effect:%s:%s", phase, inst.ID)
-			if hookIndex >= 0 {
-				fullPhase = fmt.Sprintf("effect:%s:%s:%d", phase, inst.ID, hookIndex)
-			}
-
-			var parentID string
-			if inst.Parent != nil {
-				parentID = inst.Parent.ID
-			}
-
-			ectx := ErrorContext{
-				SessionID:         s.SessionID,
-				ComponentID:       inst.ID,
-				ComponentName:     inst.ComponentName(),
-				ParentID:          parentID,
-				ComponentPath:     inst.BuildComponentPath(),
-				ComponentNamePath: inst.BuildComponentNamePath(),
-				Phase:             fullPhase,
-				HookIndex:         hookIndex,
-				HookCount:         len(inst.HookFrame),
-				Props:             inst.Props,
-				ProviderKeys:      inst.GetProviderKeys(),
-				DevMode:           s.devMode,
-			}
-			compErr = NewComponentErrorWithContext(code, fmt.Sprintf("%v", r), stack, ectx)
-			compErr.Meta["panic_value"] = r
-
-			if s.Bus != nil {
-				s.Bus.ReportDiagnostic(protocol.Diagnostic{
-					Phase:      fullPhase,
-					Message:    fmt.Sprintf("panic: %v", r),
-					StackTrace: stack,
-					Metadata: map[string]any{
-						"component_id": inst.ID,
-						"hook_index":   hookIndex,
-						"panic_value":  r,
-					},
-				})
-			}
+			fullPhase := phase + ":" + name
+			compErr = s.buildError(code, fmt.Sprintf("%v", r), o, fullPhase, stack, r)
+			s.Report(nil, Report{Severity: SeverityDiagnostic, Phase: fullPhase,
+				Message: fmt.Sprintf("panic: %v", r),
+				Stack:   stack,
+				Meta: map[string]any{
+					"component":   name,
+					"panic_value": r,
+				},
+			})
 		}
 	}()
-
 	fn()
-	return compErr
+	return nil
 }
 
-func (s *Session) propagateEffectErrors(errors []*effectErrorRecord) {
-	if s == nil || len(errors) == 0 {
+func (s *Session) ownerPath(o *reactive.Owner) []string {
+	var names []string
+	for p := o; p != nil; p = p.Parent() {
+		names = append(names, p.Info.Name)
+	}
+	for i, j := 0, len(names)-1; i < j; i, j = i+1, j-1 {
+		names[i], names[j] = names[j], names[i]
+	}
+	return names
+}
+
+func (s *Session) buildError(code ErrorCode, message string, o *reactive.Owner, phase, stack string, panicValue any) *Error {
+	ectx := ErrorContext{
+		SessionID: s.SessionID,
+		Phase:     phase,
+		HookIndex: -1,
+		DevMode:   s.devMode,
+	}
+	if o != nil {
+		ectx.ComponentID = fmt.Sprintf("%s#%d", o.Info.Name, o.Base)
+		ectx.ComponentName = o.Info.Name
+		if p := o.Parent(); p != nil {
+			ectx.ParentID = fmt.Sprintf("%s#%d", p.Info.Name, p.Base)
+		}
+		ectx.ComponentNamePath = s.ownerPath(o)
+		ectx.ComponentPath = ectx.ComponentNamePath
+		ectx.HookCount = o.CellCount()
+	}
+	err := NewComponentErrorWithContext(code, message, stack, ectx)
+	if panicValue != nil {
+		err.Meta["panic_value"] = panicValue
+	}
+	return err
+}
+
+func (s *Session) invokeHandler(o *reactive.Owner, fn func()) {
+	if o != nil && o.Disposed() {
 		return
 	}
-
-	affectedAncestors := make(map[*Instance]struct{})
-
-	for _, errRec := range errors {
-		errRec.instance.setEffectError(errRec.err)
-
-		for ancestor := errRec.instance.Parent; ancestor != nil; ancestor = ancestor.Parent {
-			if s.hasErrorBoundary(ancestor) {
-				affectedAncestors[ancestor] = struct{}{}
-				break
-			}
-		}
-	}
-
-	for ancestor := range affectedAncestors {
-		s.MarkDirty(ancestor)
-	}
+	s.runAttributed(o, fn)
 }
 
-func (s *Session) hasErrorBoundary(inst *Instance) bool {
-	if inst == nil {
-		return false
+func (s *Session) runAttributed(o *reactive.Owner, fn func()) bool {
+	err := s.recoverUser(ErrCodeHandler, "handler", o, fn)
+	if err == nil {
+		return true
 	}
-	for _, slot := range inst.HookFrame {
-		if slot.Type == HookTypeErrorBoundary {
-			return true
-		}
-	}
+	s.deliver(o, err)
 	return false
 }

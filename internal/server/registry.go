@@ -5,219 +5,273 @@ import (
 	"errors"
 	"io/fs"
 	"sync"
+	"sync/atomic"
 
 	"github.com/eleven-am/pondlive/internal/session"
 )
 
+const DefaultMaxSessions = 10000
+
 var (
-	ErrSessionNotFound = errors.New("server: session not found")
+	ErrSessionNotFound  = errors.New("server: session not found")
+	ErrDuplicateSession = errors.New("server: duplicate session id")
+	ErrRegistryFull     = errors.New("server: session registry is full")
+	ErrPendingFull      = errors.New("server: too many sessions waiting for their first connection")
+	ErrRegistryClosed   = errors.New("server: session registry is closed")
 )
 
-//go:embed static/pondlive.js static/pondlive-dev.js static/pondlive-dev.js.map
+//go:embed static/pondlive.js static/pondlive-dev.js static/pondlive-dev.js.map static/tus.min.js static/tus.LICENSE static/tus.NOTICE
 var assetsEmbed embed.FS
 
 var Assets, _ = fs.Sub(assetsEmbed, "static")
 
-type sessionEntry struct {
-	session   *session.LiveSession
-	transport session.Transport
-	connID    string
+type StateCounts struct {
+	Pending      int
+	Live         int
+	Disconnected int
+	Closing      int
 }
 
-type transportRelease struct {
-	session   *session.LiveSession
-	transport session.Transport
+type Stats struct {
+	Sessions StateCounts
+	Capacity int
+	Stuck    int
+	Closed   map[string]uint64
+	Evicted  uint64
+	Resets   map[string]uint64
+	Rejected RejectedCounts
 }
 
-func (rel transportRelease) release() {
-	if rel.transport != nil {
-		_ = rel.transport.Close()
-	}
-	if rel.session != nil {
-		rel.session.SetTransport(nil)
-	}
+type RejectedCounts struct {
+	Full      uint64
+	Pending   uint64
+	Duplicate uint64
+	Closed    uint64
 }
 
 type SessionRegistry struct {
-	mu          sync.RWMutex
-	sessions    map[session.SessionID]*sessionEntry
-	connections map[string]*sessionEntry
+	mu       sync.RWMutex
+	sessions map[session.SessionID]*session.LiveSession
+	max      int
+	maxPend  int
+	pending  map[*session.LiveSession]struct{}
+	stuck    map[*session.LiveSession]struct{}
+	closed   bool
+
+	resetMu sync.Mutex
+	resets  map[string]uint64
+
+	closes    [session.ReasonCount]atomic.Uint64
+	evicted   atomic.Uint64
+	rejFull   atomic.Uint64
+	rejPend   atomic.Uint64
+	rejDup    atomic.Uint64
+	rejClosed atomic.Uint64
 }
 
-func NewSessionRegistry() *SessionRegistry {
+func NewSessionRegistry(max, maxPending int) *SessionRegistry {
+	if max <= 0 {
+		max = DefaultMaxSessions
+	}
+	if maxPending <= 0 {
+		maxPending = max / 4
+	}
+	if maxPending < 1 {
+		maxPending = 1
+	}
 	return &SessionRegistry{
-		sessions:    make(map[session.SessionID]*sessionEntry),
-		connections: make(map[string]*sessionEntry),
+		sessions: make(map[session.SessionID]*session.LiveSession),
+		max:      max,
+		maxPend:  maxPending,
+		pending:  make(map[*session.LiveSession]struct{}),
+		stuck:    make(map[*session.LiveSession]struct{}),
+		resets:   make(map[string]uint64),
 	}
 }
 
-func (r *SessionRegistry) Put(sess *session.LiveSession) {
+func (r *SessionRegistry) admitLocked(id session.SessionID) error {
+	if r.closed {
+		r.rejClosed.Add(1)
+		return ErrRegistryClosed
+	}
+	if _, exists := r.sessions[id]; exists {
+		r.rejDup.Add(1)
+		return ErrDuplicateSession
+	}
+	if len(r.sessions) >= r.max {
+		r.rejFull.Add(1)
+		return ErrRegistryFull
+	}
+	if len(r.pending) >= r.maxPend {
+		r.rejPend.Add(1)
+		return ErrPendingFull
+	}
+	return nil
+}
+
+func (r *SessionRegistry) Admit(id session.SessionID) error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.admitLocked(id)
+}
+
+func (r *SessionRegistry) leftPending(sess *session.LiveSession) {
+	r.mu.Lock()
+	delete(r.pending, sess)
+	r.mu.Unlock()
+}
+
+func (r *SessionRegistry) Put(sess *session.LiveSession) error {
 	if sess == nil {
-		return
+		return ErrSessionNotFound
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	id := sess.ID()
-	if _, exists := r.sessions[id]; exists {
+	if err := r.admitLocked(id); err != nil {
+		return err
+	}
+	if sess.State() == session.StatePending {
+		r.pending[sess] = struct{}{}
+	}
+	r.sessions[id] = sess
+	return nil
+}
+
+func (r *SessionRegistry) take(sess *session.LiveSession, reason session.CloseReason) bool {
+	if sess == nil {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cur, ok := r.sessions[sess.ID()]
+	if !ok || cur != sess {
+		return false
+	}
+	if reason == session.ReasonWedged {
+		r.stuck[sess] = struct{}{}
+	}
+	r.closes[reason].Add(1)
+	if reason.Evicted() {
+		r.evicted.Add(1)
+	}
+	delete(r.sessions, sess.ID())
+	delete(r.pending, sess)
+	return true
+}
+
+func (r *SessionRegistry) sessionReset(cause string) {
+	r.resetMu.Lock()
+	r.resets[cause]++
+	r.resetMu.Unlock()
+}
+
+func (r *SessionRegistry) sessionClosed(sess *session.LiveSession, reason session.CloseReason) {
+	r.take(sess, reason)
+}
+
+func (r *SessionRegistry) Remove(sess *session.LiveSession) {
+	if sess == nil {
 		return
 	}
-	entry := &sessionEntry{session: sess}
-	r.sessions[id] = entry
-}
-
-func (r *SessionRegistry) Remove(id session.SessionID) {
-	r.mu.Lock()
-	release := r.removeSessionLocked(id)
-	r.mu.Unlock()
-	if release.transport != nil {
-		_ = release.transport.Close()
-	}
-	if release.session != nil {
-		_ = release.session.Close()
-	}
-}
-
-func (r *SessionRegistry) Attach(id session.SessionID, connID string, transport session.Transport) (*session.LiveSession, error) {
-	if connID == "" || transport == nil {
-		return nil, errors.New("server: missing connection or transport")
-	}
-
-	var releases []transportRelease
-	r.mu.Lock()
-	entry, ok := r.sessions[id]
-	if !ok {
-		r.mu.Unlock()
-		return nil, ErrSessionNotFound
-	}
-
-	if entry.transport != nil && entry.transport != transport {
-		releases = append(releases, transportRelease{session: entry.session, transport: entry.transport})
-	}
-	if entry.connID != "" && entry.connID != connID {
-		delete(r.connections, entry.connID)
-	}
-
-	if bound, ok := r.connections[connID]; ok && bound != entry {
-		releases = append(releases, transportRelease{session: bound.session, transport: bound.transport})
-		bound.transport = nil
-		bound.connID = ""
-	}
-
-	entry.transport = transport
-	entry.connID = connID
-	r.connections[connID] = entry
-	sess := entry.session
-	r.mu.Unlock()
-
-	for _, rel := range releases {
-		rel.release()
-	}
-
-	sess.SetTransport(transport)
-
-	return sess, nil
-}
-
-func (r *SessionRegistry) Detach(connID string) {
-	if connID == "" {
-		return
-	}
-	var release transportRelease
-	r.mu.Lock()
-	if entry, ok := r.connections[connID]; ok {
-		release = transportRelease{session: entry.session, transport: entry.transport}
-		entry.transport = nil
-		entry.connID = ""
-		delete(r.connections, connID)
-	}
-	r.mu.Unlock()
-	release.release()
+	r.take(sess, session.ReasonRemoved)
+	sess.RequestClose(session.ReasonRemoved)
 }
 
 func (r *SessionRegistry) Lookup(id session.SessionID) (*session.LiveSession, bool) {
 	r.mu.RLock()
-	entry, ok := r.sessions[id]
+	sess, ok := r.sessions[id]
 	r.mu.RUnlock()
-	if !ok {
-		return nil, false
-	}
-	return entry.session, true
+	return sess, ok
 }
 
-func (r *SessionRegistry) LookupWithConnection(id session.SessionID, connID string) (*session.LiveSession, session.Transport, bool) {
+func (r *SessionRegistry) Snapshot() []*session.LiveSession {
 	r.mu.RLock()
-	entry, ok := r.sessions[id]
-	if !ok || entry == nil {
-		r.mu.RUnlock()
-		return nil, nil, false
+	defer r.mu.RUnlock()
+	out := make([]*session.LiveSession, 0, len(r.sessions))
+	for _, sess := range r.sessions {
+		out = append(out, sess)
 	}
-	sess := entry.session
-	entryConnID := entry.connID
-	transport := entry.transport
-	r.mu.RUnlock()
-
-	if connID == "" || entryConnID != connID {
-		return sess, nil, false
-	}
-	return sess, transport, transport != nil
-}
-
-func (r *SessionRegistry) LookupByConnection(connID string) (*session.LiveSession, session.Transport, bool) {
-	if connID == "" {
-		return nil, nil, false
-	}
-	r.mu.RLock()
-	entry, ok := r.connections[connID]
-	if !ok || entry == nil {
-		r.mu.RUnlock()
-		return nil, nil, false
-	}
-	sess := entry.session
-	transport := entry.transport
-	r.mu.RUnlock()
-
-	return sess, transport, transport != nil
-}
-
-func (r *SessionRegistry) ConnectionForSession(id session.SessionID) (string, session.Transport, bool) {
-	r.mu.RLock()
-	entry, ok := r.sessions[id]
-	if !ok || entry == nil {
-		r.mu.RUnlock()
-		return "", nil, false
-	}
-	connID := entry.connID
-	transport := entry.transport
-	r.mu.RUnlock()
-
-	return connID, transport, connID != "" && transport != nil
-}
-
-func (r *SessionRegistry) removeSessionLocked(id session.SessionID) transportRelease {
-	entry, ok := r.sessions[id]
-	if !ok {
-		return transportRelease{}
-	}
-	if entry.connID != "" {
-		delete(r.connections, entry.connID)
-	}
-	delete(r.sessions, id)
-	return transportRelease{session: entry.session, transport: entry.transport}
+	return out
 }
 
 func (r *SessionRegistry) Range(fn func(*session.LiveSession) bool) {
+	for _, sess := range r.Snapshot() {
+		if !fn(sess) {
+			return
+		}
+	}
+}
+
+func (r *SessionRegistry) Len() int {
 	r.mu.RLock()
-	sessions := make([]*session.LiveSession, 0, len(r.sessions))
-	for _, entry := range r.sessions {
-		if entry.session != nil {
-			sessions = append(sessions, entry.session)
+	defer r.mu.RUnlock()
+	return len(r.sessions)
+}
+
+func (r *SessionRegistry) Close() {
+	r.mu.Lock()
+	r.closed = true
+	r.mu.Unlock()
+}
+
+func (r *SessionRegistry) stuckSessions() []*session.LiveSession {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]*session.LiveSession, 0, len(r.stuck))
+	for sess := range r.stuck {
+		select {
+		case <-sess.Done():
+			delete(r.stuck, sess)
+		default:
+			out = append(out, sess)
+		}
+	}
+	return out
+}
+
+func (r *SessionRegistry) Stats() Stats {
+	stuck := len(r.stuckSessions())
+	var counts StateCounts
+	r.mu.RLock()
+	for _, sess := range r.sessions {
+		switch sess.State() {
+		case session.StatePending:
+			counts.Pending++
+		case session.StateLive:
+			counts.Live++
+		case session.StateDisconnected:
+			counts.Disconnected++
+		default:
+			counts.Closing++
 		}
 	}
 	r.mu.RUnlock()
 
-	for _, sess := range sessions {
-		if !fn(sess) {
-			return
+	closed := make(map[string]uint64)
+	for reason := session.ReasonNone + 1; reason < session.ReasonCount; reason++ {
+		if n := r.closes[reason].Load(); n > 0 {
+			closed[reason.String()] = n
 		}
+	}
+	r.resetMu.Lock()
+	resets := make(map[string]uint64, len(r.resets))
+	for cause, n := range r.resets {
+		resets[cause] = n
+	}
+	r.resetMu.Unlock()
+	return Stats{
+		Resets:   resets,
+		Sessions: counts,
+		Capacity: r.max,
+		Stuck:    stuck,
+		Closed:   closed,
+		Evicted:  r.evicted.Load(),
+		Rejected: RejectedCounts{
+			Full:      r.rejFull.Load(),
+			Pending:   r.rejPend.Load(),
+			Duplicate: r.rejDup.Load(),
+			Closed:    r.rejClosed.Load(),
+		},
 	}
 }

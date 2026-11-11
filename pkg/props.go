@@ -1,53 +1,88 @@
 package pkg
 
 import (
-	"github.com/eleven-am/pondlive/internal/metadata"
+	"fmt"
+
+	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-func Attr(name, value string) Item { return work.Attr(name, value) }
+type AttrOpt = work.AttrOpt
 
-func ID(id string) Item         { return work.ID(id) }
-func Href(url string) Item      { return work.Href(url) }
-func Src(path string) Item      { return work.Src(path) }
-func Target(v string) Item      { return work.Target(v) }
-func Rel(v string) Item         { return work.Rel(v) }
-func Title(v string) Item       { return work.Title(v) }
-func Alt(v string) Item         { return work.Alt(v) }
-func Type(v string) Item        { return work.Type(v) }
-func Value(v string) Item       { return work.Value(v) }
-func Name(v string) Item        { return work.Name(v) }
-func Placeholder(v string) Item { return work.Placeholder(v) }
-func Data(k, v string) Item     { return work.Data(k, v) }
-func Aria(k, v string) Item     { return work.Aria(k, v) }
+func OmitEmpty() AttrOpt { return work.OmitEmpty() }
 
-func Class(classes ...string) Item { return work.Class(classes...) }
+func Attr[T any](name string, v T, opts ...AttrOpt) Item { return work.Attribute(name, v, opts...) }
 
-func Style(property, value string) Item          { return work.Style(property, value) }
-func InlineStyles(styles map[string]string) Item { return work.Styles(styles) }
+func ID[T any](v T) Item          { return Attr("id", v) }
+func Href[T any](v T) Item        { return Attr("href", v) }
+func Src[T any](v T) Item         { return Attr("src", v) }
+func Target[T any](v T) Item      { return Attr("target", v) }
+func Rel[T any](v T) Item         { return Attr("rel", v) }
+func Title[T any](v T) Item       { return Attr("title", v) }
+func Alt[T any](v T) Item         { return Attr("alt", v) }
+func Type[T any](v T) Item        { return Attr("type", v) }
+func Name[T any](v T) Item        { return Attr("name", v) }
+func Placeholder[T any](v T) Item { return Attr("placeholder", v) }
+func Data[T any](k string, v T) Item {
+	return Attr("data-"+k, v)
+}
+func Aria[T any](k string, v T) Item {
+	return Attr("aria-"+k, v)
+}
 
-func Key(key string) Item { return work.Key(key) }
+func Class(parts ...any) Item { return work.Class(parts...) }
 
-func On(event string, fn func(work.Event) work.Updates) Item {
+func Style[T any](property string, v T) Item { return work.Style(property, v) }
+func Styles(styles map[string]any) Item      { return work.Styles(styles) }
+
+func On(event string, fn func(Event)) Item {
 	return work.On(event, fn)
 }
 
-func OnWith(event string, options metadata.EventOptions, fn func(work.Event) work.Updates) Item {
+func OnWith(event string, options EventOptions, fn func(Event)) Item {
 	return work.OnWith(event, options, fn)
 }
 
-func Attach(ref work.Attachment) Item { return work.Attach(ref) }
+type Attachable interface {
+	*ElementRef | *InputRef | *FormRef | *MediaRef | *DialogRef | *CanvasRef | *DetailsRef | Script | *UploadHandle
+}
 
-func Disabled() Item  { return work.Disabled() }
-func Checked() Item   { return work.Checked() }
-func Required() Item  { return work.Required() }
-func Readonly() Item  { return work.Readonly() }
-func Autofocus() Item { return work.Autofocus() }
-func Autoplay() Item  { return work.Autoplay() }
-func Controls() Item  { return work.Controls() }
-func Loop() Item      { return work.Loop() }
-func Muted() Item     { return work.Muted() }
-func Selected() Item  { return work.Selected() }
-func Multiple() Item  { return work.Multiple() }
+func Attach[T Attachable](target T) Item {
+	switch t := any(target).(type) {
+	case *ElementRef:
+		return runtime.AttachItem(t.ref)
+	case *InputRef:
+		return runtime.AttachItem(t.ref)
+	case *FormRef:
+		return runtime.AttachItem(t.ref)
+	case *MediaRef:
+		return runtime.AttachItem(t.ref)
+	case *DialogRef:
+		return runtime.AttachItem(t.ref)
+	case *CanvasRef:
+		return runtime.AttachItem(t.ref)
+	case *DetailsRef:
+		return runtime.AttachItem(t.ref)
+	}
+	return runtime.AttachItem(target)
+}
 
-func UnsafeHTML(html string) Item { return work.UnsafeHTML(html) }
+func boolAttr[T any](name string, v T) Item {
+	switch any(v).(type) {
+	case bool, ReadSignal[bool]:
+		return Attr(name, v)
+	}
+	panic(&work.UnsupportedValueError{Type: fmt.Sprintf("%T", v)})
+}
+
+func Disabled[T any](v T) Item  { return boolAttr("disabled", v) }
+func Required[T any](v T) Item  { return boolAttr("required", v) }
+func Readonly[T any](v T) Item  { return boolAttr("readonly", v) }
+func Autofocus[T any](v T) Item { return boolAttr("autofocus", v) }
+func Autoplay[T any](v T) Item  { return boolAttr("autoplay", v) }
+func Controls[T any](v T) Item  { return boolAttr("controls", v) }
+func Loop[T any](v T) Item      { return boolAttr("loop", v) }
+func Muted[T any](v T) Item     { return boolAttr("muted", v) }
+func Multiple[T any](v T) Item  { return boolAttr("multiple", v) }
+
+func UnsafeHTML[T any](v T) Item { return work.UnsafeHTML(v) }

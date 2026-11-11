@@ -160,23 +160,15 @@ func (b *Bus) Publish(id Topic, event string, data interface{}) {
 	b.mu.RUnlock()
 
 	for _, callback := range callbacks {
-		if callback == nil {
-			continue
+		if callback != nil {
+			callback(event, data)
 		}
-		go func(cb func(event string, data interface{})) {
-			defer func() { recover() }()
-			cb(event, data)
-		}(callback)
 	}
 
 	for _, callback := range wildcardCallbacks {
-		if callback == nil {
-			continue
+		if callback != nil {
+			callback(id, event, data)
 		}
-		go func(cb func(topic Topic, event string, data interface{})) {
-			defer func() { recover() }()
-			cb(id, event, data)
-		}(callback)
 	}
 }
 

@@ -1,71 +1,80 @@
-import { PondClient, ChannelState } from '@eleven-am/pondsocket-client';
 import {
     Topic,
-    Topics,
-    Location,
+    EventTopic,
     ActionFor,
     PayloadFor,
     ClientEvt,
     ClientAck,
+    ClientResync,
+    ResyncReason,
+    Message,
     isMessage,
+    isScriptTopic,
+    scriptTopic,
+    JoinFrame,
+    isServerFrame,
     HandlerEventPayload,
-    handlerTopic,
-    FramePatchPayload,
-    Patch,
-    Event,
     ScriptPayload,
 } from './protocol';
-import { Bus } from './bus';
+import { STATIC_TOPICS } from './wire';
 import {Logger} from "./logger";
+
+const BACKOFF_BASE_MS = 1000;
+const BACKOFF_CAP_MS = 30000;
+const HANDSHAKE_TIMEOUT_MS = 10000;
+const QUEUE_MAX_MESSAGES = 100;
+const QUEUE_MAX_BYTES = 1024 * 1024;
+const DECLINED_CLOSE_MIN = 4400;
+const DECLINED_CLOSE_MAX = 4499;
 
 export interface TransportConfig {
     endpoint: string;
+    token: string;
     sessionId: string;
     version: number;
-    lastAck: number;
-    location: Location;
-    bus: Bus;
+    applied: () => number;
+    wantsReset: () => boolean;
+    onMessage: (msg: Message) => void;
 }
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'stalled' | 'declined';
 
-export interface JoinPayload {
-    sid: string;
-    ver: number;
-    ack: number;
-    loc: Location;
+interface UnconfirmedEvent {
+    cs: number;
+    data: string;
+    bytes: number;
 }
 
+const utf8 = new TextEncoder();
+
 export class Transport {
-    private readonly client: PondClient;
-    private readonly channel: ReturnType<PondClient['createChannel']>;
+    private readonly endpoint: string;
+    private token: string;
+    private readonly version: number;
+    private readonly applied: () => number;
+    private readonly wantsReset: () => boolean;
+    private readonly onMessage: (msg: Message) => void;
     private readonly sessionId: string;
-    private readonly bus: Bus;
     private state: ConnectionState = 'disconnected';
     private stateListeners: Array<(state: ConnectionState) => void> = [];
+    private socket: WebSocket | null = null;
+    private joined = false;
+    private attempts = 0;
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private handshakeTimer: ReturnType<typeof setTimeout> | null = null;
+    private unconfirmed: UnconfirmedEvent[] = [];
+    private unconfirmedBytes = 0;
+    private overflowLogged = false;
+    private nextCS = 0;
 
     constructor(config: TransportConfig) {
+        this.endpoint = config.endpoint;
+        this.token = config.token;
         this.sessionId = config.sessionId;
-        this.bus = config.bus;
-
-        this.client = new PondClient(config.endpoint);
-
-        const joinPayload: JoinPayload = {
-            sid: config.sessionId,
-            ver: config.version,
-            ack: config.lastAck,
-            loc: config.location,
-        };
-
-        this.channel = this.client.createChannel(`live/${config.sessionId}`, joinPayload);
-
-        this.channel.onMessage((_event: string, payload: unknown) => {
-            this.handleMessage(payload);
-        });
-
-        this.channel.onChannelStateChange((channelState: ChannelState) => {
-            this.handleStateChange(channelState);
-        });
+        this.version = config.version;
+        this.applied = config.applied;
+        this.wantsReset = config.wantsReset;
+        this.onMessage = config.onMessage;
     }
 
     get sid(): string {
@@ -77,17 +86,22 @@ export class Transport {
     }
 
     connect(): void {
-        this.state = 'connecting';
-        this.notifyStateChange();
-        this.channel.join();
-        this.client.connect();
+        if (this.socket !== null || this.reconnectTimer !== null) {
+            return;
+        }
+        this.open();
     }
 
     disconnect(): void {
-        this.channel.leave();
-        this.client.disconnect();
-        this.state = 'disconnected';
-        this.notifyStateChange();
+        this.clearTimers();
+        const socket = this.socket;
+        this.socket = null;
+        this.joined = false;
+        this.attempts = 0;
+        if (socket) {
+            socket.close();
+        }
+        this.setState('disconnected');
     }
 
     onStateChange(listener: (state: ConnectionState) => void): () => void {
@@ -105,144 +119,274 @@ export class Transport {
         action: A,
         payload: PayloadFor<T, A>
     ): void {
-        const evt: ClientEvt = {
-            t: topic,
-            sid: this.sessionId,
-            a: String(action),
-            p: payload,
-        };
-        this.sendMessage('evt', evt);
+        this.sendEvent(topic, String(action), payload);
     }
 
     sendAck(seq: number): void {
         const ack: ClientAck = {
-            t: Topics.Ack,
+            t: 'ack',
             sid: this.sessionId,
             seq,
         };
-        this.sendMessage('ack', ack);
+        this.sendControl(ack);
     }
 
-    sendHandler(handlerId: string, payload: HandlerEventPayload): void {
-        const evt: ClientEvt = {
-            t: handlerTopic(handlerId),
+    sendResync(seq: number, reason: ResyncReason): void {
+        const resync: ClientResync = {
+            t: 'resync',
             sid: this.sessionId,
-            a: 'invoke',
-            p: payload,
+            seq,
+            reason,
         };
-        this.sendMessage('evt', evt);
+        this.sendControl(resync);
+    }
+
+    sendHandler(id: number, event: string, payload: HandlerEventPayload): void {
+        this.sendEvent('h', event, payload, id);
     }
 
     sendScript(scriptId: string, payload: ScriptPayload): void {
-        const evt: ClientEvt = {
-            t: `script:${scriptId}`,
-            sid: this.sessionId,
-            a: 'message',
-            p: payload,
-        };
-        this.sendMessage('evt', evt);
+        this.sendEvent(scriptTopic(scriptId), 'message', payload);
     }
 
     private handleMessage(payload: unknown): void {
-        Logger.info('TRANSPORT','Transport received message:', payload);
         if (!isMessage(payload)) {
             return;
         }
-
-        const { seq, topic, event, data } = payload;
-
-        if (!this.isValidTopic(topic)) {
+        if (!this.isValidTopic(payload.topic)) {
             return;
         }
-
-        this.publishToBus(topic, event, data, seq);
+        this.onMessage(payload);
     }
 
-    private isValidTopic(topic: string): topic is Topic {
-        return topic === 'router' || topic === 'dom' || topic === 'frame' || topic === 'ack' || topic.startsWith('script:');
+    private isValidTopic(topic: string): boolean {
+        return (STATIC_TOPICS as string[]).includes(topic) || isScriptTopic(topic);
     }
 
-    private publishToBus(topic: Topic, action: string, data: unknown, seq: number): void {
-        switch (topic) {
-            case 'frame':
-                if (action === 'patch') {
-                    const payload: FramePatchPayload = {
-                        seq,
-                        patches: data as Patch[],
-                    };
-                    this.bus.publish('frame', 'patch', payload);
-                }
-                break;
-            case 'router':
-                if (action === 'push') {
-                    this.bus.publish('router', 'push', data as PayloadFor<'router', 'push'>);
-                } else if (action === 'replace') {
-                    this.bus.publish('router', 'replace', data as PayloadFor<'router', 'replace'>);
-                } else if (action === 'back') {
-                    this.bus.publish('router', 'back', undefined);
-                } else if (action === 'forward') {
-                    this.bus.publish('router', 'forward', undefined);
-                }
-                break;
-            case 'dom':
-                if (action === 'call') {
-                    this.bus.publish('dom', 'call', data as PayloadFor<'dom', 'call'>);
-                } else if (action === 'set') {
-                    this.bus.publish('dom', 'set', data as PayloadFor<'dom', 'set'>);
-                } else if (action === 'query') {
-                    this.bus.publish('dom', 'query', data as PayloadFor<'dom', 'query'>);
-                } else if (action === 'async') {
-                    this.bus.publish('dom', 'async', data as PayloadFor<'dom', 'async'>);
-                }
-                break;
-            case 'ack':
-                if (action === 'ack') {
-                    this.bus.publish('ack', 'ack', data as PayloadFor<'ack', 'ack'>);
-                }
-                break;
-            default:
-                if (topic.startsWith('script:') && action === 'send') {
-                    const payload = data as ScriptPayload;
-                    this.bus.publishScript(payload.scriptId, 'send', payload);
-                }
-                break;
+    private open(): void {
+        this.setState('connecting');
+        let socket: WebSocket;
+        try {
+            socket = new WebSocket(this.url());
+        } catch (err) {
+            Logger.error('TRANSPORT', 'Failed to open socket', err);
+            this.scheduleReconnect();
+            return;
+        }
+        this.socket = socket;
+        this.joined = false;
+        this.handshakeTimer = setTimeout(() => {
+            this.handshakeTimer = null;
+            if (this.socket === socket && !this.joined) {
+                socket.close();
+            }
+        }, HANDSHAKE_TIMEOUT_MS);
+
+        socket.onopen = () => {
+            if (this.socket !== socket) return;
+            const join: JoinFrame = {
+                t: 'join',
+                sid: this.sessionId,
+                tok: this.token,
+                ver: this.version,
+                bs: this.applied(),
+                resync: this.wantsReset(),
+            };
+            socket.send(JSON.stringify(join));
+        };
+        socket.onmessage = (event: MessageEvent) => {
+            if (this.socket !== socket) return;
+            this.handleFrame(event.data);
+        };
+        socket.onclose = (event: CloseEvent) => {
+            if (this.socket !== socket) return;
+            this.handleClose(event.code);
+        };
+    }
+
+    private url(): string {
+        const url = new URL(this.endpoint, window.location.href);
+        url.protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return url.toString();
+    }
+
+    private handleFrame(raw: unknown): void {
+        if (typeof raw !== 'string') {
+            Logger.warn('TRANSPORT', 'Ignoring non-text frame');
+            return;
+        }
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(raw);
+        } catch (err) {
+            Logger.warn('TRANSPORT', 'Ignoring malformed frame', err);
+            return;
+        }
+        Logger.info('TRANSPORT', 'Transport received message:', parsed);
+
+        if (isServerFrame(parsed)) {
+            if (parsed.t === 'joined') {
+                this.handleJoined(parsed.tok, parsed.cs);
+            } else if (parsed.t === 'evack') {
+                this.confirmThrough(parsed.cs);
+            } else if (parsed.t === 'tok') {
+                this.token = parsed.tok;
+            } else {
+                this.handleDeclined(parsed.code, parsed.reason);
+            }
+            return;
+        }
+        if (!this.joined) {
+            Logger.warn('TRANSPORT', 'Ignoring frame received before joined');
+            return;
+        }
+        this.handleMessage(parsed);
+    }
+
+    private handleJoined(token: string | undefined, cs: number): void {
+        if (this.joined) return;
+        if (typeof token === 'string' && token !== '') {
+            this.token = token;
+        }
+        this.joined = true;
+        this.attempts = 0;
+        this.clearHandshakeTimer();
+        this.setState('connected');
+        if (typeof cs === 'number') {
+            this.confirmThrough(cs);
+        }
+        this.resendUnconfirmed();
+    }
+
+    private handleDeclined(code: number, reason: string): void {
+        Logger.warn('TRANSPORT', 'Join declined', code, reason);
+        const socket = this.socket;
+        this.socket = null;
+        this.terminateDeclined();
+        if (socket) {
+            socket.close();
         }
     }
 
-    private handleStateChange(channelState: ChannelState): void {
-        switch (channelState) {
-            case ChannelState.JOINED:
-                this.state = 'connected';
-                break;
-            case ChannelState.STALLED:
-                this.state = 'stalled';
-                break;
-            case ChannelState.CLOSED:
-                this.state = 'disconnected';
-                break;
-            case ChannelState.DECLINED:
-                this.state = 'declined';
-                break;
-            case ChannelState.JOINING:
-            case ChannelState.IDLE:
-                this.state = 'connecting';
-                break;
+    private handleClose(code: number): void {
+        this.socket = null;
+        this.joined = false;
+        this.clearHandshakeTimer();
+        if (code >= DECLINED_CLOSE_MIN && code <= DECLINED_CLOSE_MAX) {
+            this.terminateDeclined();
+            return;
         }
-        this.notifyStateChange();
+        this.scheduleReconnect();
     }
 
-    private notifyStateChange(): void {
-        for (const listener of this.stateListeners) {
-            try {
-                listener(this.state);
-            } catch {
-                // swallow
+    private terminateDeclined(): void {
+        this.clearTimers();
+        this.joined = false;
+        this.clearUnconfirmed();
+        this.setState('declined');
+    }
+
+    private scheduleReconnect(): void {
+        this.setState('stalled');
+        const ceiling = Math.min(BACKOFF_CAP_MS, BACKOFF_BASE_MS * 2 ** this.attempts);
+        const delay = Math.random() * ceiling;
+        this.attempts++;
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this.open();
+        }, delay);
+    }
+
+    private clearHandshakeTimer(): void {
+        if (this.handshakeTimer !== null) {
+            clearTimeout(this.handshakeTimer);
+            this.handshakeTimer = null;
+        }
+    }
+
+    private clearTimers(): void {
+        this.clearHandshakeTimer();
+        if (this.reconnectTimer !== null) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+    }
+
+    private confirmThrough(cs: number): void {
+        let drop = 0;
+        while (drop < this.unconfirmed.length && this.unconfirmed[drop].cs <= cs) {
+            this.unconfirmedBytes -= this.unconfirmed[drop].bytes;
+            drop++;
+        }
+        if (drop > 0) {
+            this.unconfirmed.splice(0, drop);
+        }
+    }
+
+    private remember(event: UnconfirmedEvent): void {
+        this.unconfirmed.push(event);
+        this.unconfirmedBytes += event.bytes;
+        while (this.unconfirmed.length > QUEUE_MAX_MESSAGES || this.unconfirmedBytes > QUEUE_MAX_BYTES) {
+            const dropped = this.unconfirmed.shift();
+            if (!dropped) break;
+            this.unconfirmedBytes -= dropped.bytes;
+            if (!this.overflowLogged) {
+                this.overflowLogged = true;
+                Logger.warn('TRANSPORT', 'Resend buffer full, dropping oldest events');
             }
         }
     }
 
-    private sendMessage<T extends Event>(type: string, message: T): void {
-        Logger.info('TRANSPORT','Transport sending message:', type, message);
-        this.channel.sendMessage(type, message);
+    private resendUnconfirmed(): void {
+        const socket = this.socket;
+        if (!socket) return;
+        for (const event of this.unconfirmed) {
+            socket.send(event.data);
+        }
+    }
+
+    private clearUnconfirmed(): void {
+        this.unconfirmed = [];
+        this.unconfirmedBytes = 0;
+        this.overflowLogged = false;
+    }
+
+    private setState(state: ConnectionState): void {
+        if (this.state === state) return;
+        this.state = state;
+        for (const listener of [...this.stateListeners]) {
+            try {
+                listener(state);
+            } catch (err) {
+                Logger.error('TRANSPORT', 'State listener failed', err);
+            }
+        }
+    }
+
+    private sendEvent(topic: EventTopic, action: string, payload: unknown, id?: number): void {
+        const evt: ClientEvt = {
+            t: topic,
+            sid: this.sessionId,
+            a: action,
+            p: payload,
+            cs: ++this.nextCS,
+        };
+        if (id !== undefined) evt.i = id;
+        Logger.info('TRANSPORT', 'Transport sending event:', evt);
+        const data = JSON.stringify(evt);
+        this.remember({ cs: evt.cs, data, bytes: utf8.encode(data).length });
+        if (this.isOpen()) {
+            this.socket!.send(data);
+        }
+    }
+
+    private isOpen(): boolean {
+        return this.joined && !!this.socket && this.socket.readyState === 1;
+    }
+
+    private sendControl(frame: ClientAck | ClientResync): void {
+        if (!this.isOpen()) return;
+        Logger.info('TRANSPORT', 'Transport sending control:', frame);
+        this.socket!.send(JSON.stringify(frame));
     }
 }

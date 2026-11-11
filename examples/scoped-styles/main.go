@@ -14,16 +14,17 @@ import (
 	"github.com/eleven-am/pondlive/pkg"
 )
 
+func newApp() (*pkg.App, error) {
+	return pkg.NewApp(HomePage, pkg.WithDevMode())
+}
+
 func main() {
-	app, err := pkg.NewApp(HomePage, pkg.WithDevMode())
+	app, err := newApp()
 	if err != nil {
 		log.Fatalf("build live app: %v", err)
 	}
 
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: app.Handler(),
-	}
+	srv := app.Server(":8080")
 
 	go func() {
 		log.Println("Server starting on http://localhost:8080")
@@ -47,10 +48,10 @@ func main() {
 	log.Println("Server exited")
 }
 
-func HomePage(ctx *pkg.Ctx) pkg.Node {
-	pkg.UseMetaTags(ctx, &pkg.Meta{
-		Title:       "Scoped Styles Demo",
-		Description: "Demonstrating component-scoped CSS with UseStyles",
+var HomePage = pkg.Component(func(ctx *pkg.Ctx) pkg.Node {
+	pkg.UseHead(ctx, pkg.Head{
+		Title:       pkg.Const("Scoped Styles Demo"),
+		Description: pkg.Const("Demonstrating component-scoped CSS with UseStyles"),
 	})
 
 	return pkg.Div(
@@ -61,13 +62,13 @@ func HomePage(ctx *pkg.Ctx) pkg.Node {
 		pkg.H1(pkg.Text("Component Scoped Styles Demo")),
 		pkg.P(pkg.Text("Both components below use the same class names (.card, .title, .content) but have different styles. The styles are automatically scoped to prevent collisions.")),
 		pkg.Div(pkg.Style("margin-top", "2rem")),
-		RedCard(ctx),
+		RedCard(),
 		pkg.Div(pkg.Style("margin-top", "2rem")),
-		BlueCard(ctx),
+		BlueCard(),
 	)
-}
+})
 
-var RedCard = pkg.Component(func(ctx *pkg.Ctx, _ []pkg.Item) pkg.Node {
+var RedCard = pkg.Component(func(ctx *pkg.Ctx) pkg.Node {
 	style := pkg.UseStyles(ctx, `
 		.card {
 			padding: 2rem;
@@ -108,7 +109,7 @@ var RedCard = pkg.Component(func(ctx *pkg.Ctx, _ []pkg.Item) pkg.Node {
 	)
 })
 
-var BlueCard = pkg.Component(func(ctx *pkg.Ctx, _ []pkg.Item) pkg.Node {
+var BlueCard = pkg.Component(func(ctx *pkg.Ctx) pkg.Node {
 	style := pkg.UseStyles(ctx, `
 		.card {
 			padding: 2rem;

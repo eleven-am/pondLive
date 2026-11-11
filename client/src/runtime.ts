@@ -1,15 +1,19 @@
 import {
     Boot,
+    Message,
     Location,
-    Patch,
-    FramePatchPayload,
+    StaticTopic,
+    isScriptTopic,
+    urlOf,
     ScriptMeta,
+    ScriptPayload,
     isBoot,
-    isServerError,
 } from './protocol';
+import { ATTR_RESYNCING } from './wire';
 import { Bus } from './bus';
 import { Transport, ConnectionState } from './transport';
-import { Patcher } from './patcher';
+import { Applier } from './applier';
+import { Sequencer } from './sequencer';
 import { Executor } from './executor';
 import { ScriptExecutor } from './scripts';
 import { Logger } from './logger';
@@ -20,7 +24,7 @@ export interface RuntimeConfig {
     version: number;
     seq: number;
     endpoint: string;
-    location: Location;
+    token: string;
     debug?: boolean;
 }
 
@@ -30,20 +34,6 @@ const MAX_RELOADS = 10;
 const RELOAD_TRACKING_KEY = 'pond_reload_count';
 const RELOAD_TIMESTAMP_KEY = 'pond_reload_timestamp';
 const RELOAD_WINDOW_MS = 60000;
-
-interface ResumeOK {
-    t: 'resume_ok';
-    from: number;
-    to: number;
-}
-
-function isResumeOK(msg: unknown): msg is ResumeOK {
-    return (
-        typeof msg === 'object' &&
-        msg !== null &&
-        (msg as ResumeOK).t === 'resume_ok'
-    );
-}
 
 declare global {
     interface Window {
@@ -55,17 +45,16 @@ declare global {
 export class Runtime {
     private readonly bus: Bus;
     private readonly transport: Transport;
-    private readonly patcher: Patcher;
+    private readonly applier: Applier;
     private readonly executor: Executor;
     private readonly scripts: ScriptExecutor;
-    private readonly refs = new Map<string, Element>();
 
-    private cseq = 0;
-    private lastSeq = 0;
+    private readonly sequencer: Sequencer;
+    private readonly root: Node;
     private connectedState = false;
 
     constructor(config: RuntimeConfig) {
-        this.lastSeq = config.seq;
+        this.root = config.root;
 
         Logger.configure({ enabled: config.debug ?? false, level: 'debug' });
         Logger.info('Runtime', 'Initializing', { sid: config.sessionId, ver: config.version });
@@ -74,25 +63,16 @@ export class Runtime {
 
         this.transport = new Transport({
             endpoint: config.endpoint,
+            token: config.token,
             sessionId: config.sessionId,
             version: config.version,
-            lastAck: config.seq,
-            location: config.location,
-            bus: this.bus,
+            applied: () => this.sequencer.appliedSeq,
+            wantsReset: () => this.sequencer.isResyncing(),
+            onMessage: (msg) => this.sequencer.handle(msg),
         });
 
-        const resolveRef = (refId: string) => this.refs.get(refId);
-
-        this.patcher = new Patcher(config.root, {
-            onEvent: (handlerId, data) => this.handleEvent(handlerId, data),
-            onRef: (refId, el) => {
-                this.refs.set(refId, el);
-                Logger.debug('Runtime', 'Ref set', refId);
-            },
-            onRefDelete: (refId) => {
-                this.refs.delete(refId);
-                Logger.debug('Runtime', 'Ref deleted', refId);
-            },
+        this.applier = new Applier(config.root as Element, {
+            onEvent: (id, event, data) => this.handleEvent(id, event, data),
             onScript: (meta, el) => this.handleScript(meta, el),
             onScriptCleanup: (scriptId) => this.handleScriptCleanup(scriptId),
         });
@@ -100,12 +80,22 @@ export class Runtime {
         this.executor = new Executor({
             bus: this.bus,
             transport: this.transport,
-            resolveRef,
+            resolveRef: (id) => this.applier.element(id),
         });
 
         this.scripts = new ScriptExecutor({ bus: this.bus, transport: this.transport });
 
-        this.bus.subscribe('frame', 'patch', (payload) => this.handlePatch(payload));
+        this.sequencer = new Sequencer({
+            applier: this.applier,
+            dispatch: (msg) => this.dispatchMessage(msg),
+            sendAck: (seq) => this.transport.sendAck(seq),
+            sendResync: (seq, reason) => this.transport.sendResync(seq, reason),
+            isConnected: () => this.connectedState,
+            applyLocation: (location) => this.applyLocation(location),
+            onResyncing: (resyncing) => this.markResyncing(resyncing),
+            onFailed: () => this.reloadWithJitter(),
+        });
+        this.sequencer.boot(config.seq);
 
         this.transport.onStateChange((state) => this.handleStateChange(state));
 
@@ -120,10 +110,11 @@ export class Runtime {
     disconnect(): void {
         Logger.info('Runtime', 'Disconnecting');
         this.transport.disconnect();
+        this.sequencer.destroy();
         this.executor.destroy();
         this.scripts.destroy();
         this.bus.clear();
-        this.refs.clear();
+        this.applier.destroy();
     }
 
     connected(): boolean {
@@ -131,58 +122,44 @@ export class Runtime {
     }
 
     get seq(): number {
-        return this.lastSeq;
+        return this.sequencer.appliedSeq;
     }
 
     handleBoot(boot: Boot): void {
-        Logger.info('Runtime', 'Boot received', { ver: boot.ver, seq: boot.seq, patches: boot.patch?.length ?? 0 });
-
-        if (boot.patch && boot.patch.length > 0) {
-            this.applyPatches(boot.patch);
-        }
-
-        this.lastSeq = boot.seq;
-        this.transport.sendAck(boot.seq);
+        Logger.info('Runtime', 'Boot received', { ver: boot.ver, seq: boot.seq });
+        this.applier.index();
+        this.sequencer.boot(boot.seq);
     }
 
-    handleMessage(msg: unknown): void {
-        if (isServerError(msg)) {
-            const err = msg as { code: string; message: string };
-            Logger.error('Runtime', 'Server error', { code: err.code, message: err.message });
+    private handleEvent(id: number, event: string, data: Record<string, unknown>): void {
+        if (this.sequencer.isResyncing()) {
+            Logger.warn('Runtime', 'Dropping event while resyncing', { id, event });
             return;
         }
+        Logger.debug('Runtime', 'Event', { id, event });
+        this.transport.sendHandler(id, event, data);
+    }
 
-        if (isResumeOK(msg)) {
-            this.handleResumeOK(msg);
+    private dispatchMessage({ topic, event, data }: Message): void {
+        if (isScriptTopic(topic)) {
+            if (event === 'send') this.bus.publishScript((data as ScriptPayload).scriptId, 'send', data as ScriptPayload);
             return;
         }
+        this.bus.publish(topic as StaticTopic, event as never, data as never);
     }
 
-    private handlePatch(payload: FramePatchPayload): void {
-        Logger.debug('Runtime', 'Patch received', { seq: payload.seq, count: payload.patches?.length ?? 0 });
-
-        if (payload.patches && payload.patches.length > 0) {
-            this.applyPatches(payload.patches);
+    private applyLocation(location: Location): void {
+        const params = new URLSearchParams();
+        for (const [key, values] of Object.entries(location.query ?? {})) {
+            for (const value of values) params.append(key, value);
         }
-
-        this.lastSeq = payload.seq;
-        this.transport.sendAck(payload.seq);
+        history.replaceState(history.state, '', urlOf(location.path, params.toString(), location.hash));
     }
 
-    private handleResumeOK(resume: ResumeOK): void {
-        Logger.info('Runtime', 'Resume OK', { from: resume.from, to: resume.to });
-    }
-
-    private handleEvent(handlerId: string, data: Record<string, unknown>): void {
-        this.cseq++;
-        Logger.debug('Runtime', 'Event', { handler: handlerId, cseq: this.cseq });
-
-        const payload = {
-            ...data,
-            cseq: this.cseq,
-        };
-
-        this.transport.sendHandler(handlerId, payload);
+    private markResyncing(resyncing: boolean): void {
+        const el = this.root as Element;
+        if (typeof el.toggleAttribute !== 'function') return;
+        el.toggleAttribute(ATTR_RESYNCING, resyncing);
     }
 
     private handleScript(meta: ScriptMeta, el: Element): void {
@@ -206,8 +183,10 @@ export class Runtime {
         if (!wasConnected && this.connectedState) {
             Logger.info('Runtime', 'Connected');
             this.clearReloadTracking();
+            this.sequencer.onConnected();
         } else if (wasConnected && !this.connectedState) {
             Logger.warn('Runtime', 'Disconnected');
+            this.sequencer.onDisconnected();
         }
 
         if (state === 'declined') {
@@ -281,10 +260,6 @@ export class Runtime {
         } catch {
         }
     }
-
-    private applyPatches(patches: Patch[]): void {
-        this.patcher.apply(patches);
-    }
 }
 
 export function boot(): Runtime | null {
@@ -315,8 +290,8 @@ export function boot(): Runtime | null {
         sessionId: bootData.sid,
         version: bootData.ver,
         seq: bootData.seq,
-        endpoint: '/live',
-        location: bootData.location,
+        endpoint: bootData.ws,
+        token: bootData.tok,
         debug: bootData.client?.debug,
     };
 

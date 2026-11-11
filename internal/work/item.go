@@ -1,22 +1,14 @@
 package work
 
 type Item interface {
-	ApplyTo(*Element)
+	applyTo(*Element)
 }
 
-type Attachment interface {
-	AttachTo(*Element)
-}
+type ItemFunc func(*Element)
 
-type HandlerProvider interface {
-	Events() []string
+func (f ItemFunc) applyTo(el *Element) { f(el) }
 
-	ProxyHandler(event string) Handler
-}
-
-type HandlerAdder interface {
-	AddHandler(event string, handler Handler)
-}
+func Apply(item Item, el *Element) { item.applyTo(el) }
 
 type ElementDescriptor interface {
 	TagName() string

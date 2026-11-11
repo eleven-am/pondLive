@@ -1,14 +1,12 @@
 package runtime
 
 import (
-	"crypto/rand"
 	_ "embed"
-	"encoding/base64"
+	"strings"
 	"sync"
 
-	"github.com/eleven-am/pondlive/internal/protocol"
+	"github.com/eleven-am/pondlive/internal/reactive"
 	"github.com/eleven-am/pondlive/internal/upload"
-	"github.com/eleven-am/pondlive/internal/work"
 )
 
 //go:embed upload.js
@@ -33,280 +31,339 @@ type UploadEvent struct {
 }
 
 type uploadCell struct {
-	token   string
-	script  *scriptCell
-	progRef *Ref[UploadProgress]
+	sess     *Session
+	o        *reactive.Owner
+	slot     *scriptSlot
+	progress *reactive.Signal[UploadProgress]
+
+	config UploadConfig
+	grant  string
+
+	onReady     func(name string, size int64, fileType string)
+	onChange    func(UploadEvent)
+	onProgress  func(loaded, total int64)
+	onError     func(error string)
+	onCancelled func()
+	onComplete  func(upload.FileInfo) error
+
+	warnedAccept string
 }
 
 type UploadHandle struct {
-	script         *ScriptHandle
-	config         *UploadConfig
-	progressGetter func() UploadProgress
-	onComplete     func(upload.FileInfo) error
-	token          string
-	session        *Session
-	mu             sync.Mutex
+	script ScriptHandle
+	cell   *uploadCell
+}
+
+func (h *UploadHandle) mutable() bool {
+	return h != nil && h.cell != nil && h.cell.sess.graph.Mode() != reactive.ModeSerialize
 }
 
 func (h *UploadHandle) Accept(cfg UploadConfig) {
-	if h == nil || h.session == nil || h.session.UploadRegistry == nil {
+	if !h.mutable() {
 		return
 	}
-
-	h.mu.Lock()
-	h.config = &cfg
-	h.mu.Unlock()
-
-	cb := upload.UploadCallback{
-		Token:        h.token,
-		MaxSize:      cfg.MaxSize,
-		AllowedTypes: cfg.Accept,
-		OnComplete:   h.onComplete,
-	}
-	h.session.UploadRegistry.Register(cb)
-}
-
-func (h *UploadHandle) AttachTo(elem *work.Element) {
-	if h == nil || h.script == nil {
-		return
-	}
-	h.script.AttachTo(elem)
+	h.cell.config = cfg
+	h.cell.warnUnverifiableAccept(cfg.Accept)
 }
 
 func (h *UploadHandle) OnReady(fn func(name string, size int64, fileType string)) {
-	if h == nil || h.script == nil {
+	if !h.mutable() {
 		return
 	}
-	h.script.On("ready", func(data interface{}) {
-		m, ok := data.(map[string]interface{})
-		if !ok {
-			return
-		}
-		name, _ := m["name"].(string)
-		size, _ := m["size"].(float64)
-		fileType, _ := m["type"].(string)
-		fn(name, int64(size), fileType)
-	})
+	h.cell.onReady = fn
 }
 
 func (h *UploadHandle) OnChange(fn func(UploadEvent)) {
-	if h == nil || h.script == nil {
+	if !h.mutable() {
 		return
 	}
-	h.script.On("change", func(data interface{}) {
-		m, ok := data.(map[string]interface{})
-		if !ok {
-			return
-		}
-		name, _ := m["name"].(string)
-		size, _ := m["size"].(float64)
-		fileType, _ := m["type"].(string)
-		path, _ := m["path"].(string)
-		fn(UploadEvent{
-			Name: name,
-			Size: int64(size),
-			Type: fileType,
-			Path: path,
-		})
-	})
+	h.cell.onChange = fn
 }
 
 func (h *UploadHandle) OnProgress(fn func(loaded, total int64)) {
-	if h == nil || h.script == nil {
+	if !h.mutable() {
 		return
 	}
-	h.script.On("progress", func(data interface{}) {
-		m, ok := data.(map[string]interface{})
-		if !ok {
-			return
-		}
-		loaded, _ := m["loaded"].(float64)
-		total, _ := m["total"].(float64)
-		fn(int64(loaded), int64(total))
-	})
+	h.cell.onProgress = fn
 }
 
-func (h *UploadHandle) Progress() UploadProgress {
-	if h == nil || h.progressGetter == nil {
-		return UploadProgress{Loaded: 0, Total: 0}
+func (h *UploadHandle) Progress() ReadSignal[UploadProgress] {
+	if h == nil || h.cell == nil {
+		return Const(UploadProgress{})
 	}
-	return h.progressGetter()
+	return h.cell.progress
 }
 
 func (h *UploadHandle) OnError(fn func(error string)) {
-	if h == nil || h.script == nil {
+	if !h.mutable() {
 		return
 	}
-	h.script.On("error", func(data interface{}) {
-		m, ok := data.(map[string]interface{})
-		if !ok {
-			return
-		}
-		err, _ := m["error"].(string)
-		fn(err)
-	})
+	h.cell.onError = fn
 }
 
 func (h *UploadHandle) OnCancelled(fn func()) {
-	if h == nil || h.script == nil {
+	if !h.mutable() {
 		return
 	}
-	h.script.On("cancelled", func(data interface{}) {
-		fn()
-	})
+	h.cell.onCancelled = fn
 }
 
 func (h *UploadHandle) Cancel() {
-	if h == nil || h.script == nil {
+	if h == nil {
 		return
 	}
 	h.script.Send("cancel", struct{}{})
 }
 
 func (h *UploadHandle) OnComplete(fn func(info upload.FileInfo) error) {
-	if h == nil || h.session == nil || h.session.UploadRegistry == nil {
+	if !h.mutable() {
 		return
 	}
-
-	h.mu.Lock()
-	h.onComplete = fn
-	h.mu.Unlock()
-
-	h.mu.Lock()
-	cfg := h.config
-	h.mu.Unlock()
-
-	cb := upload.UploadCallback{
-		Token:      h.token,
-		OnComplete: fn,
-	}
-	if cfg != nil {
-		cb.MaxSize = cfg.MaxSize
-		cb.AllowedTypes = cfg.Accept
-	}
-	h.session.UploadRegistry.Register(cb)
+	h.cell.onComplete = fn
 }
 
 func UseUpload(ctx *Ctx) *UploadHandle {
-	idx := ctx.hookIndex
-	ctx.hookIndex++
-
-	if idx >= len(ctx.instance.HookFrame) {
-		cell := &uploadCell{}
-		ctx.instance.HookFrame = append(ctx.instance.HookFrame, HookSlot{
-			Type:  HookTypeUpload,
-			Value: cell,
-		})
-	}
-
-	cell, ok := ctx.instance.HookFrame[idx].Value.(*uploadCell)
-	if !ok {
-		panic("runtime: UseUpload hook mismatch")
-	}
-
-	if cell.token == "" {
-		cell.token = generateUploadToken()
-	}
-
-	if cell.script == nil {
-		cell.script = &scriptCell{}
-	}
-
-	if cell.script.slot == nil {
-		cell.script.slot = ctx.session.registerScriptSlot(ctx.instance, idx, uploadScript)
-
-		slotID := cell.script.slot.id
-		ctx.instance.RegisterCleanup(func() {
-			ctx.session.unregisterScriptSlot(slotID)
-		})
-	}
-
-	if cell.progRef == nil {
-		cell.progRef = &Ref[UploadProgress]{Current: UploadProgress{}}
-	}
-
-	handle := &UploadHandle{
-		script:         &ScriptHandle{slot: cell.script.slot},
-		progressGetter: func() UploadProgress { return cell.progRef.Current },
-		token:          cell.token,
-		session:        ctx.session,
-	}
-
-	if ctx.session != nil && ctx.session.UploadRegistry != nil {
-		if _, exists := ctx.session.UploadRegistry.Lookup(cell.token); !exists {
-			cb := upload.UploadCallback{
-				Token: cell.token,
-			}
-			ctx.session.UploadRegistry.Register(cb)
-
-			token := cell.token
-			ctx.instance.RegisterCleanup(func() {
-				if ctx.session != nil && ctx.session.UploadRegistry != nil {
-					ctx.session.UploadRegistry.Remove(token)
-				}
-			})
-		}
-	}
-
-	cell.script.slot.sess.Bus.Upsert(protocol.Topic("script:"+cell.script.slot.id+":progress"), func(action string, data interface{}) {
-		if action != string(protocol.ScriptMessageAction) {
-			return
-		}
-		payload, ok := protocol.DecodePayload[protocol.ScriptPayload](data)
-		if !ok {
-			return
-		}
-		m, ok := payload.Data.(map[string]interface{})
-		if !ok {
-			return
-		}
-		loaded, _ := m["loaded"].(float64)
-		total, _ := m["total"].(float64)
-		cell.progRef.Current = UploadProgress{Loaded: int64(loaded), Total: int64(total)}
+	cell := reactive.Cell(ctx.o, func() *uploadCell {
+		c := &uploadCell{sess: ctx.s, o: ctx.o, progress: reactive.NewSignal(ctx.s.graph, UploadProgress{})}
+		c.slot = ctx.s.newScriptSlot(ctx.o, uploadScript)
+		ctx.o.OnCleanup(c.revokeGrant)
+		c.slot.setEventHandler("ready", c.handleReady)
+		c.slot.setEventHandler("change", c.handleChange)
+		c.slot.setEventHandler("progress", c.handleProgress)
+		c.slot.setEventHandler("error", c.handleError)
+		c.slot.setEventHandler("cancelled", c.handleCancelled)
+		return c
 	})
-
-	cell.script.slot.sess.Bus.Upsert(protocol.Topic("script:"+cell.script.slot.id+":ready"), func(action string, data interface{}) {
-		if action != string(protocol.ScriptMessageAction) {
-			return
-		}
-		handle.sendStart()
-	})
-
-	return handle
+	return &UploadHandle{script: ScriptHandle{slot: cell.slot}, cell: cell}
 }
 
-func (h *UploadHandle) sendStart() {
-	if h == nil || h.script == nil {
+func (c *uploadCell) warnUnverifiableAccept(accept []string) {
+	unknown := upload.UnknownExtensions(accept)
+	key := strings.Join(unknown, ",")
+	if key == c.warnedAccept {
+		return
+	}
+	c.warnedAccept = key
+	if len(unknown) == 0 || c.sess == nil {
+		return
+	}
+	c.sess.Report(nil, Report{Severity: SeverityDiagnostic, Phase: "upload:accept",
+		Message: "accept extensions without a known content type cannot be verified and every upload will be refused: " + key,
+		Meta: map[string]any{
+			"extensions": unknown,
+		},
+	})
+}
+
+func (c *uploadCell) revokeGrant() {
+	if c.sess != nil && c.sess.UploadRegistry != nil {
+		c.sess.UploadRegistry.Revoke(c.grant)
+	}
+	c.grant = ""
+}
+
+func (c *uploadCell) handleReady(data interface{}) {
+	m, _ := data.(map[string]interface{})
+	name, _ := m["name"].(string)
+	size, _ := m["size"].(float64)
+	fileType, _ := m["type"].(string)
+	count, _ := m["count"].(float64)
+
+	c.sendStart(int(count))
+
+	if c.onReady != nil {
+		c.onReady(name, int64(size), fileType)
+	}
+}
+
+func (c *uploadCell) handleChange(data interface{}) {
+	if c.onChange == nil {
+		return
+	}
+	m, ok := data.(map[string]interface{})
+	if !ok {
+		return
+	}
+	name, _ := m["name"].(string)
+	size, _ := m["size"].(float64)
+	fileType, _ := m["type"].(string)
+	path, _ := m["path"].(string)
+	c.onChange(UploadEvent{Name: name, Size: int64(size), Type: fileType, Path: path})
+}
+
+func (c *uploadCell) handleProgress(data interface{}) {
+	m, ok := data.(map[string]interface{})
+	if !ok {
+		return
+	}
+	loaded, _ := m["loaded"].(float64)
+	total, _ := m["total"].(float64)
+	c.progress.Set(UploadProgress{Loaded: int64(loaded), Total: int64(total)})
+	if c.onProgress != nil {
+		c.onProgress(int64(loaded), int64(total))
+	}
+}
+
+func (c *uploadCell) handleError(data interface{}) {
+	if c.onError == nil {
+		return
+	}
+	m, ok := data.(map[string]interface{})
+	if !ok {
+		return
+	}
+	message, _ := m["error"].(string)
+	c.onError(message)
+}
+
+func (c *uploadCell) handleCancelled(interface{}) {
+	if c.onCancelled != nil {
+		c.onCancelled()
+	}
+}
+
+func (c *uploadCell) sendStart(requested int) {
+	if c == nil || c.slot == nil {
+		return
+	}
+	sess := c.sess
+	if sess == nil || sess.UploadRegistry == nil {
+		if sess != nil {
+			sess.Report(nil, Report{Severity: SeverityDiagnostic, Phase: "upload:grant",
+				Message: "upload registry is not configured; configure the app with an upload config",
+			})
+		}
+		return
+	}
+
+	files := requested
+	if !c.config.Multiple {
+		files = 1
+	}
+	files = upload.ClampFiles(files)
+
+	sess.UploadRegistry.Revoke(c.grant)
+	c.grant = sess.UploadRegistry.Issue(sess.SessionID, upload.GrantSpec{
+		Files:      files,
+		MaxSize:    c.config.MaxSize,
+		Accept:     c.config.Accept,
+		OnComplete: c.completion(),
+	})
+	if c.grant == "" {
+		sess.Report(nil, Report{Severity: SeverityDiagnostic, Phase: "upload:grant",
+			Message: "failed to issue an upload grant",
+		})
 		return
 	}
 
 	payload := map[string]interface{}{
-		"token": h.token,
+		"token":    c.grant,
+		"multiple": c.config.Multiple,
+		"files":    files,
+	}
+	if sess.UploadEndpoint != "" {
+		payload["endpoint"] = sess.UploadEndpoint
+	}
+	if sess.UploadScriptURL != "" {
+		payload["tusScript"] = sess.UploadScriptURL
+	}
+	if c.config.MaxSize > 0 {
+		payload["maxSize"] = c.config.MaxSize
+	}
+	if len(c.config.Accept) > 0 {
+		payload["accept"] = c.config.Accept
+		if unknown := upload.UnknownExtensions(c.config.Accept); len(unknown) > 0 {
+			payload["unverifiable"] = unknown
+		}
 	}
 
-	h.mu.Lock()
-	cfg := h.config
-	h.mu.Unlock()
-
-	if cfg != nil {
-		if cfg.MaxSize > 0 {
-			payload["maxSize"] = cfg.MaxSize
-		}
-		if len(cfg.Accept) > 0 {
-			payload["accept"] = cfg.Accept
-		}
-		if cfg.Multiple {
-			payload["multiple"] = true
-		}
-	}
-
-	h.script.Send("start", payload)
+	c.slot.send("start", payload)
 }
 
-func generateUploadToken() string {
-	var buf [16]byte
-	if _, err := rand.Read(buf[:]); err != nil {
-		return ""
+func (c *uploadCell) completion() func(upload.FileInfo) error {
+	sess := c.sess
+	owner := c.o
+	return func(info upload.FileInfo) error {
+		id := sess.completions.begin(info)
+		err := sess.Post(func() {
+			sess.completions.finish(id)
+			fn := c.onComplete
+			if fn == nil {
+				return
+			}
+			var cbErr error
+			sess.invokeHandler(owner, func() { cbErr = fn(info) })
+			if cbErr != nil {
+				sess.Report(nil, Report{Severity: SeverityDiagnostic, Phase: "upload:complete",
+					Message: cbErr.Error(),
+					Meta: map[string]any{
+						"upload_id": info.ID,
+					},
+				})
+			}
+		})
+		if err != nil && sess.completions.abort(id) {
+			return nil
+		}
+		return err
 	}
-	return base64.RawURLEncoding.EncodeToString(buf[:])
+}
+
+type pendingCompletion struct {
+	info     upload.FileInfo
+	reported bool
+}
+
+type completionTracker struct {
+	mu      sync.Mutex
+	next    uint64
+	pending map[uint64]*pendingCompletion
+}
+
+func (t *completionTracker) begin(info upload.FileInfo) uint64 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.next++
+	if t.pending == nil {
+		t.pending = make(map[uint64]*pendingCompletion)
+	}
+	t.pending[t.next] = &pendingCompletion{info: info}
+	return t.next
+}
+
+func (t *completionTracker) finish(id uint64) {
+	t.mu.Lock()
+	delete(t.pending, id)
+	t.mu.Unlock()
+}
+
+func (t *completionTracker) abort(id uint64) (keep bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	entry := t.pending[id]
+	delete(t.pending, id)
+	return entry != nil && entry.reported
+}
+
+func (t *completionTracker) takeUnfinished() []upload.FileInfo {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	infos := make([]upload.FileInfo, 0, len(t.pending))
+	for _, entry := range t.pending {
+		entry.reported = true
+		infos = append(infos, entry.info)
+	}
+	return infos
+}
+
+func (s *Session) reportOrphanedCompletions() {
+	for _, info := range s.completions.takeUnfinished() {
+		s.Report(nil, Report{Severity: SeverityDiagnostic, Phase: "upload:orphaned",
+			Message: "upload completed but the session closed before OnComplete ran; the file was kept",
+			Meta: map[string]any{
+				"upload_id": info.ID,
+				"path":      info.Storage["Path"],
+			},
+		})
+	}
 }

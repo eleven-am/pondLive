@@ -27,7 +27,7 @@ func NormalizeParts(path string) PathParts {
 	}
 
 	return PathParts{
-		Path:     normalizeSegments(trimmed),
+		Path:     NormalizePath(trimmed),
 		RawQuery: rawQuery,
 		Hash:     hash,
 	}
@@ -37,10 +37,10 @@ func NormalizeHash(hash string) string {
 	if hash == "" {
 		return ""
 	}
-	return strings.TrimPrefix(hash, "#")
+	return strings.TrimLeft(hash, "#")
 }
 
-func normalizeSegments(path string) string {
+func NormalizePath(path string) string {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
 		return "/"
@@ -51,6 +51,7 @@ func normalizeSegments(path string) string {
 	parts := strings.Split(trimmed, "/")
 	segs := make([]string, 0, len(parts))
 	for _, part := range parts {
+		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
 		}

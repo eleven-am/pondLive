@@ -1,108 +1,109 @@
 package router
 
 import (
-	"net/url"
-
+	"github.com/eleven-am/pondlive/internal/headers"
 	"github.com/eleven-am/pondlive/internal/metadata"
+	"github.com/eleven-am/pondlive/internal/route"
 	"github.com/eleven-am/pondlive/internal/runtime"
 	"github.com/eleven-am/pondlive/internal/work"
 )
 
-var Link = runtime.PropsComponent(func(ctx *runtime.Ctx, props LinkProps, children []work.Item) work.Node {
-	location := locationCtx.UseContextValue(ctx)
-	base := Location{Path: "/", Query: url.Values{}}
-	if location.Path != "" {
-		base = location
+func targetOf(current Location, to string) Location {
+	if current.Path == "" {
+		current.Path = "/"
 	}
+	return route.ResolveHref(current, to)
+}
 
-	target := resolveHref(base, props.To)
-	href := buildHref(target.Path, target.Query, target.Hash)
+func hrefSignal(ctx *runtime.Ctx, r *Router, to string) runtime.ReadSignal[string] {
+	return runtime.UseComputed(ctx, func() string {
+		return route.BuildHref(targetOf(r.Location.Get(), to))
+	})
+}
 
-	clickHandler := work.Handler{
-		EventOptions: metadata.EventOptions{
-			Prevent: true,
-		},
-		Fn: func(e work.Event) work.Updates {
-			if props.Replace {
-				Replace(ctx, props.To)
-			} else {
-				Navigate(ctx, props.To)
-			}
-			return nil
-		},
+func clickHandler(r *Router, to string, replace bool) work.Item {
+	return work.OnWith("click", metadata.EventOptions{Prevent: true}, func(work.Event) {
+		if replace {
+			r.Replace(to)
+			return
+		}
+		r.Navigate(to)
+	})
+}
+
+func childItems(node work.Node) []work.Item {
+	if node == nil {
+		return nil
 	}
+	return []work.Item{node}
+}
 
-	nodes := work.ItemsToNodes(children)
-	return &work.Element{
-		Tag: "a",
-		Attrs: map[string][]string{
-			"href": {href},
-		},
-		Handlers: map[string]work.Handler{
-			"click": clickHandler,
-		},
-		Children: nodes,
-	}
+var Link = runtime.PropsComponent(func(ctx *runtime.Ctx, props LinkProps) work.Node {
+	r := UseRouter(ctx)
+	href := hrefSignal(ctx, r, props.To)
+	return work.BuildElement("a", append([]work.Item{
+		work.Attribute("href", href),
+		clickHandler(r, props.To, props.Replace),
+	}, childItems(props.Children)...)...)
 })
 
-var NavLink = runtime.PropsComponent(func(ctx *runtime.Ctx, props NavLinkProps, children []work.Item) work.Node {
-	location := locationCtx.UseContextValue(ctx)
-	base := Location{Path: "/", Query: url.Values{}}
-	if location.Path != "" {
-		base = location
+var NavLink = runtime.PropsComponent(func(ctx *runtime.Ctx, props NavLinkProps) work.Node {
+	r := UseRouter(ctx)
+	href := hrefSignal(ctx, r, props.To)
+	active := runtime.UseComputed(ctx, func() bool {
+		current := r.Location.Get()
+		target := targetOf(current, props.To)
+		if props.End {
+			return current.Path == target.Path
+		}
+		return matchesPrefix(current.Path, target.Path)
+	})
+	ariaCurrent := runtime.UseComputed(ctx, func() string {
+		if active.Get() {
+			return "page"
+		}
+		return ""
+	})
+	activeClass := runtime.UseComputed(ctx, func() string {
+		if active.Get() {
+			return props.ActiveClass
+		}
+		return ""
+	})
+	items := []work.Item{
+		work.Attribute("href", href),
+		work.Attribute("aria-current", ariaCurrent),
+		clickHandler(r, props.To, props.Replace),
 	}
+	if props.ClassName != "" || props.ActiveClass != "" {
+		items = append(items, work.Class(props.ClassName, activeClass))
+	}
+	return work.BuildElement("a", append(items, childItems(props.Children)...)...)
+})
 
-	target := resolveHref(base, props.To)
-	href := buildHref(target.Path, target.Query, target.Hash)
-
-	isActive := false
-	if props.End {
-		isActive = location.Path == target.Path
-	} else {
-		isActive = matchesPrefix(location.Path, target.Path)
+var Redirect = runtime.PropsComponent(func(ctx *runtime.Ctx, props RedirectProps) work.Node {
+	r := UseRouter(ctx)
+	connected := headers.UseRequest(ctx).Connected()
+	apply := func() {
+		if props.Push {
+			r.Navigate(props.To)
+			return
+		}
+		var opts []headers.NavOption
+		if props.Status != 0 {
+			opts = append(opts, headers.Status(props.Status))
+		}
+		r.Replace(props.To, opts...)
 	}
-
-	var classes []string
-	if props.ClassName != "" {
-		classes = append(classes, props.ClassName)
-	}
-	if isActive && props.ActiveClass != "" {
-		classes = append(classes, props.ActiveClass)
-	}
-
-	attrs := map[string][]string{
-		"href": {href},
-	}
-
-	if len(classes) > 0 {
-		attrs["class"] = classes
-	}
-
-	if isActive {
-		attrs["aria-current"] = []string{"page"}
-	}
-
-	clickHandler := work.Handler{
-		EventOptions: metadata.EventOptions{
-			Prevent: true,
-		},
-		Fn: func(e work.Event) work.Updates {
-			if props.Replace {
-				Replace(ctx, props.To)
-			} else {
-				Navigate(ctx, props.To)
-			}
-			return nil
-		},
-	}
-
-	nodes := work.ItemsToNodes(children)
-	return &work.Element{
-		Tag:   "a",
-		Attrs: attrs,
-		Handlers: map[string]work.Handler{
-			"click": clickHandler,
-		},
-		Children: nodes,
-	}
+	runtime.UseRenderEffect(ctx, func() func() {
+		if !connected.Peek() {
+			apply()
+		}
+		return nil
+	})
+	runtime.UseEffect(ctx, func() func() {
+		apply()
+		return nil
+	})
+	return work.NewFragment()
 })

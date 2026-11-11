@@ -127,7 +127,7 @@ func (e *Error) ToServerError(sessionID string) *protocol.ServerError {
 		return nil
 	}
 	return &protocol.ServerError{
-		T:          "error",
+		T:          protocol.ServerErrorType,
 		SID:        sessionID,
 		Code:       string(e.ErrorCode),
 		Message:    e.Message,
@@ -160,8 +160,7 @@ func NewComponentErrorWithContext(code ErrorCode, message, stack string, ectx Er
 		Phase:       ectx.Phase,
 		HookIndex:   ectx.HookIndex,
 		Timestamp:   time.Now(),
-		Meta: map[string]any{
-			"session_id":          ectx.SessionID,
+		Meta: protocol.DiagMeta(ectx.SessionID, map[string]any{
 			"component_name":      ectx.ComponentName,
 			"parent_id":           ectx.ParentID,
 			"component_path":      ectx.ComponentPath,
@@ -170,7 +169,7 @@ func NewComponentErrorWithContext(code ErrorCode, message, stack string, ectx Er
 			"props":               ectx.Props,
 			"provider_keys":       ectx.ProviderKeys,
 			"dev_mode":            ectx.DevMode,
-		},
+		}),
 	}
 }
 
@@ -258,4 +257,24 @@ func (b *ErrorBatch) ToServerErrors(sessionID string) []*protocol.ServerError {
 		result[i] = e.ToServerError(sessionID)
 	}
 	return result
+}
+
+type WarningCode string
+
+const (
+	WarnRenderEffectSlow      WarningCode = "RENDER_EFFECT_SLOW"
+	WarnRenderEffectLeak      WarningCode = "RENDER_EFFECT_LEAKED_GOROUTINE"
+	WarnRenderEffectForbidden WarningCode = "RENDER_EFFECT_FORBIDDEN_CALL"
+	WarnExitNoElement         WarningCode = "REGION_EXIT_NO_ELEMENT"
+)
+
+type Warning struct {
+	ID        uint64
+	Phase     string
+	Code      WarningCode
+	Component string
+	Message   string
+	Stack     string
+	Meta      map[string]any
+	Timestamp time.Time
 }
