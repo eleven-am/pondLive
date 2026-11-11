@@ -1,8 +1,10 @@
 import { domEvent, readFields } from './fields';
 import { limit } from './rate';
 import morphdom from 'morphdom';
-import { Edit, ScriptMeta } from './protocol';
-import { ATTR_HANDLERS, ATTR_ID, ATTR_RAW, ATTR_SCRIPT, ATTR_SELECTION, HandlerSpec, MARKER, ScriptSpec, SIGNATURES } from './wire';
+import { Edit } from './protocol';
+import { ATTR_HANDLERS, ATTR_ID, ATTR_RAW, ATTR_SCRIPT, ATTR_SELECTION, HandlerSpec, MARKER, SIGNATURES } from './wire';
+import { ATTR_POWN, ATTR_PPROPS } from './scripts';
+import { toHTML } from './html';
 import { Logger } from './logger';
 
 export type EditFailure = 'unresolved' | 'apply-error';
@@ -16,8 +18,8 @@ export class EditError extends Error {
 
 export interface ApplierCallbacks {
     onEvent: (id: number, event: string, data: Record<string, unknown>) => void;
-    onScript: (meta: ScriptMeta, el: Element) => void;
-    onScriptCleanup: (scriptId: string) => void;
+    onScript: (el: Element) => void;
+    onScriptCleanup: (el: Element) => void;
 }
 
 const MAX_ID = 4294967295;
@@ -35,12 +37,13 @@ export class Applier {
     private readonly ends = new Map<number, Comment>();
     private readonly bound = new WeakSet<Element>();
     private readonly synth = new WeakMap<Element, string>();
-    private readonly scripts = new Map<Element, string>();
-    private pending: Element[] = [];
+    private readonly hosts = new Set<Element>();
+    private readonly pending = new Set<Element>();
 
     constructor(private readonly root: Element, private readonly callbacks: ApplierCallbacks) {}
 
     index(): void {
+        for (const el of this.hosts) this.pending.add(el);
         this.nodes.clear();
         this.ends.clear();
         this.scan(this.root, false);
@@ -57,10 +60,10 @@ export class Applier {
     }
 
     destroy(): void {
-        for (const scriptId of this.scripts.values()) {
-            this.callbacks.onScriptCleanup(scriptId);
-        }
-        this.scripts.clear();
+        const hosts = [...this.hosts];
+        this.hosts.clear();
+        this.pending.clear();
+        for (const el of hosts) this.callbacks.onScriptCleanup(el);
     }
 
     apply(edits: Edit[]): void {
@@ -69,16 +72,17 @@ export class Applier {
                 this.validate(edit);
                 this.run(edit);
             } catch (e) {
-                this.pending = [];
+                this.pending.clear();
                 if (e instanceof EditError) throw e;
                 throw new EditError('apply-error', edit, e instanceof Error ? e.name : typeof e, { cause: e });
             }
         }
+        this.flush();
     }
 
     morph(html: string): void {
         const root = this.root;
-        const next = new DOMParser().parseFromString(html, 'text/html').documentElement;
+        const next = new DOMParser().parseFromString(toHTML(html), 'text/html').documentElement;
         const scrollX = window.scrollX;
         const scrollY = window.scrollY;
 
@@ -86,6 +90,7 @@ export class Applier {
         const priorSelects = new Map<HTMLSelectElement, { value: string; explicit: boolean }>();
 
         morphdom(root, next, {
+            onBeforeElChildrenUpdated: (from) => !from.hasAttribute(ATTR_POWN),
             getNodeKey: (node) => (node.nodeType === Node.ELEMENT_NODE ? ((node as Element).getAttribute(ATTR_ID) ?? undefined) : undefined),
             onBeforeElUpdated: (from, to) => {
                 if (from instanceof HTMLInputElement && to instanceof HTMLInputElement) {
@@ -129,10 +134,11 @@ export class Applier {
             }
         }
 
-        for (const [el, scriptId] of this.scripts) {
+        for (const el of [...this.hosts]) {
             if (!el.isConnected) {
-                this.scripts.delete(el);
-                this.callbacks.onScriptCleanup(scriptId);
+                this.hosts.delete(el);
+                this.pending.delete(el);
+                this.callbacks.onScriptCleanup(el);
             }
         }
 
@@ -194,6 +200,7 @@ export class Applier {
                 const el = this.requireElement(edit[1], edit);
                 const [, , name, value] = edit;
                 el.setAttribute(name, value);
+                if (name === ATTR_SCRIPT || name === ATTR_PPROPS) this.pending.add(el);
                 if (name === 'src' || name === 'srcset') this.synth.delete(el);
                 if (el instanceof HTMLSelectElement && (name === ATTR_SELECTION || name === 'value')) {
                     const wanted = new Set(name === 'value' ? [value] : (JSON.parse(value) as string[]));
@@ -216,6 +223,7 @@ export class Applier {
                 const el = this.requireElement(edit[1], edit);
                 const name = edit[2];
                 el.removeAttribute(name);
+                if (name === ATTR_SCRIPT || name === ATTR_PPROPS) this.pending.add(el);
                 if (name === 'src' || name === 'srcset') this.synth.delete(el);
                 if (name === 'checked' && el instanceof HTMLInputElement) {
                     if (el.checked) el.checked = false;
@@ -241,7 +249,7 @@ export class Applier {
                 if (!el.hasAttribute(ATTR_RAW)) {
                     throw new EditError('unresolved', edit, 'target is not a raw host');
                 }
-                el.innerHTML = edit[2];
+                el.innerHTML = toHTML(edit[2]);
                 break;
             }
             case 'ins':
@@ -270,6 +278,13 @@ export class Applier {
         if (!node) {
             throw new EditError('unresolved', edit, `id ${id} does not resolve`);
         }
+        return this.unowned(node, edit);
+    }
+
+    private unowned(node: Node, edit: Edit): Node {
+        if ((node.parentNode as Element | null)?.closest?.(`[${ATTR_POWN}]`)) {
+            throw new EditError('apply-error', edit, 'target is inside a client-owned subtree');
+        }
         return node;
     }
 
@@ -287,6 +302,7 @@ export class Applier {
         if (!start || start.nodeType !== Node.COMMENT_NODE || !end || start.parentNode !== end.parentNode) {
             throw new EditError('unresolved', edit, `id ${id} is not a region`);
         }
+        this.unowned(start, edit);
         return [start as Comment, end];
     }
 
@@ -326,7 +342,6 @@ export class Applier {
         const fragment = this.parse(html, parent);
         this.scan(fragment, true);
         parent.insertBefore(fragment, before);
-        this.flush();
     }
 
     private move(unit: number, region: number, ref: number, edit: Edit): void {
@@ -357,19 +372,10 @@ export class Applier {
         const ns = (parent as Element).namespaceURI;
         const wrap = ns === SVG_NS && (parent as Element).localName !== 'foreignObject' ? 'svg' : ns === MATH_NS ? 'math' : '';
         const template = document.createElement('template');
-        template.innerHTML = wrap ? `<${wrap}>${html}</${wrap}>` : html;
+        template.innerHTML = toHTML(wrap ? `<${wrap}>${html}</${wrap}>` : html);
         const fragment = template.content;
         if (wrap) {
             fragment.replaceChildren(...Array.from(fragment.firstChild!.childNodes));
-        }
-        for (const old of Array.from(fragment.querySelectorAll('script'))) {
-            if (old.closest(`[${ATTR_RAW}]`)) continue;
-            const live = document.createElementNS(old.namespaceURI, 'script');
-            for (const attr of Array.from(old.attributes)) {
-                live.setAttribute(attr.name, attr.value);
-            }
-            live.textContent = old.textContent;
-            old.replaceWith(live);
         }
         return fragment;
     }
@@ -415,7 +421,7 @@ export class Applier {
                 }
             }
             if (el.hasAttribute(ATTR_HANDLERS)) this.bind(el, strict);
-            if (el.hasAttribute(ATTR_SCRIPT) && !this.scripts.has(el)) this.pending.push(el);
+            if (el.hasAttribute(ATTR_SCRIPT)) this.pending.add(el);
             return;
         }
         const match = MARKER.exec(n.nodeValue ?? '');
@@ -442,11 +448,8 @@ export class Applier {
             const el = n as Element;
             const pi = el.getAttribute(ATTR_ID);
             if (pi !== null && this.nodes.get(+pi) === el) this.nodes.delete(+pi);
-            const scriptId = this.scripts.get(el);
-            if (scriptId !== undefined) {
-                this.scripts.delete(el);
-                this.callbacks.onScriptCleanup(scriptId);
-            }
+            this.pending.delete(el);
+            if (this.hosts.delete(el)) this.callbacks.onScriptCleanup(el);
             return;
         }
         const match = MARKER.exec(n.nodeValue ?? '');
@@ -460,20 +463,15 @@ export class Applier {
     }
 
     private flush(): void {
-        const queue = this.pending;
-        this.pending = [];
+        const queue = [...this.pending];
+        this.pending.clear();
         for (const el of queue) {
-            if (this.scripts.has(el)) continue;
-            let spec: ScriptSpec;
-            try {
-                spec = JSON.parse(el.getAttribute(ATTR_SCRIPT)!);
-                if (typeof spec.i !== 'string' || typeof spec.s !== 'string') throw new TypeError('invalid script spec');
-            } catch (e) {
-                Logger.warn('Applier', 'invalid data-pscript', String(e));
-                continue;
+            if (el.hasAttribute(ATTR_SCRIPT)) {
+                this.hosts.add(el);
+            } else {
+                this.hosts.delete(el);
             }
-            this.scripts.set(el, spec.i);
-            this.callbacks.onScript({ scriptId: spec.i, script: spec.s }, el);
+            this.callbacks.onScript(el);
         }
     }
 

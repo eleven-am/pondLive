@@ -1,0 +1,18 @@
+{
+  "node_modules/morphdom/dist/morphdom-esm.js": 5513,
+  "src/applier.ts": 9843,
+  "src/bus.ts": 1608,
+  "src/executor.ts": 4603,
+  "src/fields.ts": 806,
+  "src/html.ts": 179,
+  "src/index.ts": 585,
+  "src/logger.ts": 546,
+  "src/protocol.ts": 583,
+  "src/rate.ts": 485,
+  "src/runtime.ts": 4412,
+  "src/scripts.ts": 3074,
+  "src/sequencer.ts": 3076,
+  "src/serialize.ts": 105,
+  "src/transport.ts": 5180,
+  "src/wire.ts": 1524
+}

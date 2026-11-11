@@ -3,6 +3,7 @@ import { Runtime, RuntimeConfig } from './runtime';
 import { Boot } from './protocol';
 import { Transport, TransportConfig } from './transport';
 import { Logger } from './logger';
+import { define } from './scripts';
 
 vi.mock('./transport');
 
@@ -29,6 +30,7 @@ describe('Runtime', () => {
         sendAck: Mock;
         sendResync: Mock;
         sendHandler: Mock;
+        sendScript: Mock;
         onStateChange: Mock;
         sid: string;
     };
@@ -46,6 +48,7 @@ describe('Runtime', () => {
             sendAck: vi.fn(),
             sendResync: vi.fn(),
             sendHandler: vi.fn(),
+            sendScript: vi.fn(),
             onStateChange: vi.fn((handler) => {
                 stateChangeHandler = handler;
                 return () => {};
@@ -367,18 +370,94 @@ describe('Runtime', () => {
     });
 
     describe('script handling', () => {
-        it('should execute data-pscript scripts found at boot', async () => {
-            root.innerHTML = `<div data-pi="2" data-pscript='${JSON.stringify({
-                i: 'script-1',
-                s: '(el, t) => { el.textContent = "script executed"; }',
-            })}'></div>`;
-            const child = root.firstElementChild!;
+        const insert = (seq: number, html: string) =>
+            transportConfig.onMessage({ seq, topic: 'frame', event: 'patch', data: [['ins', 2, 0, html]] });
+        const toScript = (seq: number, i: number, d: unknown, extra: Record<string, unknown> = {}) =>
+            transportConfig.onMessage({ seq, topic: 's', event: 'm', data: { i, d, ...extra } });
+
+        it('a message in the same batch as the ins reaches the handler', () => {
+            const got: unknown[] = [];
+            define('rt-batch', (_el, io) => {
+                io.on((m) => got.push(m));
+            });
+            root.innerHTML = '<ul data-pi="1"><!--r:2--><!--/r:2--></ul>';
+            runtime.handleBoot(handlerBoot());
+
+            insert(2, '<li data-pi="3" data-pscript="rt-batch:41"></li>');
+            toScript(3, 41, { n: 1 });
+
+            expect(got).toEqual([{ n: 1 }]);
+        });
+
+        it('routing uses data.i only', () => {
+            const a: unknown[] = [];
+            const b: unknown[] = [];
+            define('rt-a', (_el, io) => io.on((m) => a.push(m)));
+            define('rt-b', (_el, io) => io.on((m) => b.push(m)));
+            root.innerHTML = '<ul data-pi="1"><!--r:2--><!--/r:2--></ul>';
+            runtime.handleBoot(handlerBoot());
+            insert(2, '<li data-pi="3" data-pscript="rt-a:7 rt-b:8"></li>');
+
+            toScript(3, 8, 'for-b', { scriptId: 'rt-a:7', id: 7, k: 'rt-a' });
+
+            expect(a).toEqual([]);
+            expect(b).toEqual(['for-b']);
+        });
+
+        it('ignores a script message without an integer instance id', () => {
+            const got: unknown[] = [];
+            define('rt-bad', (_el, io) => io.on((m) => got.push(m)));
+            root.innerHTML = '<ul data-pi="1"><!--r:2--><!--/r:2--></ul>';
+            runtime.handleBoot(handlerBoot());
+            insert(2, '<li data-pi="3" data-pscript="rt-bad:9"></li>');
+
+            transportConfig.onMessage({ seq: 3, topic: 's', event: 'm', data: { i: '9', d: 1 } });
+            transportConfig.onMessage({ seq: 4, topic: 's', event: 'other', data: { i: 9, d: 1 } });
+
+            expect(got).toEqual([]);
+        });
+
+        it('a script send goes out as an s event carrying the instance id', () => {
+            define('rt-send', (_el, io) => io.send({ hello: 1 }));
+            root.innerHTML = '<div data-pi="2" data-pscript="rt-send:5"></div>';
 
             runtime.handleBoot(handlerBoot());
 
-            await vi.waitFor(() => {
-                expect(child.textContent).toBe('script executed');
-            });
+            expect(mockTransportInstance.sendScript).toHaveBeenCalledWith(5, 'm', { hello: 1 });
+        });
+
+        it('disconnect cleans every running instance up', () => {
+            const cleanup = vi.fn();
+            define('rt-clean', () => cleanup);
+            root.innerHTML = '<div data-pi="2" data-pscript="rt-clean:6"></div>';
+            runtime.handleBoot(handlerBoot());
+
+            runtime.disconnect();
+
+            expect(cleanup).toHaveBeenCalledTimes(1);
+        });
+
+        it('joins with the bundle hash it was started with', () => {
+            new Runtime({ ...config, bundle: 'abc123def456' });
+
+            expect(transportConfig.bundle).toBe('abc123def456');
+        });
+    });
+
+    describe('deploy skew', () => {
+        it('a decline reloads exactly once', () => {
+            vi.useFakeTimers();
+            const reload = vi.fn();
+            vi.stubGlobal('location', { ...window.location, reload });
+            try {
+                stateChangeHandler('declined');
+                expect(reload).not.toHaveBeenCalled();
+                vi.advanceTimersByTime(20000);
+                expect(reload).toHaveBeenCalledTimes(1);
+            } finally {
+                vi.useRealTimers();
+                vi.unstubAllGlobals();
+            }
         });
     });
 });

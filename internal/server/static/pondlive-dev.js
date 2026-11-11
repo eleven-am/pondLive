@@ -28,14 +28,39 @@ var LiveUIModule = (() => {
     Executor: () => Executor,
     Logger: () => Logger,
     Runtime: () => Runtime,
-    ScriptExecutor: () => ScriptExecutor,
+    Scripts: () => Scripts,
     Sequencer: () => Sequencer,
     Transport: () => Transport,
     boot: () => boot,
+    define: () => define,
     isBoot: () => isBoot,
     isMessage: () => isMessage,
-    isServerFrame: () => isServerFrame
+    isServerFrame: () => isServerFrame,
+    start: () => start
   });
+
+  // src/protocol.ts
+  function urlOf(path, query, hash) {
+    return path + (query ? `?${query}` : "") + (hash ? hash.startsWith("#") ? hash : `#${hash}` : "");
+  }
+  var SCRIPT_TOPIC = "s";
+  function isScriptMessage(data) {
+    return typeof data === "object" && data !== null && Number.isInteger(data.i);
+  }
+  function isServerFrame(msg) {
+    if (typeof msg !== "object" || msg === null) return false;
+    const frame = msg;
+    if (frame.t === "joined") return true;
+    if (frame.t === "evack") return typeof frame.cs === "number";
+    if (frame.t === "tok") return typeof frame.tok === "string";
+    return frame.t === "declined" && typeof frame.code === "number";
+  }
+  function isBoot(msg) {
+    return typeof msg === "object" && msg !== null && msg.t === "boot";
+  }
+  function isMessage(msg) {
+    return typeof msg === "object" && msg !== null && typeof msg.seq === "number" && typeof msg.topic === "string" && typeof msg.event === "string";
+  }
 
   // src/wire.ts
   var REF_KINDS = {
@@ -53,7 +78,6 @@ var LiveUIModule = (() => {
     return !!own && [own, REF_KINDS.ElementRef].some((k) => !!k[op]?.includes(key));
   }
   var STATIC_TOPICS = ["frame", "router", "dom"];
-  var SCRIPT_TOPIC_PREFIX = "script:";
   var SIGNATURES = {
     t: "is",
     a: "iss",
@@ -85,31 +109,6 @@ var LiveUIModule = (() => {
   };
   var UNSAFE_URL = /[\u0000-\u0020\\\u007f-\u00a0\u1680\u2000-\u200a\u2028-\u2029\u202f\u205f\u3000\ufeff]/;
   var SAFE_PROTOCOL = /^(http|https):$/;
-
-  // src/protocol.ts
-  function urlOf(path, query, hash) {
-    return path + (query ? `?${query}` : "") + (hash ? hash.startsWith("#") ? hash : `#${hash}` : "");
-  }
-  function isScriptTopic(topic) {
-    return topic.startsWith(SCRIPT_TOPIC_PREFIX);
-  }
-  function scriptTopic(scriptId) {
-    return `${SCRIPT_TOPIC_PREFIX}${scriptId}`;
-  }
-  function isServerFrame(msg) {
-    if (typeof msg !== "object" || msg === null) return false;
-    const frame = msg;
-    if (frame.t === "joined") return true;
-    if (frame.t === "evack") return typeof frame.cs === "number";
-    if (frame.t === "tok") return typeof frame.tok === "string";
-    return frame.t === "declined" && typeof frame.code === "number";
-  }
-  function isBoot(msg) {
-    return typeof msg === "object" && msg !== null && msg.t === "boot";
-  }
-  function isMessage(msg) {
-    return typeof msg === "object" && msg !== null && typeof msg.seq === "number" && typeof msg.topic === "string" && typeof msg.event === "string";
-  }
 
   // src/logger.ts
   var levels = {
@@ -213,12 +212,6 @@ var LiveUIModule = (() => {
       const key = `${topic}:${String(action)}`;
       return this.subscribers.get(key)?.length ?? 0;
     }
-    subscribeScript(scriptId, action, callback) {
-      return this.subscribe(scriptTopic(scriptId), action, callback);
-    }
-    publishScript(scriptId, action, payload) {
-      this.deliver(scriptTopic(scriptId), String(action), payload);
-    }
     clear() {
       this.subscribers.clear();
       this.wildcardSubscribers = [];
@@ -286,6 +279,7 @@ var LiveUIModule = (() => {
       this.token = config.token;
       this.sessionId = config.sessionId;
       this.version = config.version;
+      this.bundle = config.bundle;
       this.applied = config.applied;
       this.wantsReset = config.wantsReset;
       this.onMessage = config.onMessage;
@@ -345,8 +339,8 @@ var LiveUIModule = (() => {
     sendHandler(id, event, payload) {
       this.sendEvent("h", event, payload, id);
     }
-    sendScript(scriptId, payload) {
-      this.sendEvent(scriptTopic(scriptId), "message", payload);
+    sendScript(id, action, payload) {
+      this.sendEvent(SCRIPT_TOPIC, action, payload, id);
     }
     handleMessage(payload) {
       if (!isMessage(payload)) {
@@ -358,7 +352,7 @@ var LiveUIModule = (() => {
       this.onMessage(payload);
     }
     isValidTopic(topic) {
-      return STATIC_TOPICS.includes(topic) || isScriptTopic(topic);
+      return STATIC_TOPICS.includes(topic) || topic === SCRIPT_TOPIC;
     }
     open() {
       this.setState("connecting");
@@ -388,6 +382,7 @@ var LiveUIModule = (() => {
           bs: this.applied(),
           resync: this.wantsReset()
         };
+        if (this.bundle !== void 0) join.b = this.bundle;
         socket.send(JSON.stringify(join));
       };
       socket.onmessage = (event) => {
@@ -1168,6 +1163,225 @@ var LiveUIModule = (() => {
   var morphdom = morphdomFactory(morphAttrs);
   var morphdom_esm_default = morphdom;
 
+  // src/scripts.ts
+  var ATTR_PPROPS = "data-pprops";
+  var ATTR_POWN = "data-pown";
+  var QUEUE_MAX = 32;
+  var ERROR_MAX_BYTES = 1024;
+  var ERROR_INTERVAL_MS = 1e3;
+  var defs = /* @__PURE__ */ new Map();
+  var sealed = false;
+  function define(key, fn) {
+    if (sealed) {
+      throw new Error(`define(${key}) after start`);
+    }
+    defs.set(key, fn);
+  }
+  function seal() {
+    sealed = true;
+  }
+  function lookup(key) {
+    return defs.get(key);
+  }
+  var utf82 = new TextEncoder();
+  var scratch = new Uint8Array(ERROR_MAX_BYTES);
+  function cap(text) {
+    return text.slice(0, utf82.encodeInto(text, scratch).read);
+  }
+  function describe(e) {
+    return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+  }
+  function isThenable(v) {
+    return typeof v?.then === "function";
+  }
+  function parseProps(attr) {
+    if (attr === null) return {};
+    try {
+      const parsed = JSON.parse(attr);
+      return typeof parsed === "object" && parsed !== null ? parsed : {};
+    } catch (e) {
+      Logger.warn("Scripts", "invalid data-pprops", String(e));
+      return {};
+    }
+  }
+  function parseTokens(attr) {
+    const out = [];
+    for (const token of (attr ?? "").split(" ")) {
+      if (token === "") continue;
+      const cut = token.lastIndexOf(":");
+      const id = cut > 0 && /^[1-9]\d*$/.test(token.slice(cut + 1)) ? Number(token.slice(cut + 1)) : 0;
+      if (id === 0) {
+        Logger.warn("Scripts", "invalid data-pscript token", token);
+        continue;
+      }
+      out.push([token, token.slice(0, cut), id]);
+    }
+    return out;
+  }
+  var Scripts = class {
+    constructor(config) {
+      this.config = config;
+      this.hosts = /* @__PURE__ */ new Map();
+      this.byId = /* @__PURE__ */ new Map();
+      this.find = config.lookup ?? lookup;
+    }
+    reconcile(el) {
+      const wanted = parseTokens(el.getAttribute(ATTR_SCRIPT));
+      const have = this.hosts.get(el);
+      if (have) {
+        const keep = new Set(wanted.map((w) => w[0]));
+        for (const [token, inst] of have) {
+          if (!keep.has(token)) {
+            have.delete(token);
+            this.release(inst);
+          }
+        }
+      }
+      if (wanted.length === 0) {
+        this.hosts.delete(el);
+        return;
+      }
+      const props = parseProps(el.getAttribute(ATTR_PPROPS));
+      const next = have ?? /* @__PURE__ */ new Map();
+      this.hosts.set(el, next);
+      for (const [token, key, id] of wanted) {
+        const value = props[String(id)];
+        const inst = next.get(token);
+        if (!inst) {
+          this.attach(el, next, token, key, id, value);
+          continue;
+        }
+        const raw = JSON.stringify(value);
+        if (raw === inst.raw) continue;
+        inst.raw = raw;
+        inst.props = value;
+        if (inst.propsHandler) this.guard(inst, "props", () => inst.propsHandler(value));
+      }
+    }
+    releaseHost(el) {
+      const have = this.hosts.get(el);
+      if (!have) return;
+      this.hosts.delete(el);
+      for (const inst of have.values()) this.release(inst);
+    }
+    deliver(id, data) {
+      const inst = this.byId.get(id);
+      if (!inst) return;
+      if (inst.handler) {
+        this.invoke(inst, data);
+      } else if (inst.queue.length < QUEUE_MAX) {
+        inst.queue.push(data);
+      } else if (!inst.overflowed) {
+        inst.overflowed = true;
+        this.report(inst, "queue", `more than ${QUEUE_MAX} messages before on()`);
+      }
+    }
+    destroy() {
+      for (const el of [...this.hosts.keys()]) this.releaseHost(el);
+    }
+    attach(el, host, token, key, id, props) {
+      const inst = {
+        id,
+        queue: [],
+        overflowed: false,
+        gone: false,
+        lastError: -Infinity,
+        props,
+        raw: JSON.stringify(props),
+        io: {
+          on: (fn) => {
+            inst.handler = fn;
+            while (inst.queue.length > 0 && inst.handler === fn) {
+              this.invoke(inst, inst.queue.shift());
+            }
+            inst.overflowed = false;
+          },
+          send: (msg) => {
+            if (!inst.gone) this.config.send(id, "m", msg);
+          },
+          get props() {
+            return inst.props;
+          },
+          onProps: (fn) => {
+            inst.propsHandler = fn;
+          }
+        }
+      };
+      host.set(token, inst);
+      this.byId.set(id, inst);
+      const def = this.find(key);
+      if (!def) {
+        this.report(inst, "undefined", `no script defined for ${key}`);
+        return;
+      }
+      try {
+        const out = def(el, inst.io);
+        if (isThenable(out)) {
+          out.then(
+            (cleanup) => this.settle(inst, cleanup),
+            (e) => this.report(inst, "def", e)
+          );
+        } else {
+          this.settle(inst, out);
+        }
+      } catch (e) {
+        this.report(inst, "def", e);
+      }
+    }
+    settle(inst, cleanup) {
+      if (typeof cleanup !== "function") return;
+      inst.cleanup = cleanup;
+      if (inst.gone) this.runCleanup(inst);
+    }
+    release(inst) {
+      inst.gone = true;
+      inst.queue.length = 0;
+      if (this.byId.get(inst.id) === inst) this.byId.delete(inst.id);
+      this.runCleanup(inst);
+    }
+    runCleanup(inst) {
+      const cleanup = inst.cleanup;
+      if (!cleanup) return;
+      inst.cleanup = void 0;
+      this.guard(inst, "cleanup", cleanup);
+    }
+    invoke(inst, data) {
+      this.guard(inst, "on", () => inst.handler(data));
+    }
+    guard(inst, name, fn) {
+      try {
+        fn();
+      } catch (e) {
+        this.report(inst, name, e);
+      }
+    }
+    report(inst, name, error) {
+      const m = cap(typeof error === "string" ? error : describe(error));
+      Logger.error("Scripts", `${name} failed`, { id: inst.id, error: m });
+      const now = Date.now();
+      if (now - inst.lastError < ERROR_INTERVAL_MS) return;
+      inst.lastError = now;
+      this.config.send(inst.id, "err", { n: name, m });
+    }
+  };
+
+  // src/html.ts
+  var policy;
+  function toHTML(input) {
+    if (policy === void 0) {
+      policy = null;
+      const factory = globalThis.trustedTypes;
+      if (factory) {
+        try {
+          policy = factory.createPolicy("pondlive", { createHTML: (s) => s });
+        } catch {
+          policy = null;
+        }
+      }
+    }
+    return policy ? policy.createHTML(input) : input;
+  }
+
   // src/applier.ts
   var EditError = class extends Error {
     constructor(reason, edit, detail, options) {
@@ -1193,10 +1407,11 @@ var LiveUIModule = (() => {
       this.ends = /* @__PURE__ */ new Map();
       this.bound = /* @__PURE__ */ new WeakSet();
       this.synth = /* @__PURE__ */ new WeakMap();
-      this.scripts = /* @__PURE__ */ new Map();
-      this.pending = [];
+      this.hosts = /* @__PURE__ */ new Set();
+      this.pending = /* @__PURE__ */ new Set();
     }
     index() {
+      for (const el of this.hosts) this.pending.add(el);
       this.nodes.clear();
       this.ends.clear();
       this.scan(this.root, false);
@@ -1210,10 +1425,10 @@ var LiveUIModule = (() => {
       return node?.nodeType === Node.ELEMENT_NODE ? node : void 0;
     }
     destroy() {
-      for (const scriptId of this.scripts.values()) {
-        this.callbacks.onScriptCleanup(scriptId);
-      }
-      this.scripts.clear();
+      const hosts = [...this.hosts];
+      this.hosts.clear();
+      this.pending.clear();
+      for (const el of hosts) this.callbacks.onScriptCleanup(el);
     }
     apply(edits) {
       for (const edit of edits) {
@@ -1221,32 +1436,34 @@ var LiveUIModule = (() => {
           this.validate(edit);
           this.run(edit);
         } catch (e) {
-          this.pending = [];
+          this.pending.clear();
           if (e instanceof EditError) throw e;
           throw new EditError("apply-error", edit, e instanceof Error ? e.name : typeof e, { cause: e });
         }
       }
+      this.flush();
     }
     morph(html) {
       const root = this.root;
-      const next = new DOMParser().parseFromString(html, "text/html").documentElement;
+      const next = new DOMParser().parseFromString(toHTML(html), "text/html").documentElement;
       const scrollX = window.scrollX;
       const scrollY = window.scrollY;
       const preservedValues = /* @__PURE__ */ new Map();
       const priorSelects = /* @__PURE__ */ new Map();
       morphdom_esm_default(root, next, {
+        onBeforeElChildrenUpdated: (from) => !from.hasAttribute(ATTR_POWN),
         getNodeKey: (node) => node.nodeType === Node.ELEMENT_NODE ? node.getAttribute(ATTR_ID) ?? void 0 : void 0,
         onBeforeElUpdated: (from, to) => {
           if (from instanceof HTMLInputElement && to instanceof HTMLInputElement) {
             if (!to.hasAttribute("value") && from.value !== from.defaultValue && !["checkbox", "radio", "file"].includes(from.type)) {
-              let start = null;
+              let start2 = null;
               let end = null;
               try {
-                start = from.selectionStart;
+                start2 = from.selectionStart;
                 end = from.selectionEnd;
               } catch {
               }
-              preservedValues.set(from, { value: from.value, start, end });
+              preservedValues.set(from, { value: from.value, start: start2, end });
             }
           } else if (from instanceof HTMLTextAreaElement && to instanceof HTMLTextAreaElement) {
             if (to.value === "" && from.value !== from.defaultValue) {
@@ -1276,10 +1493,11 @@ var LiveUIModule = (() => {
           this.settleSelect(select, null, Array.from(select.options).some((o) => o.hasAttribute("selected")));
         }
       }
-      for (const [el, scriptId] of this.scripts) {
+      for (const el of [...this.hosts]) {
         if (!el.isConnected) {
-          this.scripts.delete(el);
-          this.callbacks.onScriptCleanup(scriptId);
+          this.hosts.delete(el);
+          this.pending.delete(el);
+          this.callbacks.onScriptCleanup(el);
         }
       }
       this.index();
@@ -1336,6 +1554,7 @@ var LiveUIModule = (() => {
           const el = this.requireElement(edit[1], edit);
           const [, , name, value] = edit;
           el.setAttribute(name, value);
+          if (name === ATTR_SCRIPT || name === ATTR_PPROPS) this.pending.add(el);
           if (name === "src" || name === "srcset") this.synth.delete(el);
           if (el instanceof HTMLSelectElement && (name === ATTR_SELECTION || name === "value")) {
             const wanted = new Set(name === "value" ? [value] : JSON.parse(value));
@@ -1358,6 +1577,7 @@ var LiveUIModule = (() => {
           const el = this.requireElement(edit[1], edit);
           const name = edit[2];
           el.removeAttribute(name);
+          if (name === ATTR_SCRIPT || name === ATTR_PPROPS) this.pending.add(el);
           if (name === "src" || name === "srcset") this.synth.delete(el);
           if (name === "checked" && el instanceof HTMLInputElement) {
             if (el.checked) el.checked = false;
@@ -1383,7 +1603,7 @@ var LiveUIModule = (() => {
           if (!el.hasAttribute(ATTR_RAW)) {
             throw new EditError("unresolved", edit, "target is not a raw host");
           }
-          el.innerHTML = edit[2];
+          el.innerHTML = toHTML(edit[2]);
           break;
         }
         case "ins":
@@ -1396,9 +1616,9 @@ var LiveUIModule = (() => {
           this.remove(this.unit(edit[1], edit));
           break;
         case "clr": {
-          const [start, end] = this.region(edit[1], edit);
+          const [start2, end] = this.region(edit[1], edit);
           const doomed = [];
-          for (let n = start.nextSibling; n && n !== end; n = n.nextSibling) {
+          for (let n = start2.nextSibling; n && n !== end; n = n.nextSibling) {
             doomed.push(n);
           }
           this.remove(doomed);
@@ -1411,6 +1631,12 @@ var LiveUIModule = (() => {
       if (!node) {
         throw new EditError("unresolved", edit, `id ${id} does not resolve`);
       }
+      return this.unowned(node, edit);
+    }
+    unowned(node, edit) {
+      if (node.parentNode?.closest?.(`[${ATTR_POWN}]`)) {
+        throw new EditError("apply-error", edit, "target is inside a client-owned subtree");
+      }
       return node;
     }
     requireElement(id, edit) {
@@ -1421,33 +1647,34 @@ var LiveUIModule = (() => {
       return node;
     }
     region(id, edit) {
-      const start = this.nodes.get(id);
+      const start2 = this.nodes.get(id);
       const end = this.ends.get(id);
-      if (!start || start.nodeType !== Node.COMMENT_NODE || !end || start.parentNode !== end.parentNode) {
+      if (!start2 || start2.nodeType !== Node.COMMENT_NODE || !end || start2.parentNode !== end.parentNode) {
         throw new EditError("unresolved", edit, `id ${id} is not a region`);
       }
-      return [start, end];
+      this.unowned(start2, edit);
+      return [start2, end];
     }
     unit(id, edit) {
-      const start = this.require(id, edit);
-      if (start.nodeType === Node.ELEMENT_NODE) return [start];
+      const start2 = this.require(id, edit);
+      if (start2.nodeType === Node.ELEMENT_NODE) return [start2];
       const [, end] = this.region(id, edit);
       const nodes = [];
-      for (let n = start; n; n = n.nextSibling) {
+      for (let n = start2; n; n = n.nextSibling) {
         nodes.push(n);
         if (n === end) return nodes;
       }
       throw new EditError("unresolved", edit, `region ${id} is not closed`);
     }
     anchor(region, ref, edit) {
-      const [start, end] = this.region(region, edit);
+      const [start2, end] = this.region(region, edit);
       if (ref === 0) return end;
       const before = this.unit(ref, edit)[0];
-      this.requireInside(start, end, before, ref, edit);
+      this.requireInside(start2, end, before, ref, edit);
       return before;
     }
-    requireInside(start, end, node, id, edit) {
-      if (node.parentNode !== start.parentNode || !(start.compareDocumentPosition(node) & FOLLOWING) || !(node.compareDocumentPosition(end) & FOLLOWING)) {
+    requireInside(start2, end, node, id, edit) {
+      if (node.parentNode !== start2.parentNode || !(start2.compareDocumentPosition(node) & FOLLOWING) || !(node.compareDocumentPosition(end) & FOLLOWING)) {
         throw new EditError("unresolved", edit, `unit ${id} is not inside its region`);
       }
     }
@@ -1457,12 +1684,11 @@ var LiveUIModule = (() => {
       const fragment = this.parse(html, parent);
       this.scan(fragment, true);
       parent.insertBefore(fragment, before);
-      this.flush();
     }
     move(unit, region, ref, edit) {
       const nodes = this.unit(unit, edit);
-      const [start, end] = this.region(region, edit);
-      this.requireInside(start, end, nodes[0], unit, edit);
+      const [start2, end] = this.region(region, edit);
+      this.requireInside(start2, end, nodes[0], unit, edit);
       const before = this.anchor(region, ref, edit);
       if (nodes.includes(before)) {
         throw new EditError("unresolved", edit, "unit cannot move before itself");
@@ -1485,19 +1711,10 @@ var LiveUIModule = (() => {
       const ns = parent.namespaceURI;
       const wrap = ns === SVG_NS && parent.localName !== "foreignObject" ? "svg" : ns === MATH_NS ? "math" : "";
       const template = document.createElement("template");
-      template.innerHTML = wrap ? `<${wrap}>${html}</${wrap}>` : html;
+      template.innerHTML = toHTML(wrap ? `<${wrap}>${html}</${wrap}>` : html);
       const fragment = template.content;
       if (wrap) {
         fragment.replaceChildren(...Array.from(fragment.firstChild.childNodes));
-      }
-      for (const old of Array.from(fragment.querySelectorAll("script"))) {
-        if (old.closest(`[${ATTR_RAW}]`)) continue;
-        const live = document.createElementNS(old.namespaceURI, "script");
-        for (const attr of Array.from(old.attributes)) {
-          live.setAttribute(attr.name, attr.value);
-        }
-        live.textContent = old.textContent;
-        old.replaceWith(live);
       }
       return fragment;
     }
@@ -1538,7 +1755,7 @@ var LiveUIModule = (() => {
           }
         }
         if (el.hasAttribute(ATTR_HANDLERS)) this.bind(el, strict);
-        if (el.hasAttribute(ATTR_SCRIPT) && !this.scripts.has(el)) this.pending.push(el);
+        if (el.hasAttribute(ATTR_SCRIPT)) this.pending.add(el);
         return;
       }
       const match = MARKER.exec(n.nodeValue ?? "");
@@ -1564,11 +1781,8 @@ var LiveUIModule = (() => {
         const el = n;
         const pi = el.getAttribute(ATTR_ID);
         if (pi !== null && this.nodes.get(+pi) === el) this.nodes.delete(+pi);
-        const scriptId = this.scripts.get(el);
-        if (scriptId !== void 0) {
-          this.scripts.delete(el);
-          this.callbacks.onScriptCleanup(scriptId);
-        }
+        this.pending.delete(el);
+        if (this.hosts.delete(el)) this.callbacks.onScriptCleanup(el);
         return;
       }
       const match = MARKER.exec(n.nodeValue ?? "");
@@ -1581,20 +1795,15 @@ var LiveUIModule = (() => {
       }
     }
     flush() {
-      const queue = this.pending;
-      this.pending = [];
+      const queue = [...this.pending];
+      this.pending.clear();
       for (const el of queue) {
-        if (this.scripts.has(el)) continue;
-        let spec;
-        try {
-          spec = JSON.parse(el.getAttribute(ATTR_SCRIPT));
-          if (typeof spec.i !== "string" || typeof spec.s !== "string") throw new TypeError("invalid script spec");
-        } catch (e) {
-          Logger.warn("Applier", "invalid data-pscript", String(e));
-          continue;
+        if (el.hasAttribute(ATTR_SCRIPT)) {
+          this.hosts.add(el);
+        } else {
+          this.hosts.delete(el);
         }
-        this.scripts.set(el, spec.i);
-        this.callbacks.onScript({ scriptId: spec.i, script: spec.s }, el);
+        this.callbacks.onScript(el);
       }
     }
     bind(el, strict) {
@@ -2028,101 +2237,6 @@ var LiveUIModule = (() => {
     }
   };
 
-  // src/scripts.ts
-  var ScriptExecutor = class {
-    constructor(config) {
-      this.scripts = /* @__PURE__ */ new Map();
-      this.bus = config.bus;
-      this.transport = config.transport;
-    }
-    async execute(meta, element) {
-      const { scriptId, script } = meta;
-      Logger.debug("Script", "execute called", { scriptId, element: element.tagName, script: script.substring(0, 100) + "..." });
-      this.cleanup(scriptId);
-      const instance = {
-        eventHandlers: /* @__PURE__ */ new Map(),
-        subscription: this.bus.subscribeScript(scriptId, "send", (payload) => {
-          Logger.debug("Script", "server message received", { scriptId, event: payload.event, data: payload.data });
-          this.handleServerMessage(scriptId, payload.event, payload.data);
-        })
-      };
-      const transport = {
-        send: (event, data) => {
-          Logger.debug("Script", "transport.send called", { scriptId, event, data });
-          const payload = {
-            scriptId,
-            event,
-            data
-          };
-          this.transport.sendScript(scriptId, payload);
-        },
-        on: (event, handler) => {
-          Logger.debug("Script", "transport.on registered", { scriptId, event });
-          instance.eventHandlers.set(event, handler);
-        }
-      };
-      try {
-        Logger.debug("Script", "creating function", { scriptId });
-        const fn = new Function("element", "transport", `return (${script})(element, transport);`);
-        Logger.debug("Script", "executing function", { scriptId });
-        const cleanup = await fn(element, transport);
-        if (typeof cleanup === "function") {
-          Logger.debug("Script", "cleanup function returned", { scriptId });
-          instance.cleanup = cleanup;
-        }
-        this.scripts.set(scriptId, instance);
-        Logger.debug("Script", "execute complete", { scriptId, handlers: Array.from(instance.eventHandlers.keys()) });
-      } catch (err) {
-        Logger.error("Script", "execute failed", { scriptId, error: String(err) });
-        instance.subscription.unsubscribe();
-        throw err;
-      }
-    }
-    handleServerMessage(scriptId, event, data) {
-      Logger.debug("Script", "handleServerMessage", { scriptId, event, data });
-      const instance = this.scripts.get(scriptId);
-      if (!instance) {
-        Logger.warn("Script", "no instance found", { scriptId });
-        return;
-      }
-      const handler = instance.eventHandlers.get(event);
-      if (!handler) {
-        Logger.warn("Script", "no handler found", { scriptId, event, availableHandlers: Array.from(instance.eventHandlers.keys()) });
-        return;
-      }
-      try {
-        Logger.debug("Script", "invoking handler", { scriptId, event });
-        handler(data);
-      } catch (err) {
-        Logger.error("Script", "handler error", { scriptId, event, error: String(err) });
-      }
-    }
-    cleanup(scriptId) {
-      Logger.debug("Script", "cleanup called", { scriptId });
-      const instance = this.scripts.get(scriptId);
-      if (!instance) {
-        Logger.debug("Script", "cleanup: no instance found", { scriptId });
-        return;
-      }
-      if (instance.cleanup) {
-        try {
-          Logger.debug("Script", "running cleanup function", { scriptId });
-          instance.cleanup();
-        } catch (err) {
-          Logger.error("Script", "cleanup function error", { scriptId, error: String(err) });
-        }
-      }
-      instance.subscription.unsubscribe();
-      this.scripts.delete(scriptId);
-      Logger.debug("Script", "cleanup complete", { scriptId });
-    }
-    destroy() {
-      for (const scriptId of this.scripts.keys()) {
-        this.cleanup(scriptId);
-      }
-    }
-  };
-
   // src/runtime.ts
   var RELOAD_JITTER_MIN = 1e3;
   var RELOAD_JITTER_MAX = 1e4;
@@ -2142,21 +2256,22 @@ var LiveUIModule = (() => {
         token: config.token,
         sessionId: config.sessionId,
         version: config.version,
+        bundle: config.bundle,
         applied: () => this.sequencer.appliedSeq,
         wantsReset: () => this.sequencer.isResyncing(),
         onMessage: (msg) => this.sequencer.handle(msg)
       });
       this.applier = new Applier(config.root, {
         onEvent: (id, event, data) => this.handleEvent(id, event, data),
-        onScript: (meta, el) => this.handleScript(meta, el),
-        onScriptCleanup: (scriptId) => this.handleScriptCleanup(scriptId)
+        onScript: (el) => this.scripts.reconcile(el),
+        onScriptCleanup: (el) => this.scripts.releaseHost(el)
       });
       this.executor = new Executor({
         bus: this.bus,
         transport: this.transport,
         resolveRef: (id) => this.applier.element(id)
       });
-      this.scripts = new ScriptExecutor({ bus: this.bus, transport: this.transport });
+      this.scripts = new Scripts({ send: (id, action, payload) => this.transport.sendScript(id, action, payload), lookup });
       this.sequencer = new Sequencer({
         applier: this.applier,
         dispatch: (msg) => this.dispatchMessage(msg),
@@ -2204,8 +2319,8 @@ var LiveUIModule = (() => {
       this.transport.sendHandler(id, event, data);
     }
     dispatchMessage({ topic, event, data }) {
-      if (isScriptTopic(topic)) {
-        if (event === "send") this.bus.publishScript(data.scriptId, "send", data);
+      if (topic === SCRIPT_TOPIC) {
+        if (event === "m" && isScriptMessage(data)) this.scripts.deliver(data.i, data.d);
         return;
       }
       this.bus.publish(topic, event, data);
@@ -2221,16 +2336,6 @@ var LiveUIModule = (() => {
       const el = this.root;
       if (typeof el.toggleAttribute !== "function") return;
       el.toggleAttribute(ATTR_RESYNCING, resyncing);
-    }
-    handleScript(meta, el) {
-      Logger.debug("Runtime", "Script execute", meta.scriptId);
-      this.scripts.execute(meta, el).catch((err) => {
-        Logger.error("Runtime", "Script error", { scriptId: meta.scriptId, error: String(err) });
-      });
-    }
-    handleScriptCleanup(scriptId) {
-      Logger.debug("Runtime", "Script cleanup", scriptId);
-      this.scripts.cleanup(scriptId);
     }
     handleStateChange(state) {
       Logger.debug("Runtime", "Connection state", state);
@@ -2304,7 +2409,7 @@ var LiveUIModule = (() => {
       }
     }
   };
-  function boot() {
+  function boot(bundle) {
     if (typeof window === "undefined") return null;
     const script = document.getElementById("live-boot");
     let bootData = null;
@@ -2326,6 +2431,7 @@ var LiveUIModule = (() => {
       root: document.documentElement,
       sessionId: bootData.sid,
       version: bootData.ver,
+      bundle,
       seq: bootData.seq,
       endpoint: bootData.ws,
       token: bootData.tok,
@@ -2338,14 +2444,19 @@ var LiveUIModule = (() => {
   }
 
   // src/index.ts
-  if (typeof window !== "undefined" && typeof document !== "undefined") {
+  var started = false;
+  function start(hash) {
+    if (started) return;
+    started = true;
+    seal();
+    if (typeof window === "undefined" || typeof document === "undefined") return;
     if (window.location.href.endsWith("#") && window.location.hash === "") {
       history.replaceState(null, "", window.location.pathname + window.location.search);
     }
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => boot());
+      document.addEventListener("DOMContentLoaded", () => boot(hash));
     } else {
-      boot();
+      boot(hash);
     }
   }
   return __toCommonJS(index_exports);

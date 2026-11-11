@@ -5,12 +5,11 @@ export { Bus, Subscription } from './bus';
 export { Applier, ApplierCallbacks, EditError, EditFailure } from './applier';
 export { Sequencer, SequencerDeps, SequencerState } from './sequencer';
 export { Executor, ExecutorConfig } from './executor';
-export { ScriptExecutor, ScriptExecutorConfig } from './scripts';
+export { Scripts, ScriptsConfig, ScriptDef, define } from './scripts';
 
 export {
     Topic,
     StaticTopic,
-    ScriptTopic,
     Boot,
     Edit,
     EditOp,
@@ -31,7 +30,6 @@ export {
     ServerFrame,
     isServerFrame,
     ClientConfig,
-    ScriptMeta,
     RouterNavPayload,
     DOMCallPayload,
     DOMSetPayload,
@@ -43,15 +41,21 @@ export {
 } from './protocol';
 
 import { boot } from './runtime';
+import { seal } from './scripts';
 
-if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+let started = false;
+
+export function start(hash: string): void {
+    if (started) return;
+    started = true;
+    seal();
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
     if (window.location.href.endsWith('#') && window.location.hash === '') {
         history.replaceState(null, '', window.location.pathname + window.location.search);
     }
-
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => boot());
+        document.addEventListener('DOMContentLoaded', () => boot(hash));
     } else {
-        boot();
+        boot(hash);
     }
 }

@@ -1,11 +1,15 @@
 import * as esbuild from 'esbuild';
 import {fileURLToPath} from 'url';
-import {basename, dirname, resolve} from 'path';
+import {basename, dirname, relative, resolve} from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const isWatch = process.argv.includes('--watch');
+const writeLedger = process.argv.includes('--write-ledger');
+const ledgerPath = resolve(__dirname, 'size-ledger.json');
+const LEDGER_SLACK = 1.02;
+const LEDGER_WRITE_MARGIN = 1.05;
 
 const outDir = resolve(__dirname, '../internal/server/static');
 
@@ -37,6 +41,7 @@ const targets = [
         },
         postprocess: async (result) => {
             await reportBundleSize(result.outputFiles?.[0]?.path ?? resolve(outDir, 'pondlive.js'), 'esbuild');
+            await checkLedger(result.metafile);
             await minifyWithTerser(resolve(outDir, 'pondlive.js'));
         },
     },
@@ -53,6 +58,39 @@ const targets = [
         },
     },
 ];
+
+async function checkLedger(metafile) {
+    const fs = await import('fs');
+    const measured = {};
+    for (const output of Object.values(metafile.outputs)) {
+        for (const [input, info] of Object.entries(output.inputs)) {
+            const key = relative(__dirname, resolve(process.cwd(), input)).split('\\').join('/');
+            measured[key] = (measured[key] ?? 0) + info.bytesInOutput;
+        }
+    }
+    if (writeLedger) {
+        const lines = {};
+        for (const key of Object.keys(measured).sort()) {
+            lines[key] = Math.ceil(measured[key] * LEDGER_WRITE_MARGIN);
+        }
+        fs.writeFileSync(ledgerPath, JSON.stringify(lines, null, 2) + '\n');
+        console.log(`ledger written: ${Object.keys(lines).length} modules`);
+        return;
+    }
+    const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf-8'));
+    const failures = [];
+    for (const key of Object.keys(measured).sort()) {
+        if (!(key in ledger)) {
+            failures.push(`${key}: ${measured[key]} B has no line in size-ledger.json`);
+        } else if (measured[key] > Math.floor(ledger[key] * LEDGER_SLACK)) {
+            failures.push(`${key}: ${measured[key]} B is over its ledger line ${ledger[key]} B (+2% allowed)`);
+        }
+    }
+    if (failures.length > 0) {
+        console.error('size ledger exceeded:\n  ' + failures.join('\n  '));
+        process.exit(1);
+    }
+}
 
 async function reportBundleSize(filePath, label) {
     const {statSync} = await import('fs');

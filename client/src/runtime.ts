@@ -3,11 +3,10 @@ import {
     Message,
     Location,
     StaticTopic,
-    isScriptTopic,
+    SCRIPT_TOPIC,
     urlOf,
-    ScriptMeta,
-    ScriptPayload,
     isBoot,
+    isScriptMessage,
 } from './protocol';
 import { ATTR_RESYNCING } from './wire';
 import { Bus } from './bus';
@@ -15,13 +14,14 @@ import { Transport, ConnectionState } from './transport';
 import { Applier } from './applier';
 import { Sequencer } from './sequencer';
 import { Executor } from './executor';
-import { ScriptExecutor } from './scripts';
+import { Scripts, lookup } from './scripts';
 import { Logger } from './logger';
 
 export interface RuntimeConfig {
     root: Node;
     sessionId: string;
     version: number;
+    bundle?: string;
     seq: number;
     endpoint: string;
     token: string;
@@ -47,7 +47,7 @@ export class Runtime {
     private readonly transport: Transport;
     private readonly applier: Applier;
     private readonly executor: Executor;
-    private readonly scripts: ScriptExecutor;
+    private readonly scripts: Scripts;
 
     private readonly sequencer: Sequencer;
     private readonly root: Node;
@@ -66,6 +66,7 @@ export class Runtime {
             token: config.token,
             sessionId: config.sessionId,
             version: config.version,
+            bundle: config.bundle,
             applied: () => this.sequencer.appliedSeq,
             wantsReset: () => this.sequencer.isResyncing(),
             onMessage: (msg) => this.sequencer.handle(msg),
@@ -73,8 +74,8 @@ export class Runtime {
 
         this.applier = new Applier(config.root as Element, {
             onEvent: (id, event, data) => this.handleEvent(id, event, data),
-            onScript: (meta, el) => this.handleScript(meta, el),
-            onScriptCleanup: (scriptId) => this.handleScriptCleanup(scriptId),
+            onScript: (el) => this.scripts.reconcile(el),
+            onScriptCleanup: (el) => this.scripts.releaseHost(el),
         });
 
         this.executor = new Executor({
@@ -83,7 +84,7 @@ export class Runtime {
             resolveRef: (id) => this.applier.element(id),
         });
 
-        this.scripts = new ScriptExecutor({ bus: this.bus, transport: this.transport });
+        this.scripts = new Scripts({ send: (id, action, payload) => this.transport.sendScript(id, action, payload), lookup });
 
         this.sequencer = new Sequencer({
             applier: this.applier,
@@ -141,8 +142,8 @@ export class Runtime {
     }
 
     private dispatchMessage({ topic, event, data }: Message): void {
-        if (isScriptTopic(topic)) {
-            if (event === 'send') this.bus.publishScript((data as ScriptPayload).scriptId, 'send', data as ScriptPayload);
+        if (topic === SCRIPT_TOPIC) {
+            if (event === 'm' && isScriptMessage(data)) this.scripts.deliver(data.i, data.d);
             return;
         }
         this.bus.publish(topic as StaticTopic, event as never, data as never);
@@ -160,18 +161,6 @@ export class Runtime {
         const el = this.root as Element;
         if (typeof el.toggleAttribute !== 'function') return;
         el.toggleAttribute(ATTR_RESYNCING, resyncing);
-    }
-
-    private handleScript(meta: ScriptMeta, el: Element): void {
-        Logger.debug('Runtime', 'Script execute', meta.scriptId);
-        this.scripts.execute(meta, el).catch((err) => {
-            Logger.error('Runtime', 'Script error', { scriptId: meta.scriptId, error: String(err) });
-        });
-    }
-
-    private handleScriptCleanup(scriptId: string): void {
-        Logger.debug('Runtime', 'Script cleanup', scriptId);
-        this.scripts.cleanup(scriptId);
     }
 
     private handleStateChange(state: ConnectionState): void {
@@ -262,7 +251,7 @@ export class Runtime {
     }
 }
 
-export function boot(): Runtime | null {
+export function boot(bundle?: string): Runtime | null {
     if (typeof window === 'undefined') return null;
 
     const script = document.getElementById('live-boot');
@@ -289,6 +278,7 @@ export function boot(): Runtime | null {
         root: document.documentElement,
         sessionId: bootData.sid,
         version: bootData.ver,
+        bundle,
         seq: bootData.seq,
         endpoint: bootData.ws,
         token: bootData.tok,

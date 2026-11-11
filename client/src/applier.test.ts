@@ -362,13 +362,13 @@ describe('Applier ins', () => {
     it('starts data-pscript scripts after the unit is in the document', () => {
         const applier = mount(REGION_LIST);
         let connected: boolean | null = null;
-        callbacks.onScript.mockImplementation((_meta: unknown, el: Element) => {
+        callbacks.onScript.mockImplementation((el: Element) => {
             connected = el.isConnected;
         });
 
-        applier.apply([['ins', 2, 0, `<li data-pi="6" data-pscript='${JSON.stringify({ i: 's6', s: '(e)=>{}' })}'></li>`]]);
+        applier.apply([['ins', 2, 0, `<li data-pi="6" data-pscript="k:6"></li>`]]);
 
-        expect(callbacks.onScript).toHaveBeenCalledWith({ scriptId: 's6', script: '(e)=>{}' }, applier.node(6));
+        expect(callbacks.onScript).toHaveBeenCalledWith(applier.node(6));
         expect(connected).toBe(true);
     });
 });
@@ -475,7 +475,7 @@ describe('Applier rm', () => {
     });
 
     it('walks the removed subtree: ids, text slots, nested regions and scripts are released', () => {
-        const script = JSON.stringify({ i: 's1', s: '(e)=>{}' });
+        const script = 'k:1';
         const applier = mount(
             `<ul data-pi="1"><!--r:2-->` +
                 `<li data-pi="3"><b data-pi="4"><!--t:5-->t</b><div data-pi="6" data-pscript='${script}'></div><!--r:7--><i data-pi="8"></i><!--/r:7--></li>` +
@@ -483,6 +483,7 @@ describe('Applier rm', () => {
                 `<!--/r:2--></ul>`,
         );
         expect(callbacks.onScript).toHaveBeenCalledTimes(1);
+        const host = applier.node(6);
 
         applier.apply([['rm', 3]]);
 
@@ -491,17 +492,17 @@ describe('Applier rm', () => {
         }
         expect(applier.node(9)).toBeDefined();
         expect(callbacks.onScriptCleanup).toHaveBeenCalledTimes(1);
-        expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('s1');
+        expect(callbacks.onScriptCleanup).toHaveBeenCalledWith(host);
         expect(failure(applier, [['ins', 7, 0, '<i data-pi="10"></i>']]).reason).toBe('unresolved');
     });
 
     it('clr releases scripts too', () => {
-        const script = JSON.stringify({ i: 's1', s: '(e)=>{}' });
-        const applier = mount(`<ul data-pi="1"><!--r:2--><li data-pi="3" data-pscript='${script}'></li><!--/r:2--></ul>`);
+        const applier = mount(`<ul data-pi="1"><!--r:2--><li data-pi="3" data-pscript="k:1"></li><!--/r:2--></ul>`);
+        const li = applier.node(3);
 
         applier.apply([['clr', 2]]);
 
-        expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('s1');
+        expect(callbacks.onScriptCleanup).toHaveBeenCalledWith(li);
     });
 
     it('rejects a text slot as a unit', () => {
@@ -579,9 +580,8 @@ describe('Applier strictness', () => {
 
     it('does not start scripts of an insert that failed', () => {
         const applier = mount(REGION_LIST);
-        const script = JSON.stringify({ i: 's1', s: '(e)=>{}' });
 
-        failure(applier, [['ins', 2, 0, `<li data-pi="6" data-pscript='${script}'></li><li data-pi="3"></li>`]]);
+        failure(applier, [['ins', 2, 0, `<li data-pi="6" data-pscript="k:1"></li><li data-pi="3"></li>`]]);
         applier.apply([['t', 3, 'ok']]);
 
         expect(callbacks.onScript).not.toHaveBeenCalled();
@@ -957,15 +957,16 @@ describe('Applier listeners', () => {
 describe('Applier scripts', () => {
     const ran = () => document.documentElement.getAttribute('data-ran');
 
-    it('recreates a server-authored script in an insert so that it executes', () => {
+    it('inserted <script> does not execute', () => {
         const applier = mount(REGION_LIST);
 
         applier.apply([['ins', 2, 0, '<li data-pi="6"><script>document.documentElement.setAttribute("data-ran", "1");</script></li>']]);
 
-        expect(ran()).toBe('1');
+        expect(document.querySelector('li script')).not.toBeNull();
+        expect(ran()).toBeNull();
     });
 
-    it('executes external-style scripts with attributes copied', () => {
+    it('does not copy or recreate script attributes on insert', () => {
         const applier = mount(REGION_LIST);
 
         applier.apply([['ins', 2, 0, '<li data-pi="6"><script type="text/plain" data-x="1">document.documentElement.setAttribute("data-ran", "1");</script></li>']]);
@@ -1003,29 +1004,78 @@ describe('Applier scripts', () => {
         expect(ran()).toBeNull();
     });
 
-    it('starts data-pscript elements at boot and not twice on re-index', () => {
-        const script = JSON.stringify({ i: 's1', s: '(e)=>{}' });
-        const applier = mount(`<div data-pi="1" data-pscript='${script}'></div>`);
+    it('asks for a reconcile of data-pscript elements at boot and again on re-index', () => {
+        const applier = mount(`<div data-pi="1" data-pscript="k:1"></div>`);
 
         applier.index();
 
-        expect(callbacks.onScript).toHaveBeenCalledTimes(1);
-        expect(callbacks.onScript).toHaveBeenCalledWith({ scriptId: 's1', script: '(e)=>{}' }, document.querySelector('div'));
+        expect(callbacks.onScript).toHaveBeenCalledTimes(2);
+        expect(callbacks.onScript).toHaveBeenCalledWith(document.querySelector('div'));
     });
 
-    it('ignores a malformed data-pscript', () => {
-        mount(`<div data-pi="1" data-pscript="{nope"></div><div data-pi="2" data-pscript='{"i":1}'></div>`);
-
-        expect(callbacks.onScript).not.toHaveBeenCalled();
-    });
-
-    it('destroy cleans up every running script', () => {
-        const script = JSON.stringify({ i: 's1', s: '(e)=>{}' });
-        const applier = mount(`<div data-pi="1" data-pscript='${script}'></div>`);
+    it('destroy cleans up every host', () => {
+        const applier = mount(`<div data-pi="1" data-pscript="k:1"></div>`);
 
         applier.destroy();
 
-        expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('s1');
+        expect(callbacks.onScriptCleanup).toHaveBeenCalledWith(document.querySelector('div'));
+    });
+
+    it('asks for one reconcile per host after the whole frame, for attribute edits', () => {
+        const applier = mount(`<div data-pi="1" data-pscript="k:1" data-pprops='{"1":1}'></div>`);
+        callbacks.onScript.mockClear();
+        const seen: string[] = [];
+        callbacks.onScript.mockImplementation((el: Element) => seen.push(el.getAttribute('data-pprops')!));
+
+        applier.apply([
+            ['a', 1, 'data-pprops', '{"1":2}'],
+            ['a', 1, 'data-pprops', '{"1":3}'],
+        ]);
+
+        expect(seen).toEqual(['{"1":3}']);
+    });
+
+    it('removing data-pscript asks the host to be reconciled so its instances go', () => {
+        const applier = mount(`<div data-pi="1" data-pscript="k:1"></div>`);
+        callbacks.onScript.mockClear();
+
+        applier.apply([['ra', 1, 'data-pscript']]);
+
+        expect(callbacks.onScript).toHaveBeenCalledWith(document.querySelector('div'));
+    });
+});
+
+describe('Applier client-owned subtrees', () => {
+    const OWNED =
+        '<div data-pi="1" data-pown=""><span data-pi="2">a</span><!--r:3--><i data-pi="4">x</i><!--/r:3--><!--t:5-->t</div><p data-pi="6">p</p>';
+
+    it('an edit inside data-pown is an EditError', () => {
+        const applier = mount(OWNED);
+
+        for (const edit of [
+            ['a', 2, 'title', 'x'],
+            ['ra', 2, 'title'],
+            ['st', 2, 'color', 'red'],
+            ['t', 5, 'new'],
+            ['ins', 3, 0, '<b data-pi="9"></b>'],
+            ['mv', 4, 3, 0],
+            ['rm', 4],
+            ['clr', 3],
+        ]) {
+            const e = failure(applier, [edit]);
+            expect(e.message).toContain('client-owned');
+        }
+        expect(document.querySelector('span')!.hasAttribute('title')).toBe(false);
+        expect(document.querySelector('i')).not.toBeNull();
+    });
+
+    it('the owner element itself and its siblings stay server-owned', () => {
+        const applier = mount(OWNED);
+
+        applier.apply([['a', 1, 'title', 'owner'], ['t', 6, 'q'], ['rm', 1]]);
+
+        expect(document.querySelector('p')!.textContent).toBe('q');
+        expect(document.querySelector('[data-pown]')).toBeNull();
     });
 });
 
@@ -1112,27 +1162,57 @@ describe('Applier morph', () => {
         expect(callbacks.onEvent).toHaveBeenCalledWith(2, 'click', {});
     });
 
-    it('keeps scripts of kept elements running and starts the new ones', () => {
-        const one = JSON.stringify({ i: 's1', s: '(e)=>{}' });
-        const two = JSON.stringify({ i: 's2', s: '(e)=>{}' });
-        const applier = mount(`<div data-pi="1" data-pscript='${one}'></div>`);
+    it('reconciles kept and new script hosts and cleans up none of the kept ones', () => {
+        const applier = mount(`<div data-pi="1" data-pscript="k:1"></div>`);
+        const kept = document.querySelector('div');
         callbacks.onScript.mockClear();
 
-        applier.morph(doc(`<div data-pi="1" data-pscript='${one}'></div><div data-pi="2" data-pscript='${two}'></div>`));
+        applier.morph(doc(`<div data-pi="1" data-pscript="k:1"></div><div data-pi="2" data-pscript="k:2"></div>`));
 
-        expect(callbacks.onScript).toHaveBeenCalledTimes(1);
-        expect(callbacks.onScript.mock.calls[0][0].scriptId).toBe('s2');
+        expect(callbacks.onScript.mock.calls.map((c) => (c[0] as Element).getAttribute('data-pi')).sort()).toEqual(['1', '2']);
+        expect(document.querySelector('div')).toBe(kept);
         expect(callbacks.onScriptCleanup).not.toHaveBeenCalled();
     });
 
     it('cleans up the scripts of elements the reset removed', () => {
-        const one = JSON.stringify({ i: 's1', s: '(e)=>{}' });
-        const applier = mount(`<div data-pi="1" data-pscript='${one}'></div><p data-pi="2"></p>`);
+        const applier = mount(`<div data-pi="1" data-pscript="k:1"></div><p data-pi="2"></p>`);
+        const gone = document.querySelector('div');
 
         applier.morph(doc('<p data-pi="2"></p>'));
 
         expect(callbacks.onScriptCleanup).toHaveBeenCalledTimes(1);
-        expect(callbacks.onScriptCleanup).toHaveBeenCalledWith('s1');
+        expect(callbacks.onScriptCleanup).toHaveBeenCalledWith(gone);
+    });
+
+    it('asks a kept host to reconcile when the reset changes its data-pscript, and when it drops it', () => {
+        const applier = mount(`<div data-pi="1" data-pscript="k:1"></div><p data-pi="2" data-pscript="k:2"></p>`);
+        callbacks.onScript.mockClear();
+
+        applier.morph(doc(`<div data-pi="1" data-pscript="k:3"></div><p data-pi="2"></p>`));
+
+        const asked = callbacks.onScript.mock.calls.map((c) => (c[0] as Element).tagName);
+        expect(asked.sort()).toEqual(['DIV', 'P']);
+        expect(document.querySelector('div')!.getAttribute('data-pscript')).toBe('k:3');
+    });
+
+    it('morph keeps children under data-pown and still updates its attributes', () => {
+        const applier = mount(`<div data-pi="1" data-pown="" title="a"><span class="client">made by script</span></div>`);
+        const span = document.querySelector('span');
+
+        applier.morph(doc(`<div data-pi="1" data-pown="" title="b"><b>server child</b></div>`));
+
+        expect(document.querySelector('div')!.getAttribute('title')).toBe('b');
+        expect(document.querySelector('span')).toBe(span);
+        expect(document.querySelector('div b')).toBeNull();
+    });
+
+    it('morphs the children of an element that is not client-owned', () => {
+        const applier = mount(`<div data-pi="1" title="a"><span>old</span></div>`);
+
+        applier.morph(doc(`<div data-pi="1" title="b"><b>new</b></div>`));
+
+        expect(document.querySelector('div b')).not.toBeNull();
+        expect(document.querySelector('div span')).toBeNull();
     });
 
     it('carries the exit attributes and drops them when the reset has none', () => {

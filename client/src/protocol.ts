@@ -4,15 +4,11 @@ import type {
     EvackFrame,
     JoinedFrame,
     Message,
-    ScriptPayload,
-    ScriptTopic,
     StaticTopic,
     StaticTopicActionMap,
     TokFrame,
     Topic,
 } from './wire';
-import { SCRIPT_TOPIC_PREFIX } from './wire';
-
 export type {
     Boot,
     ClientAck,
@@ -49,10 +45,6 @@ export type {
     RouterPopstatePayload,
     RouterRedirectPayload,
     RouterServerAction,
-    ScriptClientAction,
-    ScriptPayload,
-    ScriptServerAction,
-    ScriptTopic,
     StaticTopic,
     StaticTopicActionMap,
     TokFrame,
@@ -63,17 +55,15 @@ export function urlOf(path: string, query: string, hash: string): string {
     return path + (query ? `?${query}` : '') + (hash ? (hash.startsWith('#') ? hash : `#${hash}`) : '');
 }
 
-export function isScriptTopic(topic: string): topic is ScriptTopic {
-    return topic.startsWith(SCRIPT_TOPIC_PREFIX);
+export const SCRIPT_TOPIC = 's';
+
+export interface ScriptMessage {
+    i: number;
+    d: unknown;
 }
 
-export function scriptTopic(scriptId: string): ScriptTopic {
-    return `${SCRIPT_TOPIC_PREFIX}${scriptId}`;
-}
-
-export interface ScriptMeta {
-    scriptId: string;
-    script: string;
+export function isScriptMessage(data: unknown): data is ScriptMessage {
+    return typeof data === 'object' && data !== null && Number.isInteger((data as ScriptMessage).i);
 }
 
 export type ServerFrame = JoinedFrame | DeclinedFrame | TokFrame | EvackFrame;
@@ -105,23 +95,10 @@ export interface HandlerEventPayload {
     [key: string]: unknown;
 }
 
-export interface ScriptTopicActions {
-    send: ScriptPayload;
-    message: ScriptPayload;
-}
-
-export type ActionFor<T extends Topic> = T extends StaticTopic
-    ? keyof StaticTopicActionMap[T]
-    : T extends ScriptTopic
-        ? keyof ScriptTopicActions
-        : never;
+export type ActionFor<T extends Topic> = T extends StaticTopic ? keyof StaticTopicActionMap[T] : never;
 
 export type PayloadFor<T extends Topic, A extends string> = T extends StaticTopic
     ? A extends keyof StaticTopicActionMap[T]
         ? StaticTopicActionMap[T][A]
         : never
-    : T extends ScriptTopic
-        ? A extends keyof ScriptTopicActions
-            ? ScriptTopicActions[A]
-            : never
-        : never;
+    : never;

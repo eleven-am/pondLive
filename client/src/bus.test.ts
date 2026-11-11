@@ -137,37 +137,6 @@ describe('Bus', () => {
         });
     });
 
-    describe('subscribeScript', () => {
-        it('should subscribe to script topic', () => {
-            const callback = vi.fn();
-            bus.subscribeScript('script-1', 'send', callback);
-
-            bus.publishScript('script-1', 'send', { scriptId: 'script-1', event: 'test' });
-
-            expect(callback).toHaveBeenCalledWith({ scriptId: 'script-1', event: 'test' });
-        });
-    });
-
-    describe('publishScript', () => {
-        it('should publish to script subscribers', () => {
-            const callback = vi.fn();
-            bus.subscribeScript('script-1', 'message', callback);
-
-            bus.publishScript('script-1', 'message', { scriptId: 'script-1', event: 'update', data: { foo: 'bar' } });
-
-            expect(callback).toHaveBeenCalledWith({ scriptId: 'script-1', event: 'update', data: { foo: 'bar' } });
-        });
-
-        it('should notify wildcard subscribers', () => {
-            const callback = vi.fn();
-            bus.subscribeAll(callback);
-
-            bus.publishScript('script-1', 'send', { scriptId: 'script-1', event: 'test' });
-
-            expect(callback).toHaveBeenCalledWith('script:script-1', 'send', { scriptId: 'script-1', event: 'test' });
-        });
-    });
-
     describe('clear', () => {
         it('should remove all subscribers', () => {
             const callback = vi.fn();
@@ -223,18 +192,6 @@ describe('Bus', () => {
 
             expect(after).toHaveBeenCalled();
             expect(errorSpy).toHaveBeenCalledTimes(1);
-        });
-
-        it('logs a throwing subscriber on publishScript', () => {
-            const after = vi.fn();
-            bus.subscribeScript('s1', 'send', boom);
-            bus.subscribeScript('s1', 'send', after);
-
-            bus.publishScript('s1', 'send', { event: 'e', data: null } as never);
-
-            expect(after).toHaveBeenCalled();
-            expect(errorSpy).toHaveBeenCalledTimes(1);
-            expect(errorSpy.mock.calls[0][2]).toMatchObject({ action: 'send' });
         });
     });
 });

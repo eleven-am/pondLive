@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-    isScriptTopic,
-    scriptTopic,
+    isScriptMessage,
+    SCRIPT_TOPIC,
     isBoot,
     isMessage,
     Boot,
@@ -9,24 +9,19 @@ import {
 } from './protocol';
 
 describe('protocol', () => {
-    describe('isScriptTopic', () => {
-        it('should return true for script topics', () => {
-            expect(isScriptTopic('script:abc123')).toBe(true);
-            expect(isScriptTopic('script:my-script-id')).toBe(true);
-            expect(isScriptTopic('script:')).toBe(true);
+    describe('isScriptMessage', () => {
+        it('uses the single-letter topic', () => {
+            expect(SCRIPT_TOPIC).toBe('s');
         });
 
-        it('should return false for non-script topics', () => {
-            expect(isScriptTopic('router')).toBe(false);
-            expect(isScriptTopic('dom')).toBe(false);
-            expect(isScriptTopic('h')).toBe(false);
-        });
-    });
-
-    describe('scriptTopic', () => {
-        it('should create script topic from script id', () => {
-            expect(scriptTopic('abc123')).toBe('script:abc123');
-            expect(scriptTopic('my-script')).toBe('script:my-script');
+        it('requires an integer instance id', () => {
+            expect(isScriptMessage({ i: 42, d: { a: 1 } })).toBe(true);
+            expect(isScriptMessage({ i: 42 })).toBe(true);
+            expect(isScriptMessage({ i: '42', d: 1 })).toBe(false);
+            expect(isScriptMessage({ i: 1.5 })).toBe(false);
+            expect(isScriptMessage({ scriptId: 's1' })).toBe(false);
+            expect(isScriptMessage(null)).toBe(false);
+            expect(isScriptMessage('s')).toBe(false);
         });
     });
 

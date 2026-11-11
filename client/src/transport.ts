@@ -9,12 +9,10 @@ import {
     ResyncReason,
     Message,
     isMessage,
-    isScriptTopic,
-    scriptTopic,
     JoinFrame,
     isServerFrame,
     HandlerEventPayload,
-    ScriptPayload,
+    SCRIPT_TOPIC,
 } from './protocol';
 import { STATIC_TOPICS } from './wire';
 import {Logger} from "./logger";
@@ -32,6 +30,7 @@ export interface TransportConfig {
     token: string;
     sessionId: string;
     version: number;
+    bundle?: string;
     applied: () => number;
     wantsReset: () => boolean;
     onMessage: (msg: Message) => void;
@@ -51,6 +50,7 @@ export class Transport {
     private readonly endpoint: string;
     private token: string;
     private readonly version: number;
+    private readonly bundle: string | undefined;
     private readonly applied: () => number;
     private readonly wantsReset: () => boolean;
     private readonly onMessage: (msg: Message) => void;
@@ -72,6 +72,7 @@ export class Transport {
         this.token = config.token;
         this.sessionId = config.sessionId;
         this.version = config.version;
+        this.bundle = config.bundle;
         this.applied = config.applied;
         this.wantsReset = config.wantsReset;
         this.onMessage = config.onMessage;
@@ -145,8 +146,8 @@ export class Transport {
         this.sendEvent('h', event, payload, id);
     }
 
-    sendScript(scriptId: string, payload: ScriptPayload): void {
-        this.sendEvent(scriptTopic(scriptId), 'message', payload);
+    sendScript(id: number, action: 'm' | 'err', payload: unknown): void {
+        this.sendEvent(SCRIPT_TOPIC, action, payload, id);
     }
 
     private handleMessage(payload: unknown): void {
@@ -160,7 +161,7 @@ export class Transport {
     }
 
     private isValidTopic(topic: string): boolean {
-        return (STATIC_TOPICS as string[]).includes(topic) || isScriptTopic(topic);
+        return (STATIC_TOPICS as string[]).includes(topic) || topic === SCRIPT_TOPIC;
     }
 
     private open(): void {
@@ -184,7 +185,7 @@ export class Transport {
 
         socket.onopen = () => {
             if (this.socket !== socket) return;
-            const join: JoinFrame = {
+            const join: JoinFrame & { b?: string } = {
                 t: 'join',
                 sid: this.sessionId,
                 tok: this.token,
@@ -192,6 +193,7 @@ export class Transport {
                 bs: this.applied(),
                 resync: this.wantsReset(),
             };
+            if (this.bundle !== undefined) join.b = this.bundle;
             socket.send(JSON.stringify(join));
         };
         socket.onmessage = (event: MessageEvent) => {
@@ -363,9 +365,9 @@ export class Transport {
         }
     }
 
-    private sendEvent(topic: EventTopic, action: string, payload: unknown, id?: number): void {
+    private sendEvent(topic: EventTopic | typeof SCRIPT_TOPIC, action: string, payload: unknown, id?: number): void {
         const evt: ClientEvt = {
-            t: topic,
+            t: topic as EventTopic,
             sid: this.sessionId,
             a: action,
             p: payload,

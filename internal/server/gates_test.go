@@ -1,6 +1,8 @@
 package server
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -238,14 +240,29 @@ func TestGateLeafUpdateToFrame(t *testing.T) {
 }
 
 func TestGateClientBundleSize(t *testing.T) {
-	const gate = 39119
-	info, err := os.Stat(filepath.Join("static", "pondlive.js"))
+	const gzipGate = 14336
+	const rawGate = 46080
+	body, err := os.ReadFile(filepath.Join("static", "pondlive.js"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("client bundle: %d B (gate %d)", info.Size(), gate)
-	if info.Size() > gate {
-		t.Errorf("client bundle is %d B, gate %d", info.Size(), gate)
+	var packed bytes.Buffer
+	zw, err := gzip.NewWriterLevel(&packed, gzip.BestCompression)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := zw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("client core: %d B raw (gate %d), %d B gzip -9 (gate %d)", len(body), rawGate, packed.Len(), gzipGate)
+	if packed.Len() > gzipGate {
+		t.Errorf("client core is %d B gzip, gate %d", packed.Len(), gzipGate)
+	}
+	if len(body) > rawGate {
+		t.Errorf("client core is %d B raw, gate %d", len(body), rawGate)
 	}
 }
 

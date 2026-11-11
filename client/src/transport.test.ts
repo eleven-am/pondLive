@@ -86,6 +86,13 @@ describe('Transport', () => {
         return ws;
     }
 
+    function joinedForDecline(): FakeWebSocket {
+        transport.connect();
+        const ws = latest();
+        ws.open();
+        return ws;
+    }
+
     describe('identity and initial state', () => {
         it('exposes the session id', () => {
             expect(transport.sid).toBe('test-session');
@@ -122,6 +129,39 @@ describe('Transport', () => {
                 { t: 'join', sid: 'test-session', tok: 'tok-1', ver: 1, bs: 7, resync: false },
             ]);
             expect(transport.connectionState).toBe('connecting');
+        });
+
+        it('join carries b when a bundle hash was given and omits it otherwise', () => {
+            const withBundle = new Transport({
+                endpoint: '/live',
+                token: 'tok-1',
+                sessionId: 'test-session',
+                version: 1,
+                bundle: 'abc123def456',
+                applied: () => 3,
+                wantsReset: () => false,
+                onMessage: () => {},
+            });
+            withBundle.connect();
+            latest().open();
+
+            expect(latest().frames()).toEqual([
+                { t: 'join', sid: 'test-session', tok: 'tok-1', ver: 1, bs: 3, resync: false, b: 'abc123def456' },
+            ]);
+            withBundle.disconnect();
+            transport.connect();
+            latest().open();
+            expect(latest().frames()[0]).not.toHaveProperty('b');
+        });
+
+        it('an assets changed decline ends the session without reconnecting', () => {
+            const ws = joinedForDecline();
+
+            ws.receive({ t: 'declined', code: 4400, reason: 'assets changed' });
+
+            expect(transport.connectionState).toBe('declined');
+            vi.advanceTimersByTime(120000);
+            expect(FakeWebSocket.instances).toHaveLength(1);
         });
 
         it('becomes connected on joined', () => {
@@ -489,15 +529,24 @@ describe('Transport', () => {
         it('sends script frames', () => {
             const ws = joined();
 
-            transport.sendScript('s1', { scriptId: 's1', event: 'ready', data: 1 });
+            transport.sendScript(42, 'm', { kind: 'ready', n: 1 });
 
             expect(ws.frames()[1]).toEqual({
-                t: 'script:s1',
+                t: 's',
                 sid: 'test-session',
-                a: 'message',
-                p: { scriptId: 's1', event: 'ready', data: 1 },
+                a: 'm',
+                i: 42,
+                p: { kind: 'ready', n: 1 },
                 cs: 1,
             });
+        });
+
+        it('sends script errors on the same topic', () => {
+            const ws = joined();
+
+            transport.sendScript(7, 'err', { n: 'def', m: 'boom' });
+
+            expect(ws.frames()[1]).toEqual({ t: 's', sid: 'test-session', a: 'err', i: 7, p: { n: 'def', m: 'boom' }, cs: 1 });
         });
 
         it('numbers events monotonically across topics', () => {
@@ -505,7 +554,7 @@ describe('Transport', () => {
 
             transport.sendHandler(3, 'click', {});
             transport.send('router', 'popstate', { path: '/', query: '', hash: '' });
-            transport.sendScript('s1', { scriptId: 's1', event: 'e' });
+            transport.sendScript(1, 'm', { e: 1 });
 
             expect(ws.frames().slice(1).map((f) => f.cs)).toEqual([1, 2, 3]);
         });
@@ -727,7 +776,7 @@ describe('Transport', () => {
             ['frame', 'reset', { html: '<html></html>', meta: [], location: { path: '/', query: {}, hash: '' }, cause: 'rejoin-gap' }],
             ['router', 'push', { path: '/new', query: '', hash: '', replace: false }],
             ['dom', 'call', { ref: 'myRef', method: 'focus' }],
-            ['script:s1', 'send', { scriptId: 's1', event: 'start' }],
+            ['s', 'm', { i: 42, d: { kind: 'start' } }],
         ])('hands %s/%s to onMessage untouched', (topic, event, data) => {
             const ws = joined();
 

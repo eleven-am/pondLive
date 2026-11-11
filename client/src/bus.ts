@@ -1,15 +1,11 @@
 import {
     Topic,
-    StaticTopic,
-    ScriptTopic,
     ActionFor,
     PayloadFor,
-    ScriptTopicActions,
-    scriptTopic,
 } from './protocol';
 import { Logger } from './logger';
 
-type SubscriberKey = `${StaticTopic}:${string}` | `${ScriptTopic}:${string}`;
+type SubscriberKey = `${Topic}:${string}`;
 type Callback<P> = (payload: P) => void;
 
 interface Subscriber {
@@ -107,22 +103,6 @@ export class Bus {
     subscriberCount<T extends Topic, A extends ActionFor<T>>(topic: T, action: A): number {
         const key: SubscriberKey = `${topic}:${String(action)}`;
         return this.subscribers.get(key)?.length ?? 0;
-    }
-
-    subscribeScript<A extends keyof ScriptTopicActions>(
-        scriptId: string,
-        action: A,
-        callback: Callback<ScriptTopicActions[A]>
-    ): Subscription {
-        return this.subscribe(scriptTopic(scriptId), action, callback);
-    }
-
-    publishScript<A extends keyof ScriptTopicActions>(
-        scriptId: string,
-        action: A,
-        payload: ScriptTopicActions[A]
-    ): void {
-        this.deliver(scriptTopic(scriptId), String(action), payload);
     }
 
     clear(): void {

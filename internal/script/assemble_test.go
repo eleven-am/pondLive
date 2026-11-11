@@ -177,7 +177,13 @@ func TestEsbuildPinnedExactly(t *testing.T) {
 	if checkPackageJSONPin(`{"devDependencies":{"esbuild":"0.28.2"}}`) != nil {
 		t.Error("exact package.json pin rejected")
 	}
-	// TODO: assert client/package.json with checkPackageJSONPin once the esbuild 0.28.2 pin lands in the client
+	pkg, err := os.ReadFile("../../client/package.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkPackageJSONPin(string(pkg)); err != nil {
+		t.Error(err)
+	}
 }
 
 const esbuildVersion = "0.28.2"
